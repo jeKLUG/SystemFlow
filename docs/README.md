@@ -7,4 +7,4 @@
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
 | [TODO-DOCS.md](TODO-DOCS.md) | Offene Punkte |
 
-Systemhaus-Ess ist die interne App für Kundenstammdaten und Browser-Dokumente. Lexware bleibt extern für Rechnungen.
+Systemhaus-Ess ist die interne App für Kundenstammdaten, Anlagen, Einsatz-Historie und Browser-Dokumente inkl. Vorlagen und Suche. Lexware bleibt extern für Rechnungen.

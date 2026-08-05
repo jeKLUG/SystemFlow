@@ -4,7 +4,9 @@ import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { customers, documents } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { getTemplate } from "../lib/templates.js";
 import { requireAuth } from "../plugins/auth.js";
+import { addActivity } from "./activities.js";
 
 const EMPTY_DOC = JSON.stringify({
   type: "doc",
@@ -13,9 +15,10 @@ const EMPTY_DOC = JSON.stringify({
 
 const createBody = z.object({
   customerId: z.string().min(1),
-  type: z.enum(["note", "protocol", "documentation"]),
-  title: z.string().min(1).max(300),
+  type: z.enum(["note", "protocol", "documentation"]).optional(),
+  title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
+  templateId: z.string().optional(),
 });
 
 const updateBody = z.object({
@@ -93,18 +96,34 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
       .get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
+    const template = parsed.data.templateId ? getTemplate(parsed.data.templateId) : undefined;
+    if (parsed.data.templateId && !template) {
+      return reply.code(404).send({ error: "Vorlage nicht gefunden" });
+    }
+
     const now = new Date();
+    const title = (parsed.data.title ?? template?.title ?? "Unbenannt").trim();
+    const type = parsed.data.type ?? template?.type ?? "note";
+    const content = parsed.data.content ?? template?.content ?? EMPTY_DOC;
+
     const row = {
       id: createId("doc"),
       customerId: parsed.data.customerId,
-      type: parsed.data.type,
-      title: parsed.data.title.trim(),
-      content: parsed.data.content ?? EMPTY_DOC,
+      type,
+      title,
+      content,
       createdAt: now,
       updatedAt: now,
     };
 
     await db.insert(documents).values(row);
+    await addActivity(
+      db,
+      parsed.data.customerId,
+      `Dokument erstellt: ${title}`,
+      template ? `Vorlage: ${template.name}` : null,
+      now,
+    );
     return reply.code(201).send(row);
   });
 

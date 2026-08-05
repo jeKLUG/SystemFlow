@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.0 – 2026-08-05
+
+- Anlagen/Geräte pro Kunde (Typ, Seriennummer, Garantie)
+- Einsatz-Historie als Timeline (manuell + Auto bei Dokument/Anlage)
+- Dokumentvorlagen: Wartungsprotokoll, Übergabe, Störungsbericht
+- Globale Volltextsuche über Kunden, Dokumente, Anlagen, Historie
+
 ## 1.0.2 – 2026-08-05
 
 - Deploy: Docker-Build mit sichtbarer Ausgabe; systemd nutzt `bash -lc` + `--env-file`

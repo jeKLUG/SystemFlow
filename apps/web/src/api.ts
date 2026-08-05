@@ -71,4 +71,30 @@ export const api = {
     }),
   deleteDocument: (id: string) =>
     request<{ ok: boolean }>(`/api/documents/${id}`, { method: "DELETE" }),
+  assets: (customerId: string) =>
+    request<import("./types").Asset[]>(`/api/customers/${customerId}/assets`),
+  createAsset: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").Asset>(`/api/customers/${customerId}/assets`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateAsset: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").Asset>(`/api/assets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteAsset: (id: string) =>
+    request<{ ok: boolean }>(`/api/assets/${id}`, { method: "DELETE" }),
+  activities: (customerId: string) =>
+    request<import("./types").Activity[]>(`/api/customers/${customerId}/activities`),
+  createActivity: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").Activity>(`/api/customers/${customerId}/activities`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteActivity: (id: string) =>
+    request<{ ok: boolean }>(`/api/activities/${id}`, { method: "DELETE" }),
+  templates: () => request<import("./types").TemplateMeta[]>("/api/templates"),
+  search: (q: string) =>
+    request<import("./types").SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
 };

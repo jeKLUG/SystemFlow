@@ -26,6 +26,9 @@ Browser (React SPA)
 - **users** – Admin (V1: ein Benutzer aus Env)
 - **customers** – Stammdaten
 - **documents** – TipTap-JSON, Typ `note` \| `protocol` \| `documentation`
+- **assets** – Anlagen/Geräte je Kunde
+- **activities** – Einsatz-Historie (manuell + automatisch bei Dokument/Anlage)
+- **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
 
 ## Auth
 

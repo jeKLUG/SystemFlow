@@ -7,7 +7,10 @@ Interne Organisations-App für **Systemhaus-Ess**: Kunden verwalten und Dokument
 - Moderne Dark-UI mit blauer Akzentfarbe (Handy + Desktop)
 - Admin-Login
 - Kunden anlegen, suchen, bearbeiten
-- TipTap-Editor (Confluence-nah) mit Autosave
+- Anlagen/Geräte inkl. Seriennummer und Garantie
+- Einsatz-Historie (Timeline)
+- TipTap-Editor mit Vorlagen (Wartung, Übergabe, Störung)
+- Globale Volltextsuche
 - Docker-Deploy auf Linux inkl. systemd
 
 ## Login (Standard)

@@ -34,6 +34,41 @@ export const documents = sqliteTable("documents", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/** Anlagen / Geräte pro Kunde. */
+export const assets = sqliteTable("assets", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  kind: text("kind", {
+    enum: ["pc", "server", "firewall", "license", "network", "other"],
+  })
+    .notNull()
+    .default("other"),
+  manufacturer: text("manufacturer"),
+  model: text("model"),
+  serialNumber: text("serial_number"),
+  warrantyUntil: text("warranty_until"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Einsatz-/Aktivitäten-Historie pro Kunde. */
+export const activities = sqliteTable("activities", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  occurredAt: integer("occurred_at", { mode: "timestamp_ms" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Document = typeof documents.$inferSelect;
+export type Asset = typeof assets.$inferSelect;
+export type Activity = typeof activities.$inferSelect;

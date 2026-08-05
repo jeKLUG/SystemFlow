@@ -1,5 +1,6 @@
 export type CustomerStatus = "active" | "inactive";
 export type DocumentType = "note" | "protocol" | "documentation";
+export type AssetKind = "pc" | "server" | "firewall" | "license" | "network" | "other";
 
 export interface User {
   id: string;
@@ -35,6 +36,66 @@ export interface RecentDocument {
   customerId: string;
   customerName: string;
   updatedAt: string;
+}
+
+export interface Asset {
+  id: string;
+  customerId: string;
+  name: string;
+  kind: AssetKind;
+  manufacturer: string | null;
+  model: string | null;
+  serialNumber: string | null;
+  warrantyUntil: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Activity {
+  id: string;
+  customerId: string;
+  title: string;
+  description: string | null;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface TemplateMeta {
+  id: string;
+  name: string;
+  description: string;
+  type: DocumentType;
+  title: string;
+}
+
+export interface SearchResult {
+  q: string;
+  customers: Array<Pick<Customer, "id" | "name" | "email" | "phone" | "status">>;
+  documents: Array<{
+    id: string;
+    title: string;
+    type: DocumentType;
+    customerId: string;
+    customerName: string;
+    updatedAt: string;
+  }>;
+  assets: Array<{
+    id: string;
+    name: string;
+    kind: AssetKind;
+    serialNumber: string | null;
+    customerId: string;
+    customerName: string;
+  }>;
+  activities: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    customerId: string;
+    customerName: string;
+    occurredAt: string;
+  }>;
 }
 
 export interface Stats {

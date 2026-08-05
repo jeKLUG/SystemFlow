@@ -17,6 +17,7 @@ export function Layout() {
             Start
           </NavLink>
           <NavLink to="/customers">Kunden</NavLink>
+          <NavLink to="/search">Suche</NavLink>
         </nav>
         <div className="topbar-actions">
           <span className="user-chip">{user?.username}</span>

@@ -6,6 +6,7 @@ import { CustomersPage } from "./pages/CustomersPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentPage } from "./pages/DocumentPage";
 import { LoginPage } from "./pages/LoginPage";
+import { SearchPage } from "./pages/SearchPage";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -27,6 +28,7 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
+        <Route path="search" element={<SearchPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="documents/:id" element={<DocumentPage />} />

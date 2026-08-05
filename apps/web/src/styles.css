@@ -586,6 +586,48 @@ h2 {
   height: 0;
 }
 
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.4rem;
+  border-left: 2px solid rgba(90, 160, 255, 0.25);
+}
+
+.timeline-item {
+  position: relative;
+  padding: 0 0 1.25rem 1.2rem;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -0.45rem;
+  top: 0.35rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.timeline-body {
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.timeline-body p {
+  margin: 0.35rem 0;
+}
+
+.asset-row {
+  align-items: flex-start;
+}
+
+.asset-row .muted {
+  display: block;
+}
+
 @media (max-width: 760px) {
   .nav {
     gap: 0.65rem;
