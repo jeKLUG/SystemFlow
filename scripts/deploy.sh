@@ -6,11 +6,11 @@
 #   sudo SYSTEMFLOW_PORT=8080 SYSTEMFLOW_DIR=/opt/systemflow ./scripts/deploy.sh
 #
 # Einzeiler (Repo muss auf GitHub erreichbar sein):
-#   curl -fsSL https://raw.githubusercontent.com/YeSkorpion/SystemFlow/main/scripts/deploy.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo bash
 #
 set -euo pipefail
 
-REPO_URL="${SYSTEMFLOW_REPO:-https://github.com/YeSkorpion/SystemFlow.git}"
+REPO_URL="${SYSTEMFLOW_REPO:-https://github.com/jeKLUG/SystemFlow.git}"
 INSTALL_DIR="${SYSTEMFLOW_DIR:-/opt/systemflow}"
 PORT="${SYSTEMFLOW_PORT:-8080}"
 BRANCH="${SYSTEMFLOW_BRANCH:-main}"

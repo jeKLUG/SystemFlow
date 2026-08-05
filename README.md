@@ -7,7 +7,7 @@ Schlanke Webapp im Dark Design mit blauer Akzentfarbe. Statische Dateien – ein
 Installieren, updaten und als Dauer-Dienst starten:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/YeSkorpion/SystemFlow/main/scripts/deploy.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo bash
 ```
 
 Oder lokal im Repo:
