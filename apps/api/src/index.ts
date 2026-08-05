@@ -13,6 +13,7 @@ import { ensureAdmin } from "./lib/seed.js";
 import { activityRoutes } from "./routes/activities.js";
 import { appointmentRoutes } from "./routes/appointments.js";
 import { assetRoutes } from "./routes/assets.js";
+import { networkRoutes } from "./routes/network.js";
 import { attachmentRoutes } from "./routes/attachments.js";
 import { authRoutes } from "./routes/auth.js";
 import { contractRoutes } from "./routes/contracts.js";
@@ -70,6 +71,7 @@ async function main() {
   await app.register(async (scoped) => projectRoutes(scoped, db));
   await app.register(async (scoped) => timeEntryRoutes(scoped, db));
   await app.register(async (scoped) => assetRoutes(scoped, db));
+  await app.register(async (scoped) => networkRoutes(scoped, db));
   await app.register(async (scoped) => activityRoutes(scoped, db));
   await app.register(async (scoped) => taskRoutes(scoped, db));
   await app.register(async (scoped) => appointmentRoutes(scoped, db));

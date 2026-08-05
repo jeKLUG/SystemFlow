@@ -1,19 +1,31 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { CustomerPicker } from "../components/CustomerPicker";
 import {
   appointmentTouchesDate,
   buildMonthGrid,
+  buildWeekDays,
+  dayLabel,
   formatAppointmentTime,
+  formatHour,
+  fromIsoDate,
+  hourLabels,
   monthLabel,
   sameDay,
+  timedEventLayout,
   toIsoDate,
+  weekLabel,
 } from "../lib/calendar";
 import { appointmentKindLabel } from "../lib/labels";
 import type { AppointmentItem, AppointmentKind } from "../types";
 
+type CalView = "month" | "week" | "day";
+
 const weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
+const DAY_START = 7;
+const DAY_END = 20;
+const HOURS = hourLabels(DAY_START, DAY_END);
 
 const emptyForm = {
   title: "",
@@ -28,47 +40,49 @@ const emptyForm = {
   description: "",
 };
 
-function selectedDayHeading(iso: string) {
-  try {
-    return new Intl.DateTimeFormat("de-DE", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date(`${iso}T12:00:00`));
-  } catch {
-    return iso;
-  }
+function sortDayItems(items: AppointmentItem[]) {
+  return [...items].sort((a, b) => {
+    if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+    return (a.startTime ?? "").localeCompare(b.startTime ?? "");
+  });
 }
 
 /**
- * Monatskalender für Kunden- und allgemeine Termine.
+ * Vollflächen-Kalender mit Monats-, Wochen- und Tagesansicht.
  */
 export function CalendarPage() {
   const [params] = useSearchParams();
   const presetCustomer = params.get("customerId") ?? "";
-  const [month, setMonth] = useState(() => {
-    const d = new Date();
-    return new Date(d.getFullYear(), d.getMonth(), 1);
-  });
+  const [view, setView] = useState<CalView>("month");
+  const [anchor, setAnchor] = useState(() => new Date());
   const [selected, setSelected] = useState(toIsoDate(new Date()));
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm, customerId: presetCustomer });
   const [error, setError] = useState("");
   const [filterKind, setFilterKind] = useState<"" | AppointmentKind>("");
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  const grid = useMemo(() => buildMonthGrid(month), [month]);
-  const from = toIsoDate(grid[0]);
-  const to = toIsoDate(grid[grid.length - 1]);
+  const monthGrid = useMemo(() => buildMonthGrid(anchor), [anchor]);
+  const weekDays = useMemo(() => buildWeekDays(fromIsoDate(selected)), [selected]);
+
+  const range = useMemo(() => {
+    if (view === "month") {
+      return { from: toIsoDate(monthGrid[0]!), to: toIsoDate(monthGrid[monthGrid.length - 1]!) };
+    }
+    if (view === "week") {
+      return { from: toIsoDate(weekDays[0]!), to: toIsoDate(weekDays[6]!) };
+    }
+    return { from: selected, to: selected };
+  }, [view, monthGrid, weekDays, selected]);
 
   async function reload() {
-    setAppointments(await api.appointments({ from, to }));
+    setAppointments(await api.appointments({ from: range.from, to: range.to }));
   }
 
   useEffect(() => {
     void reload().catch(() => setError("Kalender konnte nicht geladen werden"));
-  }, [from, to]);
+  }, [range.from, range.to]);
 
   const filtered = useMemo(() => {
     let rows = appointments;
@@ -77,51 +91,72 @@ export function CalendarPage() {
     return rows;
   }, [appointments, filterKind, presetCustomer]);
 
-  const byDay = useMemo(() => {
-    const map = new Map<string, AppointmentItem[]>();
-    for (const day of grid) {
-      const iso = toIsoDate(day);
-      map.set(
-        iso,
-        filtered
-          .filter((a) => appointmentTouchesDate(a.startDate, a.endDate, iso))
-          .sort((a, b) => {
-            if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
-            return (a.startTime ?? "").localeCompare(b.startTime ?? "");
-          }),
-      );
-    }
-    return map;
-  }, [grid, filtered]);
+  const itemsForDay = (iso: string) =>
+    sortDayItems(
+      filtered.filter((a) => appointmentTouchesDate(a.startDate, a.endDate, iso)),
+    );
 
-  const dayList = byDay.get(selected) ?? [];
+  const selectedItems = itemsForDay(selected);
+  const active = filtered.find((a) => a.id === activeId) ?? null;
 
-  const monthCount = useMemo(() => {
-    const start = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1));
-    const end = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0));
-    return filtered.filter((a) => a.startDate <= end && (a.endDate || a.startDate) >= start)
-      .length;
-  }, [filtered, month]);
+  const periodCount = useMemo(() => {
+    return filtered.filter(
+      (a) => a.startDate <= range.to && (a.endDate || a.startDate) >= range.from,
+    ).length;
+  }, [filtered, range]);
 
-  const upcoming = useMemo(() => {
-    const todayIso = toIsoDate(new Date());
-    return filtered
-      .filter((a) => (a.endDate || a.startDate) >= todayIso)
-      .sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime ?? "").localeCompare(b.startTime ?? ""))
-      .slice(0, 5);
-  }, [filtered]);
+  const heading = useMemo(() => {
+    if (view === "month") return monthLabel(anchor);
+    if (view === "week") return weekLabel(fromIsoDate(selected));
+    return dayLabel(selected);
+  }, [view, anchor, selected]);
 
-  function shiftMonth(delta: number) {
-    setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+  function goToday() {
+    const n = new Date();
+    setAnchor(n);
+    setSelected(toIsoDate(n));
   }
 
-  function openNewForDay(iso: string) {
+  function shift(delta: number) {
+    if (view === "month") {
+      setAnchor((a) => {
+        const next = new Date(a.getFullYear(), a.getMonth() + delta, 1);
+        setSelected(toIsoDate(next));
+        return next;
+      });
+      return;
+    }
+    if (view === "week") {
+      const d = fromIsoDate(selected);
+      d.setDate(d.getDate() + delta * 7);
+      setSelected(toIsoDate(d));
+      setAnchor(d);
+      return;
+    }
+    const d = fromIsoDate(selected);
+    d.setDate(d.getDate() + delta);
+    setSelected(toIsoDate(d));
+    setAnchor(d);
+  }
+
+  function selectDay(iso: string) {
+    setSelected(iso);
+    setAnchor(fromIsoDate(iso));
+    setActiveId(null);
+  }
+
+  function openNew(iso = selected, time?: string) {
     setSelected(iso);
     setShowForm(true);
+    setActiveId(null);
     setForm({
       ...emptyForm,
       startDate: iso,
       endDate: iso,
+      startTime: time ?? "09:00",
+      endTime: time
+        ? `${String(Math.min(23, Number(time.slice(0, 2)) + 1)).padStart(2, "0")}:00`
+        : "10:00",
       customerId: presetCustomer,
     });
   }
@@ -148,7 +183,7 @@ export function CalendarPage() {
         description: form.description,
       });
       setShowForm(false);
-      setSelected(form.startDate);
+      selectDay(form.startDate);
       setForm({ ...emptyForm, startDate: form.startDate, customerId: presetCustomer });
       await reload();
     } catch (err) {
@@ -158,27 +193,149 @@ export function CalendarPage() {
 
   const today = new Date();
 
+  function renderEventCard(a: AppointmentItem, compact = false) {
+    return (
+      <button
+        key={a.id}
+        type="button"
+        className={`cal-event kind-${a.kind}${activeId === a.id ? " is-active" : ""}${compact ? " is-compact" : ""}`}
+        onClick={(e) => {
+          e.stopPropagation();
+          setActiveId(a.id);
+          selectDay(a.startDate);
+        }}
+        title={`${a.title} · ${formatAppointmentTime(a)}`}
+      >
+        <span className="cal-event-time">
+          {a.allDay || !a.startTime ? "Tag" : a.startTime}
+        </span>
+        <span className="cal-event-title">{a.title}</span>
+      </button>
+    );
+  }
+
+  function renderTimedLane(iso: string) {
+    const items = itemsForDay(iso);
+    const allDay = items.filter((a) => a.allDay || !a.startTime);
+    const timed = items.filter((a) => !a.allDay && a.startTime);
+    return (
+      <div className="cal-lane" style={{ "--hours": HOURS.length } as CSSProperties}>
+        {allDay.length > 0 ? (
+          <div className="cal-allday">
+            {allDay.map((a) => renderEventCard(a, true))}
+          </div>
+        ) : (
+          <div className="cal-allday is-empty" />
+        )}
+        <div
+          className="cal-timed"
+          onDoubleClick={(e) => {
+            const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+            const y = e.clientY - rect.top;
+            const ratio = Math.max(0, Math.min(1, y / rect.height));
+            const minutes = DAY_START * 60 + Math.round((ratio * (DAY_END - DAY_START) * 60) / 30) * 30;
+            const h = Math.floor(minutes / 60);
+            const m = minutes % 60;
+            openNew(iso, `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`);
+          }}
+        >
+          {HOURS.map((h) => (
+            <div key={h} className="cal-hour-line" />
+          ))}
+          {timed.map((a) => {
+            const layout = timedEventLayout(a, DAY_START, DAY_END);
+            if (!layout) return null;
+            return (
+              <button
+                key={a.id}
+                type="button"
+                className={`cal-block kind-${a.kind}${activeId === a.id ? " is-active" : ""}`}
+                style={{ top: `${layout.top}%`, height: `${layout.height}%` }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveId(a.id);
+                  selectDay(iso);
+                }}
+              >
+                <strong>{a.title}</strong>
+                <span>{formatAppointmentTime(a)}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page calendar-page">
-      <header className="calendar-hero">
-        <div>
-          <p className="eyebrow">Planung</p>
-          <h2>Kalender</h2>
-          <p>
-            {monthCount === 0
-              ? "Noch keine Termine in diesem Monat."
-              : `${monthCount} Termin${monthCount === 1 ? "" : "e"} in ${monthLabel(month)}.`}
-            {presetCustomer ? " · gefiltert nach Kunde" : ""}
-          </p>
-        </div>
-        <div className="calendar-hero-actions">
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => openNewForDay(selected)}
-          >
-            + Termin
+      <header className="calendar-topbar">
+        <div className="calendar-topbar-main">
+          <div>
+            <p className="eyebrow">Planung</p>
+            <h2>Kalender</h2>
+            <p>
+              {periodCount === 0
+                ? "Keine Termine in diesem Zeitraum."
+                : `${periodCount} Termin${periodCount === 1 ? "" : "e"} · ${heading}`}
+              {presetCustomer ? " · gefiltert nach Kunde" : ""}
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary btn-xl calendar-create-btn" onClick={() => openNew()}>
+            + Termin anlegen
           </button>
+        </div>
+
+        <div className="calendar-controls">
+          <div className="calendar-view-switch" role="tablist" aria-label="Ansicht">
+            {(
+              [
+                ["month", "Monat"],
+                ["week", "Woche"],
+                ["day", "Tag"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={view === key}
+                className={`chip ${view === key ? "chip-active" : ""}`}
+                onClick={() => setView(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="calendar-nav">
+            <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(-1)} aria-label="Zurück">
+              ‹
+            </button>
+            <div className="calendar-period">
+              <strong>{heading}</strong>
+            </div>
+            <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(1)} aria-label="Weiter">
+              ›
+            </button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={goToday}>
+              Heute
+            </button>
+          </div>
+
+          <div className="calendar-legend">
+            {(Object.keys(appointmentKindLabel) as AppointmentKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`legend-chip kind-${k}${filterKind === k ? " is-active" : ""}`}
+                onClick={() => setFilterKind((cur) => (cur === k ? "" : k))}
+              >
+                <i className={`dot kind-${k}`} />
+                {appointmentKindLabel[k]}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -309,7 +466,7 @@ export function CalendarPage() {
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full form-actions">
             <button className="btn btn-primary" type="submit">
-              Speichern
+              Termin speichern
             </button>
             <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
               Abbrechen
@@ -318,208 +475,210 @@ export function CalendarPage() {
         </form>
       ) : null}
 
-      <div className="calendar-toolbar panel">
-        <div className="calendar-nav">
-          <button
-            type="button"
-            className="btn btn-ghost calendar-nav-btn"
-            onClick={() => shiftMonth(-1)}
-            aria-label="Vorheriger Monat"
-          >
-            ‹
-          </button>
-          <div className="calendar-month-block">
-            <strong className="calendar-month-label">{monthLabel(month)}</strong>
-            <span className="muted">{monthCount} Termine</span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-ghost calendar-nav-btn"
-            onClick={() => shiftMonth(1)}
-            aria-label="Nächster Monat"
-          >
-            ›
-          </button>
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            onClick={() => {
-              const n = new Date();
-              setMonth(new Date(n.getFullYear(), n.getMonth(), 1));
-              setSelected(toIsoDate(n));
-            }}
-          >
-            Heute
-          </button>
-        </div>
+      {error && !showForm ? <p className="form-error">{error}</p> : null}
 
-        <div className="calendar-filters">
-          <div className="calendar-legend" aria-hidden="true">
-            {(Object.keys(appointmentKindLabel) as AppointmentKind[]).map((k) => (
-              <button
-                key={k}
-                type="button"
-                className={`legend-chip kind-${k}${filterKind === k ? " is-active" : ""}`}
-                onClick={() => setFilterKind((cur) => (cur === k ? "" : k))}
-              >
-                <i className={`dot kind-${k}`} />
-                {appointmentKindLabel[k]}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div className="calendar-layout">
-        <div className="calendar-grid panel">
-          <div className="calendar-weekdays">
-            {weekdays.map((d) => (
-              <span key={d}>{d}</span>
-            ))}
-          </div>
-          <div className="calendar-days">
-            {grid.map((day) => {
-              const iso = toIsoDate(day);
-              const items = byDay.get(iso) ?? [];
-              const inMonth = day.getMonth() === month.getMonth();
-              const isToday = sameDay(day, today);
-              const isSelected = iso === selected;
-              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-              return (
-                <button
-                  key={iso}
-                  type="button"
-                  className={[
-                    "calendar-day",
-                    !inMonth ? "is-outside" : "",
-                    isToday ? "is-today" : "",
-                    isSelected ? "is-selected" : "",
-                    isWeekend ? "is-weekend" : "",
-                    items.length ? "has-events" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                  onClick={() => setSelected(iso)}
-                  onDoubleClick={() => openNewForDay(iso)}
-                >
-                  <span className="calendar-day-top">
-                    <span className="calendar-day-num">{day.getDate()}</span>
-                    {items.length > 0 ? (
-                      <span className="calendar-day-count">{items.length}</span>
-                    ) : null}
-                  </span>
-                  <span className="calendar-day-events">
-                    {items.slice(0, 2).map((a) => (
-                      <span key={a.id} className={`cal-chip kind-${a.kind}`} title={a.title}>
-                        <span className="cal-chip-time">
-                          {a.allDay || !a.startTime ? "Tag" : a.startTime}
-                        </span>
-                        <span className="cal-chip-title">{a.title}</span>
+      <div className="calendar-stage">
+        <div className="calendar-main panel">
+          {view === "month" ? (
+            <>
+              <div className="calendar-weekdays">
+                {weekdays.map((d) => (
+                  <span key={d}>{d}</span>
+                ))}
+              </div>
+              <div className="calendar-days calendar-days-month">
+                {monthGrid.map((day) => {
+                  const iso = toIsoDate(day);
+                  const items = itemsForDay(iso);
+                  const inMonth = day.getMonth() === anchor.getMonth();
+                  const isToday = sameDay(day, today);
+                  const isSelected = iso === selected;
+                  return (
+                    <div
+                      key={iso}
+                      role="button"
+                      tabIndex={0}
+                      className={[
+                        "calendar-day",
+                        !inMonth ? "is-outside" : "",
+                        isToday ? "is-today" : "",
+                        isSelected ? "is-selected" : "",
+                        items.length ? "has-events" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                      onClick={() => selectDay(iso)}
+                      onDoubleClick={() => openNew(iso)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          selectDay(iso);
+                        }
+                      }}
+                    >
+                      <span className="calendar-day-top">
+                        <span className="calendar-day-num">{day.getDate()}</span>
+                        {items.length > 0 ? (
+                          <span className="calendar-day-count">{items.length}</span>
+                        ) : null}
                       </span>
+                      <span className="calendar-day-events">
+                        {items.slice(0, 3).map((a) => renderEventCard(a, true))}
+                        {items.length > 3 ? (
+                          <span className="cal-chip-more">+{items.length - 3}</span>
+                        ) : null}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : null}
+
+          {view === "week" ? (
+            <div className="cal-week">
+              <div className="cal-week-head">
+                <span className="cal-gutter-spacer" />
+                {weekDays.map((day) => {
+                  const iso = toIsoDate(day);
+                  return (
+                    <button
+                      key={iso}
+                      type="button"
+                      className={`cal-week-dayhead${iso === selected ? " is-selected" : ""}${sameDay(day, today) ? " is-today" : ""}`}
+                      onClick={() => selectDay(iso)}
+                    >
+                      <span>{weekdays[(day.getDay() + 6) % 7]}</span>
+                      <strong>{day.getDate()}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="cal-week-body" style={{ "--hours": HOURS.length } as CSSProperties}>
+                <div className="cal-gutter">
+                  <div className="cal-allday-label">Tag</div>
+                  <div className="cal-hour-labels">
+                    {HOURS.map((h) => (
+                      <span key={h}>{formatHour(h)}</span>
                     ))}
-                    {items.length > 2 ? (
-                      <span className="cal-chip-more">+{items.length - 2} weitere</span>
-                    ) : null}
-                  </span>
+                  </div>
+                </div>
+                {weekDays.map((day) => (
+                  <div key={toIsoDate(day)} className="cal-week-col">
+                    {renderTimedLane(toIsoDate(day))}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {view === "day" ? (
+            <div className="cal-day-view">
+              <div className="cal-day-view-head">
+                <h3>{dayLabel(selected)}</h3>
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => openNew(selected)}>
+                  + Termin
                 </button>
-              );
-            })}
-          </div>
-          <p className="calendar-hint muted">Doppelklick auf einen Tag → neuer Termin</p>
+              </div>
+              <div className="cal-day-view-body" style={{ "--hours": HOURS.length } as CSSProperties}>
+                <div className="cal-gutter">
+                  <div className="cal-allday-label">Tag</div>
+                  <div className="cal-hour-labels">
+                    {HOURS.map((h) => (
+                      <span key={h}>{formatHour(h)}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="cal-day-col">{renderTimedLane(selected)}</div>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="calendar-hint muted">
+            Doppelklick auf Tag/Zeitleiste → neuer Termin · Klick auf Termin für Details
+          </p>
         </div>
 
         <aside className="calendar-side">
           <section className="calendar-day-panel panel">
             <div className="calendar-day-panel-head">
               <div>
-                <p className="eyebrow">Ausgewählt</p>
-                <h3>{selectedDayHeading(selected)}</h3>
+                <p className="eyebrow">Details</p>
+                <h3>{dayLabel(selected)}</h3>
               </div>
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                onClick={() => openNewForDay(selected)}
-              >
-                + Am Tag
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => openNew(selected)}>
+                + Termin
               </button>
             </div>
 
-            {dayList.length === 0 ? (
+            {active ? (
+              <article className={`agenda-item kind-${active.kind} is-detail`}>
+                <div className="agenda-time">{formatAppointmentTime(active)}</div>
+                <div className="agenda-body">
+                  <strong>{active.title}</strong>
+                  <span className="muted">
+                    {appointmentKindLabel[active.kind]}
+                    {active.customerId
+                      ? ` · ${active.customerCompany || active.customerName || "Kunde"}`
+                      : ""}
+                    {active.location ? ` · ${active.location}` : ""}
+                  </span>
+                  {active.description ? <p className="agenda-note">{active.description}</p> : null}
+                  <div className="agenda-actions">
+                    {active.customerId ? (
+                      <Link className="btn btn-ghost btn-sm" to={`/customers/${active.customerId}`}>
+                        Zum Kunden
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() =>
+                        void api.deleteAppointment(active.id).then(() => {
+                          setActiveId(null);
+                          void reload();
+                        })
+                      }
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ) : null}
+
+            {selectedItems.length === 0 ? (
               <div className="calendar-empty">
-                <p>Keine Termine</p>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => openNewForDay(selected)}
-                >
+                <p>Keine Termine an diesem Tag</p>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openNew(selected)}>
                   Termin anlegen
                 </button>
               </div>
             ) : (
               <ul className="calendar-agenda">
-                {dayList.map((a) => (
-                  <li key={a.id} className={`agenda-item kind-${a.kind}`}>
-                    <div className="agenda-time">{formatAppointmentTime(a)}</div>
-                    <div className="agenda-body">
-                      <strong>{a.title}</strong>
-                      <span className="muted">
-                        {appointmentKindLabel[a.kind]}
-                        {a.customerId
-                          ? ` · ${a.customerCompany || a.customerName || "Kunde"}`
-                          : ""}
-                        {a.location ? ` · ${a.location}` : ""}
-                      </span>
-                      {a.description ? <p className="agenda-note">{a.description}</p> : null}
-                      <div className="agenda-actions">
-                        {a.customerId ? (
-                          <Link className="btn btn-ghost btn-sm" to={`/customers/${a.customerId}`}>
-                            Zum Kunden
-                          </Link>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => void api.deleteAppointment(a.id).then(() => reload())}
-                        >
-                          Löschen
-                        </button>
+                {selectedItems.map((a) => (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      className={`agenda-item kind-${a.kind}${activeId === a.id ? " is-active" : ""}`}
+                      onClick={() => setActiveId(a.id)}
+                    >
+                      <div className="agenda-time">{formatAppointmentTime(a)}</div>
+                      <div className="agenda-body">
+                        <strong>{a.title}</strong>
+                        <span className="muted">
+                          {appointmentKindLabel[a.kind]}
+                          {a.customerId
+                            ? ` · ${a.customerCompany || a.customerName || "Kunde"}`
+                            : ""}
+                        </span>
                       </div>
-                    </div>
+                    </button>
                   </li>
                 ))}
               </ul>
             )}
           </section>
-
-          {upcoming.length > 0 ? (
-            <section className="calendar-upcoming panel">
-              <h3>Als Nächstes</h3>
-              <ul className="upcoming-list">
-                {upcoming.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      className="upcoming-row"
-                      onClick={() => {
-                        setSelected(a.startDate);
-                        const d = new Date(`${a.startDate}T12:00:00`);
-                        setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
-                      }}
-                    >
-                      <span className={`upcoming-kind kind-${a.kind}`} />
-                      <span>
-                        <strong>{a.title}</strong>
-                        <span className="muted">
-                          {a.startDate.slice(8)}.
-                          {a.startDate.slice(5, 7)}. · {formatAppointmentTime(a)}
-                        </span>
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
         </aside>
       </div>
     </div>

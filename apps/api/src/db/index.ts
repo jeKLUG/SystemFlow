@@ -78,9 +78,37 @@ export async function createDb(databasePath: string) {
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       project_id TEXT,
+      asset_id TEXT,
       type TEXT NOT NULL,
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '{"type":"doc","content":[{"type":"paragraph"}]}',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS network_segments (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      cidr TEXT,
+      vlan TEXT,
+      gateway TEXT,
+      dns TEXT,
+      dhcp_range TEXT,
+      purpose TEXT,
+      color TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS network_plans (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      diagram_json TEXT NOT NULL DEFAULT '{"nodes":[],"edges":[]}',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -128,19 +156,31 @@ export async function createDb(databasePath: string) {
     CREATE TABLE IF NOT EXISTS assets (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      segment_id TEXT,
       name TEXT NOT NULL,
       kind TEXT NOT NULL DEFAULT 'other',
       status TEXT NOT NULL DEFAULT 'active',
+      role TEXT,
       manufacturer TEXT,
       model TEXT,
       serial_number TEXT,
       hostname TEXT,
       ip_address TEXT,
+      secondary_ip TEXT,
       mac_address TEXT,
       location TEXT,
+      rack TEXT,
       vlan TEXT,
       os TEXT,
+      firmware TEXT,
+      cpu TEXT,
+      ram_gb REAL,
+      disk_gb REAL,
+      ports TEXT,
       management_url TEXT,
+      purchase_date TEXT,
+      installed_at TEXT,
+      responsible_person TEXT,
       warranty_until TEXT,
       notes TEXT,
       created_at INTEGER NOT NULL,
@@ -239,6 +279,8 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_vault_entries_customer ON vault_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
     CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_network_segments_customer ON network_segments(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_network_plans_customer ON network_plans(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_customer ON activities(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_occurred ON activities(occurred_at);
     CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
@@ -259,6 +301,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "customers", "vat_id", "TEXT");
   await ensureColumn(client, "customers", "website", "TEXT");
   await ensureColumn(client, "documents", "project_id", "TEXT");
+  await ensureColumn(client, "documents", "asset_id", "TEXT");
   await ensureColumn(client, "tasks", "project_id", "TEXT");
   await ensureColumn(client, "time_entries", "start_time", "TEXT");
   await ensureColumn(client, "time_entries", "end_time", "TEXT");
@@ -266,15 +309,36 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "time_entries", "rate_snapshot", "REAL");
   await ensureColumn(client, "time_entries", "amount_snapshot", "REAL");
   await ensureColumn(client, "assets", "status", "TEXT NOT NULL DEFAULT 'active'");
+  await ensureColumn(client, "assets", "segment_id", "TEXT");
+  await ensureColumn(client, "assets", "role", "TEXT");
   await ensureColumn(client, "assets", "hostname", "TEXT");
   await ensureColumn(client, "assets", "ip_address", "TEXT");
+  await ensureColumn(client, "assets", "secondary_ip", "TEXT");
   await ensureColumn(client, "assets", "mac_address", "TEXT");
   await ensureColumn(client, "assets", "location", "TEXT");
+  await ensureColumn(client, "assets", "rack", "TEXT");
   await ensureColumn(client, "assets", "vlan", "TEXT");
   await ensureColumn(client, "assets", "os", "TEXT");
+  await ensureColumn(client, "assets", "firmware", "TEXT");
+  await ensureColumn(client, "assets", "cpu", "TEXT");
+  await ensureColumn(client, "assets", "ram_gb", "REAL");
+  await ensureColumn(client, "assets", "disk_gb", "REAL");
+  await ensureColumn(client, "assets", "ports", "TEXT");
   await ensureColumn(client, "assets", "management_url", "TEXT");
+  await ensureColumn(client, "assets", "purchase_date", "TEXT");
+  await ensureColumn(client, "assets", "installed_at", "TEXT");
+  await ensureColumn(client, "assets", "responsible_person", "TEXT");
   await ensureColumn(client, "vault_entries", "favorite", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "vault_entries", "tags_json", "TEXT NOT NULL DEFAULT '[]'");
+  await ensureColumn(client, "attachments", "updated_at", "INTEGER");
+  await ensureColumn(client, "attachments", "folder_id", "TEXT");
+  await ensureColumn(client, "attachments", "description", "TEXT");
+
+  // Indizes, die Spalten aus ensureColumn brauchen (bestehende DBs)
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_documents_asset ON documents(asset_id)`,
+  );
+  await client.execute(`PRAGMA foreign_keys = ON`);
 
   return drizzle(client, { schema });
 }

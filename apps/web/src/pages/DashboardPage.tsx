@@ -5,6 +5,9 @@ import { customerDisplayName } from "../lib/customer";
 import { documentTypeLabel, formatDate, formatDateOnly } from "../lib/labels";
 import type { RecentDocument, Reminders, Stats, TaskItem } from "../types";
 
+/**
+ * SaaS-Startseite mit Kennzahlen und Schnellzugriffen.
+ */
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [recent, setRecent] = useState<RecentDocument[]>([]);
@@ -31,102 +34,131 @@ export function DashboardPage() {
     (reminders?.tasks.length ?? 0);
 
   return (
-    <div className="page">
-      <section className="hero-block">
-        <p className="eyebrow">Workspace</p>
-        <p className="brand-hero">Systemhaus-Ess</p>
-        <h1>Alles Wichtige für den IT-Alltag auf einen Blick.</h1>
-        <p className="lede">
-          Kunden, Aufgaben, Abläufe und Dokumentation – modern und mobil. Rechnungen bleiben in Lexware.
-        </p>
-        <div className="cta-row">
-          <Link className="btn btn-primary btn-xl" to="/quick-note">
+    <div className="page dashboard-page">
+      <header className="page-header dashboard-header">
+        <div>
+          <p className="eyebrow">Workspace</p>
+          <h2>Guten Überblick behalten</h2>
+          <p>Kunden, Aufgaben und Dokumentation – bereit für den IT-Alltag.</p>
+        </div>
+        <div className="page-actions">
+          <Link className="btn btn-ghost" to="/customers">
+            Kunden
+          </Link>
+          <Link className="btn btn-primary" to="/quick-note">
             + Schnellnotiz
           </Link>
-          <Link className="btn btn-ghost" to="/customers">
-            Kunden öffnen
-          </Link>
-          <Link className="btn btn-ghost" to="/reminders">
-            Ablauf prüfen
-          </Link>
         </div>
-      </section>
+      </header>
 
       <section className="stats-row stats-row-4" aria-label="Kennzahlen">
-        <div className="stat">
+        <Link className="stat" to="/customers">
+          <span className="stat-label">Kunden</span>
           <strong>{stats?.customerCount ?? "–"}</strong>
-          <span>Kunden</span>
-        </div>
+          <span className="stat-meta">Gesamt im Bestand</span>
+        </Link>
         <div className="stat">
+          <span className="stat-label">Aktiv</span>
           <strong>{stats?.activeCount ?? "–"}</strong>
-          <span>Aktiv</span>
+          <span className="stat-meta">Betreute Mandanten</span>
         </div>
-        <div className="stat">
+        <Link className="stat" to="/reminders">
+          <span className="stat-label">Aufgaben</span>
           <strong>{openTasks.length}</strong>
-          <span>Offene Aufgaben</span>
-        </div>
-        <div className="stat">
+          <span className="stat-meta">Offen systemweit</span>
+        </Link>
+        <Link className="stat" to="/reminders">
+          <span className="stat-label">Abläufe</span>
           <strong>{reminderCount}</strong>
-          <span>Abläufe (30 Tage)</span>
-        </div>
+          <span className="stat-meta">Nächste 30 Tage</span>
+        </Link>
       </section>
 
-      <section className="section">
-        <div className="section-head row-between">
-          <div>
-            <h2>Offene Aufgaben</h2>
-            <p>Was noch erledigt werden muss.</p>
+      <section className="dash-actions">
+        <Link className="dash-action" to="/customers?new=1">
+          <strong>Kunde anlegen</strong>
+          <span>Stammdaten & Kontakt</span>
+        </Link>
+        <Link className="dash-action" to="/calendar">
+          <strong>Kalender öffnen</strong>
+          <span>Termine & Einsätze</span>
+        </Link>
+        <Link className="dash-action" to="/vault">
+          <strong>Tresor</strong>
+          <span>Zugänge & Secrets</span>
+        </Link>
+        <Link className="dash-action" to="/search">
+          <strong>Suche</strong>
+          <span>Geräte, Docs, Historie</span>
+        </Link>
+      </section>
+
+      <div className="dash-grid">
+        <section className="panel dash-panel">
+          <div className="section-head row-between">
+            <div>
+              <h2>Offene Aufgaben</h2>
+              <p>Was als Nächstes ansteht.</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/reminders">
+              Alle
+            </Link>
           </div>
-        </div>
-        {openTasks.length === 0 ? (
-          <p className="empty">Keine offenen Aufgaben.</p>
-        ) : (
-          <ul className="list">
-            {openTasks.map((task) => (
-              <li key={task.id}>
-                <Link className="list-row" to={`/customers/${task.customerId}`}>
-                  <div>
-                    <strong>{task.title}</strong>
-                    <span className="muted">
-                      {customerDisplayName({
-                        name: task.customerName ?? "",
-                        company: task.customerCompany ?? null,
-                      })}
-                    </span>
-                  </div>
-                  <span className="muted">{formatDateOnly(task.dueDate)}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+          {openTasks.length === 0 ? (
+            <p className="empty">Keine offenen Aufgaben.</p>
+          ) : (
+            <ul className="list">
+              {openTasks.map((task) => (
+                <li key={task.id}>
+                  <Link className="list-row" to={`/customers/${task.customerId}/ops`}>
+                    <div>
+                      <strong>{task.title}</strong>
+                      <span className="muted">
+                        {customerDisplayName({
+                          name: task.customerName ?? "",
+                          company: task.customerCompany ?? null,
+                        })}
+                      </span>
+                    </div>
+                    <span className="badge badge-warn">{formatDateOnly(task.dueDate)}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
-      <section className="section">
-        <div className="section-head">
-          <h2>Zuletzt bearbeitet</h2>
-          <p>Schnell zurück zu offenen Notizen und Dokumentationen.</p>
-        </div>
-        {recent.length === 0 ? (
-          <p className="empty">Noch keine Dokumente. Lege einen Kunden an und starte eine Notiz.</p>
-        ) : (
-          <ul className="list">
-            {recent.map((doc) => (
-              <li key={doc.id}>
-                <Link className="list-row" to={`/documents/${doc.id}`}>
-                  <div>
-                    <strong>{doc.title}</strong>
-                    <span className="muted">
-                      {doc.customerName} · {documentTypeLabel[doc.type]}
-                    </span>
-                  </div>
-                  <time className="muted">{formatDate(doc.updatedAt)}</time>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+        <section className="panel dash-panel">
+          <div className="section-head row-between">
+            <div>
+              <h2>Zuletzt bearbeitet</h2>
+              <p>Dokumente und Notizen.</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/customers">
+              Kunden
+            </Link>
+          </div>
+          {recent.length === 0 ? (
+            <p className="empty">Noch keine Dokumente. Starte mit einer Schnellnotiz.</p>
+          ) : (
+            <ul className="list">
+              {recent.map((doc) => (
+                <li key={doc.id}>
+                  <Link className="list-row" to={`/documents/${doc.id}`}>
+                    <div>
+                      <strong>{doc.title}</strong>
+                      <span className="muted">
+                        {doc.customerName} · {documentTypeLabel[doc.type]}
+                      </span>
+                    </div>
+                    <time className="muted">{formatDate(doc.updatedAt)}</time>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
     </div>
   );
 }

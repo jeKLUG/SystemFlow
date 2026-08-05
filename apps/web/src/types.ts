@@ -106,6 +106,7 @@ export interface DocumentItem {
   id: string;
   customerId: string;
   projectId: string | null;
+  assetId: string | null;
   type: DocumentType;
   title: string;
   content: string;
@@ -197,21 +198,82 @@ export interface RecentDocument {
 export interface Asset {
   id: string;
   customerId: string;
+  segmentId: string | null;
   name: string;
   kind: AssetKind;
   status: AssetStatus;
+  role: string | null;
   manufacturer: string | null;
   model: string | null;
   serialNumber: string | null;
   hostname: string | null;
   ipAddress: string | null;
+  secondaryIp: string | null;
   macAddress: string | null;
   location: string | null;
+  rack: string | null;
   vlan: string | null;
   os: string | null;
+  firmware: string | null;
+  cpu: string | null;
+  ramGb: number | null;
+  diskGb: number | null;
+  ports: string | null;
   managementUrl: string | null;
+  purchaseDate: string | null;
+  installedAt: string | null;
+  responsiblePerson: string | null;
   warrantyUntil: string | null;
   notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NetworkSegment {
+  id: string;
+  customerId: string;
+  name: string;
+  cidr: string | null;
+  vlan: string | null;
+  gateway: string | null;
+  dns: string | null;
+  dhcpRange: string | null;
+  purpose: string | null;
+  color: string | null;
+  sortOrder: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NetworkPlanNode {
+  id: string;
+  label: string;
+  kind: "internet" | "firewall" | "switch" | "segment" | "asset" | "cloud" | "other";
+  assetId?: string | null;
+  segmentId?: string | null;
+  x: number;
+  y: number;
+}
+
+export interface NetworkPlanEdge {
+  id: string;
+  from: string;
+  to: string;
+  label?: string;
+}
+
+export interface NetworkPlanDiagram {
+  nodes: NetworkPlanNode[];
+  edges: NetworkPlanEdge[];
+}
+
+export interface NetworkPlan {
+  id: string;
+  customerId: string;
+  title: string;
+  description: string | null;
+  diagramJson: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -51,13 +51,14 @@ export const projects = sqliteTable("projects", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Wiki-/Dokumentseiten pro Kunde. */
+/** Wiki-/Dokumentseiten pro Kunde (optional Projekt oder Gerät). */
 export const documents = sqliteTable("documents", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
   projectId: text("project_id"),
+  assetId: text("asset_id"),
   type: text("type", {
     enum: ["note", "protocol", "documentation", "article", "workflow"],
   }).notNull(),
@@ -89,12 +90,33 @@ export const timeEntries = sqliteTable("time_entries", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Anlagen / Geräte / Netzwerkkomponenten pro Kunde. */
+/** Subnetze / VLANs pro Kunde für den Netzwerkplan. */
+export const networkSegments = sqliteTable("network_segments", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  cidr: text("cidr"),
+  vlan: text("vlan"),
+  gateway: text("gateway"),
+  dns: text("dns"),
+  dhcpRange: text("dhcp_range"),
+  purpose: text("purpose"),
+  color: text("color"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Geräte & Netzwerkkomponenten pro Kunde. */
 export const assets = sqliteTable("assets", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
+  segmentId: text("segment_id"),
   name: text("name").notNull(),
   kind: text("kind", {
     enum: [
@@ -121,18 +143,42 @@ export const assets = sqliteTable("assets", {
   })
     .notNull()
     .default("active"),
+  role: text("role"),
   manufacturer: text("manufacturer"),
   model: text("model"),
   serialNumber: text("serial_number"),
   hostname: text("hostname"),
   ipAddress: text("ip_address"),
+  secondaryIp: text("secondary_ip"),
   macAddress: text("mac_address"),
   location: text("location"),
+  rack: text("rack"),
   vlan: text("vlan"),
   os: text("os"),
+  firmware: text("firmware"),
+  cpu: text("cpu"),
+  ramGb: real("ram_gb"),
+  diskGb: real("disk_gb"),
+  ports: text("ports"),
   managementUrl: text("management_url"),
+  purchaseDate: text("purchase_date"),
+  installedAt: text("installed_at"),
+  responsiblePerson: text("responsible_person"),
   warrantyUntil: text("warranty_until"),
   notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Visueller Netzwerkplan pro Kunde (Knoten/Kanten als JSON). */
+export const networkPlans = sqliteTable("network_plans", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  diagramJson: text("diagram_json").notNull().default("{\"nodes\":[],\"edges\":[]}"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -303,6 +349,8 @@ export type Project = typeof projects.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
+export type NetworkSegment = typeof networkSegments.$inferSelect;
+export type NetworkPlan = typeof networkPlans.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Contract = typeof contracts.$inferSelect;

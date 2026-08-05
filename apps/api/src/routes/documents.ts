@@ -22,6 +22,7 @@ const createBody = z.object({
   content: z.string().optional(),
   templateId: z.string().optional(),
   projectId: z.string().optional().nullable().or(z.literal("")),
+  assetId: z.string().optional().nullable().or(z.literal("")),
 });
 
 const updateBody = z.object({
@@ -29,6 +30,7 @@ const updateBody = z.object({
   title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
   projectId: z.string().optional().nullable().or(z.literal("")),
+  assetId: z.string().optional().nullable().or(z.literal("")),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -48,6 +50,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
         customerId: z.string().optional(),
         type: wikiTypes.optional(),
         projectId: z.string().optional(),
+        assetId: z.string().optional(),
         limit: z.coerce.number().int().positive().max(200).optional(),
       })
       .parse(request.query);
@@ -62,6 +65,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
         .all();
       if (q.type) rows = rows.filter((r) => r.type === q.type);
       if (q.projectId) rows = rows.filter((r) => r.projectId === q.projectId);
+      if (q.assetId) rows = rows.filter((r) => r.assetId === q.assetId);
       return rows;
     }
 
@@ -124,6 +128,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
       id: createId("doc"),
       customerId: parsed.data.customerId,
       projectId: emptyToNull(parsed.data.projectId),
+      assetId: emptyToNull(parsed.data.assetId),
       type,
       title,
       content,
@@ -160,6 +165,8 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
         parsed.data.projectId !== undefined
           ? emptyToNull(parsed.data.projectId)
           : existing.projectId,
+      assetId:
+        parsed.data.assetId !== undefined ? emptyToNull(parsed.data.assetId) : existing.assetId,
       updatedAt: new Date(),
     };
 

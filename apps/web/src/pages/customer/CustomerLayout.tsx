@@ -9,12 +9,12 @@ const tabs = [
   { to: "wiki", label: "Wiki" },
   { to: "projects", label: "Projekte" },
   { to: "time", label: "Zeiten" },
-  { to: "assets", label: "Anlagen" },
+  { to: "assets", label: "Geräte & Netzwerk" },
   { to: "ops", label: "Betrieb" },
 ] as const;
 
 /**
- * Kunden-Shell mit Tabs für Wiki, Projekte, Zeiten und Betrieb.
+ * Kunden-Shell mit Tabs für Wiki, Projekte, Zeiten, Geräte & Netzwerk und Betrieb.
  */
 export function CustomerLayout() {
   const { id = "" } = useParams();

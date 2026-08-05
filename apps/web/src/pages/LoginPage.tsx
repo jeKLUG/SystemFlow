@@ -2,6 +2,9 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth";
 
+/**
+ * Login-Ansicht im SaaS-Look.
+ */
 export function LoginPage() {
   const { user, loading, login } = useAuth();
   const [username, setUsername] = useState("admin");
@@ -30,14 +33,20 @@ export function LoginPage() {
       <div className="atmosphere" aria-hidden="true" />
       <div className="login-layout">
         <section className="login-hero">
-          <p className="brand-hero">Systemhaus-Ess</p>
-          <h1>Dein Workspace für Kunden, Einsätze und Dokumentation.</h1>
+          <div className="sidebar-brand" style={{ border: 0, padding: 0, marginBottom: "1rem" }}>
+            <span className="brand-mark" aria-hidden="true" />
+            <div>
+              <strong>Systemhaus-Ess</strong>
+              <span>IT Workspace</span>
+            </div>
+          </div>
+          <h1>Kunden, Einsätze und Dokumentation – klar organisiert.</h1>
           <p className="lede">
-            Modern, schnell und mobil – Rechnungen bleiben bewusst in Lexware.
+            Die interne Plattform für den Systemhaus-Alltag. Rechnungen bleiben bewusst in Lexware.
           </p>
         </section>
 
-        <form className="login-panel" onSubmit={onSubmit}>
+        <form className="login-panel panel" onSubmit={onSubmit}>
           <p className="eyebrow">Anmelden</p>
           <h2>Willkommen zurück</h2>
           <p className="muted">Session bleibt 30 Tage aktiv – kein erneutes Login nach Reload.</p>
@@ -66,7 +75,7 @@ export function LoginPage() {
                 className="btn btn-ghost btn-sm"
                 onClick={() => setShowPassword((v) => !v)}
               >
-                {showPassword ? "Ausblenden" : "Anzeigen"}
+                {showPassword ? "Aus" : "An"}
               </button>
             </div>
           </label>

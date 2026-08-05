@@ -45,6 +45,8 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Zeiten · Anlagen · Betrieb (Aufgaben, Verträge, Historie, Anhänge).
 
+Kalender unter `/calendar`: Vollflächen-UI mit Monats-, Wochen- und Tagesansicht (Termine farbig nach Art, Detailseiteleiste).
+
 ## Auth
 
 Session-Cookie (`systemhaus_session`) via `@fastify/secure-session`, Passwort mit bcrypt. Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.

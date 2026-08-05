@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.4 – 2026-08-05
+
+- SaaS-UI: verfeinertes Designsystem, Sidebar mit Gruppen/Icons, Dashboard-Karten, klarere Controls
+- Login und Kundentabs optisch vereinheitlicht
+
+## 1.5.3 – 2026-08-05
+
+- Kalender: Vollflächen-Layout, Monats-/Wochen-/Tagesansicht, farbige Termine in der Fläche
+- Großer „Termin anlegen“-Button, Zeitleiste 07–20 Uhr, Detailseiteleiste
+
 ## 1.5.2 – 2026-08-05
 
 - UI-Polish: Buttons/Chips/Badges zentriert, einheitliche Toolbars, Listen-Actions, Leerzustände

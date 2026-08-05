@@ -1,11 +1,15 @@
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  // Content-Type nur setzen, wenn ein Body mitgeschickt wird –
+  // sonst scheitern DELETE/GET in Fastify oft mit leerem JSON-Body.
+  if (init?.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const res = await fetch(path, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
     ...init,
+    headers,
   });
 
   if (!res.ok) {
@@ -20,7 +24,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (res.status === 204) return undefined as T;
-  return res.json() as Promise<T>;
+  const text = await res.text();
+  if (!text) return undefined as T;
+  return JSON.parse(text) as T;
 }
 
 export const api = {
@@ -70,12 +76,15 @@ export const api = {
     }),
   deleteCustomer: (id: string) =>
     request<{ ok: boolean }>(`/api/customers/${id}`, { method: "DELETE" }),
-  documents: (customerId?: string) =>
-    request<import("./types").DocumentItem[]>(
-      customerId
-        ? `/api/documents?customerId=${encodeURIComponent(customerId)}`
-        : "/api/documents",
-    ),
+  documents: (customerId?: string, opts?: { assetId?: string; projectId?: string; type?: string }) => {
+    const params = new URLSearchParams();
+    if (customerId) params.set("customerId", customerId);
+    if (opts?.assetId) params.set("assetId", opts.assetId);
+    if (opts?.projectId) params.set("projectId", opts.projectId);
+    if (opts?.type) params.set("type", opts.type);
+    const qs = params.toString();
+    return request<import("./types").DocumentItem[]>(`/api/documents${qs ? `?${qs}` : ""}`);
+  },
   recentDocuments: () =>
     request<import("./types").RecentDocument[]>("/api/documents/recent"),
   document: (id: string) =>
@@ -177,6 +186,36 @@ export const api = {
     }),
   deleteAsset: (id: string) =>
     request<{ ok: boolean }>(`/api/assets/${id}`, { method: "DELETE" }),
+  networkSegments: (customerId: string) =>
+    request<import("./types").NetworkSegment[]>(
+      `/api/customers/${customerId}/network-segments`,
+    ),
+  createNetworkSegment: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").NetworkSegment>(
+      `/api/customers/${customerId}/network-segments`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  updateNetworkSegment: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").NetworkSegment>(`/api/network-segments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteNetworkSegment: (id: string) =>
+    request<{ ok: boolean }>(`/api/network-segments/${id}`, { method: "DELETE" }),
+  networkPlans: (customerId: string) =>
+    request<import("./types").NetworkPlan[]>(`/api/customers/${customerId}/network-plans`),
+  createNetworkPlan: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").NetworkPlan>(`/api/customers/${customerId}/network-plans`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateNetworkPlan: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").NetworkPlan>(`/api/network-plans/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteNetworkPlan: (id: string) =>
+    request<{ ok: boolean }>(`/api/network-plans/${id}`, { method: "DELETE" }),
   activities: (customerId: string) =>
     request<import("./types").Activity[]>(`/api/customers/${customerId}/activities`),
   createActivity: (customerId: string, body: Record<string, unknown>) =>
