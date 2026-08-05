@@ -5,6 +5,7 @@ import { useAuth } from "../auth";
 const navItems = [
   { to: "/", label: "Übersicht", end: true },
   { to: "/customers", label: "Kunden" },
+  { to: "/vault", label: "Tresor" },
   { to: "/reminders", label: "Ablauf" },
   { to: "/search", label: "Suche" },
   { to: "/quick-note", label: "Notiz" },
@@ -88,11 +89,11 @@ export function Layout() {
           Start
         </NavLink>
         <NavLink to="/customers">Kunden</NavLink>
+        <NavLink to="/vault">Tresor</NavLink>
         <NavLink to="/quick-note" className="tab-primary">
           +
         </NavLink>
         <NavLink to="/reminders">Ablauf</NavLink>
-        <NavLink to="/settings">Konto</NavLink>
       </nav>
     </div>
   );

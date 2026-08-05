@@ -4,6 +4,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { users } from "../db/schema.js";
+import { clearVaultDek } from "../lib/vaultSession.js";
 import { requireAuth } from "../plugins/auth.js";
 
 const loginSchema = z.object({
@@ -46,6 +47,8 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
   });
 
   app.post("/api/auth/logout", async (request) => {
+    const userId = request.session.get("userId");
+    if (userId) clearVaultDek(userId);
     request.session.delete();
     return { ok: true };
   });

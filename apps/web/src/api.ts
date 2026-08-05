@@ -112,6 +112,38 @@ export const api = {
     }),
   deleteTimeEntry: (id: string) =>
     request<{ ok: boolean }>(`/api/time-entries/${id}`, { method: "DELETE" }),
+  appointments: (opts?: {
+    from?: string;
+    to?: string;
+    customerId?: string;
+    kind?: string;
+    upcoming?: boolean;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.from) params.set("from", opts.from);
+    if (opts?.to) params.set("to", opts.to);
+    if (opts?.customerId) params.set("customerId", opts.customerId);
+    if (opts?.kind) params.set("kind", opts.kind);
+    if (opts?.upcoming) params.set("upcoming", "true");
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<import("./types").AppointmentItem[]>(
+      `/api/appointments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createAppointment: (body: Record<string, unknown>) =>
+    request<import("./types").AppointmentItem>("/api/appointments", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateAppointment: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").AppointmentItem>(`/api/appointments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteAppointment: (id: string) =>
+    request<{ ok: boolean }>(`/api/appointments/${id}`, { method: "DELETE" }),
   assets: (customerId: string) =>
     request<import("./types").Asset[]>(`/api/customers/${customerId}/assets`),
   createAsset: (customerId: string, body: Record<string, unknown>) =>
@@ -201,6 +233,69 @@ export const api = {
   },
   deleteAttachment: (id: string) =>
     request<{ ok: boolean }>(`/api/attachments/${id}`, { method: "DELETE" }),
+  vaultStatus: () => request<import("./types").VaultStatus>("/api/vault/status"),
+  vaultSetup: (passphrase: string, confirm: string) =>
+    request<import("./types").VaultStatus & { ok: boolean }>("/api/vault/setup", {
+      method: "POST",
+      body: JSON.stringify({ passphrase, confirm }),
+    }),
+  vaultUnlock: (passphrase: string) =>
+    request<{ ok: boolean; unlocked: boolean; expiresAt: number | null }>("/api/vault/unlock", {
+      method: "POST",
+      body: JSON.stringify({ passphrase }),
+    }),
+  vaultLock: () =>
+    request<{ ok: boolean; unlocked: boolean }>("/api/vault/lock", { method: "POST" }),
+  vaultChangePassphrase: (currentPassphrase: string, newPassphrase: string, confirm: string) =>
+    request<{ ok: boolean }>("/api/vault/change-passphrase", {
+      method: "POST",
+      body: JSON.stringify({ currentPassphrase, newPassphrase, confirm }),
+    }),
+  vaultEntries: (customerId?: string) =>
+    request<import("./types").VaultEntryMeta[]>(
+      customerId
+        ? `/api/vault/entries?customerId=${encodeURIComponent(customerId)}`
+        : "/api/vault/entries",
+    ),
+  vaultCreateEntry: (body: Record<string, unknown>) =>
+    request<import("./types").VaultEntryMeta>("/api/vault/entries", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  vaultReveal: (id: string) =>
+    request<import("./types").VaultEntrySecret>(`/api/vault/entries/${id}/reveal`),
+  vaultUpdateEntry: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").VaultEntryMeta>(`/api/vault/entries/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  vaultDeleteEntry: (id: string) =>
+    request<{ ok: boolean }>(`/api/vault/entries/${id}`, { method: "DELETE" }),
+  orgSettings: () => request<import("./types").OrgSettings>("/api/settings/org"),
+  updateOrgSettings: (body: Record<string, unknown>) =>
+    request<import("./types").OrgSettings>("/api/settings/org", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  priceItems: (opts?: { activeOnly?: boolean; kind?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.activeOnly) params.set("activeOnly", "true");
+    if (opts?.kind) params.set("kind", opts.kind);
+    const qs = params.toString();
+    return request<import("./types").PriceItem[]>(`/api/price-items${qs ? `?${qs}` : ""}`);
+  },
+  createPriceItem: (body: Record<string, unknown>) =>
+    request<import("./types").PriceItem>("/api/price-items", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updatePriceItem: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").PriceItem>(`/api/price-items/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deletePriceItem: (id: string) =>
+    request<{ ok: boolean }>(`/api/price-items/${id}`, { method: "DELETE" }),
   exportCustomer: async (customerId: string) => {
     const res = await fetch(`/api/customers/${customerId}/export`, {
       credentials: "include",

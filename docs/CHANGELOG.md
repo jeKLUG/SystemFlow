@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.4.0 – 2026-08-05
+
+- Passworttresor: AES-256-GCM, eigene Vault-Passphrase, DEK nur im RAM
+- Zugänge pro Kunde (VPN, Admin, Hosting, …); Anzeigen zeitlich begrenzt; nicht im ZIP-Export
+- Siehe `docs/SECURITY-VAULT.md`
+
+## 1.4.0 – 2026-08-05
+
+- Konto: Standard-Stundensatz, Währung, MwSt.-Hinweis und Preiskatalog (Stunde/Pauschale/Stück)
+- Zeitbuchungen: Leistung/Satz wählbar, `rateSnapshot`/`amountSnapshot` für Rechnungsvorbereitung
+- API `billing-preview` pro Kunde (Summen aus abrechenbaren Zeiten, ohne Lexware)
+
+## 1.3.1 – 2026-08-05
+
+- Zeiterfassung: Start-/Endzeit eingeben, Stunden werden automatisch berechnet
+- Deploy: belegt Port (z. B. alter Node-Prozess) wird freigegeben
+
 ## 1.3.0 – 2026-08-05
 
 - Kundenbereich mit Tabs: Übersicht, Wiki, Projekte, Zeiten, Anlagen, Betrieb

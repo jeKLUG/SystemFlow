@@ -89,10 +89,38 @@ export async function createDb(databasePath: string) {
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       project_id TEXT,
+      price_item_id TEXT,
       work_date TEXT NOT NULL,
+      start_time TEXT,
+      end_time TEXT,
       hours REAL NOT NULL,
       description TEXT,
       billable INTEGER NOT NULL DEFAULT 1,
+      rate_snapshot REAL,
+      amount_snapshot REAL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS org_settings (
+      id TEXT PRIMARY KEY,
+      default_hourly_rate REAL,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      default_vat_percent REAL,
+      invoice_note TEXT,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS price_items (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      kind TEXT NOT NULL DEFAULT 'hourly',
+      unit_label TEXT,
+      unit_price REAL NOT NULL,
+      sku TEXT,
+      active INTEGER NOT NULL DEFAULT 1,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -144,6 +172,45 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      kind TEXT NOT NULL DEFAULT 'other',
+      customer_id TEXT,
+      start_date TEXT NOT NULL,
+      start_time TEXT,
+      end_date TEXT,
+      end_time TEXT,
+      all_day INTEGER NOT NULL DEFAULT 0,
+      location TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS vault_meta (
+      id TEXT PRIMARY KEY,
+      salt_b64 TEXT NOT NULL,
+      wrapped_dek_b64 TEXT NOT NULL,
+      canary_b64 TEXT NOT NULL,
+      kdf_json TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS vault_entries (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      username_enc TEXT,
+      password_enc TEXT,
+      url_enc TEXT,
+      notes_enc TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS attachments (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -157,6 +224,9 @@ export async function createDb(databasePath: string) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_appointments_start ON appointments(start_date);
+    CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_vault_entries_customer ON vault_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
     CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_customer ON activities(customer_id);
@@ -180,6 +250,11 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "customers", "website", "TEXT");
   await ensureColumn(client, "documents", "project_id", "TEXT");
   await ensureColumn(client, "tasks", "project_id", "TEXT");
+  await ensureColumn(client, "time_entries", "start_time", "TEXT");
+  await ensureColumn(client, "time_entries", "end_time", "TEXT");
+  await ensureColumn(client, "time_entries", "price_item_id", "TEXT");
+  await ensureColumn(client, "time_entries", "rate_snapshot", "REAL");
+  await ensureColumn(client, "time_entries", "amount_snapshot", "REAL");
 
   return drizzle(client, { schema });
 }

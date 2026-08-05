@@ -11,6 +11,20 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 | GET | `/api/auth/me` | Aktueller Benutzer |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
 
+## Preise / Konto (Rechnungsvorbereitung)
+
+Keine Lexware-Anbindung – Stammdaten für spätere Abrechnung aus der Historie.
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET/PUT | `/api/settings/org` | Standard-Stundensatz, Währung, MwSt.-Hinweis, Notiz |
+| GET | `/api/price-items?activeOnly=&kind=` | Preiskatalog |
+| POST | `/api/price-items` | Position anlegen (`hourly`\|`fixed`\|`unit`) |
+| PUT/DELETE | `/api/price-items/:id` | Aktualisieren / löschen |
+| GET | `/api/customers/:id/billing-preview?from=&to=` | Abrechenbare Zeiten als Positionen + Summen |
+
+Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot` und optional `priceItemId`.
+
 ## Kunden
 
 | Methode | Pfad | Beschreibung |
@@ -59,7 +73,7 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | PUT | `/api/time-entries/:id` | Aktualisieren |
 | DELETE | `/api/time-entries/:id` | Löschen |
 
-Body: `workDate`, `hours`, optional `description`, `projectId`, `billable`.
+Body: `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `billable`. Alternativ weiterhin `hours` ohne Uhrzeiten.
 
 ## Anlagen
 

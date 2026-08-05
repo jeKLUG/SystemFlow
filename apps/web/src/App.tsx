@@ -16,6 +16,7 @@ import { QuickNotePage } from "./pages/QuickNotePage";
 import { RemindersPage } from "./pages/RemindersPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { VaultPage } from "./pages/VaultPage";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -50,6 +51,7 @@ export default function App() {
         <Route path="reminders" element={<RemindersPage />} />
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="vault" element={<VaultPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerLayout />}>
           <Route index element={<CustomerOverviewPage />} />

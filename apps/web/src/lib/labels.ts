@@ -1,4 +1,10 @@
-import type { AssetKind, DocumentType, ProjectStatus } from "../types";
+import type {
+  AppointmentKind,
+  AssetKind,
+  DocumentType,
+  ProjectStatus,
+  VaultCategory,
+} from "../types";
 
 export const documentTypeLabel: Record<DocumentType, string> = {
   note: "Notiz",
@@ -13,6 +19,23 @@ export const projectStatusLabel: Record<ProjectStatus, string> = {
   active: "Aktiv",
   on_hold: "Pausiert",
   done: "Abgeschlossen",
+};
+
+export const appointmentKindLabel: Record<AppointmentKind, string> = {
+  customer: "Kunde",
+  internal: "Intern",
+  personal: "Persönlich",
+  other: "Sonstiges",
+};
+
+export const vaultCategoryLabel: Record<VaultCategory, string> = {
+  vpn: "VPN",
+  admin: "Admin / Root",
+  hosting: "Hosting",
+  email: "E-Mail",
+  firewall: "Firewall",
+  remote: "Remote / RDP",
+  other: "Sonstiges",
 };
 
 export const assetKindLabel: Record<AssetKind, string> = {

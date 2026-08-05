@@ -27,13 +27,19 @@ Browser (React SPA)
 - **customers** – Stammdaten
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz
 - **documents** – Kunden-Wiki (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`, optional `projectId`
-- **time_entries** – Zeiteinträge (Datum, Stunden, Beschreibung, optional Projekt, abrechenbar)
+- **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
+- **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
+- **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
 - **assets** – Anlagen/Geräte je Kunde
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`)
+- **vault_meta** / **vault_entries** – Passworttresor (AES-256-GCM, eigene Passphrase; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
+- **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
+
+Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Snapshots zur Vorbereitung.
 
 ## Kunden-UI
 

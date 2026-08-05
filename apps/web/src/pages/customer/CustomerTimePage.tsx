@@ -1,38 +1,68 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { formatDateOnly } from "../../lib/labels";
-import type { ProjectItem, TimeEntryItem } from "../../types";
+import { formatHours, hoursFromRange } from "../../lib/time";
+import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
 
 function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
 /**
- * Zeiterfassung / Stundenbuchung für einen Kunden.
+ * Zeiterfassung: Start-/Endzeit, optional Leistung/Satz aus dem Preiskatalog.
  */
 export function CustomerTimePage() {
   const { id = "" } = useParams();
   const [entries, setEntries] = useState<TimeEntryItem[]>([]);
-  const [summary, setSummary] = useState({ totalHours: 0, billableHours: 0, entryCount: 0 });
+  const [summary, setSummary] = useState({
+    totalHours: 0,
+    billableHours: 0,
+    billableAmount: 0,
+    entryCount: 0,
+  });
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
+  const [currency, setCurrency] = useState("EUR");
   const [filterProject, setFilterProject] = useState("");
+  const [error, setError] = useState("");
   const [form, setForm] = useState({
     workDate: todayIso(),
-    hours: "1",
+    startTime: "09:00",
+    endTime: "10:00",
     description: "",
     projectId: "",
+    priceItemId: "",
     billable: true,
   });
 
+  const computedHours = useMemo(
+    () => hoursFromRange(form.startTime, form.endTime),
+    [form.startTime, form.endTime],
+  );
+
+  const hourlyPrices = useMemo(
+    () => priceItems.filter((p) => p.kind === "hourly" && p.active),
+    [priceItems],
+  );
+
   async function reload() {
-    const [time, p] = await Promise.all([
+    const [time, p, prices, org] = await Promise.all([
       api.timeEntries(id, filterProject ? { projectId: filterProject } : undefined),
       api.projects(id),
+      api.priceItems({ activeOnly: true }),
+      api.orgSettings(),
     ]);
     setEntries(time.entries);
-    setSummary(time.summary);
+    setSummary({
+      totalHours: time.summary.totalHours,
+      billableHours: time.summary.billableHours,
+      billableAmount: time.summary.billableAmount ?? 0,
+      entryCount: time.summary.entryCount,
+    });
     setProjects(p);
+    setPriceItems(prices);
+    setCurrency(org.currency || "EUR");
   }
 
   useEffect(() => {
@@ -52,28 +82,46 @@ export function CustomerTimePage() {
 
   async function createEntry(e: FormEvent) {
     e.preventDefault();
-    await api.createTimeEntry(id, {
-      workDate: form.workDate,
-      hours: Number(form.hours),
-      description: form.description,
-      projectId: form.projectId || null,
-      billable: form.billable,
-    });
-    setForm({
-      workDate: todayIso(),
-      hours: "1",
-      description: "",
-      projectId: form.projectId,
-      billable: true,
-    });
-    await reload();
+    setError("");
+    if (computedHours == null) {
+      setError("Bitte gültige Start- und Endzeit angeben.");
+      return;
+    }
+    try {
+      await api.createTimeEntry(id, {
+        workDate: form.workDate,
+        startTime: form.startTime,
+        endTime: form.endTime,
+        description: form.description,
+        projectId: form.projectId || null,
+        priceItemId: form.priceItemId || null,
+        billable: form.billable,
+      });
+      setForm({
+        workDate: todayIso(),
+        startTime: form.endTime,
+        endTime: form.endTime,
+        description: "",
+        projectId: form.projectId,
+        priceItemId: form.priceItemId,
+        billable: true,
+      });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    }
   }
 
   return (
     <section className="section">
-      <div className="section-head">
-        <h2>Zeiterfassung</h2>
-        <p>Stunden dokumentieren, optional einem Projekt zuordnen und als abrechenbar markieren.</p>
+      <div className="section-head row-between">
+        <div>
+          <h2>Zeiterfassung</h2>
+          <p>
+            Von–bis eingeben – Stunden und Betrag werden berechnet. Sätze unter{" "}
+            <Link to="/settings">Konto</Link> pflegen.
+          </p>
+        </div>
       </div>
 
       <div className="stat-strip">
@@ -84,6 +132,15 @@ export function CustomerTimePage() {
         <div className="stat-chip">
           <strong>{summary.billableHours}</strong>
           <span>Abrechenbar</span>
+        </div>
+        <div className="stat-chip">
+          <strong>
+            {summary.billableAmount.toLocaleString("de-DE", {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 2,
+            })}
+          </strong>
+          <span>Netto {currency}</span>
         </div>
         <div className="stat-chip">
           <strong>{summary.entryCount}</strong>
@@ -102,16 +159,49 @@ export function CustomerTimePage() {
           />
         </label>
         <label className="field">
-          <span>Stunden *</span>
+          <span>Von *</span>
           <input
-            type="number"
+            type="time"
             required
-            min={0.25}
-            max={24}
-            step={0.25}
-            value={form.hours}
-            onChange={(e) => setForm({ ...form, hours: e.target.value })}
+            value={form.startTime}
+            onChange={(e) => setForm({ ...form, startTime: e.target.value })}
           />
+        </label>
+        <label className="field">
+          <span>Bis *</span>
+          <input
+            type="time"
+            required
+            value={form.endTime}
+            onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+          />
+        </label>
+        <div className="field">
+          <span>Dauer</span>
+          <p className="time-duration">
+            {computedHours != null ? (
+              <>
+                <strong>{formatHours(computedHours)}</strong>
+                <span className="muted"> ({computedHours} h)</span>
+              </>
+            ) : (
+              <span className="muted">Ungültiger Zeitraum</span>
+            )}
+          </p>
+        </div>
+        <label className="field">
+          <span>Leistung / Satz</span>
+          <select
+            value={form.priceItemId}
+            onChange={(e) => setForm({ ...form, priceItemId: e.target.value })}
+          >
+            <option value="">Standard / Projekt-Satz</option>
+            {hourlyPrices.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} ({p.unitPrice.toLocaleString("de-DE")} {currency}/h)
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field">
           <span>Projekt</span>
@@ -123,6 +213,7 @@ export function CustomerTimePage() {
             {projects.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name}
+                {p.hourlyRate != null ? ` · ${p.hourlyRate} ${currency}/h` : ""}
               </option>
             ))}
           </select>
@@ -146,8 +237,9 @@ export function CustomerTimePage() {
             placeholder="Was wurde gemacht?"
           />
         </label>
+        {error ? <p className="form-error full">{error}</p> : null}
         <div className="full">
-          <button className="btn btn-primary" type="submit">
+          <button className="btn btn-primary" type="submit" disabled={computedHours == null}>
             Stunden buchen
           </button>
         </div>
@@ -184,8 +276,20 @@ export function CustomerTimePage() {
             <li key={entry.id} className="list-row">
               <div>
                 <strong>
-                  {entry.hours}h · {formatDateOnly(entry.workDate)}
+                  {formatHours(Number(entry.hours))} · {formatDateOnly(entry.workDate)}
+                  {entry.startTime && entry.endTime
+                    ? ` · ${entry.startTime}–${entry.endTime}`
+                    : ""}
                 </strong>
+                <span className="muted">
+                  {entry.priceItemName || "Standard-Satz"}
+                  {entry.rateSnapshot != null
+                    ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                    : ""}
+                  {entry.amountSnapshot != null
+                    ? ` · ${entry.amountSnapshot.toLocaleString("de-DE")} ${currency}`
+                    : ""}
+                </span>
                 <span className="muted">
                   {entry.projectName || "Ohne Projekt"}
                   {entry.billable ? " · abrechenbar" : " · nicht abrechenbar"}

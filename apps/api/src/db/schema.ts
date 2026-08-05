@@ -67,17 +67,24 @@ export const documents = sqliteTable("documents", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Zeiteinträge / geleistete Stunden. */
+/** Zeiteinträge / geleistete Stunden (Stunden aus Start-/Endzeit berechnet). */
 export const timeEntries = sqliteTable("time_entries", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
   projectId: text("project_id"),
+  priceItemId: text("price_item_id"),
   workDate: text("work_date").notNull(),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
   hours: real("hours").notNull(),
   description: text("description"),
   billable: integer("billable", { mode: "boolean" }).notNull().default(true),
+  /** Stundensatz zum Buchungszeitpunkt (für Rechnungsvorbereitung). */
+  rateSnapshot: real("rate_snapshot"),
+  /** Nettobetrag Stunden × Satz. */
+  amountSnapshot: real("amount_snapshot"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -146,6 +153,89 @@ export const contracts = sqliteTable("contracts", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/** Termine (Kunden- und allgemeine Termine). */
+export const appointments = sqliteTable("appointments", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  description: text("description"),
+  /** Kundentermin, intern, persönlich oder sonstig. */
+  kind: text("kind", {
+    enum: ["customer", "internal", "personal", "other"],
+  })
+    .notNull()
+    .default("other"),
+  customerId: text("customer_id"),
+  startDate: text("start_date").notNull(),
+  startTime: text("start_time"),
+  endDate: text("end_date"),
+  endTime: text("end_time"),
+  allDay: integer("all_day", { mode: "boolean" }).notNull().default(false),
+  location: text("location"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * Organisations-Einstellungen (eine Zeile) – Stundensatz, Währung usw.
+ * Für spätere Rechnungsvorbereitung aus der Historie (Lexware extern).
+ */
+export const orgSettings = sqliteTable("org_settings", {
+  id: text("id").primaryKey(),
+  defaultHourlyRate: real("default_hourly_rate"),
+  currency: text("currency").notNull().default("EUR"),
+  defaultVatPercent: real("default_vat_percent"),
+  invoiceNote: text("invoice_note"),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * Preiskatalog: Stundensätze und Einzelpreise für Leistungen.
+ */
+export const priceItems = sqliteTable("price_items", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  /** hourly = Stundensatz, fixed = Pauschale, unit = Stückpreis */
+  kind: text("kind", { enum: ["hourly", "fixed", "unit"] }).notNull().default("hourly"),
+  unitLabel: text("unit_label"),
+  unitPrice: real("unit_price").notNull(),
+  sku: text("sku"),
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/**
+ * Vault-Metadaten (eine Zeile): Salt + gewrappter DEK.
+ * Klartext-Geheimnisse liegen nie in der DB.
+ */
+export const vaultMeta = sqliteTable("vault_meta", {
+  id: text("id").primaryKey(),
+  saltB64: text("salt_b64").notNull(),
+  wrappedDekB64: text("wrapped_dek_b64").notNull(),
+  canaryB64: text("canary_b64").notNull(),
+  kdfJson: text("kdf_json").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Verschlüsselte Zugangsdaten (AES-256-GCM Felder). */
+export const vaultEntries = sqliteTable("vault_entries", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id"),
+  /** Klartext-Label zur Orientierung (kein Geheimnis). */
+  title: text("title").notNull(),
+  /** Optionaler Typ: vpn, admin, hosting, email, other */
+  category: text("category").notNull().default("other"),
+  usernameEnc: text("username_enc"),
+  passwordEnc: text("password_enc"),
+  urlEnc: text("url_enc"),
+  notesEnc: text("notes_enc"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 /** Dateianhänge zu Kunde / Dokument / Anlage. */
 export const attachments = sqliteTable("attachments", {
   id: text("id").primaryKey(),
@@ -170,4 +260,9 @@ export type Asset = typeof assets.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Task = typeof tasks.$inferSelect;
 export type Contract = typeof contracts.$inferSelect;
+export type Appointment = typeof appointments.$inferSelect;
+export type OrgSettings = typeof orgSettings.$inferSelect;
+export type PriceItem = typeof priceItems.$inferSelect;
+export type VaultMeta = typeof vaultMeta.$inferSelect;
+export type VaultEntry = typeof vaultEntries.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;

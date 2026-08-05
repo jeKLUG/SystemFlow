@@ -1,7 +1,48 @@
 export type CustomerStatus = "active" | "inactive";
 export type DocumentType = "note" | "protocol" | "documentation" | "article" | "workflow";
 export type ProjectStatus = "planned" | "active" | "on_hold" | "done";
+export type AppointmentKind = "customer" | "internal" | "personal" | "other";
 export type AssetKind = "pc" | "server" | "firewall" | "license" | "network" | "other";
+export type VaultCategory =
+  | "vpn"
+  | "admin"
+  | "hosting"
+  | "email"
+  | "firewall"
+  | "remote"
+  | "other";
+
+export interface VaultStatus {
+  configured: boolean;
+  unlocked: boolean;
+  expiresAt: number | null;
+}
+
+export interface VaultEntryMeta {
+  id: string;
+  customerId: string | null;
+  customerName?: string | null;
+  customerCompany?: string | null;
+  title: string;
+  category: VaultCategory | string;
+  createdAt: string;
+  updatedAt: string;
+  hasUsername: boolean;
+  hasPassword: boolean;
+  hasUrl: boolean;
+  hasNotes: boolean;
+}
+
+export interface VaultEntrySecret {
+  id: string;
+  title: string;
+  category: VaultCategory | string;
+  customerId: string | null;
+  username: string | null;
+  password: string | null;
+  url: string | null;
+  notes: string | null;
+}
 
 export interface User {
   id: string;
@@ -62,10 +103,16 @@ export interface TimeEntryItem {
   customerId: string;
   projectId: string | null;
   projectName?: string | null;
+  priceItemId?: string | null;
+  priceItemName?: string | null;
   workDate: string;
+  startTime: string | null;
+  endTime: string | null;
   hours: number;
   description: string | null;
   billable: boolean;
+  rateSnapshot?: number | null;
+  amountSnapshot?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,8 +122,34 @@ export interface TimeEntriesResponse {
   summary: {
     totalHours: number;
     billableHours: number;
+    billableAmount?: number;
     entryCount: number;
   };
+}
+
+export type PriceItemKind = "hourly" | "fixed" | "unit";
+
+export interface OrgSettings {
+  id: string;
+  defaultHourlyRate: number | null;
+  currency: string;
+  defaultVatPercent: number | null;
+  invoiceNote: string | null;
+  updatedAt: string;
+}
+
+export interface PriceItem {
+  id: string;
+  name: string;
+  description: string | null;
+  kind: PriceItemKind;
+  unitLabel: string | null;
+  unitPrice: number;
+  sku: string | null;
+  active: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface RecentDocument {
@@ -167,6 +240,24 @@ export interface TaskItem {
   updatedAt: string;
   customerName?: string;
   customerCompany?: string | null;
+}
+
+export interface AppointmentItem {
+  id: string;
+  title: string;
+  description: string | null;
+  kind: AppointmentKind;
+  customerId: string | null;
+  customerName?: string | null;
+  customerCompany?: string | null;
+  startDate: string;
+  startTime: string | null;
+  endDate: string | null;
+  endTime: string | null;
+  allDay: boolean;
+  location: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ContractItem {
