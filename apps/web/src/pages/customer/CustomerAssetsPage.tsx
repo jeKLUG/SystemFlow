@@ -434,7 +434,7 @@ export function CustomerAssetsPage() {
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full row gap">
+          <div className="full form-actions">
             <button className="btn btn-primary" type="submit">
               {editingId ? "Änderungen speichern" : "Anlage anlegen"}
             </button>
@@ -530,7 +530,7 @@ export function CustomerAssetsPage() {
                         ) : null}
                         {asset.notes ? <p className="asset-notes muted">{asset.notes}</p> : null}
                       </div>
-                      <div className="row gap asset-actions">
+                      <div className="list-actions asset-actions">
                         <button
                           type="button"
                           className="btn btn-ghost btn-sm"

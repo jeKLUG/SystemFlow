@@ -1,22 +1,68 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { formatDate, vaultCategoryLabel } from "../lib/labels";
+import {
+  clearGenHistory,
+  generatePassword,
+  loadGenHistory,
+  passwordStrength,
+  pushGenHistory,
+  type GenHistoryItem,
+  type GeneratorOptions,
+} from "../lib/passwordGenerator";
 import type { VaultCategory, VaultEntryMeta, VaultEntrySecret, VaultStatus } from "../types";
 
-const emptyForm = {
+type SortKey = "updated" | "title" | "category" | "customer";
+
+type EntryForm = {
+  title: string;
+  category: VaultCategory;
+  customerId: string;
+  username: string;
+  password: string;
+  url: string;
+  notes: string;
+  favorite: boolean;
+  tagsText: string;
+};
+
+const emptyForm: EntryForm = {
   title: "",
-  category: "admin" as VaultCategory,
+  category: "admin",
   customerId: "",
   username: "",
   password: "",
   url: "",
   notes: "",
+  favorite: false,
+  tagsText: "",
 };
 
+const defaultGen: GeneratorOptions = {
+  length: 20,
+  upper: true,
+  lower: true,
+  digits: true,
+  symbols: true,
+  excludeAmbiguous: true,
+};
+
+function parseTagsText(value: string): string[] {
+  return value
+    .split(/[,;\s]+/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function customerLabel(entry: VaultEntryMeta) {
+  return entry.customerCompany || entry.customerName || "Kunde";
+}
+
 /**
- * Passworttresor: nur nach Freischaltung nutzbar, Secrets zeitlich begrenzt sichtbar.
+ * Passworttresor: Organisation, Generator mit Verlauf, Sortierung und Kategorien.
  */
 export function VaultPage() {
   const [params] = useSearchParams();
@@ -27,12 +73,25 @@ export function VaultPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ...emptyForm, customerId: presetCustomer });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<EntryForm>({ ...emptyForm, customerId: presetCustomer });
   const [passphrase, setPassphrase] = useState("");
   const [passConfirm, setPassConfirm] = useState("");
   const [revealed, setRevealed] = useState<VaultEntrySecret | null>(null);
   const [revealVisible, setRevealVisible] = useState(false);
   const revealTimer = useRef<number | null>(null);
+
+  const [q, setQ] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | VaultCategory>("all");
+  const [tagFilter, setTagFilter] = useState("");
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>("updated");
+  const [groupByCategory, setGroupByCategory] = useState(true);
+  const [showGenerator, setShowGenerator] = useState(false);
+  const [genOpts, setGenOpts] = useState<GeneratorOptions>(defaultGen);
+  const [generated, setGenerated] = useState("");
+  const [genHistory, setGenHistory] = useState<GenHistoryItem[]>(() => loadGenHistory());
+  const [copyHint, setCopyHint] = useState("");
 
   async function refreshStatus() {
     setStatus(await api.vaultStatus());
@@ -67,6 +126,12 @@ export function VaultPage() {
     setRevealed(null);
     setRevealVisible(false);
     if (revealTimer.current) window.clearTimeout(revealTimer.current);
+  }
+
+  function resetForm() {
+    setForm({ ...emptyForm, customerId: filterCustomer });
+    setEditingId(null);
+    setShowForm(false);
   }
 
   async function onSetup(e: FormEvent) {
@@ -106,24 +171,75 @@ export function VaultPage() {
     setStatus({ configured: true, unlocked: false, expiresAt: null });
   }
 
-  async function onCreate(e: FormEvent) {
+  async function startEdit(entry: VaultEntryMeta) {
+    setError("");
+    clearReveal();
+    try {
+      const secret = await api.vaultReveal(entry.id);
+      setEditingId(entry.id);
+      setShowForm(true);
+      setForm({
+        title: secret.title,
+        category: (secret.category as VaultCategory) || "other",
+        customerId: secret.customerId ?? "",
+        username: secret.username ?? "",
+        password: "",
+        url: secret.url ?? "",
+        notes: secret.notes ?? "",
+        favorite: Boolean(secret.favorite ?? entry.favorite),
+        tagsText: (secret.tags ?? entry.tags ?? []).join(", "),
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen");
+      void refreshStatus();
+    }
+  }
+
+  async function onSave(e: FormEvent) {
     e.preventDefault();
     setError("");
+    const tags = parseTagsText(form.tagsText);
     try {
-      await api.vaultCreateEntry({
-        title: form.title,
-        category: form.category,
-        customerId: form.customerId || null,
-        username: form.username,
-        password: form.password,
-        url: form.url,
-        notes: form.notes,
-      });
-      setForm({ ...emptyForm, customerId: filterCustomer });
-      setShowForm(false);
+      if (editingId) {
+        const body: Record<string, unknown> = {
+          title: form.title,
+          category: form.category,
+          customerId: form.customerId || null,
+          username: form.username,
+          url: form.url,
+          notes: form.notes,
+          favorite: form.favorite,
+          tags,
+        };
+        if (form.password.trim()) body.password = form.password;
+        await api.vaultUpdateEntry(editingId, body);
+      } else {
+        await api.vaultCreateEntry({
+          title: form.title,
+          category: form.category,
+          customerId: form.customerId || null,
+          username: form.username,
+          password: form.password,
+          url: form.url,
+          notes: form.notes,
+          favorite: form.favorite,
+          tags,
+        });
+      }
+      resetForm();
       await loadEntries();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    }
+  }
+
+  async function toggleFavorite(entry: VaultEntryMeta) {
+    try {
+      await api.vaultUpdateEntry(entry.id, { favorite: !entry.favorite });
+      await loadEntries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Aktualisieren fehlgeschlagen");
     }
   }
 
@@ -143,14 +259,114 @@ export function VaultPage() {
     }
   }
 
-  async function copyText(value: string | null | undefined) {
+  async function copyText(value: string | null | undefined, label = "Kopiert") {
     if (!value) return;
     try {
       await navigator.clipboard.writeText(value);
+      setCopyHint(label);
+      window.setTimeout(() => setCopyHint(""), 1500);
     } catch {
       setError("Zwischenablage nicht verfügbar");
     }
   }
+
+  function runGenerator() {
+    const pw = generatePassword(genOpts);
+    setGenerated(pw);
+    setGenHistory(pushGenHistory(pw, genOpts.length));
+  }
+
+  function useGeneratedInForm(password: string) {
+    setForm((f) => ({ ...f, password }));
+    setShowForm(true);
+    setCopyHint("In Formular übernommen");
+    window.setTimeout(() => setCopyHint(""), 1500);
+  }
+
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) for (const t of e.tags ?? []) set.add(t);
+    return [...set].sort();
+  }, [entries]);
+
+  const categoryCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const e of entries) map.set(e.category, (map.get(e.category) ?? 0) + 1);
+    return map;
+  }, [entries]);
+
+  const stats = useMemo(() => {
+    const favorites = entries.filter((e) => e.favorite).length;
+    const withCustomer = entries.filter((e) => e.customerId).length;
+    return {
+      total: entries.length,
+      favorites,
+      withCustomer,
+      categories: categoryCounts.size,
+    };
+  }, [entries, categoryCounts]);
+
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    let list = entries.filter((e) => {
+      if (favoritesOnly && !e.favorite) return false;
+      if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
+      if (tagFilter && !(e.tags ?? []).includes(tagFilter)) return false;
+      if (!query) return true;
+      const hay = [
+        e.title,
+        e.category,
+        vaultCategoryLabel[e.category as VaultCategory] ?? e.category,
+        customerLabel(e),
+        ...(e.tags ?? []),
+      ]
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(query);
+    });
+
+    const cmp = (a: VaultEntryMeta, b: VaultEntryMeta) => {
+      if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+      switch (sortKey) {
+        case "title":
+          return a.title.localeCompare(b.title, "de");
+        case "category":
+          return (vaultCategoryLabel[a.category as VaultCategory] ?? a.category).localeCompare(
+            vaultCategoryLabel[b.category as VaultCategory] ?? b.category,
+            "de",
+          );
+        case "customer":
+          return customerLabel(a).localeCompare(customerLabel(b), "de");
+        default:
+          return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+      }
+    };
+    return [...list].sort(cmp);
+  }, [entries, q, categoryFilter, tagFilter, favoritesOnly, sortKey]);
+
+  const groups = useMemo(() => {
+    if (!groupByCategory) return [{ key: "all", label: null as string | null, items: filtered }];
+    const order = Object.keys(vaultCategoryLabel) as VaultCategory[];
+    const byCat = new Map<string, VaultEntryMeta[]>();
+    for (const e of filtered) {
+      const list = byCat.get(e.category) ?? [];
+      list.push(e);
+      byCat.set(e.category, list);
+    }
+    const known = order
+      .filter((k) => byCat.has(k))
+      .map((k) => ({
+        key: k,
+        label: vaultCategoryLabel[k],
+        items: byCat.get(k)!,
+      }));
+    const unknown = [...byCat.keys()]
+      .filter((k) => !(k in vaultCategoryLabel))
+      .map((k) => ({ key: k, label: k, items: byCat.get(k)! }));
+    return [...known, ...unknown];
+  }, [filtered, groupByCategory]);
+
+  const strength = passwordStrength(generated || form.password);
 
   if (!status) return <div className="boot">Lade Tresor…</div>;
 
@@ -161,14 +377,16 @@ export function VaultPage() {
           <p className="eyebrow">Sicherheit</p>
           <h2>Passworttresor</h2>
           <p>
-            Zugangsdaten verschlüsselt mit AES-256-GCM. Freischaltung nur mit eigener Vault-Passphrase
-            (nicht dein Login).
+            Zugänge organisieren, kategorisieren und mit Generator erzeugen. Freischaltung nur mit
+            Vault-Passphrase.
           </p>
         </div>
         {status.unlocked ? (
-          <button type="button" className="btn btn-danger" onClick={() => void onLock()}>
-            Tresor sperren
-          </button>
+          <div className="page-actions">
+            <button type="button" className="btn btn-danger" onClick={() => void onLock()}>
+              Tresor sperren
+            </button>
+          </div>
         ) : null}
       </div>
 
@@ -177,7 +395,7 @@ export function VaultPage() {
         <ul>
           <li>Vault-Passphrase mindestens 12 Zeichen – getrennt vom Login speichern.</li>
           <li>Schlüssel liegt nur während der Freischaltung im Server-RAM (ca. 15 Min.).</li>
-          <li>Bei DB-Diebstahl ohne Passphrase sind Einträge nicht lesbar.</li>
+          <li>Generator-Verlauf liegt nur lokal im Browser – nicht auf dem Server.</li>
           <li>Vault-Inhalte werden nicht im Kunden-ZIP-Export mitgeliefert.</li>
         </ul>
       </div>
@@ -241,8 +459,29 @@ export function VaultPage() {
         </section>
       ) : (
         <>
+          {stats.total > 0 ? (
+            <div className="stat-strip asset-stat-strip">
+              <div className="stat-chip">
+                <strong>{stats.total}</strong>
+                <span>Zugänge</span>
+              </div>
+              <div className="stat-chip">
+                <strong>{stats.favorites}</strong>
+                <span>Favoriten</span>
+              </div>
+              <div className="stat-chip">
+                <strong>{stats.categories}</strong>
+                <span>Kategorien</span>
+              </div>
+              <div className="stat-chip">
+                <strong>{stats.withCustomer}</strong>
+                <span>Mit Kunde</span>
+              </div>
+            </div>
+          ) : null}
+
           <div className="vault-toolbar">
-            <label className="field" style={{ margin: 0, minWidth: 240, flex: 1 }}>
+            <label className="field" style={{ margin: 0, minWidth: 220, flex: 1 }}>
               <span>Kunde filtern</span>
               <CustomerPicker
                 value={filterCustomer}
@@ -253,20 +492,246 @@ export function VaultPage() {
                 activeOnly={false}
               />
             </label>
+            <label className="field" style={{ margin: 0, minWidth: 140 }}>
+              <span>Sortierung</span>
+              <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
+                <option value="updated">Zuletzt geändert</option>
+                <option value="title">Name A–Z</option>
+                <option value="category">Kategorie</option>
+                <option value="customer">Kunde</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setShowGenerator((v) => !v)}
+            >
+              {showGenerator ? "Generator aus" : "Generator"}
+            </button>
             <button
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                setShowForm((v) => !v);
-                setForm({ ...emptyForm, customerId: filterCustomer });
+                if (showForm && !editingId) resetForm();
+                else {
+                  setEditingId(null);
+                  setForm({ ...emptyForm, customerId: filterCustomer });
+                  setShowForm(true);
+                }
               }}
             >
-              {showForm ? "Abbrechen" : "+ Zugang"}
+              {showForm && !editingId ? "Abbrechen" : "+ Zugang"}
             </button>
           </div>
 
+          <div className="wiki-toolbar asset-toolbar">
+            <input
+              className="wiki-search"
+              type="search"
+              placeholder="Suche Bezeichnung, Kategorie, Tag, Kunde…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <div className="filter-chips">
+              <button
+                type="button"
+                className={`chip ${favoritesOnly ? "chip-active" : ""}`}
+                onClick={() => setFavoritesOnly((v) => !v)}
+              >
+                Nur Favoriten
+              </button>
+              <button
+                type="button"
+                className={`chip ${groupByCategory ? "chip-active" : ""}`}
+                onClick={() => setGroupByCategory((v) => !v)}
+              >
+                Nach Kategorie
+              </button>
+              <button
+                type="button"
+                className={`chip ${categoryFilter === "all" ? "chip-active" : ""}`}
+                onClick={() => setCategoryFilter("all")}
+              >
+                Alle Kategorien
+              </button>
+              {(Object.keys(vaultCategoryLabel) as VaultCategory[])
+                .filter((k) => (categoryCounts.get(k) ?? 0) > 0 || categoryFilter === k)
+                .map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={`chip ${categoryFilter === k ? "chip-active" : ""}`}
+                    onClick={() => setCategoryFilter(k)}
+                  >
+                    {vaultCategoryLabel[k]}
+                    {categoryCounts.get(k) ? ` (${categoryCounts.get(k)})` : ""}
+                  </button>
+                ))}
+            </div>
+            {allTags.length > 0 ? (
+              <div className="filter-chips">
+                <button
+                  type="button"
+                  className={`chip ${!tagFilter ? "chip-active" : ""}`}
+                  onClick={() => setTagFilter("")}
+                >
+                  Alle Tags
+                </button>
+                {allTags.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className={`chip ${tagFilter === t ? "chip-active" : ""}`}
+                    onClick={() => setTagFilter(t)}
+                  >
+                    #{t}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          {showGenerator ? (
+            <section className="panel vault-generator">
+              <div className="row-between">
+                <h3>Passwort-Generator</h3>
+                <span className={`vault-strength vault-strength-${strength.score}`}>
+                  {generated ? strength.label : "Bereit"}
+                </span>
+              </div>
+              <div className="vault-gen-result">
+                <code className="vault-mono">{generated || "Noch kein Passwort erzeugt"}</code>
+                <div className="form-actions">
+                  <button type="button" className="btn btn-primary" onClick={runGenerator}>
+                    Generieren
+                  </button>
+                  {generated ? (
+                    <>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => void copyText(generated, "Passwort kopiert")}
+                      >
+                        Kopieren
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => useGeneratedInForm(generated)}
+                      >
+                        In Formular
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+              <div className="vault-gen-opts form-grid">
+                <label className="field">
+                  <span>Länge: {genOpts.length}</span>
+                  <input
+                    type="range"
+                    min={8}
+                    max={64}
+                    value={genOpts.length}
+                    onChange={(e) =>
+                      setGenOpts({ ...genOpts, length: Number(e.target.value) })
+                    }
+                  />
+                </label>
+                <label className="field vault-check">
+                  <input
+                    type="checkbox"
+                    checked={genOpts.upper}
+                    onChange={(e) => setGenOpts({ ...genOpts, upper: e.target.checked })}
+                  />
+                  <span>Großbuchstaben</span>
+                </label>
+                <label className="field vault-check">
+                  <input
+                    type="checkbox"
+                    checked={genOpts.lower}
+                    onChange={(e) => setGenOpts({ ...genOpts, lower: e.target.checked })}
+                  />
+                  <span>Kleinbuchstaben</span>
+                </label>
+                <label className="field vault-check">
+                  <input
+                    type="checkbox"
+                    checked={genOpts.digits}
+                    onChange={(e) => setGenOpts({ ...genOpts, digits: e.target.checked })}
+                  />
+                  <span>Ziffern</span>
+                </label>
+                <label className="field vault-check">
+                  <input
+                    type="checkbox"
+                    checked={genOpts.symbols}
+                    onChange={(e) => setGenOpts({ ...genOpts, symbols: e.target.checked })}
+                  />
+                  <span>Sonderzeichen</span>
+                </label>
+                <label className="field vault-check">
+                  <input
+                    type="checkbox"
+                    checked={genOpts.excludeAmbiguous}
+                    onChange={(e) =>
+                      setGenOpts({ ...genOpts, excludeAmbiguous: e.target.checked })
+                    }
+                  />
+                  <span>Mehrdeutige meiden (0/O, 1/l/I)</span>
+                </label>
+              </div>
+              {genHistory.length > 0 ? (
+                <div className="vault-gen-history">
+                  <div className="row-between">
+                    <strong>Verlauf (lokal)</strong>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => {
+                        clearGenHistory();
+                        setGenHistory([]);
+                      }}
+                    >
+                      Verlauf löschen
+                    </button>
+                  </div>
+                  <ul className="vault-history-list">
+                    {genHistory.map((item) => (
+                      <li key={item.id}>
+                        <code className="vault-mono">{item.password}</code>
+                        <span className="muted">
+                          {item.length} Z. · {new Date(item.createdAt).toLocaleString("de-DE")}
+                        </span>
+                        <div className="list-actions">
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => void copyText(item.password, "Aus Verlauf kopiert")}
+                          >
+                            Kopieren
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => useGeneratedInForm(item.password)}
+                          >
+                            Verwenden
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           {showForm ? (
-            <form className="panel form-grid" onSubmit={onCreate} autoComplete="off">
+            <form className="panel form-grid" onSubmit={onSave} autoComplete="off">
+              <div className="full asset-form-title">
+                <strong>{editingId ? "Zugang bearbeiten" : "Neuer Zugang"}</strong>
+              </div>
               <label className="field">
                 <span>Bezeichnung *</span>
                 <input
@@ -301,6 +766,14 @@ export function VaultPage() {
                   placeholder="Kunde suchen…"
                 />
               </label>
+              <label className="field vault-check" style={{ alignSelf: "end" }}>
+                <input
+                  type="checkbox"
+                  checked={form.favorite}
+                  onChange={(e) => setForm({ ...form, favorite: e.target.checked })}
+                />
+                <span>Als Favorit markieren</span>
+              </label>
               <label className="field">
                 <span>Benutzername</span>
                 <input
@@ -310,13 +783,36 @@ export function VaultPage() {
                 />
               </label>
               <label className="field">
-                <span>Passwort / Secret</span>
-                <input
-                  type="password"
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                />
+                <span>
+                  Passwort / Secret
+                  {editingId ? " (leer = behalten)" : ""}
+                </span>
+                <div className="vault-password-field">
+                  <input
+                    type="text"
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder={editingId ? "Unverändert lassen…" : ""}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      const pw = generatePassword(genOpts);
+                      setGenerated(pw);
+                      setGenHistory(pushGenHistory(pw, genOpts.length));
+                      setForm((f) => ({ ...f, password: pw }));
+                    }}
+                  >
+                    Würfeln
+                  </button>
+                </div>
+                {form.password ? (
+                  <span className={`vault-strength vault-strength-${passwordStrength(form.password).score}`}>
+                    {passwordStrength(form.password).label}
+                  </span>
+                ) : null}
               </label>
               <label className="field">
                 <span>URL</span>
@@ -327,6 +823,14 @@ export function VaultPage() {
                   placeholder="https://…"
                 />
               </label>
+              <label className="field">
+                <span>Tags</span>
+                <input
+                  value={form.tagsText}
+                  onChange={(e) => setForm({ ...form, tagsText: e.target.value })}
+                  placeholder="z. B. produktiv, backup, standby"
+                />
+              </label>
               <label className="field full">
                 <span>Notizen (verschlüsselt)</span>
                 <textarea
@@ -335,15 +839,19 @@ export function VaultPage() {
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 />
               </label>
-              <div className="full">
+              <div className="full form-actions">
                 <button className="btn btn-primary" type="submit">
-                  Verschlüsselt speichern
+                  {editingId ? "Änderungen speichern" : "Verschlüsselt speichern"}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={resetForm}>
+                  Abbrechen
                 </button>
               </div>
             </form>
           ) : null}
 
           {error ? <p className="form-error">{error}</p> : null}
+          {copyHint ? <p className="form-success">{copyHint}</p> : null}
 
           {revealed ? (
             <section className="panel vault-reveal">
@@ -420,59 +928,114 @@ export function VaultPage() {
           ) : null}
 
           {entries.length === 0 ? (
-            <p className="empty">Noch keine Zugänge. Lege VPN-, Admin- oder Hosting-Zugänge an.</p>
+            <p className="empty">
+              Noch keine Zugänge. Lege VPN-, Admin- oder Hosting-Zugänge an – optional mit Generator.
+            </p>
+          ) : filtered.length === 0 ? (
+            <p className="empty">Keine Zugänge für diese Filter.</p>
           ) : (
-            <ul className="list">
-              {entries.map((entry) => (
-                <li key={entry.id} className="list-row vault-entry-row">
-                  <div>
-                    <strong>{entry.title}</strong>
-                    <span className="muted">
-                      {vaultCategoryLabel[entry.category as VaultCategory] ?? entry.category}
-                      {entry.customerId
-                        ? ` · ${entry.customerCompany || entry.customerName || "Kunde"}`
-                        : " · Allgemein"}
-                      {" · "}
-                      {formatDate(entry.updatedAt)}
-                    </span>
-                    <span className="muted vault-flags">
-                      {[
-                        entry.hasUsername && "Benutzer",
-                        entry.hasPassword && "Passwort",
-                        entry.hasUrl && "URL",
-                        entry.hasNotes && "Notizen",
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </span>
-                  </div>
-                  <div className="cta-row">
-                    {entry.customerId ? (
-                      <Link className="btn btn-ghost btn-sm" to={`/customers/${entry.customerId}`}>
-                        Kunde
-                      </Link>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => void onReveal(entry.id)}
-                    >
-                      Anzeigen
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => {
-                        if (!confirm("Eintrag unwiderruflich löschen?")) return;
-                        void api.vaultDeleteEntry(entry.id).then(() => loadEntries());
-                      }}
-                    >
-                      Löschen
-                    </button>
-                  </div>
-                </li>
+            <div className="asset-groups">
+              {groups.map((group) => (
+                <div key={group.key} className="asset-group">
+                  {group.label ? (
+                    <h3 className="asset-group-title">
+                      {group.label}
+                      <span className="muted"> · {group.items.length}</span>
+                    </h3>
+                  ) : null}
+                  <ul className="list">
+                    {group.items.map((entry) => (
+                      <li key={entry.id} className="list-row vault-entry-row">
+                        <div className="asset-main">
+                          <div className="asset-title-row">
+                            <button
+                              type="button"
+                              className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
+                              title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
+                              onClick={() => void toggleFavorite(entry)}
+                            >
+                              ★
+                            </button>
+                            <strong>{entry.title}</strong>
+                            {!groupByCategory ? (
+                              <span className="badge badge-kind">
+                                {vaultCategoryLabel[entry.category as VaultCategory] ??
+                                  entry.category}
+                              </span>
+                            ) : null}
+                          </div>
+                          <span className="muted">
+                            {entry.customerId
+                              ? customerLabel(entry)
+                              : "Allgemein"}
+                            {" · "}
+                            {formatDate(entry.updatedAt)}
+                          </span>
+                          {(entry.tags ?? []).length > 0 ? (
+                            <div className="vault-tags">
+                              {entry.tags.map((t) => (
+                                <button
+                                  key={t}
+                                  type="button"
+                                  className="vault-tag"
+                                  onClick={() => setTagFilter(t)}
+                                >
+                                  #{t}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                          <span className="muted vault-flags">
+                            {[
+                              entry.hasUsername && "Benutzer",
+                              entry.hasPassword && "Passwort",
+                              entry.hasUrl && "URL",
+                              entry.hasNotes && "Notizen",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </div>
+                        <div className="list-actions">
+                          {entry.customerId ? (
+                            <Link
+                              className="btn btn-ghost btn-sm"
+                              to={`/customers/${entry.customerId}`}
+                            >
+                              Kunde
+                            </Link>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => void startEdit(entry)}
+                          >
+                            Bearbeiten
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => void onReveal(entry.id)}
+                          >
+                            Anzeigen
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => {
+                              if (!confirm("Eintrag unwiderruflich löschen?")) return;
+                              void api.vaultDeleteEntry(entry.id).then(() => loadEntries());
+                            }}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </>
       )}

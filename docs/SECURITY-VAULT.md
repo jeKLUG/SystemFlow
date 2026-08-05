@@ -28,6 +28,13 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 - Container-Neustart sperrt den Tresor (RAM weg).
 - Backups der SQLite-Datei enthalten Ciphertexte – die Passphrase zusätzlich sicher verwahren (nicht in derselben Backup-Datei).
 
+## Organisation
+
+- **Kategorien** (Klartext-Metadaten): VPN, Admin, Hosting, E-Mail, Firewall, Remote, WLAN, Datenbank, Cloud, Lizenz, Microsoft 365, Provider, Sonstiges
+- **Tags** und **Favoriten** sind Klartext zur Filterung (keine Geheimnisse)
+- Geheimnisse (Benutzer, Passwort, URL, Notizen) bleiben AES-256-GCM-verschlüsselt
+- **Passwort-Generator** läuft im Browser; der Verlauf liegt nur in `localStorage` (nicht auf dem Server)
+
 ## API (Kurz)
 
 | Aktion | Pfad |
@@ -38,4 +45,5 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 | Sperren | `POST /api/vault/lock` |
 | Passphrase ändern | `POST /api/vault/change-passphrase` |
 | Einträge (Meta) | `GET /api/vault/entries` |
+| Anlegen / Aktualisieren | `POST/PUT /api/vault/entries` – inkl. `category`, `favorite`, `tags` |
 | Anzeigen (Klartext) | `GET /api/vault/entries/:id/reveal` |

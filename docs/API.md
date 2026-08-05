@@ -102,6 +102,26 @@ Suche findet auch Hostname, IP, MAC und Standort.
 | POST | `/api/customers/:id/activities` | Eintrag anlegen |
 | DELETE | `/api/activities/:id` | Löschen |
 
+## Passworttresor
+
+Siehe auch [SECURITY-VAULT.md](SECURITY-VAULT.md). Freischaltung mit eigener Vault-Passphrase; DEK nur im RAM.
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/vault/status` | `configured`, `unlocked`, `expiresAt` |
+| POST | `/api/vault/setup` | Einrichten `{ passphrase, confirm }` |
+| POST | `/api/vault/unlock` | Freischalten |
+| POST | `/api/vault/lock` | Sperren |
+| POST | `/api/vault/change-passphrase` | Passphrase ändern |
+| GET | `/api/vault/entries?customerId=` | Meta-Liste (ohne Geheimnisse) |
+| POST | `/api/vault/entries` | Anlegen |
+| PUT | `/api/vault/entries/:id` | Aktualisieren |
+| GET | `/api/vault/entries/:id/reveal` | Klartext (zeitlich begrenzt in der UI) |
+| DELETE | `/api/vault/entries/:id` | Löschen |
+
+Body: `title`, optional `category`, `favorite`, `tags[]`, `customerId`, `username`, `password`, `url`, `notes`.  
+Kategorien: `vpn` · `admin` · `hosting` · `email` · `firewall` · `remote` · `wifi` · `database` · `cloud` · `license` · `office` · `isp` · `other`.
+
 ## Vorlagen & Suche
 
 | Methode | Pfad | Beschreibung |

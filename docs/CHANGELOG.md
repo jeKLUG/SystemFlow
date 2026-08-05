@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.2 – 2026-08-05
+
+- UI-Polish: Buttons/Chips/Badges zentriert, einheitliche Toolbars, Listen-Actions, Leerzustände
+- Responsives Layout für Tresor, Anlagen, Kunden, Kalender und Mobile-Navigation
+
+## 1.5.1 – 2026-08-05
+
+- Tresor: mehr Kategorien, Tags, Favoriten, Suche/Filter, Sortierung, Gruppierung
+- Passwort-Generator mit Stärkeanzeige und lokalem Verlauf; Einträge bearbeiten
+
 ## 1.5.0 – 2026-08-05
 
 - Anlagen-Reiter: erweiterte Typen (Notebook, Switch, Router, AP, NAS, …), Status aktiv/Ersatz/außer Betrieb

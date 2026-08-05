@@ -50,7 +50,7 @@ export function CustomerLayout() {
             ) : null}
           </p>
         </div>
-        <div className="cta-row">
+        <div className="page-actions">
           <Link className="btn btn-primary" to={`/quick-note?customerId=${id}`}>
             + Notiz
           </Link>

@@ -86,7 +86,7 @@ export function CustomersPage() {
 
   return (
     <div className="page">
-      <div className="section-head row-between">
+      <div className="page-header">
         <div>
           <h2>Kunden</h2>
           <p>
@@ -95,9 +95,11 @@ export function CustomersPage() {
             {q.trim() ? ` · Suche „${q.trim()}“` : ""}
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
-          {showForm ? "Abbrechen" : "Kunde anlegen"}
-        </button>
+        <div className="page-actions">
+          <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
+            {showForm ? "Abbrechen" : "Kunde anlegen"}
+          </button>
+        </div>
       </div>
 
       {showForm ? (

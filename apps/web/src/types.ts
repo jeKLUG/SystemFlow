@@ -26,6 +26,12 @@ export type VaultCategory =
   | "email"
   | "firewall"
   | "remote"
+  | "wifi"
+  | "database"
+  | "cloud"
+  | "license"
+  | "office"
+  | "isp"
   | "other";
 
 export interface VaultStatus {
@@ -41,6 +47,8 @@ export interface VaultEntryMeta {
   customerCompany?: string | null;
   title: string;
   category: VaultCategory | string;
+  favorite: boolean;
+  tags: string[];
   createdAt: string;
   updatedAt: string;
   hasUsername: boolean;
@@ -53,6 +61,8 @@ export interface VaultEntrySecret {
   id: string;
   title: string;
   category: VaultCategory | string;
+  favorite?: boolean;
+  tags?: string[];
   customerId: string | null;
   username: string | null;
   password: string | null;

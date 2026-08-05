@@ -211,6 +211,8 @@ export async function createDb(databasePath: string) {
       customer_id TEXT,
       title TEXT NOT NULL,
       category TEXT NOT NULL DEFAULT 'other',
+      favorite INTEGER NOT NULL DEFAULT 0,
+      tags_json TEXT NOT NULL DEFAULT '[]',
       username_enc TEXT,
       password_enc TEXT,
       url_enc TEXT,
@@ -271,6 +273,8 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "vlan", "TEXT");
   await ensureColumn(client, "assets", "os", "TEXT");
   await ensureColumn(client, "assets", "management_url", "TEXT");
+  await ensureColumn(client, "vault_entries", "favorite", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "vault_entries", "tags_json", "TEXT NOT NULL DEFAULT '[]'");
 
   return drizzle(client, { schema });
 }

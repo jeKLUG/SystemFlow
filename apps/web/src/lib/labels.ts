@@ -36,6 +36,12 @@ export const vaultCategoryLabel: Record<VaultCategory, string> = {
   email: "E-Mail",
   firewall: "Firewall",
   remote: "Remote / RDP",
+  wifi: "WLAN / Wi‑Fi",
+  database: "Datenbank",
+  cloud: "Cloud / SaaS",
+  license: "Lizenz / Portal",
+  office: "Microsoft 365",
+  isp: "Provider / ISP",
   other: "Sonstiges",
 };
 

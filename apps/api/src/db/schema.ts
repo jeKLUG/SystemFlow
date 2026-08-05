@@ -253,8 +253,12 @@ export const vaultEntries = sqliteTable("vault_entries", {
   customerId: text("customer_id"),
   /** Klartext-Label zur Orientierung (kein Geheimnis). */
   title: text("title").notNull(),
-  /** Optionaler Typ: vpn, admin, hosting, email, other */
+  /** Kategorie zur Organisation (vpn, admin, …). */
   category: text("category").notNull().default("other"),
+  /** Favorit für schnellen Zugriff (Klartext-Flag). */
+  favorite: integer("favorite", { mode: "boolean" }).notNull().default(false),
+  /** Freie Tags als JSON-Array (Klartext, zur Filterung). */
+  tagsJson: text("tags_json").notNull().default("[]"),
   usernameEnc: text("username_enc"),
   passwordEnc: text("password_enc"),
   urlEnc: text("url_enc"),

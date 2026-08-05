@@ -188,7 +188,7 @@ export function CustomerProjectsPage() {
               placeholder="Ziele, Meilensteine, Risiken…"
             />
           </label>
-          <div className="full cta-row">
+          <div className="full form-actions">
             <button className="btn btn-primary" type="submit">
               {editingId ? "Aktualisieren" : "Projekt anlegen"}
             </button>
@@ -223,7 +223,7 @@ export function CustomerProjectsPage() {
                       {formatDateOnly(p.startDate)} – {formatDateOnly(p.endDate)}
                     </span>
                   </div>
-                  <div className="cta-row">
+                  <div className="list-actions">
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEdit(p)}>
                       Bearbeiten
                     </button>

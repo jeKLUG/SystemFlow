@@ -35,6 +35,12 @@ const categoryEnum = z.enum([
   "email",
   "firewall",
   "remote",
+  "wifi",
+  "database",
+  "cloud",
+  "license",
+  "office",
+  "isp",
   "other",
 ]);
 
@@ -62,6 +68,64 @@ function requireDek(userId: string) {
   const dek = getVaultDek(userId);
   if (!dek) return null;
   return dek;
+}
+
+function parseTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== "string") continue;
+    const t = item.trim().toLowerCase().slice(0, 40);
+    if (t && !out.includes(t)) out.push(t);
+    if (out.length >= 12) break;
+  }
+  return out;
+}
+
+function tagsFromJson(json: string | null | undefined): string[] {
+  try {
+    return parseTags(JSON.parse(json || "[]"));
+  } catch {
+    return [];
+  }
+}
+
+function tagsToJson(tags: string[]): string {
+  return JSON.stringify(tags);
+}
+
+function mapEntryMeta(r: {
+  id: string;
+  customerId: string | null;
+  customerName?: string | null;
+  customerCompany?: string | null;
+  title: string;
+  category: string;
+  favorite: boolean;
+  tagsJson: string;
+  createdAt: Date;
+  updatedAt: Date;
+  hasUsername: string | null;
+  hasPassword: string | null;
+  hasUrl: string | null;
+  hasNotes: string | null;
+}) {
+  return {
+    id: r.id,
+    customerId: r.customerId,
+    customerName: r.customerName ?? null,
+    customerCompany: r.customerCompany ?? null,
+    title: r.title,
+    category: r.category,
+    favorite: Boolean(r.favorite),
+    tags: tagsFromJson(r.tagsJson),
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+    hasUsername: Boolean(r.hasUsername),
+    hasPassword: Boolean(r.hasPassword),
+    hasUrl: Boolean(r.hasUrl),
+    hasNotes: Boolean(r.hasNotes),
+  };
 }
 
 /**
@@ -221,6 +285,8 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         customerCompany: customers.company,
         title: vaultEntries.title,
         category: vaultEntries.category,
+        favorite: vaultEntries.favorite,
+        tagsJson: vaultEntries.tagsJson,
         createdAt: vaultEntries.createdAt,
         updatedAt: vaultEntries.updatedAt,
         hasUsername: vaultEntries.usernameEnc,
@@ -235,21 +301,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
 
     if (q.customerId) rows = rows.filter((r) => r.customerId === q.customerId);
 
-    // Keine Ciphertexte / Klartext-Geheimnisse in der Liste
-    return rows.map((r) => ({
-      id: r.id,
-      customerId: r.customerId,
-      customerName: r.customerName,
-      customerCompany: r.customerCompany,
-      title: r.title,
-      category: r.category,
-      createdAt: r.createdAt,
-      updatedAt: r.updatedAt,
-      hasUsername: Boolean(r.hasUsername),
-      hasPassword: Boolean(r.hasPassword),
-      hasUrl: Boolean(r.hasUrl),
-      hasNotes: Boolean(r.hasNotes),
-    }));
+    return rows.map((r) => mapEntryMeta(r));
   });
 
   app.post("/api/vault/entries", async (request, reply) => {
@@ -261,6 +313,8 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       .object({
         title: z.string().min(1).max(200),
         category: categoryEnum.optional(),
+        favorite: z.boolean().optional(),
+        tags: z.array(z.string()).optional(),
         customerId: z.string().optional().nullable().or(z.literal("")),
         username: z.string().max(500).optional().or(z.literal("")),
         password: z.string().max(2000).optional().or(z.literal("")),
@@ -278,12 +332,15 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       if (!c) return reply.code(400).send({ error: "Kunde nicht gefunden" });
     }
 
+    const tags = parseTags(parsed.data.tags ?? []);
     const now = new Date();
     const row = {
       id: createId("sec"),
       customerId,
       title: parsed.data.title.trim(),
       category: parsed.data.category ?? "other",
+      favorite: parsed.data.favorite ?? false,
+      tagsJson: tagsToJson(tags),
       usernameEnc: emptyToNull(parsed.data.username)
         ? encryptText(dek, parsed.data.username!.trim())
         : null,
@@ -297,18 +354,17 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
     };
 
     await db.insert(vaultEntries).values(row);
-    return reply.code(201).send({
-      id: row.id,
-      customerId: row.customerId,
-      title: row.title,
-      category: row.category,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
-      hasUsername: Boolean(row.usernameEnc),
-      hasPassword: Boolean(row.passwordEnc),
-      hasUrl: Boolean(row.urlEnc),
-      hasNotes: Boolean(row.notesEnc),
-    });
+    return reply.code(201).send(
+      mapEntryMeta({
+        ...row,
+        customerName: null,
+        customerCompany: null,
+        hasUsername: row.usernameEnc,
+        hasPassword: row.passwordEnc,
+        hasUrl: row.urlEnc,
+        hasNotes: row.notesEnc,
+      }),
+    );
   });
 
   app.get("/api/vault/entries/:id/reveal", async (request, reply) => {
@@ -325,6 +381,8 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         id: row.id,
         title: row.title,
         category: row.category,
+        favorite: Boolean(row.favorite),
+        tags: tagsFromJson(row.tagsJson),
         customerId: row.customerId,
         username: row.usernameEnc ? decryptText(dek, row.usernameEnc) : null,
         password: row.passwordEnc ? decryptText(dek, row.passwordEnc) : null,
@@ -349,6 +407,8 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       .object({
         title: z.string().min(1).max(200).optional(),
         category: categoryEnum.optional(),
+        favorite: z.boolean().optional(),
+        tags: z.array(z.string()).optional(),
         customerId: z.string().optional().nullable().or(z.literal("")),
         username: z.string().max(500).optional().nullable(),
         password: z.string().max(2000).optional().nullable(),
@@ -375,9 +435,16 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       return encryptText(dek, value);
     };
 
+    const tagsJson =
+      parsed.data.tags !== undefined
+        ? tagsToJson(parseTags(parsed.data.tags))
+        : existing.tagsJson;
+
     const updated = {
       title: parsed.data.title?.trim() ?? existing.title,
       category: parsed.data.category ?? existing.category,
+      favorite: parsed.data.favorite ?? existing.favorite,
+      tagsJson,
       customerId,
       usernameEnc: encOrKeep(parsed.data.username, existing.usernameEnc),
       passwordEnc: encOrKeep(parsed.data.password, existing.passwordEnc),
@@ -387,18 +454,20 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
     };
 
     await db.update(vaultEntries).set(updated).where(eq(vaultEntries.id, id));
-    return {
+    return mapEntryMeta({
       id,
       customerId: updated.customerId,
       title: updated.title,
       category: updated.category,
+      favorite: updated.favorite,
+      tagsJson: updated.tagsJson,
       createdAt: existing.createdAt,
       updatedAt: updated.updatedAt,
-      hasUsername: Boolean(updated.usernameEnc),
-      hasPassword: Boolean(updated.passwordEnc),
-      hasUrl: Boolean(updated.urlEnc),
-      hasNotes: Boolean(updated.notesEnc),
-    };
+      hasUsername: updated.usernameEnc,
+      hasPassword: updated.passwordEnc,
+      hasUrl: updated.urlEnc,
+      hasNotes: updated.notesEnc,
+    });
   });
 
   app.delete("/api/vault/entries/:id", async (request, reply) => {

@@ -304,7 +304,7 @@ export function SettingsPage() {
               />
             </label>
             {priceError ? <p className="form-error full">{priceError}</p> : null}
-            <div className="full cta-row">
+            <div className="full form-actions">
               <button className="btn btn-primary" type="submit">
                 {editingPriceId ? "Aktualisieren" : "Position anlegen"}
               </button>
@@ -334,7 +334,7 @@ export function SettingsPage() {
                   </span>
                   {item.description ? <span className="muted">{item.description}</span> : null}
                 </div>
-                <div className="cta-row">
+                <div className="list-actions">
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
