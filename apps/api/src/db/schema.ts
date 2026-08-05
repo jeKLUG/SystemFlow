@@ -213,6 +213,10 @@ export const tasks = sqliteTable("tasks", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/** Vertrags-/SLA-Status. */
+export const contractStatuses = ["draft", "active", "paused", "expired", "cancelled"] as const;
+export type ContractStatus = (typeof contractStatuses)[number];
+
 /** Verträge / SLA-Stammdaten (keine Rechnungen). */
 export const contracts = sqliteTable("contracts", {
   id: text("id").primaryKey(),
@@ -220,10 +224,42 @@ export const contracts = sqliteTable("contracts", {
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  /** Interne Vertrags-/SLA-Nummer. */
+  contractNumber: text("contract_number"),
+  status: text("status", { enum: contractStatuses }).notNull().default("active"),
+  /** Leistungsumfang / abgedeckte Services. */
+  description: text("description"),
   startDate: text("start_date"),
   endDate: text("end_date"),
+  /** Servicezeiten, z. B. Mo–Fr 08:00–17:00. */
+  coverageHours: text("coverage_hours"),
+  /** Zusätzliche Abdeckungsregeln (Feiertage, Rufbereitschaft …). */
+  coverageNote: text("coverage_note"),
+  /** Enthaltene Support-Stunden pro Monat. */
+  includedHoursMonth: real("included_hours_month"),
+  /**
+   * Legacy: allgemeine Reaktionszeit in Stunden.
+   * Wird mit `responseNormalHours` synchron gehalten.
+   */
   slaResponseHours: integer("sla_response_hours"),
+  /** Reaktionszeiten nach Priorität (Stunden, Dezimal erlaubt). */
+  responseCriticalHours: real("response_critical_hours"),
+  responseHighHours: real("response_high_hours"),
+  responseNormalHours: real("response_normal_hours"),
+  responseLowHours: real("response_low_hours"),
+  /** Lösungszeiten nach Priorität (Stunden). */
+  resolveCriticalHours: real("resolve_critical_hours"),
+  resolveHighHours: real("resolve_high_hours"),
+  resolveNormalHours: real("resolve_normal_hours"),
+  resolveLowHours: real("resolve_low_hours"),
+  /** Max. Zeit bis Vor-Ort-Einsatz (Stunden). */
+  onsiteHours: real("onsite_hours"),
   contactPerson: text("contact_person"),
+  contactPhone: text("contact_phone"),
+  contactEmail: text("contact_email"),
+  escalationContact: text("escalation_contact"),
+  escalationPhone: text("escalation_phone"),
+  escalationEmail: text("escalation_email"),
   notes: text("notes"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),

@@ -2,18 +2,92 @@ import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { contracts, customers } from "../db/schema.js";
+import { contractStatuses, contracts, customers } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 
+const optionalText = (max: number) => z.string().max(max).optional().or(z.literal(""));
+const optionalHours = z.coerce.number().positive().max(8760).optional().nullable();
+
 const contractBody = z.object({
   title: z.string().min(1).max(300),
-  startDate: z.string().max(40).optional().or(z.literal("")),
-  endDate: z.string().max(40).optional().or(z.literal("")),
+  contractNumber: optionalText(80),
+  status: z.enum(contractStatuses).optional(),
+  description: optionalText(5000),
+  startDate: optionalText(40),
+  endDate: optionalText(40),
+  coverageHours: optionalText(200),
+  coverageNote: optionalText(1000),
+  includedHoursMonth: z.coerce.number().nonnegative().max(10000).optional().nullable(),
+  /** Legacy-Feld; wird aus responseNormalHours abgeleitet, wenn gesetzt. */
   slaResponseHours: z.coerce.number().int().positive().max(8760).optional().nullable(),
-  contactPerson: z.string().max(200).optional().or(z.literal("")),
-  notes: z.string().max(5000).optional().or(z.literal("")),
+  responseCriticalHours: optionalHours,
+  responseHighHours: optionalHours,
+  responseNormalHours: optionalHours,
+  responseLowHours: optionalHours,
+  resolveCriticalHours: optionalHours,
+  resolveHighHours: optionalHours,
+  resolveNormalHours: optionalHours,
+  resolveLowHours: optionalHours,
+  onsiteHours: optionalHours,
+  contactPerson: optionalText(200),
+  contactPhone: optionalText(80),
+  contactEmail: optionalText(200),
+  escalationContact: optionalText(200),
+  escalationPhone: optionalText(80),
+  escalationEmail: optionalText(200),
+  notes: optionalText(5000),
 });
+
+function emptyToNull(value: string | undefined): string | null {
+  const t = value?.trim();
+  return t ? t : null;
+}
+
+function hoursOrNull(value: number | null | undefined): number | null {
+  return value == null || Number.isNaN(value) ? null : value;
+}
+
+/**
+ * Mappt Request-Body auf Vertrags-/SLA-Felder inkl. Legacy-Sync.
+ */
+function mapContractFields(data: z.infer<typeof contractBody>) {
+  const responseNormal =
+    hoursOrNull(data.responseNormalHours) ??
+    hoursOrNull(data.slaResponseHours);
+
+  const slaLegacy =
+    responseNormal != null ? Math.max(1, Math.round(responseNormal)) : hoursOrNull(data.slaResponseHours);
+
+  return {
+    title: data.title.trim(),
+    contractNumber: emptyToNull(data.contractNumber),
+    status: data.status ?? "active",
+    description: emptyToNull(data.description),
+    startDate: emptyToNull(data.startDate),
+    endDate: emptyToNull(data.endDate),
+    coverageHours: emptyToNull(data.coverageHours),
+    coverageNote: emptyToNull(data.coverageNote),
+    includedHoursMonth: hoursOrNull(data.includedHoursMonth),
+    slaResponseHours: slaLegacy,
+    responseCriticalHours: hoursOrNull(data.responseCriticalHours),
+    responseHighHours: hoursOrNull(data.responseHighHours),
+    responseNormalHours: responseNormal,
+    responseLowHours: hoursOrNull(data.responseLowHours),
+    resolveCriticalHours: hoursOrNull(data.resolveCriticalHours),
+    resolveHighHours: hoursOrNull(data.resolveHighHours),
+    resolveNormalHours: hoursOrNull(data.resolveNormalHours),
+    resolveLowHours: hoursOrNull(data.resolveLowHours),
+    onsiteHours: hoursOrNull(data.onsiteHours),
+    contactPerson: emptyToNull(data.contactPerson),
+    contactPhone: emptyToNull(data.contactPhone),
+    contactEmail: emptyToNull(data.contactEmail),
+    escalationContact: emptyToNull(data.escalationContact),
+    escalationPhone: emptyToNull(data.escalationPhone),
+    escalationEmail: emptyToNull(data.escalationEmail),
+    notes: emptyToNull(data.notes),
+  };
+}
 
 /**
  * Registriert Vertrags-/SLA-Routen (ohne Rechnungsfunktionen).
@@ -48,12 +122,7 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
     const row = {
       id: createId("ctr"),
       customerId,
-      title: parsed.data.title.trim(),
-      startDate: parsed.data.startDate || null,
-      endDate: parsed.data.endDate || null,
-      slaResponseHours: parsed.data.slaResponseHours ?? null,
-      contactPerson: parsed.data.contactPerson || null,
-      notes: parsed.data.notes || null,
+      ...mapContractFields(parsed.data),
       createdAt: now,
       updatedAt: now,
     };
@@ -72,12 +141,7 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
     }
 
     const updated = {
-      title: parsed.data.title.trim(),
-      startDate: parsed.data.startDate || null,
-      endDate: parsed.data.endDate || null,
-      slaResponseHours: parsed.data.slaResponseHours ?? null,
-      contactPerson: parsed.data.contactPerson || null,
-      notes: parsed.data.notes || null,
+      ...mapContractFields({ ...parsed.data, status: parsed.data.status ?? existing.status }),
       updatedAt: new Date(),
     };
     await db.update(contracts).set(updated).where(eq(contracts.id, id));

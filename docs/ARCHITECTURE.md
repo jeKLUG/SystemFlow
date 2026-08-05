@@ -45,7 +45,7 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Zeiten · Anlagen · Betrieb (Aufgaben, Verträge, Historie, Anhänge).
 
-Kalender unter `/calendar`: Vollflächen-UI mit Monats-, Wochen- und Tagesansicht (Termine farbig nach Art, Detailseiteleiste).
+Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
 
 ## Zeitzone
 

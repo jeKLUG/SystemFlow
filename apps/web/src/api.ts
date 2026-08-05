@@ -276,6 +276,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  updateContract: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").ContractItem>(`/api/contracts/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   deleteContract: (id: string) =>
     request<{ ok: boolean }>(`/api/contracts/${id}`, { method: "DELETE" }),
   reminders: (days = 90) =>

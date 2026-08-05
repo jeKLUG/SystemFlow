@@ -369,14 +369,36 @@ export interface AppointmentItem {
   updatedAt: string;
 }
 
+export type ContractStatus = "draft" | "active" | "paused" | "expired" | "cancelled";
+
 export interface ContractItem {
   id: string;
   customerId: string;
   title: string;
+  contractNumber: string | null;
+  status: ContractStatus;
+  description: string | null;
   startDate: string | null;
   endDate: string | null;
+  coverageHours: string | null;
+  coverageNote: string | null;
+  includedHoursMonth: number | null;
   slaResponseHours: number | null;
+  responseCriticalHours: number | null;
+  responseHighHours: number | null;
+  responseNormalHours: number | null;
+  responseLowHours: number | null;
+  resolveCriticalHours: number | null;
+  resolveHighHours: number | null;
+  resolveNormalHours: number | null;
+  resolveLowHours: number | null;
+  onsiteHours: number | null;
   contactPerson: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  escalationContact: string | null;
+  escalationPhone: string | null;
+  escalationEmail: string | null;
   notes: string | null;
   createdAt: string;
   updatedAt: string;

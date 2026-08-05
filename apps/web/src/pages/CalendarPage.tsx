@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { CustomerPicker } from "../components/CustomerPicker";
+import { Modal } from "../components/Modal";
 import {
   appointmentTouchesDate,
   buildMonthGrid,
@@ -19,6 +20,8 @@ import {
 } from "../lib/calendar";
 import { appointmentKindLabel } from "../lib/labels";
 import type { AppointmentItem, AppointmentKind } from "../types";
+
+const MONTH_EVENT_LIMIT = 2;
 
 type CalView = "month" | "week" | "day";
 
@@ -269,7 +272,7 @@ export function CalendarPage() {
 
   return (
     <div className="page calendar-page">
-      <header className="calendar-topbar">
+      <header className="calendar-topbar anim-fade-up">
         <div className="calendar-topbar-main">
           <div>
             <p className="eyebrow">Planung</p>
@@ -281,8 +284,17 @@ export function CalendarPage() {
               {presetCustomer ? " · gefiltert nach Kunde" : ""}
             </p>
           </div>
-          <button type="button" className="btn btn-primary btn-xl calendar-create-btn" onClick={() => openNew()}>
-            + Termin anlegen
+          <button
+            type="button"
+            className="btn btn-primary btn-icon-lg calendar-create-btn calendar-create-desktop"
+            onClick={() => openNew()}
+            aria-label="Neuen Termin anlegen"
+            title="Neuen Termin anlegen"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <rect x="4" y="5" width="16" height="15" rx="2" />
+              <path d="M8 3v4M16 3v4M4 10h16M12 13v5M9.5 15.5h5" strokeLinecap="round" />
+            </svg>
           </button>
         </div>
 
@@ -312,8 +324,8 @@ export function CalendarPage() {
             <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(-1)} aria-label="Zurück">
               ‹
             </button>
-            <div className="calendar-period">
-              <strong>{heading}</strong>
+            <div className="calendar-period" key={heading}>
+              <strong className="anim-period">{heading}</strong>
             </div>
             <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(1)} aria-label="Weiter">
               ›
@@ -323,7 +335,7 @@ export function CalendarPage() {
             </button>
           </div>
 
-          <div className="calendar-legend">
+          <div className="calendar-legend" aria-label="Terminarten">
             {(Object.keys(appointmentKindLabel) as AppointmentKind[]).map((k) => (
               <button
                 key={k}
@@ -332,26 +344,37 @@ export function CalendarPage() {
                 onClick={() => setFilterKind((cur) => (cur === k ? "" : k))}
               >
                 <i className={`dot kind-${k}`} />
-                {appointmentKindLabel[k]}
+                <span>{appointmentKindLabel[k]}</span>
               </button>
             ))}
           </div>
         </div>
       </header>
 
-      {showForm ? (
-        <form className="panel calendar-form form-grid" onSubmit={createAppointment}>
-          <div className="full calendar-form-head">
-            <h3>Neuer Termin</h3>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>
-              Schließen
-            </button>
-          </div>
+      <button
+        type="button"
+        className="calendar-fab"
+        onClick={() => openNew()}
+        aria-label="Neuen Termin anlegen"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+          <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+        </svg>
+      </button>
+
+      {error && !showForm ? <p className="form-error">{error}</p> : null}
+
+      <Modal
+        open={showForm}
+        title="Neuer Termin"
+        onClose={() => setShowForm(false)}
+        className="modal-wide"
+      >
+        <form className="form-grid calendar-form" onSubmit={createAppointment}>
           <label className="field">
             <span>Titel *</span>
             <input
               required
-              autoFocus
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="z. B. Wartung vor Ort"
@@ -473,12 +496,10 @@ export function CalendarPage() {
             </button>
           </div>
         </form>
-      ) : null}
+      </Modal>
 
-      {error && !showForm ? <p className="form-error">{error}</p> : null}
-
-      <div className="calendar-stage">
-        <div className="calendar-main panel">
+      <div className="calendar-stage anim-fade-up delay-1">
+        <div className="calendar-main panel" key={view}>
           {view === "month" ? (
             <>
               <div className="calendar-weekdays">
@@ -487,7 +508,7 @@ export function CalendarPage() {
                 ))}
               </div>
               <div className="calendar-days calendar-days-month">
-                {monthGrid.map((day) => {
+                {monthGrid.map((day, index) => {
                   const iso = toIsoDate(day);
                   const items = itemsForDay(iso);
                   const inMonth = day.getMonth() === anchor.getMonth();
@@ -498,8 +519,10 @@ export function CalendarPage() {
                       key={iso}
                       role="button"
                       tabIndex={0}
+                      style={{ "--stagger": String(Math.min(index, 20)) } as CSSProperties}
                       className={[
                         "calendar-day",
+                        "anim-day",
                         !inMonth ? "is-outside" : "",
                         isToday ? "is-today" : "",
                         isSelected ? "is-selected" : "",
@@ -523,9 +546,9 @@ export function CalendarPage() {
                         ) : null}
                       </span>
                       <span className="calendar-day-events">
-                        {items.slice(0, 3).map((a) => renderEventCard(a, true))}
-                        {items.length > 3 ? (
-                          <span className="cal-chip-more">+{items.length - 3}</span>
+                        {items.slice(0, MONTH_EVENT_LIMIT).map((a) => renderEventCard(a, true))}
+                        {items.length > MONTH_EVENT_LIMIT ? (
+                          <span className="cal-chip-more">+{items.length - MONTH_EVENT_LIMIT}</span>
                         ) : null}
                       </span>
                     </div>
@@ -576,9 +599,6 @@ export function CalendarPage() {
             <div className="cal-day-view">
               <div className="cal-day-view-head">
                 <h3>{dayLabel(selected)}</h3>
-                <button type="button" className="btn btn-primary btn-sm" onClick={() => openNew(selected)}>
-                  + Termin
-                </button>
               </div>
               <div className="cal-day-view-body" style={{ "--hours": HOURS.length } as CSSProperties}>
                 <div className="cal-gutter">
@@ -595,20 +615,17 @@ export function CalendarPage() {
           ) : null}
 
           <p className="calendar-hint muted">
-            Doppelklick auf Tag/Zeitleiste → neuer Termin · Klick auf Termin für Details
+            Plus-Icon oder Doppelklick → neuer Termin · Klick auf Termin für Details
           </p>
         </div>
 
-        <aside className="calendar-side">
-          <section className="calendar-day-panel panel">
+        <aside className="calendar-side anim-fade-up delay-2">
+          <section className="calendar-day-panel panel" key={selected}>
             <div className="calendar-day-panel-head">
               <div>
-                <p className="eyebrow">Details</p>
+                <p className="eyebrow">Tagesübersicht</p>
                 <h3>{dayLabel(selected)}</h3>
               </div>
-              <button type="button" className="btn btn-primary btn-sm" onClick={() => openNew(selected)}>
-                + Termin
-              </button>
             </div>
 
             {active ? (
@@ -650,9 +667,7 @@ export function CalendarPage() {
             {selectedItems.length === 0 ? (
               <div className="calendar-empty">
                 <p>Keine Termine an diesem Tag</p>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openNew(selected)}>
-                  Termin anlegen
-                </button>
+                <span className="muted">Über das Plus oben oder Doppelklick im Raster anlegen.</span>
               </div>
             ) : (
               <ul className="calendar-agenda">

@@ -142,6 +142,8 @@ Dokument anlegen akzeptiert optional `templateId`.
 
 ## Verträge / SLA
 
+Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat, Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
+
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/contracts` |

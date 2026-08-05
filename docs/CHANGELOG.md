@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.5.7 – 2026-08-05
+
+- Kalender-Polish: Einblend-Animationen, sanfte Hover-States, Mobile-FAB und Bottom-Sheet-Modal
+- Feste Monatszellen, Legende scrollbar auf schmalen Screens, `prefers-reduced-motion`
+
+## 1.5.6 – 2026-08-05
+
+- Kalender: Termin anlegen per Plus-Icon im Modal (nicht mehr in der Seitenleiste)
+- Monatsraster mit fester Tageshöhe – Zellen dehnen sich nicht mehr mit Terminen
+- SLAs detaillierter (P1–P4, Servicezeiten, Eskalation) mit Übersicht + Anlege-Modal
+
 ## 1.5.5 – 2026-08-05
 
 - Zeitsystem: lokale/DE-Daten statt UTC (`YYYY-MM-DD` Anzeige, heutiges Datum, Erinnerungen)

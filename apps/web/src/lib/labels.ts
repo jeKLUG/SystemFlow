@@ -2,6 +2,7 @@ import type {
   AppointmentKind,
   AssetKind,
   AssetStatus,
+  ContractStatus,
   DocumentType,
   ProjectStatus,
   VaultCategory,
@@ -22,6 +23,25 @@ export const projectStatusLabel: Record<ProjectStatus, string> = {
   on_hold: "Pausiert",
   done: "Abgeschlossen",
 };
+
+export const contractStatusLabel: Record<ContractStatus, string> = {
+  draft: "Entwurf",
+  active: "Aktiv",
+  paused: "Pausiert",
+  expired: "Abgelaufen",
+  cancelled: "Beendet",
+};
+
+/** SLA-Zeiten lesbar formatieren (Minuten unter 1 h). */
+export function formatSlaHours(hours: number | null | undefined): string {
+  if (hours == null || Number.isNaN(hours)) return "–";
+  if (hours < 1) {
+    const mins = Math.round(hours * 60);
+    return `${mins} Min.`;
+  }
+  const rounded = Math.round(hours * 100) / 100;
+  return Number.isInteger(rounded) ? `${rounded} h` : `${rounded} h`;
+}
 
 export const appointmentKindLabel: Record<AppointmentKind, string> = {
   customer: "Kunde",

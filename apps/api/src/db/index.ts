@@ -214,10 +214,30 @@ export async function createDb(databasePath: string) {
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
+      contract_number TEXT,
+      status TEXT NOT NULL DEFAULT 'active',
+      description TEXT,
       start_date TEXT,
       end_date TEXT,
+      coverage_hours TEXT,
+      coverage_note TEXT,
+      included_hours_month REAL,
       sla_response_hours INTEGER,
+      response_critical_hours REAL,
+      response_high_hours REAL,
+      response_normal_hours REAL,
+      response_low_hours REAL,
+      resolve_critical_hours REAL,
+      resolve_high_hours REAL,
+      resolve_normal_hours REAL,
+      resolve_low_hours REAL,
+      onsite_hours REAL,
       contact_person TEXT,
+      contact_phone TEXT,
+      contact_email TEXT,
+      escalation_contact TEXT,
+      escalation_phone TEXT,
+      escalation_email TEXT,
       notes TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -338,6 +358,33 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "attachments", "updated_at", "INTEGER");
   await ensureColumn(client, "attachments", "folder_id", "TEXT");
   await ensureColumn(client, "attachments", "description", "TEXT");
+  await ensureColumn(client, "contracts", "contract_number", "TEXT");
+  await ensureColumn(client, "contracts", "status", "TEXT NOT NULL DEFAULT 'active'");
+  await ensureColumn(client, "contracts", "description", "TEXT");
+  await ensureColumn(client, "contracts", "coverage_hours", "TEXT");
+  await ensureColumn(client, "contracts", "coverage_note", "TEXT");
+  await ensureColumn(client, "contracts", "included_hours_month", "REAL");
+  await ensureColumn(client, "contracts", "response_critical_hours", "REAL");
+  await ensureColumn(client, "contracts", "response_high_hours", "REAL");
+  await ensureColumn(client, "contracts", "response_normal_hours", "REAL");
+  await ensureColumn(client, "contracts", "response_low_hours", "REAL");
+  await ensureColumn(client, "contracts", "resolve_critical_hours", "REAL");
+  await ensureColumn(client, "contracts", "resolve_high_hours", "REAL");
+  await ensureColumn(client, "contracts", "resolve_normal_hours", "REAL");
+  await ensureColumn(client, "contracts", "resolve_low_hours", "REAL");
+  await ensureColumn(client, "contracts", "onsite_hours", "REAL");
+  await ensureColumn(client, "contracts", "contact_phone", "TEXT");
+  await ensureColumn(client, "contracts", "contact_email", "TEXT");
+  await ensureColumn(client, "contracts", "escalation_contact", "TEXT");
+  await ensureColumn(client, "contracts", "escalation_phone", "TEXT");
+  await ensureColumn(client, "contracts", "escalation_email", "TEXT");
+  // Bestehende allgemeine SLA-Zeit in „Normal“ übernehmen, falls leer
+  await client.execute(`
+    UPDATE contracts
+    SET response_normal_hours = sla_response_hours
+    WHERE response_normal_hours IS NULL
+      AND sla_response_hours IS NOT NULL
+  `);
 
   // Indizes, die Spalten aus ensureColumn brauchen (bestehende DBs)
   await client.execute(
