@@ -84,10 +84,13 @@ export const api = {
       body: JSON.stringify(body),
     }),
   updateProject: (id: string, body: Record<string, unknown>) =>
-    request<import("./types").ProjectItem>(`/api/projects/${id}`, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    }),
+    request<import("./types").ProjectItem & { recalculatedEntries?: number }>(
+      `/api/projects/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+    ),
   deleteProject: (id: string) =>
     request<{ ok: boolean }>(`/api/projects/${id}`, { method: "DELETE" }),
   timeEntries: (customerId: string, opts?: { projectId?: string; from?: string; to?: string }) => {

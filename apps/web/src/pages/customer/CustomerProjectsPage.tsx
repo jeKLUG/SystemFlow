@@ -24,6 +24,7 @@ export function CustomerProjectsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saveHint, setSaveHint] = useState("");
 
   async function reload() {
     setProjects(await api.projects(id));
@@ -56,6 +57,7 @@ export function CustomerProjectsPage() {
 
   async function save(e: FormEvent) {
     e.preventDefault();
+    setSaveHint("");
     const body = {
       name: form.name,
       description: form.description,
@@ -67,7 +69,11 @@ export function CustomerProjectsPage() {
       hourlyRate: form.hourlyRate ? Number(form.hourlyRate) : null,
     };
     if (editingId) {
-      await api.updateProject(editingId, body);
+      const updated = await api.updateProject(editingId, body);
+      const n = updated.recalculatedEntries ?? 0;
+      if (n > 0) {
+        setSaveHint(`${n} Zeiteinträge mit neuem Stundensatz aktualisiert.`);
+      }
     } else {
       await api.createProject(id, body);
     }
@@ -80,7 +86,10 @@ export function CustomerProjectsPage() {
       <div className="section-head row-between">
         <div>
           <h2>Projekte</h2>
-          <p>Planung, Status und Budget in Stunden oder Euro – ohne Rechnungsstellung.</p>
+          <p>
+            Planung, Status und Budget. Ändert du den Stundensatz, werden die Beträge der
+            Projekt-Zeiten neu berechnet.
+          </p>
         </div>
         <button
           type="button"
@@ -97,6 +106,8 @@ export function CustomerProjectsPage() {
           {showForm && !editingId ? "Abbrechen" : "+ Projekt"}
         </button>
       </div>
+
+      {saveHint ? <p className="form-success">{saveHint}</p> : null}
 
       {showForm ? (
         <form className="panel form-grid" onSubmit={save}>

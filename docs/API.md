@@ -58,7 +58,7 @@ Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optio
 | GET | `/api/customers/:id/projects` | Liste inkl. `loggedHours`, Budget-Rest |
 | POST | `/api/customers/:id/projects` | Anlegen |
 | GET | `/api/projects/:id` | Detail |
-| PUT | `/api/projects/:id` | Aktualisieren |
+| PUT | `/api/projects/:id` | Aktualisieren; bei geändertem `hourlyRate` werden Projekt-Zeiten neu berechnet (`recalculatedEntries`) |
 | DELETE | `/api/projects/:id` | Löschen (Zeiten behalten, Projekt-Bezug wird gelöst) |
 
 Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|`done`), `startDate`, `endDate`, `budgetHours`, `budgetAmount`, `hourlyRate`.

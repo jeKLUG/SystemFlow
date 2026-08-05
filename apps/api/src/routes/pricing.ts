@@ -78,6 +78,53 @@ export async function resolveHourlyRate(
 }
 
 /**
+ * Aktualisiert rateSnapshot/amountSnapshot aller Projekt-Zeiten ohne Katalog-Satz.
+ * Einträge mit eigener Preisposition (hourly) bleiben unverändert.
+ */
+export async function recalculateProjectTimeRates(db: Db, projectId: string): Promise<number> {
+  const entries = await db
+    .select()
+    .from(timeEntries)
+    .where(eq(timeEntries.projectId, projectId))
+    .all();
+
+  let updatedCount = 0;
+  for (const entry of entries) {
+    // Expliziter Katalog-Stundensatz hat Vorrang – nicht durch Projekt-Satz überschreiben
+    if (entry.priceItemId) {
+      const item = await db
+        .select()
+        .from(priceItems)
+        .where(eq(priceItems.id, entry.priceItemId))
+        .get();
+      if (item && item.kind === "hourly" && item.active) continue;
+    }
+
+    const { rate } = await resolveHourlyRate(db, {
+      priceItemId: entry.priceItemId,
+      projectId,
+    });
+    const amountSnapshot =
+      entry.billable && rate != null ? Math.round(entry.hours * rate * 100) / 100 : null;
+
+    const rateChanged = entry.rateSnapshot !== rate;
+    const amountChanged = entry.amountSnapshot !== amountSnapshot;
+    if (!rateChanged && !amountChanged) continue;
+
+    await db
+      .update(timeEntries)
+      .set({
+        rateSnapshot: rate,
+        amountSnapshot,
+        updatedAt: new Date(),
+      })
+      .where(eq(timeEntries.id, entry.id));
+    updatedCount += 1;
+  }
+  return updatedCount;
+}
+
+/**
  * Registriert Preis-/Konto-Einstellungen und Preiskatalog.
  */
 export async function pricingRoutes(app: FastifyInstance, db: Db) {
