@@ -169,23 +169,43 @@ compose_up() {
   local mode
   mode="$(compose_args)"
   cd "${INSTALL_DIR}"
+
+  # Alten Container/Port freigeben, sonst "address already in use"
+  log "Stoppe ggf. vorhandenen Container…"
   if [[ "${mode}" == "compose" ]]; then
-    docker compose --env-file .env up -d --build --remove-orphans
+    docker compose --env-file .env down --remove-orphans >/dev/null 2>&1 || true
   else
-    docker-compose --env-file .env up -d --build --remove-orphans
+    docker-compose --env-file .env down --remove-orphans >/dev/null 2>&1 || true
+  fi
+  docker rm -f systemhaus-ess >/dev/null 2>&1 || true
+
+  if ss -lnt "sport = :${PORT}" 2>/dev/null | grep -q ":${PORT}"; then
+    warn "Port ${PORT} ist noch belegt:"
+    ss -lntp "sport = :${PORT}" 2>/dev/null || true
+    die "Port ${PORT} freigeben oder mit SYSTEMHAUS_PORT=<frei> neu deployen"
+  fi
+
+  if [[ "${mode}" == "compose" ]]; then
+    docker compose --env-file .env up -d --build --remove-orphans --force-recreate
+  else
+    docker-compose --env-file .env up -d --build --remove-orphans --force-recreate
   fi
 }
 
 start_service() {
   log "Starte / aktualisiere Systemhaus-Ess (Docker Build)…"
   if ! compose_up; then
-    warn "Docker Compose fehlgeschlagen. Letzte Logs:"
-    docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=80 || true
-    journalctl -u "${SERVICE_NAME}.service" --no-pager -n 40 || true
+    warn "Docker Compose fehlgeschlagen."
+    warn "Port-Check:"
+    ss -lntp "sport = :${PORT}" 2>/dev/null || true
+    docker ps -a --filter "name=systemhaus" || true
+    docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=40 || true
     die "Start fehlgeschlagen – siehe Ausgabe oben"
   fi
 
-  systemctl restart "${SERVICE_NAME}.service" || true
+  # Nicht systemctl restart – das würde den frischen Container erst stoppen
+  systemctl reset-failed "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
+  systemctl start "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
   sleep 2
   if docker ps --filter "name=systemhaus-ess" --filter "status=running" --format '{{.Names}}' | grep -q systemhaus-ess; then
     ok "Container läuft"
