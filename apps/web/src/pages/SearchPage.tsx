@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { customerDisplayName } from "../lib/customer";
 import { assetKindLabel, documentTypeLabel, formatDate } from "../lib/labels";
 import type { SearchResult } from "../types";
 
@@ -64,9 +65,9 @@ export function SearchPage() {
                 <li key={c.id}>
                   <Link className="list-row" to={`/customers/${c.id}`}>
                     <div>
-                      <strong>{c.name}</strong>
+                      <strong>{customerDisplayName(c)}</strong>
                       <span className="muted">
-                        {[c.email, c.phone].filter(Boolean).join(" · ") || "Kunde"}
+                        {[c.city, c.email, c.phone].filter(Boolean).join(" · ") || "Kunde"}
                       </span>
                     </div>
                   </Link>

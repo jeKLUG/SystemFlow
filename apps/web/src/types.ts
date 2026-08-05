@@ -10,9 +10,17 @@ export interface User {
 export interface Customer {
   id: string;
   name: string;
+  company: string | null;
+  contactPerson: string | null;
   email: string | null;
   phone: string | null;
+  mobile: string | null;
   address: string | null;
+  zip: string | null;
+  city: string | null;
+  country: string | null;
+  vatId: string | null;
+  website: string | null;
   notes: string | null;
   status: CustomerStatus;
   createdAt: string;
@@ -71,7 +79,9 @@ export interface TemplateMeta {
 
 export interface SearchResult {
   q: string;
-  customers: Array<Pick<Customer, "id" | "name" | "email" | "phone" | "status">>;
+  customers: Array<
+    Pick<Customer, "id" | "name" | "company" | "email" | "phone" | "status" | "city">
+  >;
   documents: Array<{
     id: string;
     title: string;
@@ -102,3 +112,35 @@ export interface Stats {
   customerCount: number;
   activeCount: number;
 }
+
+export const emptyCustomerForm: {
+  name: string;
+  company: string;
+  contactPerson: string;
+  email: string;
+  phone: string;
+  mobile: string;
+  address: string;
+  zip: string;
+  city: string;
+  country: string;
+  vatId: string;
+  website: string;
+  notes: string;
+  status: CustomerStatus;
+} = {
+  name: "",
+  company: "",
+  contactPerson: "",
+  email: "",
+  phone: "",
+  mobile: "",
+  address: "",
+  zip: "",
+  city: "",
+  country: "Deutschland",
+  vatId: "",
+  website: "",
+  notes: "",
+  status: "active",
+};

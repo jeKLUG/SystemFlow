@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 – 2026-08-05
+
+- Erweiterte Kundenfelder: Firma, Ansprechpartner, Mobil, PLZ/Ort/Land, USt-IdNr., Website
+- Suche und Listen nutzen die neuen Firmenfelder
+
 ## 1.1.0 – 2026-08-05
 
 - Anlagen/Geräte pro Kunde (Typ, Seriennummer, Garantie)

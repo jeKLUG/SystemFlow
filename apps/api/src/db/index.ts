@@ -6,6 +6,22 @@ import { pathToFileURL } from "node:url";
 import * as schema from "./schema.js";
 
 /**
+ * Fügt eine Spalte hinzu, falls sie noch fehlt (bestehende Installationen).
+ */
+async function ensureColumn(
+  client: Client,
+  table: string,
+  column: string,
+  definition: string,
+) {
+  const info = await client.execute(`PRAGMA table_info(${table})`);
+  const exists = info.rows.some((row) => String(row.name) === column);
+  if (!exists) {
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+/**
  * Öffnet die SQLite-Datenbank (libsql) und initialisiert Tabellen.
  * @param databasePath Pfad zur SQLite-Datei
  */
@@ -26,9 +42,17 @@ export async function createDb(databasePath: string) {
     CREATE TABLE IF NOT EXISTS customers (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
+      company TEXT,
+      contact_person TEXT,
       email TEXT,
       phone TEXT,
+      mobile TEXT,
       address TEXT,
+      zip TEXT,
+      city TEXT,
+      country TEXT,
+      vat_id TEXT,
+      website TEXT,
       notes TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       created_at INTEGER NOT NULL,
@@ -74,6 +98,16 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_activities_customer ON activities(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_occurred ON activities(occurred_at);
   `);
+
+  // Migration für bestehende DBs ohne die neuen Kundenfelder
+  await ensureColumn(client, "customers", "company", "TEXT");
+  await ensureColumn(client, "customers", "contact_person", "TEXT");
+  await ensureColumn(client, "customers", "mobile", "TEXT");
+  await ensureColumn(client, "customers", "zip", "TEXT");
+  await ensureColumn(client, "customers", "city", "TEXT");
+  await ensureColumn(client, "customers", "country", "TEXT");
+  await ensureColumn(client, "customers", "vat_id", "TEXT");
+  await ensureColumn(client, "customers", "website", "TEXT");
 
   return drizzle(client, { schema });
 }

@@ -6,14 +6,42 @@ import { customers } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 
+const optionalText = (max: number) => z.string().max(max).optional().or(z.literal(""));
+
 const customerBody = z.object({
   name: z.string().min(1).max(200),
+  company: optionalText(200),
+  contactPerson: optionalText(200),
   email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().max(80).optional().or(z.literal("")),
-  address: z.string().max(500).optional().or(z.literal("")),
-  notes: z.string().max(2000).optional().or(z.literal("")),
+  phone: optionalText(80),
+  mobile: optionalText(80),
+  address: optionalText(500),
+  zip: optionalText(20),
+  city: optionalText(120),
+  country: optionalText(80),
+  vatId: optionalText(40),
+  website: optionalText(300),
+  notes: optionalText(2000),
   status: z.enum(["active", "inactive"]).optional(),
 });
+
+function mapCustomerInput(data: z.infer<typeof customerBody>) {
+  return {
+    name: data.name.trim(),
+    company: data.company?.trim() || null,
+    contactPerson: data.contactPerson?.trim() || null,
+    email: data.email?.trim() || null,
+    phone: data.phone?.trim() || null,
+    mobile: data.mobile?.trim() || null,
+    address: data.address?.trim() || null,
+    zip: data.zip?.trim() || null,
+    city: data.city?.trim() || null,
+    country: data.country?.trim() || null,
+    vatId: data.vatId?.trim() || null,
+    website: data.website?.trim() || null,
+    notes: data.notes?.trim() || null,
+  };
+}
 
 /**
  * Registriert Kunden-CRUD-Routen.
@@ -35,8 +63,14 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
         .where(
           or(
             like(customers.name, pattern),
+            like(customers.company, pattern),
+            like(customers.contactPerson, pattern),
             like(customers.email, pattern),
             like(customers.phone, pattern),
+            like(customers.mobile, pattern),
+            like(customers.city, pattern),
+            like(customers.zip, pattern),
+            like(customers.vatId, pattern),
           ),
         )
         .orderBy(desc(customers.updatedAt))
@@ -62,11 +96,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
     const now = new Date();
     const row = {
       id: createId("cus"),
-      name: parsed.data.name.trim(),
-      email: parsed.data.email || null,
-      phone: parsed.data.phone || null,
-      address: parsed.data.address || null,
-      notes: parsed.data.notes || null,
+      ...mapCustomerInput(parsed.data),
       status: parsed.data.status ?? ("active" as const),
       createdAt: now,
       updatedAt: now,
@@ -87,11 +117,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
     }
 
     const updated = {
-      name: parsed.data.name.trim(),
-      email: parsed.data.email || null,
-      phone: parsed.data.phone || null,
-      address: parsed.data.address || null,
-      notes: parsed.data.notes || null,
+      ...mapCustomerInput(parsed.data),
       status: parsed.data.status ?? existing.status,
       updatedAt: new Date(),
     };

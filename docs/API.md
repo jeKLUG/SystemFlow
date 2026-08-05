@@ -21,7 +21,7 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 | DELETE | `/api/customers/:id` | Löschen (inkl. Dokumente) |
 | GET | `/api/stats` | `{ customerCount, activeCount }` |
 
-Body (POST/PUT): `name`, optional `email`, `phone`, `address`, `notes`, `status` (`active`\|`inactive`).
+Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `website`, `notes`, `status` (`active`\|`inactive`).
 
 ## Dokumente
 

@@ -1,15 +1,18 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { CustomerFields } from "../components/CustomerFields";
+import { customerAddressLine, customerDisplayName } from "../lib/customer";
 import { assetKindLabel, documentTypeLabel, formatDate, formatDateOnly } from "../lib/labels";
-import type {
-  Activity,
-  Asset,
-  AssetKind,
-  Customer,
-  DocumentItem,
-  DocumentType,
-  TemplateMeta,
+import {
+  emptyCustomerForm,
+  type Activity,
+  type Asset,
+  type AssetKind,
+  type Customer,
+  type DocumentItem,
+  type DocumentType,
+  type TemplateMeta,
 } from "../types";
 
 const emptyAsset = {
@@ -31,14 +34,7 @@ export function CustomerDetailPage() {
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [templates, setTemplates] = useState<TemplateMeta[]>([]);
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
-    notes: "",
-    status: "active" as "active" | "inactive",
-  });
+  const [form, setForm] = useState(emptyCustomerForm);
   const [newDoc, setNewDoc] = useState({
     title: "",
     type: "note" as DocumentType,
@@ -64,9 +60,17 @@ export function CustomerDetailPage() {
     setTemplates(t);
     setForm({
       name: c.name,
+      company: c.company ?? "",
+      contactPerson: c.contactPerson ?? "",
       email: c.email ?? "",
       phone: c.phone ?? "",
+      mobile: c.mobile ?? "",
       address: c.address ?? "",
+      zip: c.zip ?? "",
+      city: c.city ?? "",
+      country: c.country ?? "Deutschland",
+      vatId: c.vatId ?? "",
+      website: c.website ?? "",
       notes: c.notes ?? "",
       status: c.status,
     });
@@ -132,16 +136,19 @@ export function CustomerDetailPage() {
       <div className="breadcrumb">
         <Link to="/customers">Kunden</Link>
         <span>/</span>
-        <span>{customer.name}</span>
+        <span>{customerDisplayName(customer)}</span>
       </div>
 
       <div className="section-head row-between">
         <div>
-          <h2>{customer.name}</h2>
+          <h2>{customerDisplayName(customer)}</h2>
           <p>
             <span className={`badge badge-${customer.status}`}>
               {customer.status === "active" ? "Aktiv" : "Inaktiv"}
             </span>
+            {customer.contactPerson ? (
+              <span className="muted"> · {customer.contactPerson}</span>
+            ) : null}
           </p>
         </div>
         <div className="cta-row">
@@ -156,56 +163,7 @@ export function CustomerDetailPage() {
 
       {editing ? (
         <form className="panel form-grid" onSubmit={saveCustomer}>
-          <label className="field">
-            <span>Name *</span>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <select
-              value={form.status}
-              onChange={(e) =>
-                setForm({ ...form, status: e.target.value as "active" | "inactive" })
-              }
-            >
-              <option value="active">Aktiv</option>
-              <option value="inactive">Inaktiv</option>
-            </select>
-          </label>
-          <label className="field">
-            <span>E-Mail</span>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Telefon</span>
-            <input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </label>
-          <label className="field full">
-            <span>Adresse</span>
-            <input
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-          </label>
-          <label className="field full">
-            <span>Kurznotiz</span>
-            <textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </label>
+          <CustomerFields form={form} onChange={setForm} showStatus />
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full">
             <button className="btn btn-primary" type="submit">
@@ -216,16 +174,48 @@ export function CustomerDetailPage() {
       ) : (
         <div className="detail-grid">
           <div>
+            <span className="label">Firma</span>
+            <p>{customer.company || "–"}</p>
+          </div>
+          <div>
+            <span className="label">Kurzname</span>
+            <p>{customer.name || "–"}</p>
+          </div>
+          <div>
+            <span className="label">Ansprechpartner</span>
+            <p>{customer.contactPerson || "–"}</p>
+          </div>
+          <div>
+            <span className="label">USt-IdNr.</span>
+            <p>{customer.vatId || "–"}</p>
+          </div>
+          <div>
             <span className="label">E-Mail</span>
             <p>{customer.email || "–"}</p>
+          </div>
+          <div>
+            <span className="label">Website</span>
+            <p>
+              {customer.website ? (
+                <a href={customer.website} target="_blank" rel="noreferrer">
+                  {customer.website}
+                </a>
+              ) : (
+                "–"
+              )}
+            </p>
           </div>
           <div>
             <span className="label">Telefon</span>
             <p>{customer.phone || "–"}</p>
           </div>
+          <div>
+            <span className="label">Mobil</span>
+            <p>{customer.mobile || "–"}</p>
+          </div>
           <div className="full">
             <span className="label">Adresse</span>
-            <p>{customer.address || "–"}</p>
+            <p>{customerAddressLine(customer)}</p>
           </div>
           <div className="full">
             <span className="label">Kurznotiz</span>

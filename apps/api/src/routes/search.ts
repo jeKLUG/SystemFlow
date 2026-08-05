@@ -24,17 +24,26 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
         .select({
           id: customers.id,
           name: customers.name,
+          company: customers.company,
           email: customers.email,
           phone: customers.phone,
+          city: customers.city,
           status: customers.status,
         })
         .from(customers)
         .where(
           or(
             like(customers.name, pattern),
+            like(customers.company, pattern),
+            like(customers.contactPerson, pattern),
             like(customers.email, pattern),
             like(customers.phone, pattern),
+            like(customers.mobile, pattern),
             like(customers.address, pattern),
+            like(customers.zip, pattern),
+            like(customers.city, pattern),
+            like(customers.vatId, pattern),
+            like(customers.website, pattern),
             like(customers.notes, pattern),
           ),
         )

@@ -1,22 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { CustomerFields } from "../components/CustomerFields";
+import { customerDisplayName } from "../lib/customer";
 import { formatDate } from "../lib/labels";
-import type { Customer } from "../types";
-
-const emptyForm = {
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  notes: "",
-  status: "active" as const,
-};
+import { emptyCustomerForm, type Customer } from "../types";
 
 export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [q, setQ] = useState("");
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyCustomerForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [params] = useSearchParams();
@@ -38,8 +31,16 @@ export function CustomersPage() {
     e.preventDefault();
     setError("");
     try {
-      const created = await api.createCustomer(form);
-      setForm(emptyForm);
+      const payload = {
+        ...form,
+        name: form.name.trim() || form.company.trim(),
+      };
+      if (!payload.name) {
+        setError("Bitte Firma oder Kurzname angeben");
+        return;
+      }
+      const created = await api.createCustomer(payload);
+      setForm(emptyCustomerForm);
       setShowForm(false);
       navigate(`/customers/${created.id}`);
     } catch (err) {
@@ -52,7 +53,7 @@ export function CustomersPage() {
       <div className="section-head row-between">
         <div>
           <h2>Kunden</h2>
-          <p>Stammdaten anlegen, suchen und öffnen.</p>
+          <p>Firmenstammdaten anlegen, suchen und öffnen.</p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
           {showForm ? "Abbrechen" : "Kunde anlegen"}
@@ -61,44 +62,7 @@ export function CustomersPage() {
 
       {showForm ? (
         <form className="panel form-grid" onSubmit={onCreate}>
-          <label className="field">
-            <span>Name *</span>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>E-Mail</span>
-            <input
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Telefon</span>
-            <input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Adresse</span>
-            <input
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-            />
-          </label>
-          <label className="field full">
-            <span>Kurznotiz</span>
-            <textarea
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </label>
+          <CustomerFields form={form} onChange={setForm} />
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full">
             <button className="btn btn-primary" type="submit">
@@ -116,7 +80,7 @@ export function CustomersPage() {
         }}
       >
         <input
-          placeholder="Suche nach Name, E-Mail, Telefon…"
+          placeholder="Suche nach Firma, Ansprechpartner, Ort, Telefon…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -133,9 +97,11 @@ export function CustomersPage() {
             <li key={c.id}>
               <Link className="list-row" to={`/customers/${c.id}`}>
                 <div>
-                  <strong>{c.name}</strong>
+                  <strong>{customerDisplayName(c)}</strong>
                   <span className="muted">
-                    {[c.email, c.phone].filter(Boolean).join(" · ") || "Keine Kontaktdaten"}
+                    {[c.contactPerson, c.city, c.email, c.phone]
+                      .filter(Boolean)
+                      .join(" · ") || "Keine Kontaktdaten"}
                   </span>
                 </div>
                 <div className="list-meta">
