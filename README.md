@@ -9,7 +9,9 @@ Interne Organisations-App für **Systemhaus-Ess**: Kunden verwalten und Dokument
 - Kunden anlegen, suchen, bearbeiten
 - Anlagen/Geräte inkl. Seriennummer und Garantie
 - Einsatz-Historie (Timeline)
-- TipTap-Editor mit Vorlagen (Wartung, Übergabe, Störung)
+- Aufgaben, Verträge/SLA, Ablauf-Erinnerungen
+- Dateianhänge und Kunden-Export (ZIP)
+- TipTap-Editor mit Vorlagen + Schnellnotiz (Handy)
 - Globale Volltextsuche
 - Docker-Deploy auf Linux inkl. systemd
 

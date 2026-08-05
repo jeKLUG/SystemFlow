@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { AttachmentPanel } from "../components/AttachmentPanel";
 import { DocumentEditor } from "../components/DocumentEditor";
 import { documentTypeLabel, formatDate } from "../lib/labels";
 import type { DocumentItem, DocumentType } from "../types";
@@ -100,6 +101,16 @@ export function DocumentPage() {
       </div>
 
       <DocumentEditor content={content} onChange={setContent} />
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Anhänge</h2>
+          <p>Dateien zu diesem Dokument.</p>
+        </div>
+        <div className="panel">
+          <AttachmentPanel customerId={doc.customerId} documentId={doc.id} />
+        </div>
+      </section>
     </div>
   );
 }

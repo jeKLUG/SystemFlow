@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
+import { AttachmentPanel } from "../components/AttachmentPanel";
 import { CustomerFields } from "../components/CustomerFields";
 import { customerAddressLine, customerDisplayName } from "../lib/customer";
 import { assetKindLabel, documentTypeLabel, formatDate, formatDateOnly } from "../lib/labels";
@@ -9,9 +10,11 @@ import {
   type Activity,
   type Asset,
   type AssetKind,
+  type ContractItem,
   type Customer,
   type DocumentItem,
   type DocumentType,
+  type TaskItem,
   type TemplateMeta,
 } from "../types";
 
@@ -32,6 +35,8 @@ export function CustomerDetailPage() {
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [assetList, setAssetList] = useState<Asset[]>([]);
   const [activityList, setActivityList] = useState<Activity[]>([]);
+  const [taskList, setTaskList] = useState<TaskItem[]>([]);
+  const [contractList, setContractList] = useState<ContractItem[]>([]);
   const [templates, setTemplates] = useState<TemplateMeta[]>([]);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyCustomerForm);
@@ -43,21 +48,34 @@ export function CustomerDetailPage() {
   const [assetForm, setAssetForm] = useState(emptyAsset);
   const [showAssetForm, setShowAssetForm] = useState(false);
   const [activityForm, setActivityForm] = useState({ title: "", description: "" });
+  const [taskForm, setTaskForm] = useState({ title: "", description: "", dueDate: "" });
+  const [contractForm, setContractForm] = useState({
+    title: "",
+    startDate: "",
+    endDate: "",
+    slaResponseHours: "",
+    contactPerson: "",
+    notes: "",
+  });
   const [error, setError] = useState("");
 
   async function reload() {
-    const [c, d, a, h, t] = await Promise.all([
+    const [c, d, a, h, t, tasks, contracts] = await Promise.all([
       api.customer(id),
       api.documents(id),
       api.assets(id),
       api.activities(id),
       api.templates(),
+      api.tasks(id),
+      api.contracts(id),
     ]);
     setCustomer(c);
     setDocs(d);
     setAssetList(a);
     setActivityList(h);
     setTemplates(t);
+    setTaskList(tasks);
+    setContractList(contracts);
     setForm({
       name: c.name,
       company: c.company ?? "",
@@ -123,6 +141,36 @@ export function CustomerDetailPage() {
     await reload();
   }
 
+  async function createTask(e: FormEvent) {
+    e.preventDefault();
+    await api.createTask(id, taskForm);
+    setTaskForm({ title: "", description: "", dueDate: "" });
+    await reload();
+  }
+
+  async function createContract(e: FormEvent) {
+    e.preventDefault();
+    await api.createContract(id, {
+      title: contractForm.title,
+      startDate: contractForm.startDate,
+      endDate: contractForm.endDate,
+      slaResponseHours: contractForm.slaResponseHours
+        ? Number(contractForm.slaResponseHours)
+        : null,
+      contactPerson: contractForm.contactPerson,
+      notes: contractForm.notes,
+    });
+    setContractForm({
+      title: "",
+      startDate: "",
+      endDate: "",
+      slaResponseHours: "",
+      contactPerson: "",
+      notes: "",
+    });
+    await reload();
+  }
+
   async function removeCustomer() {
     if (!confirm("Kunde und alle zugehörigen Daten wirklich löschen?")) return;
     await api.deleteCustomer(id);
@@ -152,6 +200,16 @@ export function CustomerDetailPage() {
           </p>
         </div>
         <div className="cta-row">
+          <Link className="btn btn-primary" to={`/quick-note?customerId=${id}`}>
+            + Notiz
+          </Link>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => void api.exportCustomer(id)}
+          >
+            Export ZIP
+          </button>
           <button type="button" className="btn btn-ghost" onClick={() => setEditing((v) => !v)}>
             {editing ? "Schließen" : "Bearbeiten"}
           </button>
@@ -392,6 +450,160 @@ export function CustomerDetailPage() {
             ))}
           </ol>
         )}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Aufgaben</h2>
+          <p>Offene Punkte mit optionaler Fälligkeit.</p>
+        </div>
+        <form className="panel inline-form" onSubmit={createTask}>
+          <input
+            placeholder="Aufgabe"
+            value={taskForm.title}
+            onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+            required
+          />
+          <input
+            type="date"
+            value={taskForm.dueDate}
+            onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+          />
+          <button className="btn btn-primary" type="submit">
+            Hinzufügen
+          </button>
+        </form>
+        {taskList.length === 0 ? (
+          <p className="empty">Keine Aufgaben.</p>
+        ) : (
+          <ul className="list">
+            {taskList.map((task) => (
+              <li key={task.id} className="list-row">
+                <label className="task-check">
+                  <input
+                    type="checkbox"
+                    checked={task.done}
+                    onChange={() =>
+                      void api
+                        .updateTask(task.id, {
+                          title: task.title,
+                          description: task.description ?? "",
+                          dueDate: task.dueDate ?? "",
+                          done: !task.done,
+                        })
+                        .then(() => reload())
+                    }
+                  />
+                  <div>
+                    <strong className={task.done ? "done" : undefined}>{task.title}</strong>
+                    <span className="muted">
+                      Fällig: {formatDateOnly(task.dueDate)}
+                    </span>
+                  </div>
+                </label>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => void api.deleteTask(task.id).then(() => reload())}
+                >
+                  Löschen
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Verträge / SLA</h2>
+          <p>Laufzeiten und Reaktionszeiten – keine Rechnungen (Lexware).</p>
+        </div>
+        <form className="panel form-grid" onSubmit={createContract}>
+          <label className="field">
+            <span>Titel *</span>
+            <input
+              required
+              value={contractForm.title}
+              onChange={(e) => setContractForm({ ...contractForm, title: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>SLA (Stunden)</span>
+            <input
+              type="number"
+              min={1}
+              value={contractForm.slaResponseHours}
+              onChange={(e) =>
+                setContractForm({ ...contractForm, slaResponseHours: e.target.value })
+              }
+            />
+          </label>
+          <label className="field">
+            <span>Beginn</span>
+            <input
+              type="date"
+              value={contractForm.startDate}
+              onChange={(e) => setContractForm({ ...contractForm, startDate: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>Ende</span>
+            <input
+              type="date"
+              value={contractForm.endDate}
+              onChange={(e) => setContractForm({ ...contractForm, endDate: e.target.value })}
+            />
+          </label>
+          <label className="field full">
+            <span>Ansprechpartner Vertrag</span>
+            <input
+              value={contractForm.contactPerson}
+              onChange={(e) =>
+                setContractForm({ ...contractForm, contactPerson: e.target.value })
+              }
+            />
+          </label>
+          <div className="full">
+            <button className="btn btn-primary" type="submit">
+              Vertrag speichern
+            </button>
+          </div>
+        </form>
+        {contractList.length === 0 ? (
+          <p className="empty">Keine Verträge.</p>
+        ) : (
+          <ul className="list">
+            {contractList.map((c) => (
+              <li key={c.id} className="list-row">
+                <div>
+                  <strong>{c.title}</strong>
+                  <span className="muted">
+                    {formatDateOnly(c.startDate)} – {formatDateOnly(c.endDate)}
+                    {c.slaResponseHours ? ` · SLA ${c.slaResponseHours}h` : ""}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => void api.deleteContract(c.id).then(() => reload())}
+                >
+                  Löschen
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="section">
+        <div className="section-head">
+          <h2>Anhänge</h2>
+          <p>PDFs, Fotos und Lizenzscheine zu diesem Kunden.</p>
+        </div>
+        <div className="panel">
+          <AttachmentPanel customerId={id} />
+        </div>
       </section>
 
       <section className="section">

@@ -61,6 +61,36 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 
 Dokument anlegen akzeptiert optional `templateId`.
 
+## Aufgaben
+
+| Methode | Pfad |
+|---------|------|
+| GET | `/api/tasks?openOnly=` |
+| GET/POST | `/api/customers/:id/tasks` |
+| PUT/DELETE | `/api/tasks/:id` |
+
+## Verträge / SLA
+
+| Methode | Pfad |
+|---------|------|
+| GET/POST | `/api/customers/:id/contracts` |
+| PUT/DELETE | `/api/contracts/:id` |
+
+## Anhänge
+
+| Methode | Pfad |
+|---------|------|
+| GET/POST | `/api/customers/:id/attachments` |
+| GET | `/api/attachments/:id/download` |
+| DELETE | `/api/attachments/:id` |
+
+## Erinnerungen & Export
+
+| Methode | Pfad |
+|---------|------|
+| GET | `/api/reminders?days=` |
+| GET | `/api/customers/:id/export` (ZIP) |
+
 ## Health
 
 | Methode | Pfad |

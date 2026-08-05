@@ -10,6 +10,7 @@ services:
       PORT: "3000"
       HOST: "0.0.0.0"
       DATABASE_PATH: /data/systemhaus.sqlite
+      UPLOAD_DIR: /data/uploads
       WEB_DIST: /app/apps/web/dist
       SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-secret-key}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}

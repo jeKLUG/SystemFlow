@@ -17,7 +17,11 @@ export function Layout() {
             Start
           </NavLink>
           <NavLink to="/customers">Kunden</NavLink>
+          <NavLink to="/reminders">Ablauf</NavLink>
           <NavLink to="/search">Suche</NavLink>
+          <NavLink to="/quick-note" className="nav-quick">
+            + Notiz
+          </NavLink>
         </nav>
         <div className="topbar-actions">
           <span className="user-chip">{user?.username}</span>
@@ -29,6 +33,9 @@ export function Layout() {
       <main className="main">
         <Outlet />
       </main>
+      <NavLink to="/quick-note" className="fab" aria-label="Schnellnotiz">
+        +
+      </NavLink>
     </div>
   );
 }

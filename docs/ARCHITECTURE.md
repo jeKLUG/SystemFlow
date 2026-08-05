@@ -28,6 +28,9 @@ Browser (React SPA)
 - **documents** – TipTap-JSON, Typ `note` \| `protocol` \| `documentation`
 - **assets** – Anlagen/Geräte je Kunde
 - **activities** – Einsatz-Historie (manuell + automatisch bei Dokument/Anlage)
+- **tasks** – offene Punkte mit Fälligkeit
+- **contracts** – Verträge/SLA (keine Rechnungen)
+- **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
 
 ## Auth

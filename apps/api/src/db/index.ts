@@ -92,11 +92,50 @@ export async function createDb(databasePath: string) {
       created_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS tasks (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      due_date TEXT,
+      done INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS contracts (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      start_date TEXT,
+      end_date TEXT,
+      sla_response_hours INTEGER,
+      contact_person TEXT,
+      notes TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS attachments (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      document_id TEXT,
+      asset_id TEXT,
+      original_name TEXT NOT NULL,
+      stored_name TEXT NOT NULL,
+      mime_type TEXT,
+      size INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
     CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
     CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_customer ON activities(customer_id);
     CREATE INDEX IF NOT EXISTS idx_activities_occurred ON activities(occurred_at);
+    CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_contracts_customer ON contracts(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder

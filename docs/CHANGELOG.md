@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.0 – 2026-08-05
+
+- Aufgaben mit Fälligkeit und Erledigt-Status
+- Dateianhänge (Upload/Download) an Kunde und Dokument
+- Ablauf-Erinnerungen (Garantien, Verträge, Aufgaben)
+- Vertrags-/SLA-Stammdaten (ohne Rechnungen)
+- Schnellnotiz-UI + FAB für Handy
+- Kunden-Export als ZIP (Stammdaten, Anlagen, Dokumente, Anhänge)
+
 ## 1.1.1 – 2026-08-05
 
 - Erweiterte Kundenfelder: Firma, Ansprechpartner, Mobil, PLZ/Ort/Land, USt-IdNr., Website

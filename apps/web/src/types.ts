@@ -113,6 +113,76 @@ export interface Stats {
   activeCount: number;
 }
 
+export interface TaskItem {
+  id: string;
+  customerId: string;
+  title: string;
+  description: string | null;
+  dueDate: string | null;
+  done: boolean;
+  createdAt: string;
+  updatedAt: string;
+  customerName?: string;
+  customerCompany?: string | null;
+}
+
+export interface ContractItem {
+  id: string;
+  customerId: string;
+  title: string;
+  startDate: string | null;
+  endDate: string | null;
+  slaResponseHours: number | null;
+  contactPerson: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttachmentItem {
+  id: string;
+  customerId: string;
+  documentId: string | null;
+  assetId: string | null;
+  originalName: string;
+  storedName: string;
+  mimeType: string | null;
+  size: number;
+  createdAt: string;
+}
+
+export interface Reminders {
+  days: number;
+  from: string;
+  to: string;
+  warranties: Array<{
+    id: string;
+    name: string;
+    kind: AssetKind;
+    warrantyUntil: string | null;
+    customerId: string;
+    customerName: string;
+    customerCompany: string | null;
+  }>;
+  contracts: Array<{
+    id: string;
+    title: string;
+    endDate: string | null;
+    slaResponseHours: number | null;
+    customerId: string;
+    customerName: string;
+    customerCompany: string | null;
+  }>;
+  tasks: Array<{
+    id: string;
+    title: string;
+    dueDate: string | null;
+    customerId: string;
+    customerName: string;
+    customerCompany: string | null;
+  }>;
+}
+
 export const emptyCustomerForm: {
   name: string;
   company: string;

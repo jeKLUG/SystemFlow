@@ -97,4 +97,80 @@ export const api = {
   templates: () => request<import("./types").TemplateMeta[]>("/api/templates"),
   search: (q: string) =>
     request<import("./types").SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
+  tasks: (customerId: string) =>
+    request<import("./types").TaskItem[]>(`/api/customers/${customerId}/tasks`),
+  openTasks: () => request<import("./types").TaskItem[]>("/api/tasks?openOnly=true"),
+  createTask: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").TaskItem>(`/api/customers/${customerId}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateTask: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").TaskItem>(`/api/tasks/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteTask: (id: string) =>
+    request<{ ok: boolean }>(`/api/tasks/${id}`, { method: "DELETE" }),
+  contracts: (customerId: string) =>
+    request<import("./types").ContractItem[]>(`/api/customers/${customerId}/contracts`),
+  createContract: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").ContractItem>(`/api/customers/${customerId}/contracts`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  deleteContract: (id: string) =>
+    request<{ ok: boolean }>(`/api/contracts/${id}`, { method: "DELETE" }),
+  reminders: (days = 90) =>
+    request<import("./types").Reminders>(`/api/reminders?days=${days}`),
+  attachments: (customerId: string, opts?: { documentId?: string; assetId?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.documentId) params.set("documentId", opts.documentId);
+    if (opts?.assetId) params.set("assetId", opts.assetId);
+    const qs = params.toString();
+    return request<import("./types").AttachmentItem[]>(
+      `/api/customers/${customerId}/attachments${qs ? `?${qs}` : ""}`,
+    );
+  },
+  uploadAttachment: async (
+    customerId: string,
+    file: File,
+    opts?: { documentId?: string; assetId?: string },
+  ) => {
+    const body = new FormData();
+    body.append("file", file);
+    if (opts?.documentId) body.append("documentId", opts.documentId);
+    if (opts?.assetId) body.append("assetId", opts.assetId);
+    const res = await fetch(`/api/customers/${customerId}/attachments`, {
+      method: "POST",
+      credentials: "include",
+      body,
+    });
+    if (!res.ok) {
+      let message = "Upload fehlgeschlagen";
+      try {
+        const data = (await res.json()) as { error?: string };
+        if (data.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return res.json() as Promise<import("./types").AttachmentItem>;
+  },
+  deleteAttachment: (id: string) =>
+    request<{ ok: boolean }>(`/api/attachments/${id}`, { method: "DELETE" }),
+  exportCustomer: async (customerId: string) => {
+    const res = await fetch(`/api/customers/${customerId}/export`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error("Export fehlgeschlagen");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `kunde-export-${customerId}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+  },
 };

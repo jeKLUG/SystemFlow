@@ -6,6 +6,8 @@ import { CustomersPage } from "./pages/CustomersPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentPage } from "./pages/DocumentPage";
 import { LoginPage } from "./pages/LoginPage";
+import { QuickNotePage } from "./pages/QuickNotePage";
+import { RemindersPage } from "./pages/RemindersPage";
 import { SearchPage } from "./pages/SearchPage";
 
 function Protected({ children }: { children: React.ReactNode }) {
@@ -29,6 +31,8 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="search" element={<SearchPage />} />
+        <Route path="reminders" element={<RemindersPage />} />
+        <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="documents/:id" element={<DocumentPage />} />

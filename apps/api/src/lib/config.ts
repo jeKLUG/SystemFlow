@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { dirname, resolve } from "node:path";
 
 function env(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
@@ -16,10 +17,13 @@ export function loadConfig() {
     process.env.SESSION_SECRET ??
     createHash("sha256").update(randomBytes(32)).digest("hex");
 
+  const databasePath = process.env.DATABASE_PATH ?? "./data/systemhaus.sqlite";
+
   return {
     port: Number(process.env.PORT ?? "3000"),
     host: process.env.HOST ?? "0.0.0.0",
-    databasePath: process.env.DATABASE_PATH ?? "./data/systemhaus.sqlite",
+    databasePath,
+    uploadDir: process.env.UPLOAD_DIR ?? resolve(dirname(resolve(databasePath)), "uploads"),
     sessionSecret,
     adminUsername: process.env.ADMIN_USERNAME ?? "admin",
     adminPassword: process.env.ADMIN_PASSWORD ?? "changeme",
