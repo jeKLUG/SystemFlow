@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2 – 2026-08-05
+
+- Deploy: Docker-Build mit sichtbarer Ausgabe; systemd nutzt `bash -lc` + `--env-file`
+- LF-Zeilenenden für `docker-compose.yml` / `Dockerfile` / Shell-Skripte
+
 ## 1.0.1 – 2026-08-05
 
 - `deploy.sh`: lokale Änderungen im Installationsordner werden beim Update verworfen (`.env` bleibt erhalten)

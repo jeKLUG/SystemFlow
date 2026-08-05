@@ -130,21 +130,6 @@ EOF
 
 install_systemd() {
   local unit="/etc/systemd/system/${SERVICE_NAME}.service"
-  local docker_path
-  docker_path="$(docker_bin)"
-  local mode
-  mode="$(compose_args)"
-
-  local start_cmd stop_cmd
-  if [[ "${mode}" == "compose" ]]; then
-    start_cmd="${docker_path} compose up -d --build --remove-orphans"
-    stop_cmd="${docker_path} compose down"
-  else
-    local dc
-    dc="$(command -v docker-compose)"
-    start_cmd="${dc} up -d --build --remove-orphans"
-    stop_cmd="${dc} down"
-  fi
 
   # Alten Demo-Dienst entfernen, falls vorhanden
   if systemctl list-unit-files | grep -q '^systemflow\.service'; then
@@ -152,6 +137,7 @@ install_systemd() {
   fi
 
   log "Installiere systemd-Dienst ${SERVICE_NAME}.service…"
+  # bash -c: zuverlässig mit docker compose Plugin und .env
   cat > "${unit}" <<EOF
 [Unit]
 Description=Systemhaus-Ess (Docker Compose)
@@ -164,9 +150,10 @@ Wants=network-online.target
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=${INSTALL_DIR}
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=-${INSTALL_DIR}/.env
-ExecStart=${start_cmd}
-ExecStop=${stop_cmd}
+ExecStart=/bin/bash -lc 'cd "${INSTALL_DIR}" && docker compose --env-file .env up -d --build --remove-orphans'
+ExecStop=/bin/bash -lc 'cd "${INSTALL_DIR}" && docker compose --env-file .env down'
 TimeoutStartSec=0
 
 [Install]
@@ -178,16 +165,34 @@ EOF
   ok "systemd-Dienst aktiviert (Start bei Boot)"
 }
 
-start_service() {
-  log "Starte / aktualisiere Systemhaus-Ess…"
-  systemctl restart "${SERVICE_NAME}.service"
-  sleep 3
-  if systemctl is-active --quiet "${SERVICE_NAME}.service"; then
-    ok "Dienst läuft"
+compose_up() {
+  local mode
+  mode="$(compose_args)"
+  cd "${INSTALL_DIR}"
+  if [[ "${mode}" == "compose" ]]; then
+    docker compose --env-file .env up -d --build --remove-orphans
   else
-    warn "systemd meldet Probleme – Container-Status:"
+    docker-compose --env-file .env up -d --build --remove-orphans
+  fi
+}
+
+start_service() {
+  log "Starte / aktualisiere Systemhaus-Ess (Docker Build)…"
+  if ! compose_up; then
+    warn "Docker Compose fehlgeschlagen. Letzte Logs:"
+    docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=80 || true
+    journalctl -u "${SERVICE_NAME}.service" --no-pager -n 40 || true
+    die "Start fehlgeschlagen – siehe Ausgabe oben"
+  fi
+
+  systemctl restart "${SERVICE_NAME}.service" || true
+  sleep 2
+  if docker ps --filter "name=systemhaus-ess" --filter "status=running" --format '{{.Names}}' | grep -q systemhaus-ess; then
+    ok "Container läuft"
+  else
+    warn "Container nicht aktiv:"
     docker ps -a --filter "name=systemhaus" || true
-    systemctl --no-pager --full status "${SERVICE_NAME}.service" || true
+    docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=80 || true
     die "Start fehlgeschlagen"
   fi
 }
