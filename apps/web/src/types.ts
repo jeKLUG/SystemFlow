@@ -331,13 +331,19 @@ export interface Stats {
   activeCount: number;
 }
 
+/** Priorität 1 (dringend) … 4 (normal), analog Todoist. */
+export type TaskPriority = 1 | 2 | 3 | 4;
+
 export interface TaskItem {
   id: string;
   customerId: string;
   projectId?: string | null;
+  projectName?: string | null;
   title: string;
   description: string | null;
   dueDate: string | null;
+  priority: TaskPriority | number;
+  sortOrder: number;
   done: boolean;
   createdAt: string;
   updatedAt: string;

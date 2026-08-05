@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { appointments, customers } from "../db/schema.js";
+import { todayIso } from "../lib/dates.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
@@ -76,7 +77,7 @@ export async function appointmentRoutes(app: FastifyInstance, db: Db) {
       })
       .parse(request.query);
 
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayIso();
     const from = q.from ?? (q.upcoming ? today : undefined);
     const to = q.to;
 

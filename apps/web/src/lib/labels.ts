@@ -6,6 +6,7 @@ import type {
   ProjectStatus,
   VaultCategory,
 } from "../types";
+import { parseDateOnly } from "./dates";
 
 export const documentTypeLabel: Record<DocumentType, string> = {
   note: "Notiz",
@@ -70,6 +71,9 @@ export const assetStatusLabel: Record<AssetStatus, string> = {
 
 export function formatDate(value: string | Date) {
   try {
+    if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+      return formatDateOnly(value);
+    }
     return new Intl.DateTimeFormat("de-DE", {
       dateStyle: "medium",
       timeStyle: "short",
@@ -82,7 +86,11 @@ export function formatDate(value: string | Date) {
 export function formatDateOnly(value: string | null | undefined) {
   if (!value) return "–";
   try {
-    return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(new Date(value));
+    const trimmed = value.trim();
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(trimmed)
+      ? parseDateOnly(trimmed)
+      : new Date(trimmed);
+    return new Intl.DateTimeFormat("de-DE", { dateStyle: "medium" }).format(date);
   } catch {
     return value;
   }

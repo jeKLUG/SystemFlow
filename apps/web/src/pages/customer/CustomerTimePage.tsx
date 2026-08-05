@@ -1,13 +1,10 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { addMinutesToTime, localTodayIso } from "../../lib/dates";
 import { formatDateOnly } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
 import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
-
-function todayIso() {
-  return new Date().toISOString().slice(0, 10);
-}
 
 /**
  * Zeiterfassung: Start-/Endzeit, optional Leistung/Satz aus dem Preiskatalog.
@@ -27,7 +24,7 @@ export function CustomerTimePage() {
   const [filterProject, setFilterProject] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
-    workDate: todayIso(),
+    workDate: localTodayIso(),
     startTime: "09:00",
     endTime: "10:00",
     description: "",
@@ -98,9 +95,9 @@ export function CustomerTimePage() {
         billable: form.billable,
       });
       setForm({
-        workDate: todayIso(),
+        workDate: localTodayIso(),
         startTime: form.endTime,
-        endTime: form.endTime,
+        endTime: addMinutesToTime(form.endTime, 60),
         description: "",
         projectId: form.projectId,
         priceItemId: form.priceItemId,

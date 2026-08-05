@@ -228,9 +228,35 @@ export const api = {
   templates: () => request<import("./types").TemplateMeta[]>("/api/templates"),
   search: (q: string) =>
     request<import("./types").SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
-  tasks: (customerId: string) =>
-    request<import("./types").TaskItem[]>(`/api/customers/${customerId}/tasks`),
-  openTasks: () => request<import("./types").TaskItem[]>("/api/tasks?openOnly=true"),
+  tasks: (
+    customerId: string,
+    opts?: { projectId?: string; view?: string },
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.projectId) params.set("projectId", opts.projectId);
+    if (opts?.view) params.set("view", opts.view);
+    const qs = params.toString();
+    return request<import("./types").TaskItem[]>(
+      `/api/customers/${customerId}/tasks${qs ? `?${qs}` : ""}`,
+    );
+  },
+  allTasks: (opts?: {
+    openOnly?: boolean;
+    customerId?: string;
+    projectId?: string;
+    view?: string;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.openOnly) params.set("openOnly", "true");
+    if (opts?.customerId) params.set("customerId", opts.customerId);
+    if (opts?.projectId) params.set("projectId", opts.projectId);
+    if (opts?.view) params.set("view", opts.view);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<import("./types").TaskItem[]>(`/api/tasks${qs ? `?${qs}` : ""}`);
+  },
+  openTasks: () => request<import("./types").TaskItem[]>("/api/tasks?openOnly=true&limit=30"),
   createTask: (customerId: string, body: Record<string, unknown>) =>
     request<import("./types").TaskItem>(`/api/customers/${customerId}/tasks`, {
       method: "POST",

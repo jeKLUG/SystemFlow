@@ -3,11 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { assets, contracts, customers, tasks } from "../db/schema.js";
+import { addDaysIso, todayIso } from "../lib/dates.js";
 import { requireAuth } from "../plugins/auth.js";
-
-function isoDate(d: Date) {
-  return d.toISOString().slice(0, 10);
-}
 
 /**
  * Registriert Ablauf-/Erinnerungs-Routen.
@@ -21,11 +18,8 @@ export async function reminderRoutes(app: FastifyInstance, db: Db) {
       .parse(request.query);
 
     const windowDays = days ?? 90;
-    const today = new Date();
-    const until = new Date(today);
-    until.setDate(until.getDate() + windowDays);
-    const from = isoDate(today);
-    const to = isoDate(until);
+    const from = todayIso();
+    const to = addDaysIso(from, windowDays);
 
     const [warrantyAssets, endingContracts, dueTasks] = await Promise.all([
       db

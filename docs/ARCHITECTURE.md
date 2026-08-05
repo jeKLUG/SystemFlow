@@ -47,6 +47,10 @@ Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Zeiten · Anlagen
 
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-, Wochen- und Tagesansicht (Termine farbig nach Art, Detailseiteleiste).
 
+## Zeitzone
+
+Kalendertage (`YYYY-MM-DD`) und „heute“ laufen über `Europe/Berlin` (API: Env `APP_TIMEZONE`, Web: Browser-Lokalzeit + `parseDateOnly`). Reines Datum darf nicht als UTC-Mitternacht geparst werden – sonst erscheint in DE oft der Vortag. Docker-Container sind oft UTC; die API nutzt deshalb explizit die App-Zeitzone für Erinnerungen, Aufgaben und Termine.
+
 ## Auth
 
 Session-Cookie (`systemhaus_session`) via `@fastify/secure-session`, Passwort mit bcrypt. Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.

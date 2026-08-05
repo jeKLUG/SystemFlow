@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.5 – 2026-08-05
+
+- Zeitsystem: lokale/DE-Daten statt UTC (`YYYY-MM-DD` Anzeige, heutiges Datum, Erinnerungen)
+- Zeiterfassung: Folgebuchung setzt Endzeit +1h statt identischer Start/Ende
+
 ## 1.5.4 – 2026-08-05
 
 - SaaS-UI: verfeinertes Designsystem, Sidebar mit Gruppen/Icons, Dashboard-Karten, klarere Controls

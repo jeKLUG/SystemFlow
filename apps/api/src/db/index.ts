@@ -199,9 +199,12 @@ export async function createDb(databasePath: string) {
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      project_id TEXT,
       title TEXT NOT NULL,
       description TEXT,
       due_date TEXT,
+      priority INTEGER NOT NULL DEFAULT 4,
+      sort_order INTEGER NOT NULL DEFAULT 0,
       done INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -303,6 +306,8 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "documents", "project_id", "TEXT");
   await ensureColumn(client, "documents", "asset_id", "TEXT");
   await ensureColumn(client, "tasks", "project_id", "TEXT");
+  await ensureColumn(client, "tasks", "priority", "INTEGER NOT NULL DEFAULT 4");
+  await ensureColumn(client, "tasks", "sort_order", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "time_entries", "start_time", "TEXT");
   await ensureColumn(client, "time_entries", "end_time", "TEXT");
   await ensureColumn(client, "time_entries", "price_item_id", "TEXT");

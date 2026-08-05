@@ -205,6 +205,9 @@ export const tasks = sqliteTable("tasks", {
   title: text("title").notNull(),
   description: text("description"),
   dueDate: text("due_date"),
+  /** Priorität wie Todoist: 1 = dringend … 4 = normal. */
+  priority: integer("priority").notNull().default(4),
+  sortOrder: integer("sort_order").notNull().default(0),
   done: integer("done", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
