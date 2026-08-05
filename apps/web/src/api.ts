@@ -76,6 +76,42 @@ export const api = {
     }),
   deleteDocument: (id: string) =>
     request<{ ok: boolean }>(`/api/documents/${id}`, { method: "DELETE" }),
+  projects: (customerId: string) =>
+    request<import("./types").ProjectItem[]>(`/api/customers/${customerId}/projects`),
+  createProject: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").ProjectItem>(`/api/customers/${customerId}/projects`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateProject: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").ProjectItem>(`/api/projects/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteProject: (id: string) =>
+    request<{ ok: boolean }>(`/api/projects/${id}`, { method: "DELETE" }),
+  timeEntries: (customerId: string, opts?: { projectId?: string; from?: string; to?: string }) => {
+    const params = new URLSearchParams();
+    if (opts?.projectId) params.set("projectId", opts.projectId);
+    if (opts?.from) params.set("from", opts.from);
+    if (opts?.to) params.set("to", opts.to);
+    const qs = params.toString();
+    return request<import("./types").TimeEntriesResponse>(
+      `/api/customers/${customerId}/time-entries${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createTimeEntry: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").TimeEntryItem>(`/api/customers/${customerId}/time-entries`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateTimeEntry: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").TimeEntryItem>(`/api/time-entries/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteTimeEntry: (id: string) =>
+    request<{ ok: boolean }>(`/api/time-entries/${id}`, { method: "DELETE" }),
   assets: (customerId: string) =>
     request<import("./types").Asset[]>(`/api/customers/${customerId}/assets`),
   createAsset: (customerId: string, body: Record<string, unknown>) =>

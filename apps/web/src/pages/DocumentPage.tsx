@@ -58,7 +58,7 @@ export function DocumentPage() {
     if (!confirm("Dokument wirklich löschen?")) return;
     const customerId = doc?.customerId;
     await api.deleteDocument(id);
-    navigate(customerId ? `/customers/${customerId}` : "/customers");
+    navigate(customerId ? `/customers/${customerId}/wiki` : "/customers");
   }
 
   if (!doc) return <div className="boot">Lade Dokument…</div>;
@@ -70,7 +70,9 @@ export function DocumentPage() {
         <span>/</span>
         <Link to={`/customers/${doc.customerId}`}>Kunde</Link>
         <span>/</span>
-        <span>{title || "Dokument"}</span>
+        <Link to={`/customers/${doc.customerId}/wiki`}>Wiki</Link>
+        <span>/</span>
+        <span>{title || "Seite"}</span>
       </div>
 
       <div className="editor-meta">
@@ -85,9 +87,11 @@ export function DocumentPage() {
           onChange={(e) => setType(e.target.value as DocumentType)}
           aria-label="Dokumenttyp"
         >
-          <option value="note">Notiz</option>
-          <option value="protocol">Protokoll</option>
+          <option value="article">Artikel</option>
           <option value="documentation">Dokumentation</option>
+          <option value="note">Notiz</option>
+          <option value="workflow">Workflow</option>
+          <option value="protocol">Protokoll</option>
         </select>
         <span className="save-state">
           {saveState === "saving" && "Speichert…"}

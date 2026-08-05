@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0 – 2026-08-05
+
+- Kundenbereich mit Tabs: Übersicht, Wiki, Projekte, Zeiten, Anlagen, Betrieb
+- Zeiterfassung pro Kunde (Stunden, Datum, Projekt, abrechenbar)
+- Kunden-Wiki: Artikel, Dokumentation, Notizen, Workflows, Protokolle inkl. Suche/Filter
+- Projekte mit Status, Zeitraum, Stunden-/Euro-Budget und Verbrauch aus gebuchten Zeiten
+- ZIP-Export enthält Projekte, Zeiten und Wiki-Seiten
+
 ## 1.2.1 – 2026-08-05
 
 - Session bleibt über Reload (HTTP-Cookies, 30 Tage, stabiler Session-Key)

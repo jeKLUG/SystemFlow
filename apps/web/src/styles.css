@@ -931,4 +931,253 @@ h2 {
   .editor-toolbar {
     top: 56px;
   }
+
+  .customer-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0.15rem;
+  }
+
+  .wiki-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wiki-nav {
+    position: static;
+  }
+
+  .budget-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.customer-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.25rem 0 1.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(10, 16, 26, 0.55);
+}
+
+.customer-tab {
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.customer-tab:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.customer-tab-active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent), #1d5fd4);
+}
+
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.stat-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.stat-chip strong {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+}
+
+.stat-chip span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.wiki-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.wiki-search {
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 20, 0.7);
+}
+
+.filter-chips,
+.month-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.chip-active {
+  color: #fff;
+  border-color: transparent;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px rgba(90, 160, 255, 0.35);
+}
+
+.wiki-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.wiki-nav {
+  position: sticky;
+  top: 1rem;
+}
+
+.wiki-nav h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.wiki-nav-group {
+  margin-bottom: 0.9rem;
+}
+
+.wiki-nav-group ul {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+}
+
+.wiki-nav-group a {
+  display: block;
+  padding: 0.25rem 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.wiki-nav-group a:hover {
+  color: var(--accent-bright);
+}
+
+.wiki-group h3 {
+  margin: 0 0 0.5rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.wiki-group + .wiki-group {
+  margin-top: 1.25rem;
+}
+
+.project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.budget-bar {
+  position: relative;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.budget-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ok), var(--accent));
+}
+
+.budget-bar-fill.warn {
+  background: linear-gradient(90deg, var(--warn), #d8892a);
+}
+
+.budget-bar-fill.over {
+  background: linear-gradient(90deg, var(--danger), #c94444);
+}
+
+.budget-bar span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 0.78rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.badge-status-planned {
+  background: rgba(90, 160, 255, 0.15);
+  color: var(--accent-bright);
+}
+
+.badge-status-active {
+  background: rgba(62, 207, 142, 0.15);
+  color: var(--ok);
+}
+
+.badge-status-on_hold {
+  background: rgba(230, 184, 77, 0.15);
+  color: var(--warn);
+}
+
+.badge-status-done {
+  background: rgba(139, 155, 180, 0.18);
+  color: var(--text-muted);
+}
+
+.checkbox-field .inline-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.6rem;
+}
+
+@media (max-width: 900px) {
+  .stat-strip {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .budget-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }

@@ -12,7 +12,9 @@ import {
   contracts,
   customers,
   documents,
+  projects,
   tasks,
+  timeEntries,
 } from "../db/schema.js";
 import { tiptapToText } from "../lib/tiptap-text.js";
 import { requireAuth } from "../plugins/auth.js";
@@ -32,20 +34,35 @@ export async function exportRoutes(
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    const [docs, assetRows, activityRows, taskRows, contractRows, attachmentRows] =
-      await Promise.all([
-        db.select().from(documents).where(eq(documents.customerId, customerId)).all(),
-        db.select().from(assets).where(eq(assets.customerId, customerId)).all(),
-        db
-          .select()
-          .from(activities)
-          .where(eq(activities.customerId, customerId))
-          .orderBy(desc(activities.occurredAt))
-          .all(),
-        db.select().from(tasks).where(eq(tasks.customerId, customerId)).all(),
-        db.select().from(contracts).where(eq(contracts.customerId, customerId)).all(),
-        db.select().from(attachments).where(eq(attachments.customerId, customerId)).all(),
-      ]);
+    const [
+      docs,
+      assetRows,
+      activityRows,
+      taskRows,
+      contractRows,
+      attachmentRows,
+      projectRows,
+      timeRows,
+    ] = await Promise.all([
+      db.select().from(documents).where(eq(documents.customerId, customerId)).all(),
+      db.select().from(assets).where(eq(assets.customerId, customerId)).all(),
+      db
+        .select()
+        .from(activities)
+        .where(eq(activities.customerId, customerId))
+        .orderBy(desc(activities.occurredAt))
+        .all(),
+      db.select().from(tasks).where(eq(tasks.customerId, customerId)).all(),
+      db.select().from(contracts).where(eq(contracts.customerId, customerId)).all(),
+      db.select().from(attachments).where(eq(attachments.customerId, customerId)).all(),
+      db.select().from(projects).where(eq(projects.customerId, customerId)).all(),
+      db
+        .select()
+        .from(timeEntries)
+        .where(eq(timeEntries.customerId, customerId))
+        .orderBy(desc(timeEntries.workDate))
+        .all(),
+    ]);
 
     const label = (customer.company || customer.name).replace(/[^\w\-]+/g, "_").slice(0, 60);
     const stamp = new Date().toISOString().slice(0, 10);
@@ -69,6 +86,8 @@ export async function exportRoutes(
     archive.append(JSON.stringify(activityRows, null, 2), { name: "historie.json" });
     archive.append(JSON.stringify(taskRows, null, 2), { name: "aufgaben.json" });
     archive.append(JSON.stringify(contractRows, null, 2), { name: "vertraege.json" });
+    archive.append(JSON.stringify(projectRows, null, 2), { name: "projekte.json" });
+    archive.append(JSON.stringify(timeRows, null, 2), { name: "zeiten.json" });
 
     const overview = [
       `# ${customer.company || customer.name}`,
@@ -84,6 +103,20 @@ export async function exportRoutes(
       `- Notiz: ${customer.notes ?? "–"}`,
       "",
       `Exportiert am ${new Date().toLocaleString("de-DE")}`,
+      "",
+      `## Projekte (${projectRows.length})`,
+      ...projectRows.map(
+        (p) =>
+          `- ${p.name} [${p.status}] Budget ${p.budgetHours ?? "–"}h / ${p.budgetAmount ?? "–"}€`,
+      ),
+      "",
+      `## Zeiten (${timeRows.length})`,
+      ...timeRows
+        .slice(0, 50)
+        .map((t) => `- ${t.workDate}: ${t.hours}h${t.description ? ` – ${t.description}` : ""}`),
+      "",
+      `## Wiki / Dokumente (${docs.length})`,
+      ...docs.map((d) => `- ${d.title} (${d.type})`),
       "",
       `## Anlagen (${assetRows.length})`,
       ...assetRows.map(
@@ -108,9 +141,9 @@ export async function exportRoutes(
     for (const doc of docs) {
       const safe = doc.title.replace(/[^\w\-]+/g, "_").slice(0, 80);
       archive.append(tiptapToText(doc.content), {
-        name: `dokumente/${safe}_${doc.id}.md`,
+        name: `wiki/${safe}_${doc.id}.md`,
       });
-      archive.append(doc.content, { name: `dokumente/${safe}_${doc.id}.json` });
+      archive.append(doc.content, { name: `wiki/${safe}_${doc.id}.json` });
     }
 
     for (const att of attachmentRows) {

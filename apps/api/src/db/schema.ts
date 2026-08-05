@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 
 /** Admin-Benutzer (V1: ein Admin). */
 export const users = sqliteTable("users", {
@@ -29,15 +29,55 @@ export const customers = sqliteTable("customers", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Kundendokumente (TipTap JSON). */
+/** Projekte pro Kunde inkl. Budget. */
+export const projects = sqliteTable("projects", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  description: text("description"),
+  status: text("status", {
+    enum: ["planned", "active", "on_hold", "done"],
+  })
+    .notNull()
+    .default("planned"),
+  startDate: text("start_date"),
+  endDate: text("end_date"),
+  budgetHours: real("budget_hours"),
+  budgetAmount: real("budget_amount"),
+  hourlyRate: real("hourly_rate"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Wiki-/Dokumentseiten pro Kunde. */
 export const documents = sqliteTable("documents", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
-  type: text("type", { enum: ["note", "protocol", "documentation"] }).notNull(),
+  projectId: text("project_id"),
+  type: text("type", {
+    enum: ["note", "protocol", "documentation", "article", "workflow"],
+  }).notNull(),
   title: text("title").notNull(),
   content: text("content").notNull().default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Zeiteinträge / geleistete Stunden. */
+export const timeEntries = sqliteTable("time_entries", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  projectId: text("project_id"),
+  workDate: text("work_date").notNull(),
+  hours: real("hours").notNull(),
+  description: text("description"),
+  billable: integer("billable", { mode: "boolean" }).notNull().default(true),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -81,6 +121,7 @@ export const tasks = sqliteTable("tasks", {
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
+  projectId: text("project_id"),
   title: text("title").notNull(),
   description: text("description"),
   dueDate: text("due_date"),
@@ -122,7 +163,9 @@ export const attachments = sqliteTable("attachments", {
 
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
+export type Project = typeof projects.$inferSelect;
 export type Document = typeof documents.$inferSelect;
+export type TimeEntry = typeof timeEntries.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type Task = typeof tasks.$inferSelect;

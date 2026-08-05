@@ -1,7 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
-import { CustomerDetailPage } from "./pages/CustomerDetailPage";
+import { CustomerAssetsPage } from "./pages/customer/CustomerAssetsPage";
+import { CustomerLayout } from "./pages/customer/CustomerLayout";
+import { CustomerOpsPage } from "./pages/customer/CustomerOpsPage";
+import { CustomerOverviewPage } from "./pages/customer/CustomerOverviewPage";
+import { CustomerProjectsPage } from "./pages/customer/CustomerProjectsPage";
+import { CustomerTimePage } from "./pages/customer/CustomerTimePage";
+import { CustomerWikiPage } from "./pages/customer/CustomerWikiPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentPage } from "./pages/DocumentPage";
@@ -45,7 +51,14 @@ export default function App() {
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="customers" element={<CustomersPage />} />
-        <Route path="customers/:id" element={<CustomerDetailPage />} />
+        <Route path="customers/:id" element={<CustomerLayout />}>
+          <Route index element={<CustomerOverviewPage />} />
+          <Route path="wiki" element={<CustomerWikiPage />} />
+          <Route path="projects" element={<CustomerProjectsPage />} />
+          <Route path="time" element={<CustomerTimePage />} />
+          <Route path="assets" element={<CustomerAssetsPage />} />
+          <Route path="ops" element={<CustomerOpsPage />} />
+        </Route>
         <Route path="documents/:id" element={<DocumentPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

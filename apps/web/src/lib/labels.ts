@@ -1,9 +1,18 @@
-import type { AssetKind, DocumentType } from "../types";
+import type { AssetKind, DocumentType, ProjectStatus } from "../types";
 
 export const documentTypeLabel: Record<DocumentType, string> = {
   note: "Notiz",
   protocol: "Protokoll",
   documentation: "Dokumentation",
+  article: "Artikel",
+  workflow: "Workflow",
+};
+
+export const projectStatusLabel: Record<ProjectStatus, string> = {
+  planned: "Geplant",
+  active: "Aktiv",
+  on_hold: "Pausiert",
+  done: "Abgeschlossen",
 };
 
 export const assetKindLabel: Record<AssetKind, string> = {

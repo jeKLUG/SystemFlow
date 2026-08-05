@@ -24,16 +24,42 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 
 Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `website`, `notes`, `status` (`active`\|`inactive`).
 
-## Dokumente
+## Wiki / Dokumente
+
+Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optional `projectId`.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/documents?customerId=` | Liste |
+| GET | `/api/documents?customerId=&type=&projectId=` | Liste |
 | GET | `/api/documents/recent` | Zuletzt bearbeitet |
 | GET | `/api/documents/:id` | Detail inkl. TipTap-JSON |
-| POST | `/api/documents` | Anlegen |
-| PUT | `/api/documents/:id` | Titel/Typ/Inhalt |
+| POST | `/api/documents` | Anlegen (`templateId` optional) |
+| PUT | `/api/documents/:id` | Titel/Typ/Inhalt/Projekt |
 | DELETE | `/api/documents/:id` | Löschen |
+
+## Projekte
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/customers/:id/projects` | Liste inkl. `loggedHours`, Budget-Rest |
+| POST | `/api/customers/:id/projects` | Anlegen |
+| GET | `/api/projects/:id` | Detail |
+| PUT | `/api/projects/:id` | Aktualisieren |
+| DELETE | `/api/projects/:id` | Löschen (Zeiten behalten, Projekt-Bezug wird gelöst) |
+
+Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|`done`), `startDate`, `endDate`, `budgetHours`, `budgetAmount`, `hourlyRate`.
+
+## Zeiterfassung
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/customers/:id/time-entries?projectId=&from=&to=` | Einträge + `summary` |
+| GET | `/api/customers/:id/time-summary` | Gesamtstunden |
+| POST | `/api/customers/:id/time-entries` | Buchen |
+| PUT | `/api/time-entries/:id` | Aktualisieren |
+| DELETE | `/api/time-entries/:id` | Löschen |
+
+Body: `workDate`, `hours`, optional `description`, `projectId`, `billable`.
 
 ## Anlagen
 

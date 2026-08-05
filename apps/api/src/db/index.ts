@@ -59,12 +59,40 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS projects (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'planned',
+      start_date TEXT,
+      end_date TEXT,
+      budget_hours REAL,
+      budget_amount REAL,
+      hourly_rate REAL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      project_id TEXT,
       type TEXT NOT NULL,
       title TEXT NOT NULL,
       content TEXT NOT NULL DEFAULT '{"type":"doc","content":[{"type":"paragraph"}]}',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS time_entries (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      project_id TEXT,
+      work_date TEXT NOT NULL,
+      hours REAL NOT NULL,
+      description TEXT,
+      billable INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -136,6 +164,9 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
     CREATE INDEX IF NOT EXISTS idx_contracts_customer ON contracts(customer_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder
@@ -147,6 +178,8 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "customers", "country", "TEXT");
   await ensureColumn(client, "customers", "vat_id", "TEXT");
   await ensureColumn(client, "customers", "website", "TEXT");
+  await ensureColumn(client, "documents", "project_id", "TEXT");
+  await ensureColumn(client, "tasks", "project_id", "TEXT");
 
   return drizzle(client, { schema });
 }

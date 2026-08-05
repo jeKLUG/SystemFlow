@@ -4,3 +4,5 @@
 - [ ] Screenshot der UI für README ergänzen
 - [ ] Firewall-Hinweise (ufw/firewalld) für `SYSTEMHAUS_PORT` ergänzen
 - [ ] Backup-Hinweis für Volume `systemhaus-data` / SQLite-Datei
+- [ ] Optional: Wiki-Hierarchie (Unterseiten) und Markdown-Export einzeln beschreiben
+- [ ] Optional: Zeiterfassung mit Tages-/Monatsreports als eigenen Report-Endpunkt

@@ -1,5 +1,6 @@
 export type CustomerStatus = "active" | "inactive";
-export type DocumentType = "note" | "protocol" | "documentation";
+export type DocumentType = "note" | "protocol" | "documentation" | "article" | "workflow";
+export type ProjectStatus = "planned" | "active" | "on_hold" | "done";
 export type AssetKind = "pc" | "server" | "firewall" | "license" | "network" | "other";
 
 export interface User {
@@ -30,11 +31,52 @@ export interface Customer {
 export interface DocumentItem {
   id: string;
   customerId: string;
+  projectId: string | null;
   type: DocumentType;
   title: string;
   content: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectItem {
+  id: string;
+  customerId: string;
+  name: string;
+  description: string | null;
+  status: ProjectStatus;
+  startDate: string | null;
+  endDate: string | null;
+  budgetHours: number | null;
+  budgetAmount: number | null;
+  hourlyRate: number | null;
+  createdAt: string;
+  updatedAt: string;
+  loggedHours?: number;
+  estimatedCost?: number | null;
+  budgetHoursRemaining?: number | null;
+}
+
+export interface TimeEntryItem {
+  id: string;
+  customerId: string;
+  projectId: string | null;
+  projectName?: string | null;
+  workDate: string;
+  hours: number;
+  description: string | null;
+  billable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimeEntriesResponse {
+  entries: TimeEntryItem[];
+  summary: {
+    totalHours: number;
+    billableHours: number;
+    entryCount: number;
+  };
 }
 
 export interface RecentDocument {
@@ -116,6 +158,7 @@ export interface Stats {
 export interface TaskItem {
   id: string;
   customerId: string;
+  projectId?: string | null;
   title: string;
   description: string | null;
   dueDate: string | null;

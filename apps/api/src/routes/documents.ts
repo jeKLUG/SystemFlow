@@ -13,22 +13,31 @@ const EMPTY_DOC = JSON.stringify({
   content: [{ type: "paragraph" }],
 });
 
+const wikiTypes = z.enum(["note", "protocol", "documentation", "article", "workflow"]);
+
 const createBody = z.object({
   customerId: z.string().min(1),
-  type: z.enum(["note", "protocol", "documentation"]).optional(),
+  type: wikiTypes.optional(),
   title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
   templateId: z.string().optional(),
+  projectId: z.string().optional().nullable().or(z.literal("")),
 });
 
 const updateBody = z.object({
-  type: z.enum(["note", "protocol", "documentation"]).optional(),
+  type: wikiTypes.optional(),
   title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
+  projectId: z.string().optional().nullable().or(z.literal("")),
 });
 
+function emptyToNull(value: string | null | undefined) {
+  if (!value || !value.trim()) return null;
+  return value.trim();
+}
+
 /**
- * Registriert Dokument-Routen inkl. TipTap-Inhalt.
+ * Registriert Wiki-/Dokument-Routen inkl. TipTap-Inhalt.
  */
 export async function documentRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -37,18 +46,23 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
     const q = z
       .object({
         customerId: z.string().optional(),
-        limit: z.coerce.number().int().positive().max(100).optional(),
+        type: wikiTypes.optional(),
+        projectId: z.string().optional(),
+        limit: z.coerce.number().int().positive().max(200).optional(),
       })
       .parse(request.query);
 
     if (q.customerId) {
-      return await db
+      let rows = await db
         .select()
         .from(documents)
         .where(eq(documents.customerId, q.customerId))
         .orderBy(desc(documents.updatedAt))
-        .limit(q.limit ?? 50)
+        .limit(q.limit ?? 100)
         .all();
+      if (q.type) rows = rows.filter((r) => r.type === q.type);
+      if (q.projectId) rows = rows.filter((r) => r.projectId === q.projectId);
+      return rows;
     }
 
     return await db
@@ -109,6 +123,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
     const row = {
       id: createId("doc"),
       customerId: parsed.data.customerId,
+      projectId: emptyToNull(parsed.data.projectId),
       type,
       title,
       content,
@@ -120,8 +135,8 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
     await addActivity(
       db,
       parsed.data.customerId,
-      `Dokument erstellt: ${title}`,
-      template ? `Vorlage: ${template.name}` : null,
+      `Wiki-Seite erstellt: ${title}`,
+      template ? `Vorlage: ${template.name}` : `Typ: ${type}`,
       now,
     );
     return reply.code(201).send(row);
@@ -141,6 +156,10 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
       type: parsed.data.type ?? existing.type,
       title: parsed.data.title?.trim() ?? existing.title,
       content: parsed.data.content ?? existing.content,
+      projectId:
+        parsed.data.projectId !== undefined
+          ? emptyToNull(parsed.data.projectId)
+          : existing.projectId,
       updatedAt: new Date(),
     };
 
