@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 – 2026-08-05
+
+- Session bleibt über Reload (HTTP-Cookies, 30 Tage, stabiler Session-Key)
+- Passwort ändern in Einstellungen; Env überschreibt Passwort nicht mehr bei jedem Start
+- SaaS-Layout: Sidebar, Mobile-Tabbar, poliertes Login
+
 ## 1.2.0 – 2026-08-05
 
 - Aufgaben mit Fälligkeit und Erledigt-Status

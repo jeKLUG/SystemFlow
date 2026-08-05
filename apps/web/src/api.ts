@@ -31,6 +31,11 @@ export const api = {
     }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   me: () => request<{ user: { id: string; username: string } }>("/api/auth/me"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>("/api/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
   stats: () => request<import("./types").Stats>("/api/stats"),
   customers: (q?: string) =>
     request<import("./types").Customer[]>(

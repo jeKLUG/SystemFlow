@@ -6,6 +6,7 @@ export function LoginPage() {
   const { user, loading, login } = useAuth();
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -27,37 +28,56 @@ export function LoginPage() {
   return (
     <div className="login-page">
       <div className="atmosphere" aria-hidden="true" />
-      <form className="login-panel" onSubmit={onSubmit}>
-        <p className="brand-hero">Systemhaus-Ess</p>
-        <h1>Organisation für dein IT-Gewerbe</h1>
-        <p className="lede">Kunden, Notizen und Dokumentationen – an einem Ort.</p>
+      <div className="login-layout">
+        <section className="login-hero">
+          <p className="brand-hero">Systemhaus-Ess</p>
+          <h1>Dein Workspace für Kunden, Einsätze und Dokumentation.</h1>
+          <p className="lede">
+            Modern, schnell und mobil – Rechnungen bleiben bewusst in Lexware.
+          </p>
+        </section>
 
-        <label className="field">
-          <span>Benutzername</span>
-          <input
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            required
-          />
-        </label>
-        <label className="field">
-          <span>Passwort</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-            required
-          />
-        </label>
+        <form className="login-panel" onSubmit={onSubmit}>
+          <p className="eyebrow">Anmelden</p>
+          <h2>Willkommen zurück</h2>
+          <p className="muted">Session bleibt 30 Tage aktiv – kein erneutes Login nach Reload.</p>
 
-        {error ? <p className="form-error">{error}</p> : null}
+          <label className="field">
+            <span>Benutzername</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Passwort</span>
+            <div className="password-field">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? "Ausblenden" : "Anzeigen"}
+              </button>
+            </div>
+          </label>
 
-        <button className="btn btn-primary" type="submit" disabled={busy}>
-          {busy ? "Anmelden…" : "Anmelden"}
-        </button>
-      </form>
+          {error ? <p className="form-error">{error}</p> : null}
+
+          <button className="btn btn-primary btn-xl" type="submit" disabled={busy || loading}>
+            {busy ? "Anmelden…" : "Einloggen"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

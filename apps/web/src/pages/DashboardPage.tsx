@@ -33,10 +33,11 @@ export function DashboardPage() {
   return (
     <div className="page">
       <section className="hero-block">
+        <p className="eyebrow">Workspace</p>
         <p className="brand-hero">Systemhaus-Ess</p>
-        <h1>Dein Überblick für Kunden und Dokumentation.</h1>
+        <h1>Alles Wichtige für den IT-Alltag auf einen Blick.</h1>
         <p className="lede">
-          Verwalte Stammdaten, schreibe Protokolle und halte Wissen fest – Rechnungen bleiben in Lexware.
+          Kunden, Aufgaben, Abläufe und Dokumentation – modern und mobil. Rechnungen bleiben in Lexware.
         </p>
         <div className="cta-row">
           <Link className="btn btn-primary btn-xl" to="/quick-note">

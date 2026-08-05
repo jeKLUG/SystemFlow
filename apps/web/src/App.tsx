@@ -9,10 +9,20 @@ import { LoginPage } from "./pages/LoginPage";
 import { QuickNotePage } from "./pages/QuickNotePage";
 import { RemindersPage } from "./pages/RemindersPage";
 import { SearchPage } from "./pages/SearchPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="boot">Lade Systemhaus-Ess…</div>;
+  if (loading) {
+    return (
+      <div className="boot">
+        <div className="boot-card">
+          <span className="brand-mark" />
+          <p>Systemhaus-Ess wird geladen…</p>
+        </div>
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
@@ -33,6 +43,7 @@ export default function App() {
         <Route path="search" element={<SearchPage />} />
         <Route path="reminders" element={<RemindersPage />} />
         <Route path="quick-note" element={<QuickNotePage />} />
+        <Route path="settings" element={<SettingsPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerDetailPage />} />
         <Route path="documents/:id" element={<DocumentPage />} />

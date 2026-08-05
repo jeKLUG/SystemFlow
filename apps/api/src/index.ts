@@ -4,6 +4,7 @@ import multipart from "@fastify/multipart";
 import secureSession from "@fastify/secure-session";
 import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { createDb } from "./db/index.js";
@@ -43,16 +44,18 @@ async function main() {
     limits: { fileSize: 25 * 1024 * 1024 },
   });
 
-  const secretBuffer = Buffer.from(config.sessionSecret.padEnd(32, "0").slice(0, 32));
+  // 32-Byte-Key stabil aus SESSION_SECRET ableiten
+  const secretBuffer = createHash("sha256").update(config.sessionSecret).digest();
   await app.register(secureSession, {
     cookieName: "systemhaus_session",
     key: secretBuffer,
     cookie: {
       path: "/",
       httpOnly: true,
-      secure: config.isProd,
+      // HTTP-Deploy: secure=false, sonst verwirft der Browser das Cookie
+      secure: config.cookieSecure,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 14,
+      maxAge: 60 * 60 * 24 * 30,
     },
   });
 

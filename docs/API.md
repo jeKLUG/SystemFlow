@@ -6,9 +6,10 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| POST | `/api/auth/login` | `{ username, password }` |
+| POST | `/api/auth/login` | `{ username, password }` – Session 30 Tage |
 | POST | `/api/auth/logout` | Session beenden |
 | GET | `/api/auth/me` | Aktueller Benutzer |
+| POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
 
 ## Kunden
 
