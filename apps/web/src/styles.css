@@ -819,10 +819,117 @@ h2 {
 
 .asset-row {
   align-items: flex-start;
+  gap: 1rem;
 }
 
 .asset-row .muted {
   display: block;
+}
+
+.asset-stat-strip {
+  margin-top: 0.25rem;
+}
+
+.asset-toolbar {
+  margin-top: 0.25rem;
+}
+
+.asset-form-title {
+  margin-bottom: -0.25rem;
+}
+
+.asset-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.asset-group-title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.asset-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.asset-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.4rem;
+}
+
+.asset-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.asset-meta em {
+  font-style: normal;
+  color: var(--text);
+  opacity: 0.65;
+  margin-right: 0.25rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.asset-ip {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: #9fd0ff;
+}
+
+.asset-link {
+  display: inline-block;
+  margin-top: 0.45rem;
+  font-size: 0.88rem;
+}
+
+.asset-notes {
+  margin: 0.45rem 0 0;
+  white-space: pre-wrap;
+}
+
+.asset-actions {
+  flex-shrink: 0;
+}
+
+.badge-kind {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+}
+
+.badge-asset-active {
+  background: rgba(56, 180, 120, 0.18);
+  color: #8ee0b4;
+}
+
+.badge-asset-spare {
+  background: rgba(220, 170, 70, 0.18);
+  color: #f0c878;
+}
+
+.badge-asset-retired {
+  background: rgba(140, 150, 170, 0.16);
+  color: #b0b8c8;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.row.gap {
+  gap: 0.5rem;
 }
 
 @media (max-width: 960px) {
@@ -1242,6 +1349,131 @@ h2 {
 
   .vault-entry-row .cta-row {
     width: 100%;
+  }
+}
+
+.customer-picker {
+  position: relative;
+  width: 100%;
+}
+
+.customer-picker-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.customer-picker-input {
+  width: 100%;
+  padding: 0.7rem 2.2rem 0.7rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 20, 0.7);
+}
+
+.customer-picker-clear {
+  position: absolute;
+  right: 0.35rem;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.35rem 0.5rem;
+  cursor: pointer;
+}
+
+.customer-picker-meta {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.customer-picker-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.3rem);
+  margin: 0;
+  padding: 0.35rem;
+  list-style: none;
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #0c1420;
+  box-shadow: var(--shadow);
+}
+
+.customer-picker-option {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 0.55rem 0.65rem;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.customer-picker-option span {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.customer-picker-option:hover,
+.customer-picker-option.is-active {
+  background: var(--accent-soft);
+}
+
+.customer-picker-option.is-selected strong {
+  color: var(--accent-bright);
+}
+
+.customer-picker-empty,
+.customer-picker-hint {
+  padding: 0.55rem 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.customers-toolbar {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.customers-search {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 20, 0.7);
+}
+
+.customers-sort {
+  margin: 0;
+  min-width: 180px;
+}
+
+.customers-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 800px) {
+  .customers-toolbar {
+    grid-template-columns: 1fr;
   }
 }
 

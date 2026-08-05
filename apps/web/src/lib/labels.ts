@@ -1,6 +1,7 @@
 import type {
   AppointmentKind,
   AssetKind,
+  AssetStatus,
   DocumentType,
   ProjectStatus,
   VaultCategory,
@@ -40,11 +41,25 @@ export const vaultCategoryLabel: Record<VaultCategory, string> = {
 
 export const assetKindLabel: Record<AssetKind, string> = {
   pc: "PC / Client",
+  laptop: "Notebook",
   server: "Server",
   firewall: "Firewall",
+  switch: "Switch",
+  router: "Router",
+  access_point: "Access Point",
+  printer: "Drucker",
+  nas: "NAS / Storage",
+  ups: "USV",
+  phone: "Telefon / Softphone",
   license: "Lizenz",
-  network: "Netzwerk",
+  network: "Netzwerk allgemein",
   other: "Sonstig",
+};
+
+export const assetStatusLabel: Record<AssetStatus, string> = {
+  active: "Aktiv",
+  spare: "Ersatz / Lager",
+  retired: "Außer Betrieb",
 };
 
 export function formatDate(value: string | Date) {

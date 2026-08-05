@@ -1,4 +1,4 @@
-import { desc, eq, like, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
@@ -43,41 +43,98 @@ function mapCustomerInput(data: z.infer<typeof customerBody>) {
   };
 }
 
+function buildCustomerWhere(opts: {
+  term?: string;
+  status?: "active" | "inactive" | "all";
+}): SQL | undefined {
+  const parts: SQL[] = [];
+
+  if (opts.status === "active" || opts.status === "inactive") {
+    parts.push(eq(customers.status, opts.status));
+  }
+
+  const term = opts.term?.trim();
+  if (term) {
+    const pattern = `%${term}%`;
+    const search = or(
+      like(customers.name, pattern),
+      like(customers.company, pattern),
+      like(customers.contactPerson, pattern),
+      like(customers.email, pattern),
+      like(customers.phone, pattern),
+      like(customers.mobile, pattern),
+      like(customers.city, pattern),
+      like(customers.zip, pattern),
+      like(customers.vatId, pattern),
+      like(customers.notes, pattern),
+    );
+    if (search) parts.push(search);
+  }
+
+  if (parts.length === 0) return undefined;
+  if (parts.length === 1) return parts[0];
+  return and(...parts);
+}
+
 /**
- * Registriert Kunden-CRUD-Routen.
+ * Registriert Kunden-CRUD-Routen (inkl. paginierter Suche).
  */
 export async function customerRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
 
   app.get("/api/customers", async (request) => {
     const q = z
-      .object({ q: z.string().optional() })
+      .object({
+        q: z.string().optional(),
+        status: z.enum(["active", "inactive", "all"]).optional(),
+        limit: z.coerce.number().int().positive().max(200).optional(),
+        offset: z.coerce.number().int().nonnegative().optional(),
+        sort: z.enum(["updated", "name"]).optional(),
+        ids: z.string().optional(),
+      })
       .parse(request.query);
 
-    const term = q.q?.trim();
-    if (term) {
-      const pattern = `%${term}%`;
-      return await db
-        .select()
-        .from(customers)
-        .where(
-          or(
-            like(customers.name, pattern),
-            like(customers.company, pattern),
-            like(customers.contactPerson, pattern),
-            like(customers.email, pattern),
-            like(customers.phone, pattern),
-            like(customers.mobile, pattern),
-            like(customers.city, pattern),
-            like(customers.zip, pattern),
-            like(customers.vatId, pattern),
-          ),
-        )
-        .orderBy(desc(customers.updatedAt))
-        .all();
+    const limit = q.limit ?? 50;
+    const offset = q.offset ?? 0;
+    const status = q.status ?? "all";
+    const sort = q.sort ?? "updated";
+
+    // Gezielte IDs (z. B. Recent-Auswahl im Picker)
+    if (q.ids?.trim()) {
+      const idList = [
+        ...new Set(
+          q.ids
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        ),
+      ].slice(0, 30);
+      if (idList.length === 0) return { items: [], total: 0, limit, offset: 0 };
+      const rows = await db.select().from(customers).where(inArray(customers.id, idList)).all();
+      const map = new Map(rows.map((r) => [r.id, r]));
+      const items = idList.map((id) => map.get(id)).filter(Boolean);
+      return { items, total: items.length, limit, offset: 0 };
     }
 
-    return await db.select().from(customers).orderBy(desc(customers.updatedAt)).all();
+    const where = buildCustomerWhere({ term: q.q, status });
+
+    const countQuery = db.select({ count: sql<number>`count(*)` }).from(customers);
+    const totalRow = where
+      ? await countQuery.where(where).get()
+      : await countQuery.get();
+    const total = Number(totalRow?.count ?? 0);
+
+    const order =
+      sort === "name"
+        ? asc(sql`lower(coalesce(${customers.company}, ${customers.name}))`)
+        : desc(customers.updatedAt);
+
+    const base = db.select().from(customers);
+    const items = where
+      ? await base.where(where).orderBy(order).limit(limit).offset(offset).all()
+      : await base.orderBy(order).limit(limit).offset(offset).all();
+
+    return { items, total, limit, offset };
   });
 
   app.get("/api/customers/:id", async (request, reply) => {

@@ -130,9 +130,17 @@ export async function createDb(databasePath: string) {
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       name TEXT NOT NULL,
       kind TEXT NOT NULL DEFAULT 'other',
+      status TEXT NOT NULL DEFAULT 'active',
       manufacturer TEXT,
       model TEXT,
       serial_number TEXT,
+      hostname TEXT,
+      ip_address TEXT,
+      mac_address TEXT,
+      location TEXT,
+      vlan TEXT,
+      os TEXT,
+      management_url TEXT,
       warranty_until TEXT,
       notes TEXT,
       created_at INTEGER NOT NULL,
@@ -255,6 +263,14 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "time_entries", "price_item_id", "TEXT");
   await ensureColumn(client, "time_entries", "rate_snapshot", "REAL");
   await ensureColumn(client, "time_entries", "amount_snapshot", "REAL");
+  await ensureColumn(client, "assets", "status", "TEXT NOT NULL DEFAULT 'active'");
+  await ensureColumn(client, "assets", "hostname", "TEXT");
+  await ensureColumn(client, "assets", "ip_address", "TEXT");
+  await ensureColumn(client, "assets", "mac_address", "TEXT");
+  await ensureColumn(client, "assets", "location", "TEXT");
+  await ensureColumn(client, "assets", "vlan", "TEXT");
+  await ensureColumn(client, "assets", "os", "TEXT");
+  await ensureColumn(client, "assets", "management_url", "TEXT");
 
   return drizzle(client, { schema });
 }

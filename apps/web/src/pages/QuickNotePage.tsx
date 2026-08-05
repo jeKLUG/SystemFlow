@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
-import { customerDisplayName } from "../lib/customer";
-import type { Customer } from "../types";
+import { CustomerPicker } from "../components/CustomerPicker";
+import { pushRecentCustomer } from "../lib/recentCustomers";
 
 /**
  * Große, mobilfreundliche Schnellnotiz-Erfassung.
@@ -10,7 +10,6 @@ import type { Customer } from "../types";
 export function QuickNotePage() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerId, setCustomerId] = useState(params.get("customerId") ?? "");
   const [title, setTitle] = useState("Schnellnotiz");
   const [text, setText] = useState("");
@@ -18,12 +17,8 @@ export function QuickNotePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void api.customers().then((list) => {
-      setCustomers(list);
-      const preset = params.get("customerId");
-      if (preset && list.some((c) => c.id === preset)) setCustomerId(preset);
-      else if (!customerId && list[0]) setCustomerId(list[0].id);
-    });
+    const preset = params.get("customerId");
+    if (preset) setCustomerId(preset);
   }, [params]);
 
   async function onSubmit(e: FormEvent) {
@@ -41,6 +36,7 @@ export function QuickNotePage() {
           },
         ],
       });
+      pushRecentCustomer(customerId);
       const doc = await api.createDocument({
         customerId,
         type: "note",
@@ -64,19 +60,15 @@ export function QuickNotePage() {
 
       <form className="panel quick-form" onSubmit={onSubmit}>
         <label className="field">
-          <span>Kunde</span>
-          <select
-            className="touch-input"
+          <span>Kunde *</span>
+          <CustomerPicker
             value={customerId}
-            onChange={(e) => setCustomerId(e.target.value)}
+            onChange={setCustomerId}
+            allowEmpty={false}
             required
-          >
-            {customers.map((c) => (
-              <option key={c.id} value={c.id}>
-                {customerDisplayName(c)}
-              </option>
-            ))}
-          </select>
+            placeholder="Kunde tippen zum Suchen…"
+            className="touch-picker"
+          />
         </label>
         <label className="field">
           <span>Titel</span>
@@ -89,16 +81,16 @@ export function QuickNotePage() {
         <label className="field">
           <span>Notiz</span>
           <textarea
-            className="touch-input touch-textarea"
+            className="touch-input touch-area"
             rows={8}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Was ist passiert?"
             required
+            placeholder="Was ist zu notieren?"
           />
         </label>
         {error ? <p className="form-error">{error}</p> : null}
-        <button className="btn btn-primary btn-xl" type="submit" disabled={busy || !customers.length}>
+        <button className="btn btn-primary btn-xl" type="submit" disabled={busy || !customerId}>
           {busy ? "Speichert…" : "Notiz speichern"}
         </button>
       </form>

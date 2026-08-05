@@ -37,10 +37,26 @@ export const api = {
       body: JSON.stringify({ currentPassword, newPassword }),
     }),
   stats: () => request<import("./types").Stats>("/api/stats"),
-  customers: (q?: string) =>
-    request<import("./types").Customer[]>(
-      q ? `/api/customers?q=${encodeURIComponent(q)}` : "/api/customers",
-    ),
+  customers: (opts?: {
+    q?: string;
+    status?: "active" | "inactive" | "all";
+    limit?: number;
+    offset?: number;
+    sort?: "updated" | "name";
+    ids?: string;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.status) params.set("status", opts.status);
+    if (opts?.limit != null) params.set("limit", String(opts.limit));
+    if (opts?.offset != null) params.set("offset", String(opts.offset));
+    if (opts?.sort) params.set("sort", opts.sort);
+    if (opts?.ids) params.set("ids", opts.ids);
+    const qs = params.toString();
+    return request<import("./types").CustomerListResponse>(
+      `/api/customers${qs ? `?${qs}` : ""}`,
+    );
+  },
   customer: (id: string) => request<import("./types").Customer>(`/api/customers/${id}`),
   createCustomer: (body: Record<string, unknown>) =>
     request<import("./types").Customer>("/api/customers", {

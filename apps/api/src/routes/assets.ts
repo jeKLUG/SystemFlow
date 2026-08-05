@@ -7,18 +7,73 @@ import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
+const kindEnum = z.enum([
+  "pc",
+  "laptop",
+  "server",
+  "firewall",
+  "switch",
+  "router",
+  "access_point",
+  "printer",
+  "nas",
+  "ups",
+  "phone",
+  "license",
+  "network",
+  "other",
+]);
+
+const statusEnum = z.enum(["active", "spare", "retired"]);
+
 const assetBody = z.object({
   name: z.string().min(1).max(200),
-  kind: z.enum(["pc", "server", "firewall", "license", "network", "other"]).optional(),
+  kind: kindEnum.optional(),
+  status: statusEnum.optional(),
   manufacturer: z.string().max(200).optional().or(z.literal("")),
   model: z.string().max(200).optional().or(z.literal("")),
   serialNumber: z.string().max(200).optional().or(z.literal("")),
+  hostname: z.string().max(200).optional().or(z.literal("")),
+  ipAddress: z.string().max(80).optional().or(z.literal("")),
+  macAddress: z.string().max(80).optional().or(z.literal("")),
+  location: z.string().max(200).optional().or(z.literal("")),
+  vlan: z.string().max(80).optional().or(z.literal("")),
+  os: z.string().max(200).optional().or(z.literal("")),
+  managementUrl: z.string().max(500).optional().or(z.literal("")),
   warrantyUntil: z.string().max(40).optional().or(z.literal("")),
-  notes: z.string().max(2000).optional().or(z.literal("")),
+  notes: z.string().max(5000).optional().or(z.literal("")),
 });
 
+function emptyToNull(value: string | null | undefined) {
+  if (!value || !value.trim()) return null;
+  return value.trim();
+}
+
+function mapAssetFields(data: z.infer<typeof assetBody>, existingKind?: string, existingStatus?: string) {
+  return {
+    name: data.name.trim(),
+    kind: data.kind ?? (existingKind as z.infer<typeof kindEnum> | undefined) ?? ("other" as const),
+    status:
+      data.status ??
+      (existingStatus as z.infer<typeof statusEnum> | undefined) ??
+      ("active" as const),
+    manufacturer: emptyToNull(data.manufacturer),
+    model: emptyToNull(data.model),
+    serialNumber: emptyToNull(data.serialNumber),
+    hostname: emptyToNull(data.hostname),
+    ipAddress: emptyToNull(data.ipAddress),
+    macAddress: emptyToNull(data.macAddress),
+    location: emptyToNull(data.location),
+    vlan: emptyToNull(data.vlan),
+    os: emptyToNull(data.os),
+    managementUrl: emptyToNull(data.managementUrl),
+    warrantyUntil: emptyToNull(data.warrantyUntil),
+    notes: emptyToNull(data.notes),
+  };
+}
+
 /**
- * Registriert Anlagen-/Geräte-Routen.
+ * Registriert Anlagen-/Inventar-Routen inkl. Netzwerkfeldern.
  */
 export async function assetRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -47,22 +102,22 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
     }
 
     const now = new Date();
+    const fields = mapAssetFields(parsed.data);
     const row = {
       id: createId("ast"),
       customerId,
-      name: parsed.data.name.trim(),
-      kind: parsed.data.kind ?? ("other" as const),
-      manufacturer: parsed.data.manufacturer || null,
-      model: parsed.data.model || null,
-      serialNumber: parsed.data.serialNumber || null,
-      warrantyUntil: parsed.data.warrantyUntil || null,
-      notes: parsed.data.notes || null,
+      ...fields,
       createdAt: now,
       updatedAt: now,
     };
 
     await db.insert(assets).values(row);
-    await addActivity(db, customerId, `Anlage hinzugefügt: ${row.name}`, row.kind);
+    await addActivity(
+      db,
+      customerId,
+      `Anlage hinzugefügt: ${row.name}`,
+      [row.kind, row.ipAddress, row.hostname].filter(Boolean).join(" · ") || null,
+    );
     return reply.code(201).send(row);
   });
 
@@ -77,13 +132,7 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
     }
 
     const updated = {
-      name: parsed.data.name.trim(),
-      kind: parsed.data.kind ?? existing.kind,
-      manufacturer: parsed.data.manufacturer || null,
-      model: parsed.data.model || null,
-      serialNumber: parsed.data.serialNumber || null,
-      warrantyUntil: parsed.data.warrantyUntil || null,
-      notes: parsed.data.notes || null,
+      ...mapAssetFields(parsed.data, existing.kind, existing.status),
       updatedAt: new Date(),
     };
 

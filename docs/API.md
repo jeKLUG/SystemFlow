@@ -29,7 +29,7 @@ Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot` und optional `priceIte
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/customers?q=` | Liste / Suche |
+| GET | `/api/customers?q=&status=&limit=&offset=&sort=&ids=` | Paginierte Liste `{ items, total, limit, offset }` |
 | GET | `/api/customers/:id` | Detail |
 | POST | `/api/customers` | Anlegen |
 | PUT | `/api/customers/:id` | Aktualisieren |
@@ -77,12 +77,22 @@ Body: `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), o
 
 ## Anlagen
 
+Inventar pro Kunde: Geräte, Netzwerkkomponenten, Lizenzen.
+
+Typen (`kind`): `pc` · `laptop` · `server` · `firewall` · `switch` · `router` · `access_point` · `printer` · `nas` · `ups` · `phone` · `license` · `network` · `other`.
+
+Status: `active` · `spare` · `retired`.
+
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | GET | `/api/customers/:id/assets` | Anlagenliste |
 | POST | `/api/customers/:id/assets` | Anlage anlegen |
 | PUT | `/api/assets/:id` | Aktualisieren |
 | DELETE | `/api/assets/:id` | Löschen |
+
+Body: `name`, optional `kind`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`.
+
+Suche findet auch Hostname, IP, MAC und Standort.
 
 ## Historie
 

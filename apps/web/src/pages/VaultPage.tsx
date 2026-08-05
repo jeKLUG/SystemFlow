@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
-import { customerDisplayName } from "../lib/customer";
+import { CustomerPicker } from "../components/CustomerPicker";
 import { formatDate, vaultCategoryLabel } from "../lib/labels";
-import type { Customer, VaultCategory, VaultEntryMeta, VaultEntrySecret, VaultStatus } from "../types";
+import type { VaultCategory, VaultEntryMeta, VaultEntrySecret, VaultStatus } from "../types";
 
 const emptyForm = {
   title: "",
@@ -23,7 +23,6 @@ export function VaultPage() {
   const presetCustomer = params.get("customerId") ?? "";
   const [status, setStatus] = useState<VaultStatus | null>(null);
   const [entries, setEntries] = useState<VaultEntryMeta[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [filterCustomer, setFilterCustomer] = useState(presetCustomer);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -45,7 +44,7 @@ export function VaultPage() {
   }
 
   useEffect(() => {
-    void Promise.all([refreshStatus(), api.customers()]).then(([, c]) => setCustomers(c));
+    void refreshStatus();
   }, []);
 
   useEffect(() => {
@@ -243,19 +242,16 @@ export function VaultPage() {
       ) : (
         <>
           <div className="vault-toolbar">
-            <label className="field" style={{ margin: 0, minWidth: 200 }}>
-              <span>Kunde</span>
-              <select
+            <label className="field" style={{ margin: 0, minWidth: 240, flex: 1 }}>
+              <span>Kunde filtern</span>
+              <CustomerPicker
                 value={filterCustomer}
-                onChange={(e) => setFilterCustomer(e.target.value)}
-              >
-                <option value="">Alle Kunden</option>
-                {customers.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {customerDisplayName(c)}
-                  </option>
-                ))}
-              </select>
+                onChange={setFilterCustomer}
+                allowEmpty
+                emptyLabel="Alle Kunden"
+                placeholder="Kunde suchen…"
+                activeOnly={false}
+              />
             </label>
             <button
               type="button"
@@ -297,17 +293,13 @@ export function VaultPage() {
               </label>
               <label className="field">
                 <span>Kunde</span>
-                <select
+                <CustomerPicker
                   value={form.customerId}
-                  onChange={(e) => setForm({ ...form, customerId: e.target.value })}
-                >
-                  <option value="">Kein Kunde / allgemein</option>
-                  {customers.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {customerDisplayName(c)}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(customerId) => setForm({ ...form, customerId })}
+                  allowEmpty
+                  emptyLabel="Kein Kunde / allgemein"
+                  placeholder="Kunde suchen…"
+                />
               </label>
               <label className="field">
                 <span>Benutzername</span>

@@ -30,7 +30,7 @@ Browser (React SPA)
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
-- **assets** – Anlagen/Geräte je Kunde
+- **assets** – Anlagen/Inventar je Kunde (Typ, Status, Host/IP/MAC, Standort, Garantie)
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)

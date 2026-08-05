@@ -67,6 +67,7 @@ export async function attachmentRoutes(
       return reply.code(400).send({ error: "Upload abgebrochen" });
     }
 
+    const now = new Date();
     const row = {
       id,
       customerId,
@@ -76,7 +77,8 @@ export async function attachmentRoutes(
       storedName,
       mimeType: file.mimetype || null,
       size: Number(file.file.bytesRead || 0),
-      createdAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     };
     await db.insert(attachments).values(row);
     return reply.code(201).send(row);

@@ -82,6 +82,10 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
             like(assets.manufacturer, pattern),
             like(assets.model, pattern),
             like(assets.serialNumber, pattern),
+            like(assets.hostname, pattern),
+            like(assets.ipAddress, pattern),
+            like(assets.macAddress, pattern),
+            like(assets.location, pattern),
             like(assets.notes, pattern),
           ),
         )

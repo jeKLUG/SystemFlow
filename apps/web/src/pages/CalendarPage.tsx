@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
-import { customerDisplayName } from "../lib/customer";
+import { CustomerPicker } from "../components/CustomerPicker";
 import {
   appointmentTouchesDate,
   buildMonthGrid,
@@ -10,8 +10,8 @@ import {
   sameDay,
   toIsoDate,
 } from "../lib/calendar";
-import { appointmentKindLabel, formatDateOnly } from "../lib/labels";
-import type { AppointmentItem, AppointmentKind, Customer } from "../types";
+import { appointmentKindLabel } from "../lib/labels";
+import type { AppointmentItem, AppointmentKind } from "../types";
 
 const weekdays = ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 
@@ -28,6 +28,19 @@ const emptyForm = {
   description: "",
 };
 
+function selectedDayHeading(iso: string) {
+  try {
+    return new Intl.DateTimeFormat("de-DE", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date(`${iso}T12:00:00`));
+  } catch {
+    return iso;
+  }
+}
+
 /**
  * Monatskalender für Kunden- und allgemeine Termine.
  */
@@ -40,7 +53,6 @@ export function CalendarPage() {
   });
   const [selected, setSelected] = useState(toIsoDate(new Date()));
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm, customerId: presetCustomer });
   const [error, setError] = useState("");
@@ -51,12 +63,7 @@ export function CalendarPage() {
   const to = toIsoDate(grid[grid.length - 1]);
 
   async function reload() {
-    const [list, c] = await Promise.all([
-      api.appointments({ from, to }),
-      api.customers(),
-    ]);
-    setAppointments(list);
-    setCustomers(c);
+    setAppointments(await api.appointments({ from, to }));
   }
 
   useEffect(() => {
@@ -76,7 +83,12 @@ export function CalendarPage() {
       const iso = toIsoDate(day);
       map.set(
         iso,
-        filtered.filter((a) => appointmentTouchesDate(a.startDate, a.endDate, iso)),
+        filtered
+          .filter((a) => appointmentTouchesDate(a.startDate, a.endDate, iso))
+          .sort((a, b) => {
+            if (a.allDay !== b.allDay) return a.allDay ? -1 : 1;
+            return (a.startTime ?? "").localeCompare(b.startTime ?? "");
+          }),
       );
     }
     return map;
@@ -84,8 +96,34 @@ export function CalendarPage() {
 
   const dayList = byDay.get(selected) ?? [];
 
+  const monthCount = useMemo(() => {
+    const start = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1));
+    const end = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0));
+    return filtered.filter((a) => a.startDate <= end && (a.endDate || a.startDate) >= start)
+      .length;
+  }, [filtered, month]);
+
+  const upcoming = useMemo(() => {
+    const todayIso = toIsoDate(new Date());
+    return filtered
+      .filter((a) => (a.endDate || a.startDate) >= todayIso)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.startTime ?? "").localeCompare(b.startTime ?? ""))
+      .slice(0, 5);
+  }, [filtered]);
+
   function shiftMonth(delta: number) {
     setMonth((m) => new Date(m.getFullYear(), m.getMonth() + delta, 1));
+  }
+
+  function openNewForDay(iso: string) {
+    setSelected(iso);
+    setShowForm(true);
+    setForm({
+      ...emptyForm,
+      startDate: iso,
+      endDate: iso,
+      customerId: presetCustomer,
+    });
   }
 
   async function createAppointment(e: FormEvent) {
@@ -110,7 +148,8 @@ export function CalendarPage() {
         description: form.description,
       });
       setShowForm(false);
-      setForm({ ...emptyForm, startDate: selected, customerId: presetCustomer });
+      setSelected(form.startDate);
+      setForm({ ...emptyForm, startDate: form.startDate, customerId: presetCustomer });
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -121,35 +160,41 @@ export function CalendarPage() {
 
   return (
     <div className="page calendar-page">
-      <div className="page-header row-between">
+      <header className="calendar-hero">
         <div>
           <p className="eyebrow">Planung</p>
           <h2>Kalender</h2>
-          <p>Kundentermine, interne und persönliche Termine.</p>
+          <p>
+            {monthCount === 0
+              ? "Noch keine Termine in diesem Monat."
+              : `${monthCount} Termin${monthCount === 1 ? "" : "e"} in ${monthLabel(month)}.`}
+            {presetCustomer ? " · gefiltert nach Kunde" : ""}
+          </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            setShowForm((v) => !v);
-            setForm({
-              ...emptyForm,
-              startDate: selected,
-              endDate: selected,
-              customerId: presetCustomer,
-            });
-          }}
-        >
-          {showForm ? "Abbrechen" : "+ Termin"}
-        </button>
-      </div>
+        <div className="calendar-hero-actions">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => openNewForDay(selected)}
+          >
+            + Termin
+          </button>
+        </div>
+      </header>
 
       {showForm ? (
-        <form className="panel form-grid" onSubmit={createAppointment}>
+        <form className="panel calendar-form form-grid" onSubmit={createAppointment}>
+          <div className="full calendar-form-head">
+            <h3>Neuer Termin</h3>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}>
+              Schließen
+            </button>
+          </div>
           <label className="field">
             <span>Titel *</span>
             <input
               required
+              autoFocus
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="z. B. Wartung vor Ort"
@@ -177,23 +222,19 @@ export function CalendarPage() {
           </label>
           <label className="field">
             <span>Kunde</span>
-            <select
+            <CustomerPicker
               value={form.customerId}
-              onChange={(e) =>
+              onChange={(customerId) =>
                 setForm({
                   ...form,
-                  customerId: e.target.value,
-                  kind: e.target.value ? "customer" : form.kind === "customer" ? "other" : form.kind,
+                  customerId,
+                  kind: customerId ? "customer" : form.kind === "customer" ? "other" : form.kind,
                 })
               }
-            >
-              <option value="">Kein Kunde / allgemein</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {customerDisplayName(c)}
-                </option>
-              ))}
-            </select>
+              allowEmpty
+              emptyLabel="Kein Kunde / allgemein"
+              placeholder="Kunde suchen…"
+            />
           </label>
           <label className="field checkbox-field">
             <span>Ganztägig</span>
@@ -254,6 +295,7 @@ export function CalendarPage() {
             <input
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
+              placeholder="Standort / Remote"
             />
           </label>
           <label className="field full">
@@ -265,22 +307,38 @@ export function CalendarPage() {
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full">
+          <div className="full cta-row">
             <button className="btn btn-primary" type="submit">
-              Termin speichern
+              Speichern
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
+              Abbrechen
             </button>
           </div>
         </form>
       ) : null}
 
-      <div className="calendar-toolbar">
-        <div className="cta-row">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => shiftMonth(-1)}>
-            ←
+      <div className="calendar-toolbar panel">
+        <div className="calendar-nav">
+          <button
+            type="button"
+            className="btn btn-ghost calendar-nav-btn"
+            onClick={() => shiftMonth(-1)}
+            aria-label="Vorheriger Monat"
+          >
+            ‹
           </button>
-          <strong className="calendar-month-label">{monthLabel(month)}</strong>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => shiftMonth(1)}>
-            →
+          <div className="calendar-month-block">
+            <strong className="calendar-month-label">{monthLabel(month)}</strong>
+            <span className="muted">{monthCount} Termine</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-ghost calendar-nav-btn"
+            onClick={() => shiftMonth(1)}
+            aria-label="Nächster Monat"
+          >
+            ›
           </button>
           <button
             type="button"
@@ -294,18 +352,22 @@ export function CalendarPage() {
             Heute
           </button>
         </div>
-        <select
-          value={filterKind}
-          onChange={(e) => setFilterKind(e.target.value as "" | AppointmentKind)}
-          aria-label="Filter Art"
-        >
-          <option value="">Alle Arten</option>
-          {(Object.keys(appointmentKindLabel) as AppointmentKind[]).map((k) => (
-            <option key={k} value={k}>
-              {appointmentKindLabel[k]}
-            </option>
-          ))}
-        </select>
+
+        <div className="calendar-filters">
+          <div className="calendar-legend" aria-hidden="true">
+            {(Object.keys(appointmentKindLabel) as AppointmentKind[]).map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={`legend-chip kind-${k}${filterKind === k ? " is-active" : ""}`}
+                onClick={() => setFilterKind((cur) => (cur === k ? "" : k))}
+              >
+                <i className={`dot kind-${k}`} />
+                {appointmentKindLabel[k]}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="calendar-layout">
@@ -322,6 +384,7 @@ export function CalendarPage() {
               const inMonth = day.getMonth() === month.getMonth();
               const isToday = sameDay(day, today);
               const isSelected = iso === selected;
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               return (
                 <button
                   key={iso}
@@ -331,64 +394,133 @@ export function CalendarPage() {
                     !inMonth ? "is-outside" : "",
                     isToday ? "is-today" : "",
                     isSelected ? "is-selected" : "",
+                    isWeekend ? "is-weekend" : "",
                     items.length ? "has-events" : "",
                   ]
                     .filter(Boolean)
                     .join(" ")}
                   onClick={() => setSelected(iso)}
+                  onDoubleClick={() => openNewForDay(iso)}
                 >
-                  <span className="calendar-day-num">{day.getDate()}</span>
-                  <span className="calendar-dots" aria-hidden="true">
-                    {items.slice(0, 3).map((a) => (
-                      <i key={a.id} className={`dot kind-${a.kind}`} />
+                  <span className="calendar-day-top">
+                    <span className="calendar-day-num">{day.getDate()}</span>
+                    {items.length > 0 ? (
+                      <span className="calendar-day-count">{items.length}</span>
+                    ) : null}
+                  </span>
+                  <span className="calendar-day-events">
+                    {items.slice(0, 2).map((a) => (
+                      <span key={a.id} className={`cal-chip kind-${a.kind}`} title={a.title}>
+                        <span className="cal-chip-time">
+                          {a.allDay || !a.startTime ? "Tag" : a.startTime}
+                        </span>
+                        <span className="cal-chip-title">{a.title}</span>
+                      </span>
                     ))}
+                    {items.length > 2 ? (
+                      <span className="cal-chip-more">+{items.length - 2} weitere</span>
+                    ) : null}
                   </span>
                 </button>
               );
             })}
           </div>
+          <p className="calendar-hint muted">Doppelklick auf einen Tag → neuer Termin</p>
         </div>
 
-        <section className="calendar-day-panel panel">
-          <h3>{formatDateOnly(selected)}</h3>
-          {dayList.length === 0 ? (
-            <p className="empty">Keine Termine an diesem Tag.</p>
-          ) : (
-            <ul className="list">
-              {dayList.map((a) => (
-                <li key={a.id} className="list-row">
-                  <div>
-                    <strong>{a.title}</strong>
-                    <span className="muted">
-                      {formatAppointmentTime(a)} · {appointmentKindLabel[a.kind]}
-                      {a.customerId
-                        ? ` · ${a.customerCompany || a.customerName || "Kunde"}`
-                        : ""}
-                      {a.location ? ` · ${a.location}` : ""}
-                    </span>
-                    {a.description ? <span className="muted">{a.description}</span> : null}
-                  </div>
-                  <div className="cta-row">
-                    {a.customerId ? (
-                      <Link className="btn btn-ghost btn-sm" to={`/customers/${a.customerId}`}>
-                        Kunde
-                      </Link>
-                    ) : null}
+        <aside className="calendar-side">
+          <section className="calendar-day-panel panel">
+            <div className="calendar-day-panel-head">
+              <div>
+                <p className="eyebrow">Ausgewählt</p>
+                <h3>{selectedDayHeading(selected)}</h3>
+              </div>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => openNewForDay(selected)}
+              >
+                + Am Tag
+              </button>
+            </div>
+
+            {dayList.length === 0 ? (
+              <div className="calendar-empty">
+                <p>Keine Termine</p>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => openNewForDay(selected)}
+                >
+                  Termin anlegen
+                </button>
+              </div>
+            ) : (
+              <ul className="calendar-agenda">
+                {dayList.map((a) => (
+                  <li key={a.id} className={`agenda-item kind-${a.kind}`}>
+                    <div className="agenda-time">{formatAppointmentTime(a)}</div>
+                    <div className="agenda-body">
+                      <strong>{a.title}</strong>
+                      <span className="muted">
+                        {appointmentKindLabel[a.kind]}
+                        {a.customerId
+                          ? ` · ${a.customerCompany || a.customerName || "Kunde"}`
+                          : ""}
+                        {a.location ? ` · ${a.location}` : ""}
+                      </span>
+                      {a.description ? <p className="agenda-note">{a.description}</p> : null}
+                      <div className="agenda-actions">
+                        {a.customerId ? (
+                          <Link className="btn btn-ghost btn-sm" to={`/customers/${a.customerId}`}>
+                            Zum Kunden
+                          </Link>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => void api.deleteAppointment(a.id).then(() => reload())}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {upcoming.length > 0 ? (
+            <section className="calendar-upcoming panel">
+              <h3>Als Nächstes</h3>
+              <ul className="upcoming-list">
+                {upcoming.map((a) => (
+                  <li key={a.id}>
                     <button
                       type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() =>
-                        void api.deleteAppointment(a.id).then(() => reload())
-                      }
+                      className="upcoming-row"
+                      onClick={() => {
+                        setSelected(a.startDate);
+                        const d = new Date(`${a.startDate}T12:00:00`);
+                        setMonth(new Date(d.getFullYear(), d.getMonth(), 1));
+                      }}
                     >
-                      Löschen
+                      <span className={`upcoming-kind kind-${a.kind}`} />
+                      <span>
+                        <strong>{a.title}</strong>
+                        <span className="muted">
+                          {a.startDate.slice(8)}.
+                          {a.startDate.slice(5, 7)}. · {formatAppointmentTime(a)}
+                        </span>
+                      </span>
                     </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+        </aside>
       </div>
     </div>
   );

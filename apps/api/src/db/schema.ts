@@ -89,7 +89,7 @@ export const timeEntries = sqliteTable("time_entries", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Anlagen / Geräte pro Kunde. */
+/** Anlagen / Geräte / Netzwerkkomponenten pro Kunde. */
 export const assets = sqliteTable("assets", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
@@ -97,13 +97,40 @@ export const assets = sqliteTable("assets", {
     .references(() => customers.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   kind: text("kind", {
-    enum: ["pc", "server", "firewall", "license", "network", "other"],
+    enum: [
+      "pc",
+      "laptop",
+      "server",
+      "firewall",
+      "switch",
+      "router",
+      "access_point",
+      "printer",
+      "nas",
+      "ups",
+      "phone",
+      "license",
+      "network",
+      "other",
+    ],
   })
     .notNull()
     .default("other"),
+  status: text("status", {
+    enum: ["active", "spare", "retired"],
+  })
+    .notNull()
+    .default("active"),
   manufacturer: text("manufacturer"),
   model: text("model"),
   serialNumber: text("serial_number"),
+  hostname: text("hostname"),
+  ipAddress: text("ip_address"),
+  macAddress: text("mac_address"),
+  location: text("location"),
+  vlan: text("vlan"),
+  os: text("os"),
+  managementUrl: text("management_url"),
   warrantyUntil: text("warranty_until"),
   notes: text("notes"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
@@ -236,19 +263,34 @@ export const vaultEntries = sqliteTable("vault_entries", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Dateianhänge zu Kunde / Dokument / Anlage. */
+/** Ordner in der Kunden-Dokumentenablage. */
+export const fileFolders = sqliteTable("file_folders", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  parentId: text("parent_id"),
+  name: text("name").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Dateien / Anhänge zu Kunde, Ordner, Wiki-Dokument oder Anlage. */
 export const attachments = sqliteTable("attachments", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
+  folderId: text("folder_id"),
   documentId: text("document_id"),
   assetId: text("asset_id"),
   originalName: text("original_name").notNull(),
   storedName: text("stored_name").notNull(),
   mimeType: text("mime_type"),
   size: integer("size").notNull().default(0),
+  description: text("description"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -265,4 +307,5 @@ export type OrgSettings = typeof orgSettings.$inferSelect;
 export type PriceItem = typeof priceItems.$inferSelect;
 export type VaultMeta = typeof vaultMeta.$inferSelect;
 export type VaultEntry = typeof vaultEntries.$inferSelect;
+export type FileFolder = typeof fileFolders.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.0 – 2026-08-05
+
+- Anlagen-Reiter: erweiterte Typen (Notebook, Switch, Router, AP, NAS, …), Status aktiv/Ersatz/außer Betrieb
+- Netzwerkfelder: Hostname, IP, MAC, VLAN, Standort, OS, Management-URL
+- UI: Suche, Status-/Typ-Filter, Gruppierung, Bearbeiten, Kennzahlen
+
 ## 1.4.0 – 2026-08-05
 
 - Passworttresor: AES-256-GCM, eigene Vault-Passphrase, DEK nur im RAM

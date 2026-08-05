@@ -2,7 +2,23 @@ export type CustomerStatus = "active" | "inactive";
 export type DocumentType = "note" | "protocol" | "documentation" | "article" | "workflow";
 export type ProjectStatus = "planned" | "active" | "on_hold" | "done";
 export type AppointmentKind = "customer" | "internal" | "personal" | "other";
-export type AssetKind = "pc" | "server" | "firewall" | "license" | "network" | "other";
+export type AssetKind =
+  | "pc"
+  | "laptop"
+  | "server"
+  | "firewall"
+  | "switch"
+  | "router"
+  | "access_point"
+  | "printer"
+  | "nas"
+  | "ups"
+  | "phone"
+  | "license"
+  | "network"
+  | "other";
+
+export type AssetStatus = "active" | "spare" | "retired";
 export type VaultCategory =
   | "vpn"
   | "admin"
@@ -47,6 +63,13 @@ export interface VaultEntrySecret {
 export interface User {
   id: string;
   username: string;
+}
+
+export interface CustomerListResponse {
+  items: Customer[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface Customer {
@@ -166,9 +189,17 @@ export interface Asset {
   customerId: string;
   name: string;
   kind: AssetKind;
+  status: AssetStatus;
   manufacturer: string | null;
   model: string | null;
   serialNumber: string | null;
+  hostname: string | null;
+  ipAddress: string | null;
+  macAddress: string | null;
+  location: string | null;
+  vlan: string | null;
+  os: string | null;
+  managementUrl: string | null;
   warrantyUntil: string | null;
   notes: string | null;
   createdAt: string;

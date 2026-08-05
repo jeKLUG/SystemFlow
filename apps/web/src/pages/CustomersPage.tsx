@@ -1,27 +1,60 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { CustomerFields } from "../components/CustomerFields";
 import { customerDisplayName } from "../lib/customer";
+import { pushRecentCustomer } from "../lib/recentCustomers";
 import { formatDate } from "../lib/labels";
 import { emptyCustomerForm, type Customer } from "../types";
 
+const PAGE_SIZE = 40;
+
+/**
+ * Kundenverwaltung mit Live-Suche, Filtern und paginiertem Laden.
+ */
 export function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [total, setTotal] = useState(0);
   const [q, setQ] = useState("");
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
+  const [sort, setSort] = useState<"updated" | "name">("name");
+  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyCustomerForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  const debounceRef = useRef<number | null>(null);
 
-  async function load(search = q) {
-    setCustomers(await api.customers(search || undefined));
+  async function load(opts?: { append?: boolean; offset?: number; search?: string }) {
+    const append = opts?.append ?? false;
+    const offset = opts?.offset ?? 0;
+    const search = opts?.search ?? q;
+    setLoading(true);
+    try {
+      const res = await api.customers({
+        q: search.trim() || undefined,
+        status,
+        sort,
+        limit: PAGE_SIZE,
+        offset,
+      });
+      setTotal(res.total);
+      setCustomers((prev) => (append ? [...prev, ...res.items] : res.items));
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
-    void load();
-  }, []);
+    if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    debounceRef.current = window.setTimeout(() => {
+      void load({ search: q, offset: 0 });
+    }, 250);
+    return () => {
+      if (debounceRef.current) window.clearTimeout(debounceRef.current);
+    };
+  }, [q, status, sort]);
 
   useEffect(() => {
     if (params.get("new") === "1") setShowForm(true);
@@ -40,6 +73,7 @@ export function CustomersPage() {
         return;
       }
       const created = await api.createCustomer(payload);
+      pushRecentCustomer(created.id);
       setForm(emptyCustomerForm);
       setShowForm(false);
       navigate(`/customers/${created.id}`);
@@ -48,12 +82,18 @@ export function CustomersPage() {
     }
   }
 
+  const hasMore = customers.length < total;
+
   return (
     <div className="page">
       <div className="section-head row-between">
         <div>
           <h2>Kunden</h2>
-          <p>Firmenstammdaten anlegen, suchen und öffnen.</p>
+          <p>
+            {total === 1 ? "1 Kunde" : `${total} Kunden`}
+            {status === "active" ? " · aktive" : status === "inactive" ? " · inaktive" : ""}
+            {q.trim() ? ` · Suche „${q.trim()}“` : ""}
+          </p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setShowForm((v) => !v)}>
           {showForm ? "Abbrechen" : "Kunde anlegen"}
@@ -72,30 +112,55 @@ export function CustomersPage() {
         </form>
       ) : null}
 
-      <form
-        className="search-bar"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void load(q);
-        }}
-      >
+      <div className="customers-toolbar panel">
         <input
-          placeholder="Suche nach Firma, Ansprechpartner, Ort, Telefon…"
+          className="customers-search"
+          placeholder="Firma, Ansprechpartner, Ort, Telefon, USt-Id…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          autoFocus
         />
-        <button className="btn btn-ghost" type="submit">
-          Suchen
-        </button>
-      </form>
+        <div className="filter-chips">
+          {(
+            [
+              ["active", "Aktiv"],
+              ["inactive", "Inaktiv"],
+              ["all", "Alle"],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              className={status === key ? "chip chip-active" : "chip"}
+              onClick={() => setStatus(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <label className="field customers-sort">
+          <span>Sortierung</span>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as "updated" | "name")}
+          >
+            <option value="name">Name A–Z</option>
+            <option value="updated">Zuletzt aktualisiert</option>
+          </select>
+        </label>
+      </div>
 
-      {customers.length === 0 ? (
+      {customers.length === 0 && !loading ? (
         <p className="empty">Keine Kunden gefunden.</p>
       ) : (
-        <ul className="list">
+        <ul className="list customer-list">
           {customers.map((c) => (
             <li key={c.id}>
-              <Link className="list-row" to={`/customers/${c.id}`}>
+              <Link
+                className="list-row"
+                to={`/customers/${c.id}`}
+                onClick={() => pushRecentCustomer(c.id)}
+              >
                 <div>
                   <strong>{customerDisplayName(c)}</strong>
                   <span className="muted">
@@ -115,6 +180,24 @@ export function CustomersPage() {
           ))}
         </ul>
       )}
+
+      <div className="customers-footer">
+        <span className="muted">
+          {loading
+            ? "Lade…"
+            : `${customers.length} von ${total} angezeigt`}
+        </span>
+        {hasMore ? (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={loading}
+            onClick={() => void load({ append: true, offset: customers.length })}
+          >
+            Mehr laden
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
