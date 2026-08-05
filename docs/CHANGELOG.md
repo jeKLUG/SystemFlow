@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1 – 2026-08-05
+
+- `deploy.sh`: lokale Änderungen im Installationsordner werden beim Update verworfen (`.env` bleibt erhalten)
+
 ## 1.0.0 – 2026-08-05
 
 - Systemhaus-Ess: Kundenverwaltung und Dokumente

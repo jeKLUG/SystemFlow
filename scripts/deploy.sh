@@ -60,9 +60,11 @@ ensure_docker() {
 sync_repo() {
   if [[ -d "${INSTALL_DIR}/.git" ]]; then
     log "Aktualisiere Repository in ${INSTALL_DIR}…"
+    # Lokale Änderungen am Deploy-Tree verwerfen (.env bleibt untracked)
     git -C "${INSTALL_DIR}" fetch --prune origin
-    git -C "${INSTALL_DIR}" checkout "${BRANCH}"
-    git -C "${INSTALL_DIR}" pull --ff-only origin "${BRANCH}"
+    git -C "${INSTALL_DIR}" checkout -f "${BRANCH}"
+    git -C "${INSTALL_DIR}" reset --hard "origin/${BRANCH}"
+    git -C "${INSTALL_DIR}" clean -fd --exclude=.env --exclude=data
   elif [[ -f "${INSTALL_DIR}/${COMPOSE_FILE}" ]]; then
     warn "Kein Git-Repo in ${INSTALL_DIR} – nutze vorhandene Dateien (kein Pull)."
   else
