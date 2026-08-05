@@ -1,0 +1,14 @@
+# Dependencies of source files compiled for deployment
+node_modules/
+dist/
+build/
+.env
+.env.*
+!.env.example
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log

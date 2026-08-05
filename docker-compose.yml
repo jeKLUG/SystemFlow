@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    image: systemflow:latest
+    container_name: systemflow
+    ports:
+      - "8080:80"
+    restart: unless-stopped

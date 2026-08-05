@@ -1,0 +1,22 @@
+---
+description: Auto-Dokumentation für SystemFlow (Autodoku Universal)
+alwaysApply: true
+---
+
+# Autodoku Universal
+
+Bei Codeänderungen in diesem Projekt:
+
+- Öffentliche Funktionen, Module und APIs sprachtypisch dokumentieren (JS: JSDoc).
+- Veraltete Kommentare an den Code anpassen; keine offensichtlichen Kommentare erzeugen.
+- Markdown unter `docs/` aktualisieren, wenn Nutzung, Architektur, API, Konfiguration oder Verhalten sich ändert.
+- Unklare Punkte in `docs/TODO-DOCS.md` festhalten.
+- Keine Features erfinden; keine Secrets dokumentieren.
+
+Dokumentationsstruktur (muss existieren):
+
+- `docs/README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/API.md`
+- `docs/CHANGELOG.md`
+- `docs/TODO-DOCS.md`
