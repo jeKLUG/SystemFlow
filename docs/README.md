@@ -11,4 +11,4 @@
 
 ## Kurzbeschreibung
 
-SystemFlow ist eine statische Single-Page-Webapp zur lokalen Verwaltung von System-Flows (Name + Status). Daten liegen im Browser-`localStorage`. Auslieferung erfolgt über Nginx (Docker oder manuell).
+SystemFlow ist eine statische Single-Page-Webapp zur lokalen Verwaltung von System-Flows (Name + Status). Daten liegen im Browser-`localStorage`. Auslieferung erfolgt über Nginx (Docker). Auf Linux startet und aktualisiert `scripts/deploy.sh` die App als systemd-Dienst `systemflow`.

@@ -23,7 +23,9 @@ Kein Anwendungsserver und keine Datenbank. Persistenz ausschließlich clientseit
 | Logik | `public/app.js` | CRUD für Flows, `localStorage` |
 | Reverse Proxy / Static | `nginx/default.conf` | Auslieferung im Container |
 | Container | `Dockerfile` | `nginx:1.27-alpine` + Assets |
-| Orchestrierung | `docker-compose.yml` | Build + Port-Mapping `8080:80` |
+| Orchestrierung | `docker-compose.yml` | Build + Port-Mapping (`SYSTEMFLOW_PORT`, Default 8080) |
+| Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd-Dienst |
+| Dienst | `systemflow.service` | OnesHot Compose up/down, Enable at Boot |
 
 ## Datenmodell (Client)
 
@@ -40,6 +42,19 @@ Speicher-Key: `systemflow.flows.v1`
 
 ## Deployment-Varianten
 
-1. **Docker Compose** – empfohlen für Linux-Server
-2. **Nginx/Apache** – `public/` als Document Root
-3. **Ad-hoc** – `python3 -m http.server` nur für lokale Tests
+1. **`scripts/deploy.sh` + systemd** – empfohlen (Update + Dauerbetrieb)
+2. **Docker Compose manuell** – `docker compose up --build -d`
+3. **Nginx/Apache** – `public/` als Document Root
+4. **Ad-hoc** – `python3 -m http.server` nur für lokale Tests
+
+### Deploy-Flow
+
+```
+deploy.sh
+  → Docker sicherstellen
+  → git clone/pull nach SYSTEMFLOW_DIR
+  → .env (SYSTEMFLOW_PORT)
+  → systemd unit systemflow.service
+  → systemctl restart systemflow
+  → docker compose up -d --build
+```

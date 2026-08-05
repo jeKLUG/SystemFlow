@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0 – 2026-08-05
+
+- `scripts/deploy.sh`: ein Befehl für Update, Build und systemd-Dauerbetrieb
+- Port über `SYSTEMFLOW_PORT` / `.env` konfigurierbar
+- README um Server-Einzeiler und Dienst-Befehle ergänzt
+
 ## 0.1.0 – 2026-08-05
 
 - Initiale SystemFlow-Webapp (Dark Design, blaue Akzentfarbe)
