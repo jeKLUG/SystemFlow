@@ -8,6 +8,7 @@ import { CustomerOverviewPage } from "./pages/customer/CustomerOverviewPage";
 import { CustomerProjectsPage } from "./pages/customer/CustomerProjectsPage";
 import { CustomerTimePage } from "./pages/customer/CustomerTimePage";
 import { CustomerWikiPage } from "./pages/customer/CustomerWikiPage";
+import { CalendarPage } from "./pages/CalendarPage";
 import { CustomersPage } from "./pages/CustomersPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DocumentPage } from "./pages/DocumentPage";
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="vault" element={<VaultPage />} />
+        <Route path="calendar" element={<CalendarPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerLayout />}>
           <Route index element={<CustomerOverviewPage />} />

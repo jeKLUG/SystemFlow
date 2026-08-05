@@ -54,6 +54,9 @@ export function CustomerLayout() {
           <Link className="btn btn-primary" to={`/quick-note?customerId=${id}`}>
             + Notiz
           </Link>
+          <Link className="btn btn-ghost" to={`/calendar?customerId=${id}`}>
+            Kalender
+          </Link>
           <Link className="btn btn-ghost" to={`/vault?customerId=${id}`}>
             Tresor
           </Link>

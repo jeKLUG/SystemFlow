@@ -1245,6 +1245,125 @@ h2 {
   }
 }
 
+.calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.5rem 0 1rem;
+}
+
+.calendar-month-label {
+  font-family: var(--font-display);
+  text-transform: capitalize;
+  min-width: 10rem;
+  text-align: center;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(260px, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.3rem;
+}
+
+.calendar-day {
+  min-height: 4.2rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+  cursor: pointer;
+  color: inherit;
+}
+
+.calendar-day:hover {
+  border-color: rgba(90, 160, 255, 0.35);
+}
+
+.calendar-day.is-outside {
+  opacity: 0.4;
+}
+
+.calendar-day.is-today .calendar-day-num {
+  color: var(--accent-bright);
+  font-weight: 700;
+}
+
+.calendar-day.is-selected {
+  background: var(--accent-soft);
+  border-color: rgba(90, 160, 255, 0.45);
+}
+
+.calendar-day-num {
+  font-size: 0.9rem;
+}
+
+.calendar-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.calendar-dots .dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.calendar-dots .dot.kind-customer {
+  background: var(--ok);
+}
+
+.calendar-dots .dot.kind-internal {
+  background: var(--accent-bright);
+}
+
+.calendar-dots .dot.kind-personal {
+  background: var(--warn);
+}
+
+.calendar-dots .dot.kind-other {
+  background: var(--text-muted);
+}
+
+.calendar-day-panel h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+}
+
+@media (max-width: 900px) {
+  .calendar-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .calendar-day {
+    min-height: 3.2rem;
+  }
+}
+
 @media (max-width: 900px) {
   .stat-strip {
     grid-template-columns: 1fr 1fr;
