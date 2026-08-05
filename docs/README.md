@@ -1,14 +1,10 @@
-# Dokumentation – SystemFlow
-
-Übersicht der Projektdokumentation.
+# Dokumentation – Systemhaus-Ess
 
 | Datei | Inhalt |
 |-------|--------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Aufbau und Deployment |
-| [API.md](API.md) | Schnittstellen (aktuell: keine Backend-API) |
+| [API.md](API.md) | HTTP-API |
 | [CHANGELOG.md](CHANGELOG.md) | Änderungen |
-| [TODO-DOCS.md](TODO-DOCS.md) | Offene Dokumentationspunkte |
+| [TODO-DOCS.md](TODO-DOCS.md) | Offene Punkte |
 
-## Kurzbeschreibung
-
-SystemFlow ist eine statische Single-Page-Webapp zur lokalen Verwaltung von System-Flows (Name + Status). Daten liegen im Browser-`localStorage`. Auslieferung erfolgt über Nginx (Docker). Auf Linux startet und aktualisiert `scripts/deploy.sh` die App als systemd-Dienst `systemflow`.
+Systemhaus-Ess ist die interne App für Kundenstammdaten und Browser-Dokumente. Lexware bleibt extern für Rechnungen.

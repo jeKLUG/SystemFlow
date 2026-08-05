@@ -1,86 +1,83 @@
-# SystemFlow
+# Systemhaus-Ess
 
-Schlanke Webapp im Dark Design mit blauer Akzentfarbe. Statische Dateien – einfach auf einem Linux-Server hosten.
+Interne Organisations-App für **Systemhaus-Ess**: Kunden verwalten und Dokumente (Notizen, Protokolle, Dokumentationen) im Browser schreiben. Rechnungen bleiben in **Lexware** (keine Integration).
+
+## Features
+
+- Moderne Dark-UI mit blauer Akzentfarbe (Handy + Desktop)
+- Admin-Login
+- Kunden anlegen, suchen, bearbeiten
+- TipTap-Editor (Confluence-nah) mit Autosave
+- Docker-Deploy auf Linux inkl. systemd
+
+## Login (Standard)
+
+| Feld | Wert |
+|------|------|
+| Benutzer | `admin` |
+| Passwort | `changeme` (bitte in `.env` ändern) |
 
 ## Linux-Server: ein Befehl
-
-Installieren, updaten und als Dauer-Dienst starten:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo bash
 ```
 
-Oder lokal im Repo:
+Anderer Port (z. B. wenn 8080 belegt):
 
 ```bash
-sudo ./scripts/deploy.sh
+curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo SYSTEMHAUS_PORT=8081 bash
 ```
 
-Das Skript:
+Update später:
 
-1. installiert Docker falls nötig  
-2. klont/aktualisiert nach `/opt/systemflow`  
-3. baut und startet den Container  
-4. richtet den systemd-Dienst `systemflow` ein (Start nach Reboot)
-
-Danach erreichbar unter **http://SERVER-IP:8080**
-
-### Nützliche Befehle
+```bash
+sudo /opt/systemflow/scripts/deploy.sh
+```
 
 | Aktion | Befehl |
 |--------|--------|
-| Update | `sudo /opt/systemflow/scripts/deploy.sh` |
-| Status | `sudo systemctl status systemflow` |
-| Stop | `sudo systemctl stop systemflow` |
-| Start | `sudo systemctl start systemflow` |
+| Status | `sudo systemctl status systemhaus-ess` |
+| Stop | `sudo systemctl stop systemhaus-ess` |
+| Start | `sudo systemctl start systemhaus-ess` |
 
-### Optionen
+## Lokal entwickeln
 
 ```bash
-sudo SYSTEMFLOW_PORT=80 SYSTEMFLOW_DIR=/opt/systemflow ./scripts/deploy.sh
+npm install
+npm run dev:api    # http://localhost:3000
+npm run dev:web    # http://localhost:5173 (proxied /api)
 ```
+
+Produktion lokal bauen:
+
+```bash
+npm run build
+set DATABASE_PATH=./data/systemhaus.sqlite
+set WEB_DIST=./apps/web/dist
+set SESSION_SECRET=dev-secret-key-32bytes-minimum!!
+npm start
+```
+
+## Umgebungsvariablen
+
+Siehe [`.env.example`](.env.example):
 
 | Variable | Default | Bedeutung |
 |----------|---------|-----------|
-| `SYSTEMFLOW_PORT` | `8080` | Host-Port |
-| `SYSTEMFLOW_DIR` | `/opt/systemflow` | Installationsordner |
-| `SYSTEMFLOW_REPO` | GitHub-URL | Git-Remote |
-| `SYSTEMFLOW_BRANCH` | `main` | Branch |
-
-## Features
-
-- Dark UI mit blauer Akzentfarbe
-- Flows anlegen, Status setzen, löschen
-- Persistenz im Browser (`localStorage`)
-- Demo-Daten auf Knopfdruck
-- Deployment per Docker / Nginx + systemd
-
-## Schnellstart lokal
-
-Ohne Docker (Python 3):
-
-```bash
-cd public
-python3 -m http.server 8080
-```
-
-Mit Docker Compose:
-
-```bash
-docker compose up --build -d
-```
-
-App: http://localhost:8080
+| `SYSTEMHAUS_PORT` | `8081` | Host-Port (Docker) |
+| `ADMIN_USERNAME` | `admin` | Login |
+| `ADMIN_PASSWORD` | `changeme` | Login |
+| `SESSION_SECRET` | (generiert beim Deploy) | Cookie-Signatur |
+| `DATABASE_PATH` | `./data/systemhaus.sqlite` | SQLite-Datei |
 
 ## Projektstruktur
 
 ```
-public/            # Web-Assets (HTML/CSS/JS)
-nginx/             # Nginx-Konfiguration für Docker
-scripts/deploy.sh  # Update + systemd-Dienst
-Dockerfile
-docker-compose.yml
-docs/              # Dokumentation
+apps/api/     Fastify API + SQLite (libsql)
+apps/web/     React + Vite + TipTap
+scripts/      deploy.sh
+docs/         Dokumentation
 ```
 
 ## Dokumentation

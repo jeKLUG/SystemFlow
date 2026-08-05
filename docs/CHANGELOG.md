@@ -1,15 +1,18 @@
 # Changelog
 
+## 1.0.0 – 2026-08-05
+
+- Systemhaus-Ess: Kundenverwaltung und Dokumente
+- Admin-Login mit Session-Cookie
+- TipTap-Editor (Notizen, Protokolle, Dokumentationen) mit Autosave
+- React-Frontend, Fastify-API, SQLite (libsql)
+- Docker Compose + systemd-Deploy (`systemhaus-ess`)
+- Keine Lexware-/Rechnungsfunktionen (bewusst out of scope)
+
 ## 0.2.0 – 2026-08-05
 
-- `scripts/deploy.sh`: ein Befehl für Update, Build und systemd-Dauerbetrieb
-- Port über `SYSTEMFLOW_PORT` / `.env` konfigurierbar
-- README um Server-Einzeiler und Dienst-Befehle ergänzt
+- Deploy-Skript und systemd für die frühere Demo-Webapp
 
 ## 0.1.0 – 2026-08-05
 
-- Initiale SystemFlow-Webapp (Dark Design, blaue Akzentfarbe)
-- Flow-Liste mit Anlegen, Status und Löschen (`localStorage`)
-- Demo-Daten-Button
-- Nginx-Dockerfile und Docker Compose für Linux-Hosting
-- Projektdokumentation unter `docs/`
+- Initiale Demo-Webapp (durch Systemhaus-Ess ersetzt)

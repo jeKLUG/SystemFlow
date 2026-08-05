@@ -1,0 +1,17 @@
+{
+  "name": "systemhaus-ess",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @systemhaus/api & npm run dev -w @systemhaus/web",
+    "dev:api": "npm run dev -w @systemhaus/api",
+    "dev:web": "npm run dev -w @systemhaus/web",
+    "build": "npm run build -w @systemhaus/web && npm run build -w @systemhaus/api",
+    "start": "npm run start -w @systemhaus/api",
+    "db:generate": "npm run db:generate -w @systemhaus/api"
+  }
+}

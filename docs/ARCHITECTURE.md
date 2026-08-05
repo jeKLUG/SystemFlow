@@ -3,58 +3,43 @@
 ## Überblick
 
 ```
-Browser (HTML/CSS/JS)
+Browser (React SPA)
         │
         ▼
-  Nginx (Port 80)
+  Fastify (API + Static)
         │
         ▼
-  static files in /usr/share/nginx/html
+  SQLite (libsql, Volume /data)
 ```
-
-Kein Anwendungsserver und keine Datenbank. Persistenz ausschließlich clientseitig.
 
 ## Komponenten
 
 | Komponente | Pfad | Rolle |
 |------------|------|-------|
-| UI | `public/index.html` | Markup, Struktur |
-| Styles | `public/styles.css` | Dark Theme, Layout, Motion |
-| Logik | `public/app.js` | CRUD für Flows, `localStorage` |
-| Reverse Proxy / Static | `nginx/default.conf` | Auslieferung im Container |
-| Container | `Dockerfile` | `nginx:1.27-alpine` + Assets |
-| Orchestrierung | `docker-compose.yml` | Build + Port-Mapping (`SYSTEMFLOW_PORT`, Default 8080) |
-| Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd-Dienst |
-| Dienst | `systemflow.service` | OnesHot Compose up/down, Enable at Boot |
+| API | `apps/api` | Auth, Kunden, Dokumente |
+| Web | `apps/web` | UI, TipTap-Editor |
+| Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
+| Compose | `docker-compose.yml` | Container + Volume |
 
-## Datenmodell (Client)
+## Datenmodell
 
-```json
-{
-  "id": "f_…",
-  "name": "Backup-Pipeline",
-  "status": "running|healthy|degraded|stopped",
-  "createdAt": "ISO-8601"
-}
-```
+- **users** – Admin (V1: ein Benutzer aus Env)
+- **customers** – Stammdaten
+- **documents** – TipTap-JSON, Typ `note` \| `protocol` \| `documentation`
 
-Speicher-Key: `systemflow.flows.v1`
+## Auth
 
-## Deployment-Varianten
+Session-Cookie (`systemhaus_session`) via `@fastify/secure-session`, Passwort mit bcrypt. Admin-Passwort wird beim Start aus `ADMIN_PASSWORD` synchronisiert.
 
-1. **`scripts/deploy.sh` + systemd** – empfohlen (Update + Dauerbetrieb)
-2. **Docker Compose manuell** – `docker compose up --build -d`
-3. **Nginx/Apache** – `public/` als Document Root
-4. **Ad-hoc** – `python3 -m http.server` nur für lokale Tests
-
-### Deploy-Flow
+## Deploy-Flow
 
 ```
 deploy.sh
   → Docker sicherstellen
-  → git clone/pull nach SYSTEMFLOW_DIR
-  → .env (SYSTEMFLOW_PORT)
-  → systemd unit systemflow.service
-  → systemctl restart systemflow
+  → git clone/pull
+  → .env (Port, Secrets, Admin)
+  → systemd systemhaus-ess.service
   → docker compose up -d --build
 ```
+
+Daten liegen im Volume `systemhaus-data` und überleben Updates.

@@ -1,8 +1,22 @@
 services:
   web:
     build: .
-    image: systemflow:latest
-    container_name: systemflow
+    image: systemhaus-ess:latest
+    container_name: systemhaus-ess
     ports:
-      - "${SYSTEMFLOW_PORT:-8080}:80"
+      - "${SYSTEMHAUS_PORT:-8081}:3000"
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      DATABASE_PATH: /data/systemhaus.sqlite
+      WEB_DIST: /app/apps/web/dist
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-to-a-long-random-secret-key}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-changeme}
+    volumes:
+      - systemhaus-data:/data
     restart: unless-stopped
+
+volumes:
+  systemhaus-data:
