@@ -520,7 +520,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
             <div>
               <strong>{scoped ? "Keine Anhänge" : "Ordner ist leer"}</strong>
               <p className="muted">
-                Dateien hierher ziehen oder über „Hochladen“ hinzufügen
+                Dateien hierher ziehen oder über „Datei wählen“ hinzufügen
                 {!scoped ? " – optional zuerst einen Ordner anlegen" : ""}.
               </p>
             </div>

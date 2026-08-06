@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.27 – 2026-08-06
+
+- Aufgabenliste: kompaktere Hero-KPIs, Filter ohne Extra-Labels und einzeilige Task-Zeilen
+
+## 1.5.26 – 2026-08-06
+
+- Wiki-Anhänge: Upload speichert wieder `documentId` (Multipart-Felder vor der Datei / robustes Parts-Parsing)
+
 ## 1.5.25 – 2026-08-06
 
 - SLA/Verträge: PDF-Export als druckfertiger Vertragsbogen (Parteien, SLA-Matrix, Kontakte, Unterschrift)

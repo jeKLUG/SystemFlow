@@ -318,11 +318,12 @@ export const api = {
     opts?: { documentId?: string; assetId?: string; folderId?: string | null; description?: string },
   ) => {
     const body = new FormData();
-    body.append("file", file);
+    // Metadaten VOR der Datei: @fastify/multipart liest Felder nach dem File-Part sonst nicht
     if (opts?.documentId) body.append("documentId", opts.documentId);
     if (opts?.assetId) body.append("assetId", opts.assetId);
     if (opts?.folderId) body.append("folderId", opts.folderId);
     if (opts?.description) body.append("description", opts.description);
+    body.append("file", file);
     const res = await fetch(`/api/customers/${customerId}/attachments`, {
       method: "POST",
       credentials: "include",

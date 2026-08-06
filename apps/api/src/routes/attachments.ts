@@ -67,16 +67,51 @@ export async function attachmentRoutes(
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    const file = await request.file();
-    if (!file) return reply.code(400).send({ error: "Keine Datei hochgeladen" });
+    let documentId: string | null = null;
+    let assetId: string | null = null;
+    let folderId: string | null = null;
+    let description: string | null = null;
+    let uploaded: {
+      filename: string;
+      mimetype: string;
+      bytesRead: number;
+      storedName: string;
+    } | null = null;
 
-    const field = (name: string) =>
-      (file.fields[name] as { value?: string } | undefined)?.value ?? null;
+    for await (const part of request.parts()) {
+      if (part.type === "file") {
+        if (uploaded) {
+          // Nur erste Datei – Rest verwerfen
+          part.file.resume();
+          continue;
+        }
+        const id = createId("att");
+        const safeName = part.filename.replace(/[^\w.\-()+\säöüÄÖÜß]/gi, "_").slice(0, 180);
+        const storedName = `${id}_${safeName}`;
+        const target = join(uploadDir, storedName);
+        await pipeline(part.file, createWriteStream(target));
+        if (part.file.truncated) {
+          await unlink(target).catch(() => undefined);
+          return reply.code(400).send({ error: "Upload abgebrochen" });
+        }
+        uploaded = {
+          filename: part.filename,
+          mimetype: part.mimetype || "application/octet-stream",
+          bytesRead: Number(part.file.bytesRead || 0),
+          storedName,
+        };
+        // id steckt im storedName-Präfix – für DB separat merken
+        (uploaded as { id?: string }).id = id;
+      } else {
+        const value = String(part.value ?? "").trim();
+        if (part.fieldname === "documentId") documentId = value || null;
+        else if (part.fieldname === "assetId") assetId = value || null;
+        else if (part.fieldname === "folderId") folderId = emptyToNull(value);
+        else if (part.fieldname === "description") description = emptyToNull(value);
+      }
+    }
 
-    const documentId = field("documentId");
-    const assetId = field("assetId");
-    let folderId = emptyToNull(field("folderId"));
-    const description = emptyToNull(field("description"));
+    if (!uploaded) return reply.code(400).send({ error: "Keine Datei hochgeladen" });
 
     if (folderId) {
       const folder = await db.select().from(fileFolders).where(eq(fileFolders.id, folderId)).get();
@@ -88,28 +123,21 @@ export async function attachmentRoutes(
     // Wiki-/Anlagen-Anhänge liegen nicht in der Ablage-Hierarchie
     if (documentId || assetId) folderId = null;
 
-    const id = createId("att");
-    const safeName = file.filename.replace(/[^\w.\-()+\säöüÄÖÜß]/gi, "_").slice(0, 180);
-    const storedName = `${id}_${safeName}`;
-    const target = join(uploadDir, storedName);
-
-    await pipeline(file.file, createWriteStream(target));
-    if (file.file.truncated) {
-      await unlink(target).catch(() => undefined);
-      return reply.code(400).send({ error: "Upload abgebrochen" });
-    }
-
+    const id =
+      (uploaded as { id?: string }).id ??
+      uploaded.storedName.split("_")[0] ??
+      createId("att");
     const now = new Date();
     const row = {
       id,
       customerId,
       folderId,
-      documentId: documentId || null,
-      assetId: assetId || null,
-      originalName: file.filename,
-      storedName,
-      mimeType: file.mimetype || null,
-      size: Number(file.file.bytesRead || 0),
+      documentId,
+      assetId,
+      originalName: uploaded.filename,
+      storedName: uploaded.storedName,
+      mimeType: uploaded.mimetype || null,
+      size: uploaded.bytesRead,
       description,
       createdAt: now,
       updatedAt: now,

@@ -265,123 +265,122 @@ export function CustomerTasksPage() {
           aria-label={task.done ? "Wieder öffnen" : "Erledigen"}
         />
         <button type="button" className="task-main" onClick={() => openEdit(task)}>
-          <strong className={task.done ? "done" : undefined}>{task.title}</strong>
-          <span className="task-meta">
-            {task.projectName ? (
-              <span className="task-chip">{task.projectName}</span>
-            ) : (
-              <span className="task-chip is-muted">Kein Projekt</span>
-            )}
-            <span className={`task-due tone-${due.tone}`}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                <rect x="4" y="5" width="16" height="15" rx="2" />
-                <path d="M8 3v4M16 3v4M4 10h16" strokeLinecap="round" />
-              </svg>
-              {due.text}
-            </span>
+          <span className="task-title-line">
+            <strong className={task.done ? "done" : undefined}>{task.title}</strong>
+            {task.projectName ? <span className="task-chip">{task.projectName}</span> : null}
           </span>
           {task.description ? <span className="muted task-desc">{task.description}</span> : null}
         </button>
 
-        {!task.done ? (
-          <div className="task-quick-due" role="group" aria-label="Fälligkeit setzen">
-            <button
-              type="button"
-              className={`task-due-btn${task.dueDate === localTodayIso() ? " is-active" : ""}`}
-              title="Heute"
-              onClick={() => void setDue(task, localTodayIso())}
-            >
-              Heute
-            </button>
-            <button
-              type="button"
-              className={`task-due-btn${task.dueDate === tomorrowIso() ? " is-active" : ""}`}
-              title="Morgen"
-              onClick={() => void setDue(task, tomorrowIso())}
-            >
-              Morgen
-            </button>
-            <button
-              type="button"
-              className={`task-due-btn${!task.dueDate ? " is-active" : ""}`}
-              title="Inbox (kein Datum)"
-              onClick={() => void setDue(task, null)}
-            >
-              Inbox
-            </button>
-          </div>
-        ) : null}
+        <div className="task-side">
+          <span className={`task-due tone-${due.tone}`} title={due.text}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <rect x="4" y="5" width="16" height="15" rx="2" />
+              <path d="M8 3v4M16 3v4M4 10h16" strokeLinecap="round" />
+            </svg>
+            {due.text}
+          </span>
 
-        <div className="task-actions">
-          <button
-            type="button"
-            className={`task-prio-btn prio-${prio}`}
-            title={`Priorität: ${priorityLabel[prio]} (klicken zum Wechseln)`}
-            aria-label={`Priorität ${priorityLabel[prio]}`}
-            onClick={() => void cyclePriority(task)}
-          >
-            <i />
-            <span>P{prio}</span>
-          </button>
+          {!task.done ? (
+            <div className="task-quick-due" role="group" aria-label="Fälligkeit setzen">
+              <button
+                type="button"
+                className={`task-due-btn${task.dueDate === localTodayIso() ? " is-active" : ""}`}
+                title="Heute"
+                onClick={() => void setDue(task, localTodayIso())}
+              >
+                Heute
+              </button>
+              <button
+                type="button"
+                className={`task-due-btn${task.dueDate === tomorrowIso() ? " is-active" : ""}`}
+                title="Morgen"
+                onClick={() => void setDue(task, tomorrowIso())}
+              >
+                Morgen
+              </button>
+              <button
+                type="button"
+                className={`task-due-btn${!task.dueDate ? " is-active" : ""}`}
+                title="Inbox"
+                onClick={() => void setDue(task, null)}
+              >
+                Inbox
+              </button>
+            </div>
+          ) : null}
 
-          <div className={`task-more${menuOpen ? " is-open" : ""}`}>
+          <div className="task-actions">
             <button
               type="button"
-              className="btn btn-ghost btn-icon"
-              aria-label="Weitere Aktionen"
-              aria-expanded={menuOpen}
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuId(menuOpen ? null : task.id);
-              }}
+              className={`task-prio-btn prio-${prio}`}
+              title={`Priorität: ${priorityLabel[prio]}`}
+              aria-label={`Priorität ${priorityLabel[prio]}`}
+              onClick={() => void cyclePriority(task)}
             >
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                <circle cx="12" cy="5" r="1.6" />
-                <circle cx="12" cy="12" r="1.6" />
-                <circle cx="12" cy="19" r="1.6" />
-              </svg>
+              <i />
+              <span>P{prio}</span>
             </button>
-            {menuOpen ? (
-              <div className="task-menu" role="menu">
-                <button type="button" role="menuitem" onClick={() => openEdit(task)}>
-                  Bearbeiten
-                </button>
-                <button type="button" role="menuitem" onClick={() => void duplicateTask(task)}>
-                  Duplizieren
-                </button>
-                {!task.done ? (
-                  <>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => void setDue(task, nextWeekIso())}
-                    >
-                      Nächste Woche
-                    </button>
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => void setDue(task, addDaysIso(localTodayIso(), 7))}
-                    >
-                      In 7 Tagen
-                    </button>
-                  </>
-                ) : null}
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="is-danger"
-                  onClick={() => {
-                    setMenuId(null);
-                    if (confirm(`Aufgabe „${task.title}“ löschen?`)) {
-                      void api.deleteTask(task.id).then(() => reload());
-                    }
-                  }}
-                >
-                  Löschen
-                </button>
-              </div>
-            ) : null}
+
+            <div className={`task-more${menuOpen ? " is-open" : ""}`}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                aria-label="Weitere Aktionen"
+                aria-expanded={menuOpen}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMenuId(menuOpen ? null : task.id);
+                }}
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <circle cx="12" cy="5" r="1.6" />
+                  <circle cx="12" cy="12" r="1.6" />
+                  <circle cx="12" cy="19" r="1.6" />
+                </svg>
+              </button>
+              {menuOpen ? (
+                <div className="task-menu" role="menu">
+                  <button type="button" role="menuitem" onClick={() => openEdit(task)}>
+                    Bearbeiten
+                  </button>
+                  <button type="button" role="menuitem" onClick={() => void duplicateTask(task)}>
+                    Duplizieren
+                  </button>
+                  {!task.done ? (
+                    <>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void setDue(task, nextWeekIso())}
+                      >
+                        Nächste Woche
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void setDue(task, addDaysIso(localTodayIso(), 7))}
+                      >
+                        In 7 Tagen
+                      </button>
+                    </>
+                  ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="is-danger"
+                    onClick={() => {
+                      setMenuId(null);
+                      if (confirm(`Aufgabe „${task.title}“ löschen?`)) {
+                        void api.deleteTask(task.id).then(() => reload());
+                      }
+                    }}
+                  >
+                    Löschen
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </li>
@@ -398,15 +397,13 @@ export function CustomerTasksPage() {
             <p className="muted">
               {stats.open} offen
               {stats.overdue > 0 ? ` · ${stats.overdue} überfällig` : ""}
-              {" · "}
-              {activeHint}
             </p>
           </div>
           <div className="tasks-hero-actions">
             {doneCount > 0 ? (
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-ghost btn-sm"
                 onClick={() => void clearDone()}
                 title="Alle erledigten Aufgaben löschen"
               >
@@ -427,26 +424,18 @@ export function CustomerTasksPage() {
           </div>
         </div>
 
-        <div className="stat-strip tasks-stats">
+        <div className="tasks-kpi" aria-label="Kennzahlen">
           <button
             type="button"
-            className={`stat-chip${view === "open" ? " is-active" : ""}`}
-            onClick={() => setView("open")}
-          >
-            <strong>{stats.open}</strong>
-            <span>Offen</span>
-          </button>
-          <button
-            type="button"
-            className={`stat-chip${stats.overdue > 0 ? " is-warn" : ""}${view === "today" ? " is-active" : ""}`}
+            className={`tasks-kpi-item${view === "today" ? " is-active" : ""}${stats.overdue > 0 ? " is-warn" : ""}`}
             onClick={() => setView("today")}
           >
-            <strong>{stats.overdue}</strong>
-            <span>Überfällig</span>
+            <strong>{stats.today}</strong>
+            <span>Heute / überfällig</span>
           </button>
           <button
             type="button"
-            className={`stat-chip${view === "upcoming" ? " is-active" : ""}`}
+            className={`tasks-kpi-item${view === "upcoming" ? " is-active" : ""}`}
             onClick={() => setView("upcoming")}
           >
             <strong>{viewCounts.upcoming}</strong>
@@ -454,11 +443,19 @@ export function CustomerTasksPage() {
           </button>
           <button
             type="button"
-            className={`stat-chip${view === "inbox" ? " is-active" : ""}`}
+            className={`tasks-kpi-item${view === "inbox" ? " is-active" : ""}`}
             onClick={() => setView("inbox")}
           >
             <strong>{stats.inbox}</strong>
             <span>Inbox</span>
+          </button>
+          <button
+            type="button"
+            className={`tasks-kpi-item${view === "open" ? " is-active" : ""}`}
+            onClick={() => setView("open")}
+          >
+            <strong>{stats.open}</strong>
+            <span>Offen</span>
           </button>
         </div>
 
@@ -472,7 +469,7 @@ export function CustomerTasksPage() {
             <input
               value={quickTitle}
               onChange={(e) => setQuickTitle(e.target.value)}
-              placeholder="Aufgabe tippen und Enter…"
+              placeholder="Neue Aufgabe – Enter zum Anlegen…"
               aria-label="Schnellaufgabe"
             />
           </div>
@@ -506,8 +503,8 @@ export function CustomerTasksPage() {
               </button>
             ))}
           </div>
-          <button className="btn btn-primary" type="submit" disabled={!quickTitle.trim()}>
-            Hinzufügen
+          <button className="btn btn-primary btn-sm" type="submit" disabled={!quickTitle.trim()}>
+            Add
           </button>
         </form>
       </div>
@@ -531,17 +528,21 @@ export function CustomerTasksPage() {
         </div>
         <div className="tasks-filters">
           <label className="field tasks-search">
-            <span>Suche</span>
+            <span className="sr-only">Suche</span>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Titel, Projekt…"
+              placeholder="Suchen…"
             />
           </label>
           <label className="field tasks-project-filter">
-            <span>Projekt</span>
-            <select value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)}>
-              <option value="">Alle</option>
+            <span className="sr-only">Projekt</span>
+            <select
+              value={projectFilter}
+              onChange={(e) => setProjectFilter(e.target.value)}
+              aria-label="Projekt"
+            >
+              <option value="">Alle Projekte</option>
               <option value="none">Ohne Projekt</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -551,21 +552,26 @@ export function CustomerTasksPage() {
             </select>
           </label>
           <label className="field tasks-prio-filter">
-            <span>Priorität</span>
+            <span className="sr-only">Priorität</span>
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value as "" | `${TaskPriority}`)}
+              aria-label="Priorität"
             >
-              <option value="">Alle</option>
-              <option value="1">P1 · Dringend</option>
-              <option value="2">P2 · Hoch</option>
-              <option value="3">P3 · Mittel</option>
-              <option value="4">P4 · Normal</option>
+              <option value="">Prio</option>
+              <option value="1">P1</option>
+              <option value="2">P2</option>
+              <option value="3">P3</option>
+              <option value="4">P4</option>
             </select>
           </label>
           <label className="field tasks-sort">
-            <span>Sortierung</span>
-            <select value={sort} onChange={(e) => setSort(e.target.value as TaskSort)}>
+            <span className="sr-only">Sortierung</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as TaskSort)}
+              aria-label="Sortierung"
+            >
               {sortOptions.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.label}
@@ -574,10 +580,14 @@ export function CustomerTasksPage() {
             </select>
           </label>
           <label className="field tasks-group">
-            <span>Gruppierung</span>
-            <select value={groupBy} onChange={(e) => setGroupBy(e.target.value as TaskGroupBy)}>
-              <option value="auto">Automatisch</option>
-              <option value="project">Nach Projekt</option>
+            <span className="sr-only">Gruppierung</span>
+            <select
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as TaskGroupBy)}
+              aria-label="Gruppierung"
+            >
+              <option value="auto">Auto</option>
+              <option value="project">Projekt</option>
               <option value="none">Flach</option>
             </select>
           </label>
