@@ -134,9 +134,11 @@ Dokument anlegen akzeptiert optional `templateId`.
 
 ## Aufgaben
 
+Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne Projekt), `openOnly`.
+
 | Methode | Pfad |
 |---------|------|
-| GET | `/api/tasks?openOnly=` |
+| GET | `/api/tasks?openOnly=&view=&projectId=` |
 | GET/POST | `/api/customers/:id/tasks` |
 | PUT/DELETE | `/api/tasks/:id` |
 

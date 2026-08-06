@@ -6,6 +6,7 @@ import { CustomerLayout } from "./pages/customer/CustomerLayout";
 import { CustomerOpsPage } from "./pages/customer/CustomerOpsPage";
 import { CustomerOverviewPage } from "./pages/customer/CustomerOverviewPage";
 import { CustomerProjectsPage } from "./pages/customer/CustomerProjectsPage";
+import { CustomerTasksPage } from "./pages/customer/CustomerTasksPage";
 import { CustomerTimePage } from "./pages/customer/CustomerTimePage";
 import { CustomerWikiPage } from "./pages/customer/CustomerWikiPage";
 import { CalendarPage } from "./pages/CalendarPage";
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="projects" element={<CustomerProjectsPage />} />
           <Route path="time" element={<CustomerTimePage />} />
           <Route path="assets" element={<CustomerAssetsPage />} />
+          <Route path="tasks" element={<CustomerTasksPage />} />
           <Route path="ops" element={<CustomerOpsPage />} />
         </Route>
         <Route path="documents/:id" element={<DocumentPage />} />

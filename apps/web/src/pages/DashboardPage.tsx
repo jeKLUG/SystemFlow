@@ -110,7 +110,7 @@ export function DashboardPage() {
             <ul className="list">
               {openTasks.map((task) => (
                 <li key={task.id}>
-                  <Link className="list-row" to={`/customers/${task.customerId}/ops`}>
+                  <Link className="list-row" to={`/customers/${task.customerId}/tasks`}>
                     <div>
                       <strong>{task.title}</strong>
                       <span className="muted">

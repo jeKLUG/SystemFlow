@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.9 – 2026-08-06
+
+- Aufgaben als eigener Kundenreiter (Ansichten, Priorität, Projektfilter, Modal)
+- Betrieb ohne Aufgaben – nur noch SLAs, Historie und Anhänge
+
 ## 1.5.8 – 2026-08-06
 
 - Kalender: Tagesübersicht über dem Raster, Toolbar mit Segment-Switch und klarerer Navigation

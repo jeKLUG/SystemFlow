@@ -93,7 +93,7 @@ export function RemindersPage() {
           <ul className="list">
             {data.tasks.map((t) => (
               <li key={t.id}>
-                <Link className="list-row" to={`/customers/${t.customerId}`}>
+                <Link className="list-row" to={`/customers/${t.customerId}/tasks`}>
                   <div>
                     <strong>{t.title}</strong>
                     <span className="muted">

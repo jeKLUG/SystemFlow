@@ -10,8 +10,8 @@ import {
   polishActivityText,
   type ActivityKind,
 } from "../../lib/activity";
-import { formatDate, formatDateOnly } from "../../lib/labels";
-import type { Activity, TaskItem } from "../../types";
+import { formatDate } from "../../lib/labels";
+import type { Activity } from "../../types";
 
 function ActivityIcon({ kind }: { kind: ActivityKind }) {
   const props = {
@@ -62,24 +62,17 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
 }
 
 /**
- * Betrieb: Aufgaben, SLAs, Historie und Anhänge.
+ * Betrieb: SLAs, Historie und Anhänge (Aufgaben liegen unter eigenem Tab).
  */
 export function CustomerOpsPage() {
   const { id = "" } = useParams();
   const [activityList, setActivityList] = useState<Activity[]>([]);
-  const [taskList, setTaskList] = useState<TaskItem[]>([]);
   const [contractList, setContractList] = useState<Awaited<ReturnType<typeof api.contracts>>>([]);
   const [activityForm, setActivityForm] = useState({ title: "", description: "" });
-  const [taskForm, setTaskForm] = useState({ title: "", description: "", dueDate: "" });
 
   async function reload() {
-    const [h, tasks, contracts] = await Promise.all([
-      api.activities(id),
-      api.tasks(id),
-      api.contracts(id),
-    ]);
+    const [h, contracts] = await Promise.all([api.activities(id), api.contracts(id)]);
     setActivityList(h);
-    setTaskList(tasks);
     setContractList(contracts);
   }
 
@@ -96,75 +89,8 @@ export function CustomerOpsPage() {
     await reload();
   }
 
-  async function createTask(e: FormEvent) {
-    e.preventDefault();
-    await api.createTask(id, taskForm);
-    setTaskForm({ title: "", description: "", dueDate: "" });
-    await reload();
-  }
-
   return (
     <>
-      <section className="section">
-        <div className="section-head">
-          <h2>Aufgaben</h2>
-          <p>Offene Punkte mit optionaler Fälligkeit.</p>
-        </div>
-        <form className="panel inline-form" onSubmit={createTask}>
-          <input
-            placeholder="Aufgabe"
-            value={taskForm.title}
-            onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
-            required
-          />
-          <input
-            type="date"
-            value={taskForm.dueDate}
-            onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-          />
-          <button className="btn btn-primary" type="submit">
-            Hinzufügen
-          </button>
-        </form>
-        {taskList.length === 0 ? (
-          <p className="empty">Keine Aufgaben.</p>
-        ) : (
-          <ul className="list">
-            {taskList.map((task) => (
-              <li key={task.id} className="list-row">
-                <label className="task-check">
-                  <input
-                    type="checkbox"
-                    checked={task.done}
-                    onChange={() =>
-                      void api
-                        .updateTask(task.id, {
-                          title: task.title,
-                          description: task.description ?? "",
-                          dueDate: task.dueDate ?? "",
-                          done: !task.done,
-                        })
-                        .then(() => reload())
-                    }
-                  />
-                  <div>
-                    <strong className={task.done ? "done" : undefined}>{task.title}</strong>
-                    <span className="muted">Fällig: {formatDateOnly(task.dueDate)}</span>
-                  </div>
-                </label>
-                <button
-                  type="button"
-                  className="btn btn-danger btn-sm"
-                  onClick={() => void api.deleteTask(task.id).then(() => reload())}
-                >
-                  Löschen
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <CustomerSlaPanel customerId={id} contracts={contractList} onChanged={reload} />
 
       <section className="section">

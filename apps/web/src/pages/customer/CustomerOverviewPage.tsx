@@ -95,7 +95,7 @@ export function CustomerOverviewPage() {
           <strong>{stats.hours}</strong>
           <span>Stunden gesamt</span>
         </Link>
-        <Link className="stat-chip" to="ops">
+        <Link className="stat-chip" to="tasks">
           <strong>{stats.openTasks}</strong>
           <span>Offene Aufgaben</span>
         </Link>
