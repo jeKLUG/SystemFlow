@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.25 – 2026-08-06
+
+- SLA/Verträge: PDF-Export als druckfertiger Vertragsbogen (Parteien, SLA-Matrix, Kontakte, Unterschrift)
+
 ## 1.5.24 – 2026-08-06
 
 - Zeiterfassung: Status „abgerechnet“ je Eintrag, Kennzahlen für offene Stunden/Beträge

@@ -361,19 +361,6 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
         </div>
       ) : null}
 
-      {scoped ? (
-        <div className="vault-scoped-bar">
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {busy ? "Lädt…" : "Datei hochladen"}
-          </button>
-        </div>
-      ) : null}
-
       {embedded && !scoped ? (
         <div className="vault-embedded-actions">
           <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>

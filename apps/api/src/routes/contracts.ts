@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { contractStatuses, contracts, customers } from "../db/schema.js";
+import { buildContractPdf } from "../lib/contract-pdf.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 
@@ -128,6 +129,30 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
     };
     await db.insert(contracts).values(row);
     return reply.code(201).send(row);
+  });
+
+  /** Einzelnen SLA-/Vertrag als PDF. */
+  app.get("/api/contracts/:id/pdf", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const row = await db.select().from(contracts).where(eq(contracts.id, id)).get();
+    if (!row) return reply.code(404).send({ error: "Vertrag nicht gefunden" });
+
+    const customer = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, row.customerId))
+      .get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const buffer = await buildContractPdf(customer, row);
+    const base = (row.contractNumber || row.title)
+      .replace(/[^\w\-äöüÄÖÜß]+/gi, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 80);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header("Content-Disposition", `attachment; filename="SLA_${base || "Vertrag"}.pdf"`)
+      .send(buffer);
   });
 
   app.put("/api/contracts/:id", async (request, reply) => {

@@ -435,6 +435,11 @@ export const api = {
     const safe = (title || documentId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 60);
     await downloadPdf(`/api/documents/${documentId}/pdf`, `${safe || "wiki"}.pdf`);
   },
+  /** SLA-/Vertrag als PDF herunterladen. */
+  exportContractPdf: async (contractId: string, title?: string) => {
+    const safe = (title || contractId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 60);
+    await downloadPdf(`/api/contracts/${contractId}/pdf`, `SLA_${safe || "Vertrag"}.pdf`);
+  },
 };
 
 async function downloadPdf(url: string, fallbackName: string) {

@@ -120,6 +120,7 @@ export function CustomerSlaPanel({ customerId, contracts, onChanged }: Props) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
 
   const sorted = useMemo(() => {
     const rank: Record<ContractStatus, number> = {
@@ -215,6 +216,22 @@ export function CustomerSlaPanel({ customerId, contracts, onChanged }: Props) {
                       onClick={() => setExpandedId(expanded ? null : c.id)}
                     >
                       {expanded ? "Weniger" : "Details"}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      disabled={pdfBusyId === c.id}
+                      onClick={() => {
+                        setPdfBusyId(c.id);
+                        void api
+                          .exportContractPdf(c.id, c.contractNumber || c.title)
+                          .catch((err) =>
+                            alert(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
+                          )
+                          .finally(() => setPdfBusyId(null));
+                      }}
+                    >
+                      {pdfBusyId === c.id ? "PDF…" : "PDF"}
                     </button>
                     <button
                       type="button"

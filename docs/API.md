@@ -152,6 +152,7 @@ Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat
 |---------|------|
 | GET/POST | `/api/customers/:id/contracts` |
 | PUT/DELETE | `/api/contracts/:id` |
+| GET | `/api/contracts/:id/pdf` (SLA/Vertrag als PDF) |
 
 ## Anhänge / Dokumentenablage
 
