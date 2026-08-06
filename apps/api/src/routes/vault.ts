@@ -109,6 +109,7 @@ function mapEntryMeta(r: {
   hasPassword: string | null;
   hasUrl: string | null;
   hasNotes: string | null;
+  hasTotp: string | null;
 }) {
   return {
     id: r.id,
@@ -125,6 +126,7 @@ function mapEntryMeta(r: {
     hasPassword: Boolean(r.hasPassword),
     hasUrl: Boolean(r.hasUrl),
     hasNotes: Boolean(r.hasNotes),
+    hasTotp: Boolean(r.hasTotp),
   };
 }
 
@@ -293,6 +295,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         hasPassword: vaultEntries.passwordEnc,
         hasUrl: vaultEntries.urlEnc,
         hasNotes: vaultEntries.notesEnc,
+        hasTotp: vaultEntries.totpSecretEnc,
       })
       .from(vaultEntries)
       .leftJoin(customers, eq(vaultEntries.customerId, customers.id))
@@ -320,6 +323,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         password: z.string().max(2000).optional().or(z.literal("")),
         url: z.string().max(2000).optional().or(z.literal("")),
         notes: z.string().max(10000).optional().or(z.literal("")),
+        totpSecret: z.string().max(500).optional().or(z.literal("")),
       })
       .safeParse(request.body);
     if (!parsed.success) {
@@ -349,6 +353,9 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         : null,
       urlEnc: emptyToNull(parsed.data.url) ? encryptText(dek, parsed.data.url!.trim()) : null,
       notesEnc: emptyToNull(parsed.data.notes) ? encryptText(dek, parsed.data.notes!) : null,
+      totpSecretEnc: emptyToNull(parsed.data.totpSecret)
+        ? encryptText(dek, parsed.data.totpSecret!.trim())
+        : null,
       createdAt: now,
       updatedAt: now,
     };
@@ -363,6 +370,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         hasPassword: row.passwordEnc,
         hasUrl: row.urlEnc,
         hasNotes: row.notesEnc,
+        hasTotp: row.totpSecretEnc,
       }),
     );
   });
@@ -388,6 +396,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         password: row.passwordEnc ? decryptText(dek, row.passwordEnc) : null,
         url: row.urlEnc ? decryptText(dek, row.urlEnc) : null,
         notes: row.notesEnc ? decryptText(dek, row.notesEnc) : null,
+        totpSecret: row.totpSecretEnc ? decryptText(dek, row.totpSecretEnc) : null,
       };
     } catch {
       return reply.code(500).send({ error: "Entschlüsselung fehlgeschlagen" });
@@ -414,6 +423,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         password: z.string().max(2000).optional().nullable(),
         url: z.string().max(2000).optional().nullable(),
         notes: z.string().max(10000).optional().nullable(),
+        totpSecret: z.string().max(500).optional().nullable(),
       })
       .safeParse(request.body);
     if (!parsed.success) {
@@ -450,6 +460,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       passwordEnc: encOrKeep(parsed.data.password, existing.passwordEnc),
       urlEnc: encOrKeep(parsed.data.url, existing.urlEnc),
       notesEnc: encOrKeep(parsed.data.notes, existing.notesEnc),
+      totpSecretEnc: encOrKeep(parsed.data.totpSecret, existing.totpSecretEnc),
       updatedAt: new Date(),
     };
 
@@ -467,6 +478,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       hasPassword: updated.passwordEnc,
       hasUrl: updated.urlEnc,
       hasNotes: updated.notesEnc,
+      hasTotp: updated.totpSecretEnc,
     });
   });
 

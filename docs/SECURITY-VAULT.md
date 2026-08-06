@@ -9,9 +9,10 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 1. Beim Einrichten wird ein zufälliger **DEK** (256 Bit) erzeugt.
 2. Aus der **Vault-Passphrase** wird mit **scrypt** ein **KEK** abgeleitet.
 3. Der DEK wird mit **AES-256-GCM** (KEK) gewrappt in `vault_meta` gespeichert.
-4. Pro Eintrag werden Benutzername, Passwort, URL und Notizen jeweils mit dem DEK und AES-256-GCM verschlüsselt (`vault_entries`).
+4. Pro Eintrag werden Benutzername, Passwort, URL, Notizen und optional **TOTP-Secret (2FA)** jeweils mit dem DEK und AES-256-GCM verschlüsselt (`vault_entries`).
 5. Nach Freischalten liegt der DEK **nur im Server-RAM** (Map, TTL ~15 Min., Sliding). **Nicht** im Session-Cookie.
 6. Logout löscht den DEK aus dem RAM.
+7. **2FA-Codes** werden nach Reveal **nur im Browser** aus dem entschlüsselten TOTP-Secret berechnet (RFC 6238).
 
 ## Was absichtlich nicht passiert
 
@@ -32,8 +33,9 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 
 - **Kategorien** (Klartext-Metadaten): VPN, Admin, Hosting, E-Mail, Firewall, Remote, WLAN, Datenbank, Cloud, Lizenz, Microsoft 365, Provider, Sonstiges
 - **Tags** und **Favoriten** sind Klartext zur Filterung (keine Geheimnisse)
-- Geheimnisse (Benutzer, Passwort, URL, Notizen) bleiben AES-256-GCM-verschlüsselt
+- Geheimnisse (Benutzer, Passwort, URL, Notizen, TOTP-Secret) bleiben AES-256-GCM-verschlüsselt
 - **Passwort-Generator** läuft im Browser; der Verlauf liegt nur in `localStorage` (nicht auf dem Server)
+- **2FA / TOTP**: Secret verschlüsselt speichern; Live-Codes nach „Anzeigen“ lokal erzeugen (otpauth:// oder Base32)
 
 ## API (Kurz)
 

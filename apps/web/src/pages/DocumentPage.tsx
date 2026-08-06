@@ -104,7 +104,12 @@ export function DocumentPage() {
         </button>
       </div>
 
-      <DocumentEditor content={content} onChange={setContent} />
+      <DocumentEditor
+        content={content}
+        onChange={setContent}
+        customerId={doc.customerId}
+        documentId={doc.id}
+      />
 
       <section className="section">
         <div className="section-head">

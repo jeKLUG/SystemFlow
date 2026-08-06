@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.18 – 2026-08-06
+
+- Wiki-Editor: Icon-Toolbar, Inline-Bilder mit Upload/Paste/Drop und Skalierung
+
+## 1.5.17 – 2026-08-06
+
+- Passworttresor: 2FA/TOTP pro Eintrag (verschlüsseltes Secret, Live-Code mit Countdown)
+
 ## 1.5.16 – 2026-08-06
 
 - Dokumente-Hub: Wiki und Dateiablage unter einem Tab, Ablage aus Betrieb entfernt

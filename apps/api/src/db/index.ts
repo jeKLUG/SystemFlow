@@ -369,6 +369,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "responsible_person", "TEXT");
   await ensureColumn(client, "vault_entries", "favorite", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "vault_entries", "tags_json", "TEXT NOT NULL DEFAULT '[]'");
+  await ensureColumn(client, "vault_entries", "totp_secret_enc", "TEXT");
   await ensureColumn(client, "attachments", "updated_at", "INTEGER");
   await ensureColumn(client, "attachments", "folder_id", "TEXT");
   await ensureColumn(client, "attachments", "description", "TEXT");

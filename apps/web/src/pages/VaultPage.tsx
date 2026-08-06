@@ -13,6 +13,7 @@ import {
   type GenHistoryItem,
   type GeneratorOptions,
 } from "../lib/passwordGenerator";
+import { formatTotpCode, generateTotp, normalizeTotpSecret } from "../lib/totp";
 import type { VaultCategory, VaultEntryMeta, VaultEntrySecret, VaultStatus } from "../types";
 
 type SortKey = "updated" | "title" | "category" | "customer";
@@ -25,6 +26,7 @@ type EntryForm = {
   password: string;
   url: string;
   notes: string;
+  totpSecret: string;
   favorite: boolean;
   tagsText: string;
 };
@@ -37,6 +39,7 @@ const emptyForm: EntryForm = {
   password: "",
   url: "",
   notes: "",
+  totpSecret: "",
   favorite: false,
   tagsText: "",
 };
@@ -187,6 +190,7 @@ export function VaultPage() {
         password: "",
         url: secret.url ?? "",
         notes: secret.notes ?? "",
+        totpSecret: "",
         favorite: Boolean(secret.favorite ?? entry.favorite),
         tagsText: (secret.tags ?? entry.tags ?? []).join(", "),
       });
@@ -214,6 +218,8 @@ export function VaultPage() {
           tags,
         };
         if (form.password.trim()) body.password = form.password;
+        if (form.totpSecret.trim() === "-") body.totpSecret = null;
+        else if (form.totpSecret.trim()) body.totpSecret = normalizeTotpSecret(form.totpSecret);
         await api.vaultUpdateEntry(editingId, body);
       } else {
         await api.vaultCreateEntry({
@@ -224,6 +230,9 @@ export function VaultPage() {
           password: form.password,
           url: form.url,
           notes: form.notes,
+          totpSecret: form.totpSecret.trim()
+            ? normalizeTotpSecret(form.totpSecret)
+            : undefined,
           favorite: form.favorite,
           tags,
         });
@@ -801,6 +810,23 @@ export function VaultPage() {
                   placeholder="https://…"
                 />
               </label>
+              <label className="field full">
+                <span>
+                  2FA / TOTP-Secret
+                  {editingId ? " (leer = behalten, „-“ zum Entfernen)" : ""}
+                </span>
+                <input
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={form.totpSecret}
+                  onChange={(e) => setForm({ ...form, totpSecret: e.target.value })}
+                  placeholder="Base32-Secret oder otpauth://…"
+                />
+                <span className="muted field-hint">
+                  Secret aus dem Authenticator oder otpauth-URI einfügen – Codes werden lokal
+                  erzeugt.
+                </span>
+              </label>
               <label className="field">
                 <span>Tags</span>
                 <input
@@ -895,6 +921,15 @@ export function VaultPage() {
                     ) : null}
                   </p>
                 </div>
+                {revealed.totpSecret ? (
+                  <div className="full">
+                    <span className="label">2FA-Code</span>
+                    <TotpLiveCode
+                      secret={revealed.totpSecret}
+                      onCopy={(code) => void copyText(code, "2FA-Code kopiert")}
+                    />
+                  </div>
+                ) : null}
                 {revealed.notes ? (
                   <div className="full">
                     <span className="label">Notizen</span>
@@ -967,6 +1002,7 @@ export function VaultPage() {
                             {[
                               entry.hasUsername && "Benutzer",
                               entry.hasPassword && "Passwort",
+                              entry.hasTotp && "2FA",
                               entry.hasUrl && "URL",
                               entry.hasNotes && "Notizen",
                             ]
@@ -1015,6 +1051,66 @@ export function VaultPage() {
               ))}
             </div>
           )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Live-TOTP mit Countdown und Kopieren.
+ */
+function TotpLiveCode({
+  secret,
+  onCopy,
+}: {
+  secret: string;
+  onCopy: (code: string) => void;
+}) {
+  const [code, setCode] = useState("------");
+  const [remaining, setRemaining] = useState(30);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function tick() {
+      try {
+        const result = await generateTotp(secret);
+        if (cancelled) return;
+        setCode(result.code);
+        setRemaining(result.remaining);
+        setError("");
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Ungültiges TOTP-Secret");
+          setCode("------");
+        }
+      }
+    }
+    void tick();
+    const id = window.setInterval(() => void tick(), 1000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [secret]);
+
+  return (
+    <div className="vault-totp">
+      {error ? (
+        <p className="form-error">{error}</p>
+      ) : (
+        <>
+          <p className="vault-secret-line vault-totp-line">
+            <span className="vault-mono vault-totp-code">{formatTotpCode(code)}</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => onCopy(code)}>
+              Kopieren
+            </button>
+          </p>
+          <div className="vault-totp-meter" aria-hidden>
+            <i style={{ width: `${(remaining / 30) * 100}%` }} />
+          </div>
+          <span className="muted vault-totp-remaining">{remaining}s</span>
         </>
       )}
     </div>

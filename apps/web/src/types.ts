@@ -55,6 +55,7 @@ export interface VaultEntryMeta {
   hasPassword: boolean;
   hasUrl: boolean;
   hasNotes: boolean;
+  hasTotp: boolean;
 }
 
 export interface VaultEntrySecret {
@@ -68,6 +69,7 @@ export interface VaultEntrySecret {
   password: string | null;
   url: string | null;
   notes: string | null;
+  totpSecret: string | null;
 }
 
 export interface User {

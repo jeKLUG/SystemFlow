@@ -119,7 +119,7 @@ Siehe auch [SECURITY-VAULT.md](SECURITY-VAULT.md). Freischaltung mit eigener Vau
 | GET | `/api/vault/entries/:id/reveal` | Klartext (zeitlich begrenzt in der UI) |
 | DELETE | `/api/vault/entries/:id` | Löschen |
 
-Body: `title`, optional `category`, `favorite`, `tags[]`, `customerId`, `username`, `password`, `url`, `notes`.  
+Body: `title`, optional `category`, `favorite`, `tags[]`, `customerId`, `username`, `password`, `url`, `notes`, `totpSecret` (Base32 oder nach Client-Normalisierung).  
 Kategorien: `vpn` · `admin` · `hosting` · `email` · `firewall` · `remote` · `wifi` · `database` · `cloud` · `license` · `office` · `isp` · `other`.
 
 ## Vorlagen & Suche

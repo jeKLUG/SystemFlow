@@ -15,6 +15,8 @@ interface Props {
 
 type Layout = "grid" | "list";
 
+const VAULT_DRAG_TYPE = "application/x-systemhaus-attachment";
+
 /**
  * Dokumentenablage: Ordner, Drag&Drop-Upload, Suche und Dateikarten.
  * Bei Wiki-/Anlagen-Bezug kompakter ohne Ordnerhierarchie.
@@ -31,6 +33,8 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const [dragFileId, setDragFileId] = useState<string | null>(null);
+  const [dropFolderId, setDropFolderId] = useState<string | null>(null);
   const [folderOpen, setFolderOpen] = useState(false);
   const [folderName, setFolderName] = useState("");
   const [renameTarget, setRenameTarget] = useState<AttachmentItem | null>(null);
@@ -162,10 +166,86 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
     }
   }
 
-  function onDrop(e: DragEvent) {
+  function isInternalMove(dt: DataTransfer) {
+    return [...dt.types].includes(VAULT_DRAG_TYPE);
+  }
+
+  function onDropZoneDrop(e: DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    void onUpload(e.dataTransfer.files);
+    setDropFolderId(null);
+    setDragFileId(null);
+    const movedId = e.dataTransfer.getData(VAULT_DRAG_TYPE);
+    // Interne Verschiebe-Drags nie als Upload interpretieren (sonst Duplikate bei Bildern)
+    if (movedId) return;
+    if (e.dataTransfer.files?.length) void onUpload(e.dataTransfer.files);
+  }
+
+  async function moveFileToFolder(fileId: string, targetFolderId: string | null) {
+    setBusy(true);
+    setError("");
+    setMenuId(null);
+    try {
+      await api.updateAttachment(fileId, { folderId: targetFolderId });
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Verschieben fehlgeschlagen");
+    } finally {
+      setBusy(false);
+      setDragFileId(null);
+      setDropFolderId(null);
+    }
+  }
+
+  function onFileDragStart(e: DragEvent, file: AttachmentItem) {
+    if (scoped) return;
+    e.dataTransfer.setData(VAULT_DRAG_TYPE, file.id);
+    e.dataTransfer.setData("text/plain", file.id);
+    e.dataTransfer.effectAllowed = "move";
+    setDragFileId(file.id);
+    setMenuId(null);
+  }
+
+  function onFileDragEnd() {
+    setDragFileId(null);
+    setDropFolderId(null);
+  }
+
+  function onFolderDragOver(e: DragEvent, id: string) {
+    if (!isInternalMove(e.dataTransfer) && !e.dataTransfer.types.includes("Files")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = isInternalMove(e.dataTransfer) ? "move" : "copy";
+    setDropFolderId(id);
+  }
+
+  function onFolderDrop(e: DragEvent, targetId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const movedId = e.dataTransfer.getData(VAULT_DRAG_TYPE);
+    setDropFolderId(null);
+    setDragOver(false);
+    if (movedId) {
+      void moveFileToFolder(movedId, targetId);
+      return;
+    }
+    // Externe Dateien: direkt in diesen Ordner hochladen
+    if (e.dataTransfer.files?.length) {
+      void (async () => {
+        setBusy(true);
+        setError("");
+        try {
+          for (const file of Array.from(e.dataTransfer.files)) {
+            await api.uploadAttachment(customerId, file, { folderId: targetId });
+          }
+          await reload();
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
+        } finally {
+          setBusy(false);
+        }
+      })();
+    }
   }
 
   async function createFolder(e: FormEvent) {
@@ -324,8 +404,27 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
           <nav className="vault-crumbs" aria-label="Ordnerpfad">
             <button
               type="button"
-              className={!folderId ? "is-current" : undefined}
+              className={`vault-crumb-btn${!folderId ? " is-current" : ""}${dropFolderId === "__root__" ? " is-drop-target" : ""}`}
               onClick={() => setFolderId(null)}
+              onDragEnter={(e) => {
+                if (!isInternalMove(e.dataTransfer)) return;
+                e.preventDefault();
+                setDropFolderId("__root__");
+              }}
+              onDragOver={(e) => {
+                if (!isInternalMove(e.dataTransfer)) return;
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDropFolderId("__root__");
+              }}
+              onDragLeave={() => setDropFolderId((cur) => (cur === "__root__" ? null : cur))}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const movedId = e.dataTransfer.getData(VAULT_DRAG_TYPE);
+                setDropFolderId(null);
+                if (movedId) void moveFileToFolder(movedId, null);
+              }}
             >
               Root
             </button>
@@ -334,8 +433,14 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                 <span aria-hidden>/</span>
                 <button
                   type="button"
-                  className={folderId === crumb.id ? "is-current" : undefined}
+                  className={`vault-crumb-btn${folderId === crumb.id ? " is-current" : ""}${dropFolderId === crumb.id ? " is-drop-target" : ""}`}
                   onClick={() => setFolderId(crumb.id)}
+                  onDragEnter={(e) => onFolderDragOver(e, crumb.id)}
+                  onDragOver={(e) => onFolderDragOver(e, crumb.id)}
+                  onDragLeave={() =>
+                    setDropFolderId((cur) => (cur === crumb.id ? null : cur))
+                  }
+                  onDrop={(e) => onFolderDrop(e, crumb.id)}
                 >
                   {crumb.name}
                 </button>
@@ -391,21 +496,27 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
       ) : null}
 
       <div
-        className={`vault-dropzone${dragOver ? " is-over" : ""}${busy ? " is-busy" : ""}`}
+        className={`vault-dropzone${dragOver ? " is-over" : ""}${busy ? " is-busy" : ""}${dragFileId ? " is-moving" : ""}`}
         onDragEnter={(e) => {
           e.preventDefault();
+          if (isInternalMove(e.dataTransfer)) return;
           setDragOver(true);
         }}
         onDragOver={(e) => {
           e.preventDefault();
+          if (isInternalMove(e.dataTransfer)) {
+            e.dataTransfer.dropEffect = "move";
+            return;
+          }
           setDragOver(true);
+          e.dataTransfer.dropEffect = "copy";
         }}
         onDragLeave={(e) => {
           e.preventDefault();
           if (e.currentTarget.contains(e.relatedTarget as Node)) return;
           setDragOver(false);
         }}
-        onDrop={onDrop}
+        onDrop={onDropZoneDrop}
       >
         {error ? <p className="form-error">{error}</p> : null}
 
@@ -438,26 +549,41 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
         ) : (
           <div className={`vault-board is-${layout}`}>
             {filteredFolders.map((folder) => (
-              <article key={folder.id} className="vault-card is-folder">
+              <article
+                key={folder.id}
+                className={`vault-card is-folder${dropFolderId === folder.id ? " is-drop-target" : ""}`}
+                onDragEnter={(e) => onFolderDragOver(e, folder.id)}
+                onDragOver={(e) => onFolderDragOver(e, folder.id)}
+                onDragLeave={(e) => {
+                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                  setDropFolderId((cur) => (cur === folder.id ? null : cur));
+                }}
+                onDrop={(e) => onFolderDrop(e, folder.id)}
+              >
                 <button
                   type="button"
                   className="vault-card-main"
                   onClick={() => setFolderId(folder.id)}
                 >
-                  <span className="vault-card-icon is-folder" aria-hidden>
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                      <path
-                        d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
+                  <span className="vault-card-media is-folder" aria-hidden>
+                    <span className="vault-card-icon is-folder">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                        <path
+                          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </span>
                   </span>
                   <span className="vault-card-body">
                     <strong>{folder.name}</strong>
-                    <span className="muted">{folderCounts.get(folder.id) ?? 0} Einträge</span>
+                    <span className="muted">
+                      {folderCounts.get(folder.id) ?? 0} Einträg
+                      {(folderCounts.get(folder.id) ?? 0) === 1 ? "" : "e"}
+                    </span>
                   </span>
                 </button>
-                <span className={`vault-more${menuId === folder.id ? " is-open" : ""}`}>
+                <div className={`vault-card-actions vault-more${menuId === folder.id ? " is-open" : ""}`}>
                   <button
                     type="button"
                     className="btn btn-ghost btn-icon"
@@ -512,7 +638,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       </button>
                     </div>
                   ) : null}
-                </span>
+                </div>
               </article>
             ))}
 
@@ -520,7 +646,13 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
               const kind = fileKind(file.mimeType, file.originalName);
               const isImage = kind === "image";
               return (
-                <article key={file.id} className={`vault-card is-file kind-${kind}`}>
+                <article
+                  key={file.id}
+                  className={`vault-card is-file kind-${kind}${dragFileId === file.id ? " is-dragging" : ""}`}
+                  draggable={!scoped}
+                  onDragStart={(e) => onFileDragStart(e, file)}
+                  onDragEnd={onFileDragEnd}
+                >
                   <button
                     type="button"
                     className="vault-card-main"
@@ -529,22 +661,26 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       else window.open(`/api/attachments/${file.id}/download?inline=1`, "_blank");
                     }}
                   >
-                    <span className={`vault-card-icon kind-${kind}`} aria-hidden>
-                      {isImage ? (
-                        <img
-                          src={`/api/attachments/${file.id}/download?inline=1`}
-                          alt=""
-                          loading="lazy"
-                        />
-                      ) : (
-                        <FileGlyph kind={kind} />
-                      )}
+                    <span className={`vault-card-media kind-${kind}`} aria-hidden>
+                      <span className={`vault-card-icon kind-${kind}`}>
+                        {isImage ? (
+                          <img
+                            src={`/api/attachments/${file.id}/download?inline=1`}
+                            alt=""
+                            loading="lazy"
+                            draggable={false}
+                          />
+                        ) : (
+                          <FileGlyph kind={kind} />
+                        )}
+                      </span>
                     </span>
                     <span className="vault-card-body">
                       <strong title={file.originalName}>{file.originalName}</strong>
                       <span className="muted">
-                        {kindLabel(kind)} · {formatBytes(file.size)} · {formatDate(file.createdAt)}
+                        {kindLabel(kind)} · {formatBytes(file.size)}
                       </span>
+                      <span className="muted vault-card-date">{formatDate(file.createdAt)}</span>
                       {file.description ? (
                         <span className="vault-card-desc">{file.description}</span>
                       ) : null}
@@ -557,6 +693,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       download
                       aria-label="Herunterladen"
                       title="Herunterladen"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                         <path d="M12 4v10M8 10l4 4 4-4M5 18h14" strokeLinecap="round" strokeLinejoin="round" />
@@ -582,7 +719,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                           </button>
                           {!scoped ? (
                             <button type="button" role="menuitem" onClick={() => openMove(file)}>
-                              Verschieben
+                              Verschieben…
                             </button>
                           ) : null}
                           <a
@@ -615,7 +752,11 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
           </div>
         )}
 
-        <p className="vault-drop-hint muted">Dateien zum Hochladen hierher ziehen</p>
+        <p className="vault-drop-hint muted">
+          {scoped
+            ? "Dateien zum Hochladen hierher ziehen"
+            : "Dateien hochladen · Dateien auf Ordner ziehen zum Verschieben"}
+        </p>
       </div>
 
       <Modal open={folderOpen} title="Ordner anlegen" onClose={() => setFolderOpen(false)}>

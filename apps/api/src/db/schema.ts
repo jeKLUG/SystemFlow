@@ -348,6 +348,8 @@ export const vaultEntries = sqliteTable("vault_entries", {
   passwordEnc: text("password_enc"),
   urlEnc: text("url_enc"),
   notesEnc: text("notes_enc"),
+  /** TOTP-Secret (Base32), verschlüsselt – für 2FA-Codes. */
+  totpSecretEnc: text("totp_secret_enc"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
