@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.36 – 2026-08-06
+
+- Übersicht: Dashboard mit Donut-/Balken-/Wochen-Diagrammen zu Aufgaben, Terminen, Abläufen und Kunden
+
 ## 1.5.35 – 2026-08-06
 
 - Kalender mobil: Monat mit Dots, Woche als Tagesstreifen, Raster oben / Agenda darunter

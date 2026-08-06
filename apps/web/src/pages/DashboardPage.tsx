@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { ChartLegend, ColumnChart, DonutChart, HBarChart } from "../components/DashCharts";
 import { customerDisplayName } from "../lib/customer";
 import { localTodayIso } from "../lib/dates";
 import {
@@ -10,6 +11,7 @@ import {
   formatDateOnly,
 } from "../lib/labels";
 import {
+  addDaysIso,
   dueLabel,
   filterTasksByView,
   groupOpenTasks,
@@ -20,6 +22,7 @@ import {
 } from "../lib/tasks";
 import type {
   AppointmentItem,
+  AppointmentKind,
   RecentDocument,
   Reminders,
   Stats,
@@ -36,8 +39,22 @@ const taskFilters: { id: TaskFilter; label: string; short: string }[] = [
   { id: "inbox", label: "Inbox", short: "Inbox" },
 ];
 
+const prioColors: Record<TaskPriority, string> = {
+  1: "#f87171",
+  2: "#fbbf24",
+  3: "#60a5fa",
+  4: "#94a3b8",
+};
+
+const kindColors: Record<AppointmentKind, string> = {
+  customer: "#34d399",
+  internal: "#38bdf8",
+  personal: "#fbbf24",
+  other: "#94a3b8",
+};
+
 /**
- * Start-Dashboard: Kennzahlen, Aufgabenüberblick, Termine und Erinnerungen.
+ * Start-Dashboard: Kennzahlen, Diagramme, Aufgaben, Termine und Erinnerungen.
  */
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -49,13 +66,16 @@ export function DashboardPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const todayIso = localTodayIso();
+  const weekEnd = addDaysIso(todayIso, 6);
+
   useEffect(() => {
     void Promise.all([
       api.stats(),
       api.recentDocuments(),
       api.openTasks(),
       api.reminders(30),
-      api.appointments({ upcoming: true, limit: 8 }),
+      api.appointments({ from: todayIso, to: weekEnd }),
     ])
       .then(([s, r, t, rem, appts]) => {
         setStats(s);
@@ -65,14 +85,16 @@ export function DashboardPage() {
         setAppointments(appts);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [todayIso, weekEnd]);
 
   const summary = useMemo(() => summarizeTasks(openTasks), [openTasks]);
 
-  const reminderCount =
-    (reminders?.warranties.length ?? 0) +
-    (reminders?.contracts.length ?? 0) +
-    (reminders?.tasks.length ?? 0);
+  const reminderCounts = useMemo(() => {
+    const warranties = reminders?.warranties.length ?? 0;
+    const contracts = reminders?.contracts.length ?? 0;
+    const tasks = reminders?.tasks.length ?? 0;
+    return { warranties, contracts, tasks, total: warranties + contracts + tasks };
+  }, [reminders]);
 
   const filteredTasks = useMemo(() => {
     const view = filter as TaskView;
@@ -84,9 +106,86 @@ export function DashboardPage() {
     return groupOpenTasks(sortTasks(openTasks, "due")).filter((g) => g.key !== "done");
   }, [openTasks, filter]);
 
-  const todayIso = localTodayIso();
   const todayAppts = appointments.filter((a) => a.startDate === todayIso);
-  const laterAppts = appointments.filter((a) => a.startDate !== todayIso).slice(0, 5);
+  const laterAppts = appointments
+    .filter((a) => a.startDate !== todayIso)
+    .slice(0, 5);
+
+  const statusSlices = useMemo(
+    () =>
+      [
+        { label: "Überfällig", value: summary.overdue, color: "#f87171" },
+        {
+          label: "Heute",
+          value: Math.max(0, summary.today - summary.overdue),
+          color: "#60a5fa",
+        },
+        {
+          label: "Geplant",
+          value: filterTasksByView(openTasks, "upcoming").length,
+          color: "#34d399",
+        },
+        { label: "Inbox", value: summary.inbox, color: "#94a3b8" },
+      ].filter((s) => s.value > 0),
+    [summary, openTasks],
+  );
+
+  const prioBars = useMemo(() => {
+    const counts: Record<TaskPriority, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const t of openTasks.filter((x) => !x.done)) {
+      const p = (Number(t.priority) || 4) as TaskPriority;
+      counts[p] += 1;
+    }
+    return ([1, 2, 3, 4] as TaskPriority[]).map((p) => ({
+      label: priorityLabel[p],
+      value: counts[p],
+      color: prioColors[p],
+    }));
+  }, [openTasks]);
+
+  const weekColumns = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const iso = addDaysIso(todayIso, i);
+      const d = new Date(`${iso}T12:00:00`);
+      const label = new Intl.DateTimeFormat("de-DE", { weekday: "short" }).format(d);
+      const value = appointments.filter(
+        (a) => a.startDate <= iso && (a.endDate || a.startDate) >= iso,
+      ).length;
+      return {
+        label,
+        value,
+        active: iso === todayIso,
+        tone: value > 0 ? "linear-gradient(180deg, #7ab0ff, #3b82f6)" : undefined,
+      };
+    });
+  }, [appointments, todayIso]);
+
+  const kindSlices = useMemo(() => {
+    const map: Record<AppointmentKind, number> = {
+      customer: 0,
+      internal: 0,
+      personal: 0,
+      other: 0,
+    };
+    for (const a of appointments) map[a.kind] += 1;
+    return (Object.keys(map) as AppointmentKind[])
+      .map((k) => ({
+        label: appointmentKindLabel[k],
+        value: map[k],
+        color: kindColors[k],
+      }))
+      .filter((s) => s.value > 0);
+  }, [appointments]);
+
+  const reminderBars = useMemo(
+    () =>
+      [
+        { label: "Garantien", value: reminderCounts.warranties, color: "#fbbf24" },
+        { label: "Verträge", value: reminderCounts.contracts, color: "#60a5fa" },
+        { label: "Aufgaben", value: reminderCounts.tasks, color: "#34d399" },
+      ].filter((x) => x.value > 0),
+    [reminderCounts],
+  );
 
   async function toggleDone(task: TaskItem) {
     setBusyId(task.id);
@@ -105,13 +204,17 @@ export function DashboardPage() {
     month: "long",
   }).format(new Date());
 
+  const inactiveCustomers = Math.max(0, (stats?.customerCount ?? 0) - (stats?.activeCount ?? 0));
+
   return (
     <div className="page dashboard-page">
       <header className="page-header dashboard-header">
         <div>
           <p className="eyebrow">{dateLabel}</p>
           <h2>{greet}</h2>
-          <p className="dashboard-lede">Aufgaben, Termine und Abläufe auf einen Blick.</p>
+          <p className="dashboard-lede">
+            Lagebild mit Kennzahlen, Diagrammen und dem, was heute zählt.
+          </p>
         </div>
         <div className="page-actions dashboard-actions">
           <Link className="btn btn-ghost dashboard-action-secondary" to="/calendar">
@@ -130,7 +233,10 @@ export function DashboardPage() {
         <Link className="dash-kpi" to="/customers">
           <span className="dash-kpi-label">Kunden</span>
           <strong>{stats?.customerCount ?? "–"}</strong>
-          <span className="dash-kpi-meta">{stats?.activeCount ?? "–"} aktiv</span>
+          <span className="dash-kpi-meta">
+            {stats?.activeCount ?? "–"} aktiv
+            {inactiveCustomers > 0 ? ` · ${inactiveCustomers} inaktiv` : ""}
+          </span>
         </Link>
         <button
           type="button"
@@ -138,7 +244,7 @@ export function DashboardPage() {
           onClick={() => setFilter("today")}
         >
           <span className="dash-kpi-label">Heute</span>
-          <strong>{summary.today}</strong>
+          <strong>{loading ? "–" : summary.today}</strong>
           <span className="dash-kpi-meta">
             {summary.overdue > 0 ? `${summary.overdue} überfällig` : "im Plan"}
           </span>
@@ -149,7 +255,7 @@ export function DashboardPage() {
           onClick={() => setFilter("open")}
         >
           <span className="dash-kpi-label">Offen</span>
-          <strong>{summary.open}</strong>
+          <strong>{loading ? "–" : summary.open}</strong>
           <span className="dash-kpi-meta">Aufgaben</span>
         </button>
         <button
@@ -158,18 +264,18 @@ export function DashboardPage() {
           onClick={() => setFilter("inbox")}
         >
           <span className="dash-kpi-label">Inbox</span>
-          <strong>{summary.inbox}</strong>
+          <strong>{loading ? "–" : summary.inbox}</strong>
           <span className="dash-kpi-meta">ohne Datum</span>
         </button>
         <Link className="dash-kpi" to="/reminders">
           <span className="dash-kpi-label">Abläufe</span>
-          <strong>{reminderCount}</strong>
+          <strong>{loading ? "–" : reminderCounts.total}</strong>
           <span className="dash-kpi-meta">30 Tage</span>
         </Link>
         <Link className="dash-kpi" to="/calendar">
           <span className="dash-kpi-label">Termine</span>
-          <strong>{todayAppts.length}</strong>
-          <span className="dash-kpi-meta">heute</span>
+          <strong>{loading ? "–" : todayAppts.length}</strong>
+          <span className="dash-kpi-meta">heute · {appointments.length} diese Woche</span>
         </Link>
       </section>
 
@@ -178,7 +284,148 @@ export function DashboardPage() {
         <Link to="/search">Suche</Link>
         <Link to="/vault">Tresor</Link>
         <Link to="/reminders">Erinnerungen</Link>
+        <Link to="/calendar">Kalender</Link>
       </nav>
+
+      <section className="dash-analytics" aria-label="Diagramme">
+        <article className="panel dash-chart-card">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Aufgabenlage</h3>
+              <p className="muted">Verteilung der offenen To-dos</p>
+            </div>
+          </div>
+          {loading ? (
+            <p className="empty">Lade Diagramm…</p>
+          ) : summary.open === 0 ? (
+            <p className="empty">Keine offenen Aufgaben.</p>
+          ) : (
+            <div className="dash-chart-body is-split">
+              <DonutChart
+                slices={statusSlices.length ? statusSlices : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]}
+                centerValue={summary.open}
+                centerLabel="offen"
+              />
+              <ChartLegend
+                slices={
+                  statusSlices.length
+                    ? statusSlices
+                    : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
+                }
+              />
+            </div>
+          )}
+        </article>
+
+        <article className="panel dash-chart-card">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Prioritäten</h3>
+              <p className="muted">Gewicht der offenen Aufgaben</p>
+            </div>
+          </div>
+          {loading ? (
+            <p className="empty">Lade Diagramm…</p>
+          ) : summary.open === 0 ? (
+            <p className="empty">Keine Daten.</p>
+          ) : (
+            <HBarChart items={prioBars} />
+          )}
+        </article>
+
+        <article className="panel dash-chart-card">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Woche</h3>
+              <p className="muted">Termine der nächsten 7 Tage</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/calendar">
+              Öffnen
+            </Link>
+          </div>
+          {loading ? (
+            <p className="empty">Lade Diagramm…</p>
+          ) : (
+            <ColumnChart columns={weekColumns} />
+          )}
+        </article>
+
+        <article className="panel dash-chart-card">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Terminarten</h3>
+              <p className="muted">Diese Woche nach Art</p>
+            </div>
+          </div>
+          {loading ? (
+            <p className="empty">Lade Diagramm…</p>
+          ) : kindSlices.length === 0 ? (
+            <p className="empty">Keine Termine in dieser Woche.</p>
+          ) : (
+            <div className="dash-chart-body is-split">
+              <DonutChart
+                slices={kindSlices}
+                size={148}
+                thickness={18}
+                centerValue={appointments.length}
+                centerLabel="Termine"
+              />
+              <ChartLegend slices={kindSlices} />
+            </div>
+          )}
+        </article>
+
+        <article className="panel dash-chart-card dash-chart-wide">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Abläufe & Bestand</h3>
+              <p className="muted">Garantien, Verträge und Kundenstatus</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/reminders">
+              Alle
+            </Link>
+          </div>
+          <div className="dash-stock">
+            <div>
+              <h4>Erinnerungen (30 Tage)</h4>
+              {reminderBars.length === 0 ? (
+                <p className="empty">Nichts fällig.</p>
+              ) : (
+                <HBarChart items={reminderBars} />
+              )}
+            </div>
+            <div>
+              <h4>Kunden</h4>
+              <div className="dash-chart-body is-split">
+                <DonutChart
+                  slices={[
+                    { label: "Aktiv", value: stats?.activeCount ?? 0, color: "#34d399" },
+                    { label: "Inaktiv", value: inactiveCustomers, color: "#64748b" },
+                  ].filter((s) => s.value > 0)}
+                  size={132}
+                  thickness={16}
+                  centerValue={stats?.customerCount ?? 0}
+                  centerLabel="gesamt"
+                />
+                <ul className="dash-stat-list">
+                  <li>
+                    <span>Aktiv</span>
+                    <strong>{stats?.activeCount ?? 0}</strong>
+                  </li>
+                  <li>
+                    <span>Inaktiv</span>
+                    <strong>{inactiveCustomers}</strong>
+                  </li>
+                  <li>
+                    <span>Dokumente kürzlich</span>
+                    <strong>{recent.length}</strong>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </article>
+      </section>
 
       <div className="dash-layout">
         <section className="panel dash-panel dash-tasks">
@@ -354,10 +601,7 @@ export function DashboardPage() {
                 ))}
                 {reminders.contracts.slice(0, 4).map((c) => (
                   <li key={`c-${c.id}`}>
-                    <Link
-                      className="dash-side-row"
-                      to={`/customers/${c.customerId}/ops`}
-                    >
+                    <Link className="dash-side-row" to={`/customers/${c.customerId}/ops`}>
                       <span className="dash-side-when is-warn">{formatDateOnly(c.endDate)}</span>
                       <span className="dash-side-body">
                         <strong>{c.title}</strong>
