@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.12 – 2026-08-06
+
+- Zeiterfassung: Historie nach Tagen, Buchung per Uhr-Icon/Modal
+- Projektkarten mit Metric-Tiles, Statusstreifen und klarer Budget-Progress
+
+## 1.5.11 – 2026-08-06
+
+- Aufgaben-UI: Hero mit integriertem Schnelladd, kompakte Icons, klarerer Leerzustand und Mobile-Layout
+
 ## 1.5.10 – 2026-08-06
 
 - Einheitliche Plattform-Checkboxen (Accent-Check, Hover/Focus) in Kalender, Zeiten, Tresor, Aufgaben

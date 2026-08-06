@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
+import { Modal } from "../../components/Modal";
 import { formatDateOnly, projectStatusLabel } from "../../lib/labels";
 import type { ProjectItem, ProjectStatus } from "../../types";
 
@@ -15,13 +16,26 @@ const emptyForm = {
   hourlyRate: "",
 };
 
+function formatEuro(value: number | null | undefined): string {
+  if (value == null) return "–";
+  return `${value.toLocaleString("de-DE", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  })} €`;
+}
+
+function formatHours(value: number | null | undefined): string {
+  if (value == null) return "–";
+  return `${value} h`;
+}
+
 /**
  * Projekte und Budgetplanung pro Kunde.
  */
 export function CustomerProjectsPage() {
   const { id = "" } = useParams();
   const [projects, setProjects] = useState<ProjectItem[]>([]);
-  const [showForm, setShowForm] = useState(false);
+  const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saveHint, setSaveHint] = useState("");
@@ -34,9 +48,20 @@ export function CustomerProjectsPage() {
     void reload();
   }, [id]);
 
+  const summary = useMemo(() => {
+    const active = projects.filter((p) => p.status === "active").length;
+    const hours = projects.reduce((sum, p) => sum + (p.loggedHours ?? 0), 0);
+    return { total: projects.length, active, hours: Math.round(hours * 100) / 100 };
+  }, [projects]);
+
+  function openCreate() {
+    setEditingId(null);
+    setForm(emptyForm);
+    setOpen(true);
+  }
+
   function startEdit(p: ProjectItem) {
     setEditingId(p.id);
-    setShowForm(true);
     setForm({
       name: p.name,
       description: p.description ?? "",
@@ -47,12 +72,13 @@ export function CustomerProjectsPage() {
       budgetAmount: p.budgetAmount != null ? String(p.budgetAmount) : "",
       hourlyRate: p.hourlyRate != null ? String(p.hourlyRate) : "",
     });
+    setOpen(true);
   }
 
-  function resetForm() {
+  function closeModal() {
     setForm(emptyForm);
     setEditingId(null);
-    setShowForm(false);
+    setOpen(false);
   }
 
   async function save(e: FormEvent) {
@@ -77,40 +103,160 @@ export function CustomerProjectsPage() {
     } else {
       await api.createProject(id, body);
     }
-    resetForm();
+    closeModal();
     await reload();
   }
 
   return (
-    <section className="section">
-      <div className="section-head row-between">
-        <div>
-          <h2>Projekte</h2>
-          <p>
-            Planung, Status und Budget. Ändert du den Stundensatz, werden die Beträge der
-            Projekt-Zeiten neu berechnet.
-          </p>
+    <section className="section projects-page">
+      <div className="projects-hero panel">
+        <div className="projects-hero-top">
+          <div>
+            <p className="eyebrow">Planung</p>
+            <h2>Projekte</h2>
+            <p className="muted">
+              {summary.total} Projekt{summary.total === 1 ? "" : "e"}
+              {summary.active > 0 ? ` · ${summary.active} aktiv` : ""}
+              {summary.hours > 0 ? ` · ${summary.hours} h gebucht` : ""}
+            </p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + Projekt
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            if (showForm && !editingId) resetForm();
-            else {
-              setEditingId(null);
-              setForm(emptyForm);
-              setShowForm(true);
-            }
-          }}
-        >
-          {showForm && !editingId ? "Abbrechen" : "+ Projekt"}
-        </button>
       </div>
 
       {saveHint ? <p className="form-success">{saveHint}</p> : null}
 
-      {showForm ? (
-        <form className="panel form-grid" onSubmit={save}>
+      {projects.length === 0 ? (
+        <div className="projects-empty panel">
+          <div className="projects-empty-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <path d="M4 8h16v11H4zM8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <strong>Noch keine Projekte</strong>
+            <p className="muted">Plane Budgets, Laufzeiten und Stundensätze für diesen Kunden.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            Projekt anlegen
+          </button>
+        </div>
+      ) : (
+        <ul className="project-list">
+          {projects.map((p) => {
+            const logged = p.loggedHours ?? 0;
+            const budget = p.budgetHours;
+            const remaining = p.budgetHoursRemaining;
+            const pct =
+              budget && budget > 0 ? Math.min(100, Math.round((logged / budget) * 100)) : null;
+            const barTone = pct == null ? "" : pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok";
+            return (
+              <li key={p.id} className={`project-card is-${p.status}`}>
+                <div className="project-card-head">
+                  <div className="project-card-title">
+                    <h3>{p.name}</h3>
+                    <span className={`badge badge-status-${p.status}`}>
+                      {projectStatusLabel[p.status]}
+                    </span>
+                  </div>
+                  <div className="list-actions">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => startEdit(p)}
+                    >
+                      Bearbeiten
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      onClick={() => {
+                        if (confirm(`Projekt „${p.name}“ löschen?`)) {
+                          void api.deleteProject(p.id).then(() => reload());
+                        }
+                      }}
+                    >
+                      Löschen
+                    </button>
+                  </div>
+                </div>
+
+                <div className="project-card-meta">
+                  <span className="project-meta-chip">
+                    {formatDateOnly(p.startDate)} – {formatDateOnly(p.endDate)}
+                  </span>
+                  {p.hourlyRate != null ? (
+                    <span className="project-meta-chip">
+                      {p.hourlyRate.toLocaleString("de-DE")} €/h
+                    </span>
+                  ) : null}
+                </div>
+
+                {p.description ? <p className="project-card-desc">{p.description}</p> : null}
+
+                <div className="budget-grid">
+                  <div className="budget-metric">
+                    <span className="label">Gebucht</span>
+                    <strong>{formatHours(logged)}</strong>
+                  </div>
+                  <div className="budget-metric">
+                    <span className="label">Budget</span>
+                    <strong>{formatHours(budget)}</strong>
+                  </div>
+                  <div className="budget-metric">
+                    <span className="label">Rest</span>
+                    <strong className={remaining != null && remaining < 0 ? "is-over" : undefined}>
+                      {formatHours(remaining)}
+                    </strong>
+                  </div>
+                  <div className="budget-metric">
+                    <span className="label">Budget €</span>
+                    <strong>{formatEuro(p.budgetAmount)}</strong>
+                  </div>
+                  <div className="budget-metric">
+                    <span className="label">Geschätzt</span>
+                    <strong>{formatEuro(p.estimatedCost)}</strong>
+                  </div>
+                </div>
+
+                {pct != null ? (
+                  <div className={`budget-progress is-${barTone}`}>
+                    <div className="budget-progress-head">
+                      <span>Stundenbudget</span>
+                      <strong>{pct}%</strong>
+                    </div>
+                    <div
+                      className="budget-bar"
+                      aria-label={`Budgetverbrauch ${pct}%`}
+                      role="progressbar"
+                      aria-valuenow={pct}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className={`budget-bar-fill ${barTone === "ok" ? "" : barTone}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <p className="project-no-budget muted">Kein Stundenbudget hinterlegt</p>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      <Modal
+        open={open}
+        title={editingId ? "Projekt bearbeiten" : "Neues Projekt"}
+        onClose={closeModal}
+        className="modal-wide"
+      >
+        <form className="form-grid" onSubmit={save}>
           <label className="field">
             <span>Name *</span>
             <input
@@ -188,103 +334,16 @@ export function CustomerProjectsPage() {
               placeholder="Ziele, Meilensteine, Risiken…"
             />
           </label>
-          <div className="full form-actions">
+          <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
-              {editingId ? "Aktualisieren" : "Projekt anlegen"}
+              {editingId ? "Speichern" : "Anlegen"}
             </button>
-            {editingId ? (
-              <button type="button" className="btn btn-ghost" onClick={resetForm}>
-                Abbrechen
-              </button>
-            ) : null}
+            <button type="button" className="btn btn-ghost" onClick={closeModal}>
+              Abbrechen
+            </button>
           </div>
         </form>
-      ) : null}
-
-      {projects.length === 0 ? (
-        <p className="empty">Noch keine Projekte. Plane hier Budgets und Laufzeiten.</p>
-      ) : (
-        <ul className="list project-list">
-          {projects.map((p) => {
-            const logged = p.loggedHours ?? 0;
-            const budget = p.budgetHours;
-            const pct =
-              budget && budget > 0 ? Math.min(100, Math.round((logged / budget) * 100)) : null;
-            return (
-              <li key={p.id} className="panel project-card">
-                <div className="row-between">
-                  <div>
-                    <strong>{p.name}</strong>
-                    <span className="muted">
-                      <span className={`badge badge-status-${p.status}`}>
-                        {projectStatusLabel[p.status]}
-                      </span>
-                      {" · "}
-                      {formatDateOnly(p.startDate)} – {formatDateOnly(p.endDate)}
-                    </span>
-                  </div>
-                  <div className="list-actions">
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => startEdit(p)}>
-                      Bearbeiten
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() =>
-                        void api.deleteProject(p.id).then(() => reload())
-                      }
-                    >
-                      Löschen
-                    </button>
-                  </div>
-                </div>
-                {p.description ? <p className="muted">{p.description}</p> : null}
-                <div className="budget-grid">
-                  <div>
-                    <span className="label">Gebucht</span>
-                    <p>
-                      <strong>{logged}</strong> h
-                    </p>
-                  </div>
-                  <div>
-                    <span className="label">Budget Stunden</span>
-                    <p>{budget != null ? `${budget} h` : "–"}</p>
-                  </div>
-                  <div>
-                    <span className="label">Rest</span>
-                    <p>
-                      {p.budgetHoursRemaining != null
-                        ? `${p.budgetHoursRemaining} h`
-                        : "–"}
-                    </p>
-                  </div>
-                  <div>
-                    <span className="label">Budget Euro</span>
-                    <p>{p.budgetAmount != null ? `${p.budgetAmount.toLocaleString("de-DE")} €` : "–"}</p>
-                  </div>
-                  <div>
-                    <span className="label">Geschätzt (Satz × Stunden)</span>
-                    <p>
-                      {p.estimatedCost != null
-                        ? `${p.estimatedCost.toLocaleString("de-DE")} €`
-                        : "–"}
-                    </p>
-                  </div>
-                </div>
-                {pct != null ? (
-                  <div className="budget-bar" aria-label={`Budgetverbrauch ${pct}%`}>
-                    <div
-                      className={`budget-bar-fill ${pct >= 100 ? "over" : pct >= 80 ? "warn" : ""}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                    <span>{pct}% des Stundenbudgets</span>
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      </Modal>
     </section>
   );
 }

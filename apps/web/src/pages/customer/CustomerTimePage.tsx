@@ -2,13 +2,44 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { Checkbox } from "../../components/Checkbox";
-import { addMinutesToTime, localTodayIso } from "../../lib/dates";
+import { Modal } from "../../components/Modal";
+import { addMinutesToTime, localTodayIso, parseDateOnly } from "../../lib/dates";
 import { formatDateOnly } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
 import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
 
+function monthLabel(ym: string): string {
+  try {
+    const [y, m] = ym.split("-").map(Number);
+    return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(
+      new Date(y!, m! - 1, 1),
+    );
+  } catch {
+    return ym;
+  }
+}
+
+function dayHeading(iso: string): string {
+  try {
+    const today = localTodayIso();
+    if (iso === today) return "Heute";
+    const d = parseDateOnly(iso);
+    const yesterday = parseDateOnly(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yIso = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
+    if (iso === yIso) return "Gestern";
+    return new Intl.DateTimeFormat("de-DE", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }).format(d);
+  } catch {
+    return formatDateOnly(iso);
+  }
+}
+
 /**
- * Zeiterfassung: Start-/Endzeit, optional Leistung/Satz aus dem Preiskatalog.
+ * Zeiterfassung: Historie-Übersicht, Buchung per Modal.
  */
 export function CustomerTimePage() {
   const { id = "" } = useParams();
@@ -23,6 +54,7 @@ export function CustomerTimePage() {
   const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
   const [currency, setCurrency] = useState("EUR");
   const [filterProject, setFilterProject] = useState("");
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     workDate: localTodayIso(),
@@ -78,6 +110,39 @@ export function CustomerTimePage() {
       .slice(0, 6);
   }, [entries]);
 
+  const groups = useMemo(() => {
+    const map = new Map<string, TimeEntryItem[]>();
+    for (const e of entries) {
+      const list = map.get(e.workDate);
+      if (list) list.push(e);
+      else map.set(e.workDate, [e]);
+    }
+    return [...map.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([date, items]) => ({
+        date,
+        label: dayHeading(date),
+        hours: Math.round(items.reduce((s, i) => s + Number(i.hours), 0) * 100) / 100,
+        items,
+      }));
+  }, [entries]);
+
+  function openCreate() {
+    setError("");
+    setForm((f) => ({
+      ...f,
+      workDate: localTodayIso(),
+      description: "",
+      billable: true,
+    }));
+    setOpen(true);
+  }
+
+  function closeModal() {
+    setOpen(false);
+    setError("");
+  }
+
   async function createEntry(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -104,6 +169,7 @@ export function CustomerTimePage() {
         priceItemId: form.priceItemId,
         billable: true,
       });
+      closeModal();
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -111,136 +177,59 @@ export function CustomerTimePage() {
   }
 
   return (
-    <section className="section">
-      <div className="section-head row-between">
-        <div>
-          <h2>Zeiterfassung</h2>
-          <p>
-            Von–bis eingeben – Stunden und Betrag werden berechnet. Sätze unter{" "}
-            <Link to="/settings">Konto</Link> pflegen.
-          </p>
-        </div>
-      </div>
-
-      <div className="stat-strip">
-        <div className="stat-chip">
-          <strong>{summary.totalHours}</strong>
-          <span>Stunden (Filter)</span>
-        </div>
-        <div className="stat-chip">
-          <strong>{summary.billableHours}</strong>
-          <span>Abrechenbar</span>
-        </div>
-        <div className="stat-chip">
-          <strong>
-            {summary.billableAmount.toLocaleString("de-DE", {
-              minimumFractionDigits: 0,
-              maximumFractionDigits: 2,
-            })}
-          </strong>
-          <span>Netto {currency}</span>
-        </div>
-        <div className="stat-chip">
-          <strong>{summary.entryCount}</strong>
-          <span>Einträge</span>
-        </div>
-      </div>
-
-      <form className="panel form-grid" onSubmit={createEntry}>
-        <label className="field">
-          <span>Datum *</span>
-          <input
-            type="date"
-            required
-            value={form.workDate}
-            onChange={(e) => setForm({ ...form, workDate: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          <span>Von *</span>
-          <input
-            type="time"
-            required
-            value={form.startTime}
-            onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-          />
-        </label>
-        <label className="field">
-          <span>Bis *</span>
-          <input
-            type="time"
-            required
-            value={form.endTime}
-            onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-          />
-        </label>
-        <div className="field">
-          <span>Dauer</span>
-          <p className="time-duration">
-            {computedHours != null ? (
-              <>
-                <strong>{formatHours(computedHours)}</strong>
-                <span className="muted"> ({computedHours} h)</span>
-              </>
-            ) : (
-              <span className="muted">Ungültiger Zeitraum</span>
-            )}
-          </p>
-        </div>
-        <label className="field">
-          <span>Leistung / Satz</span>
-          <select
-            value={form.priceItemId}
-            onChange={(e) => setForm({ ...form, priceItemId: e.target.value })}
+    <section className="section time-page">
+      <div className="time-hero panel">
+        <div className="time-hero-top">
+          <div>
+            <p className="eyebrow">Abrechnung</p>
+            <h2>Zeiterfassung</h2>
+            <p className="muted">
+              Übersicht der gebuchten Stunden. Sätze unter{" "}
+              <Link to="/settings">Konto</Link> pflegen.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-icon-lg"
+            onClick={openCreate}
+            aria-label="Zeit buchen"
+            title="Zeit buchen"
           >
-            <option value="">Standard / Projekt-Satz</option>
-            {hourlyPrices.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name} ({p.unitPrice.toLocaleString("de-DE")} {currency}/h)
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="field">
-          <span>Projekt</span>
-          <select
-            value={form.projectId}
-            onChange={(e) => setForm({ ...form, projectId: e.target.value })}
-          >
-            <option value="">Kein Projekt</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-                {p.hourlyRate != null ? ` · ${p.hourlyRate} ${currency}/h` : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <Checkbox
-          fieldLabel="Abrechenbar"
-          label={form.billable ? "Ja" : "Nein"}
-          checked={form.billable}
-          onChange={(billable) => setForm({ ...form, billable })}
-        />
-        <label className="field full">
-          <span>Beschreibung</span>
-          <input
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="Was wurde gemacht?"
-          />
-        </label>
-        {error ? <p className="form-error full">{error}</p> : null}
-        <div className="full">
-          <button className="btn btn-primary" type="submit" disabled={computedHours == null}>
-            Stunden buchen
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l2.5 1.5M12 5v1" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
         </div>
-      </form>
 
-      <div className="wiki-toolbar">
-        <label className="field" style={{ margin: 0, minWidth: 220 }}>
-          <span>Filter Projekt</span>
+        <div className="stat-strip time-stats">
+          <div className="stat-chip">
+            <strong>{summary.totalHours}</strong>
+            <span>Stunden</span>
+          </div>
+          <div className="stat-chip">
+            <strong>{summary.billableHours}</strong>
+            <span>Abrechenbar</span>
+          </div>
+          <div className="stat-chip">
+            <strong>
+              {summary.billableAmount.toLocaleString("de-DE", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              })}
+            </strong>
+            <span>Netto {currency}</span>
+          </div>
+          <div className="stat-chip">
+            <strong>{summary.entryCount}</strong>
+            <span>Einträge</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="time-toolbar">
+        <label className="field time-filter">
+          <span>Projekt</span>
           <select value={filterProject} onChange={(e) => setFilterProject(e.target.value)}>
             <option value="">Alle Projekte</option>
             {projects.map((p) => (
@@ -254,52 +243,200 @@ export function CustomerTimePage() {
           <div className="month-chips">
             {byMonth.map(([month, hours]) => (
               <span key={month} className="chip">
-                {month}: {Math.round(hours * 100) / 100}h
+                {monthLabel(month)} · {Math.round(hours * 100) / 100}h
               </span>
             ))}
           </div>
         ) : null}
       </div>
 
-      {entries.length === 0 ? (
-        <p className="empty">Noch keine Stunden erfasst.</p>
+      {groups.length === 0 ? (
+        <div className="time-empty panel">
+          <div className="time-empty-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <circle cx="12" cy="12" r="8" />
+              <path d="M12 8v4l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <strong>Noch keine Stunden</strong>
+            <p className="muted">Buche die erste Zeit über das Uhr-Icon oben rechts.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            Zeit buchen
+          </button>
+        </div>
       ) : (
-        <ul className="list">
-          {entries.map((entry) => (
-            <li key={entry.id} className="list-row">
-              <div>
-                <strong>
-                  {formatHours(Number(entry.hours))} · {formatDateOnly(entry.workDate)}
-                  {entry.startTime && entry.endTime
-                    ? ` · ${entry.startTime}–${entry.endTime}`
-                    : ""}
-                </strong>
-                <span className="muted">
-                  {entry.priceItemName || "Standard-Satz"}
-                  {entry.rateSnapshot != null
-                    ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
-                    : ""}
-                  {entry.amountSnapshot != null
-                    ? ` · ${entry.amountSnapshot.toLocaleString("de-DE")} ${currency}`
-                    : ""}
-                </span>
-                <span className="muted">
-                  {entry.projectName || "Ohne Projekt"}
-                  {entry.billable ? " · abrechenbar" : " · nicht abrechenbar"}
-                </span>
-                {entry.description ? <span className="muted">{entry.description}</span> : null}
+        <div className="time-history">
+          {groups.map((group) => (
+            <section key={group.date} className="time-day">
+              <div className="time-day-head">
+                <h3>{group.label}</h3>
+                <span>{formatHours(group.hours)}</span>
               </div>
-              <button
-                type="button"
-                className="btn btn-danger btn-sm"
-                onClick={() => void api.deleteTimeEntry(entry.id).then(() => reload())}
-              >
-                Löschen
-              </button>
-            </li>
+              <ul className="time-entry-list">
+                {group.items.map((entry) => (
+                  <li key={entry.id} className={`time-entry${entry.billable ? "" : " is-nonbillable"}`}>
+                    <div className="time-entry-range">
+                      <strong>
+                        {entry.startTime && entry.endTime
+                          ? `${entry.startTime}–${entry.endTime}`
+                          : formatHours(Number(entry.hours))}
+                      </strong>
+                      <span>{formatHours(Number(entry.hours))}</span>
+                    </div>
+                    <div className="time-entry-body">
+                      <strong>{entry.description || "Ohne Beschreibung"}</strong>
+                      <span className="time-entry-meta">
+                        <span className="time-chip">{entry.projectName || "Ohne Projekt"}</span>
+                        <span className="time-chip">
+                          {entry.priceItemName || "Standard-Satz"}
+                          {entry.rateSnapshot != null
+                            ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                            : ""}
+                        </span>
+                        {entry.amountSnapshot != null ? (
+                          <span className="time-chip is-amount">
+                            {entry.amountSnapshot.toLocaleString("de-DE", {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 2,
+                            })}{" "}
+                            {currency}
+                          </span>
+                        ) : null}
+                        <span className={`time-chip ${entry.billable ? "is-ok" : "is-muted"}`}>
+                          {entry.billable ? "Abrechenbar" : "Nicht abrechenbar"}
+                        </span>
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      aria-label="Eintrag löschen"
+                      onClick={() => {
+                        if (confirm("Zeiteintrag löschen?")) {
+                          void api.deleteTimeEntry(entry.id).then(() => reload());
+                        }
+                      }}
+                    >
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        aria-hidden
+                      >
+                        <path
+                          d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
+
+      <Modal open={open} title="Zeit buchen" onClose={closeModal} className="modal-wide">
+        <form className="form-grid time-form" onSubmit={createEntry}>
+          <label className="field">
+            <span>Datum *</span>
+            <input
+              type="date"
+              required
+              value={form.workDate}
+              onChange={(e) => setForm({ ...form, workDate: e.target.value })}
+            />
+          </label>
+          <div className="field">
+            <span>Dauer</span>
+            <p className="time-duration">
+              {computedHours != null ? (
+                <>
+                  <strong>{formatHours(computedHours)}</strong>
+                  <span className="muted"> ({computedHours} h)</span>
+                </>
+              ) : (
+                <span className="muted">Ungültiger Zeitraum</span>
+              )}
+            </p>
+          </div>
+          <label className="field">
+            <span>Von *</span>
+            <input
+              type="time"
+              required
+              value={form.startTime}
+              onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>Bis *</span>
+            <input
+              type="time"
+              required
+              value={form.endTime}
+              onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>Leistung / Satz</span>
+            <select
+              value={form.priceItemId}
+              onChange={(e) => setForm({ ...form, priceItemId: e.target.value })}
+            >
+              <option value="">Standard / Projekt-Satz</option>
+              {hourlyPrices.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.unitPrice.toLocaleString("de-DE")} {currency}/h)
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Projekt</span>
+            <select
+              value={form.projectId}
+              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+            >
+              <option value="">Kein Projekt</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                  {p.hourlyRate != null ? ` · ${p.hourlyRate} ${currency}/h` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Checkbox
+            fieldLabel="Abrechenbar"
+            label={form.billable ? "Ja" : "Nein"}
+            checked={form.billable}
+            onChange={(billable) => setForm({ ...form, billable })}
+          />
+          <label className="field full">
+            <span>Beschreibung</span>
+            <input
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              placeholder="Was wurde gemacht?"
+            />
+          </label>
+          {error ? <p className="form-error full">{error}</p> : null}
+          <div className="full form-actions modal-actions">
+            <button className="btn btn-primary" type="submit" disabled={computedHours == null}>
+              Stunden buchen
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={closeModal}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
     </section>
   );
 }
