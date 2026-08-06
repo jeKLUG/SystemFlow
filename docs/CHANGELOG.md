@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.20 – 2026-08-06
+
+- Dateiablage: Ordner- und Dateikarten mit vollflächiger Vorschau, Typ-Badge und Hover-Aktionen
+
 ## 1.5.19 – 2026-08-06
 
 - Wiki-Seiten: Autosave entfernt, manueller Speichern-Button

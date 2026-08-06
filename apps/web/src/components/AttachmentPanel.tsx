@@ -548,99 +548,96 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
           </div>
         ) : (
           <div className={`vault-board is-${layout}`}>
-            {filteredFolders.map((folder) => (
-              <article
-                key={folder.id}
-                className={`vault-card is-folder${dropFolderId === folder.id ? " is-drop-target" : ""}`}
-                onDragEnter={(e) => onFolderDragOver(e, folder.id)}
-                onDragOver={(e) => onFolderDragOver(e, folder.id)}
-                onDragLeave={(e) => {
-                  if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                  setDropFolderId((cur) => (cur === folder.id ? null : cur));
-                }}
-                onDrop={(e) => onFolderDrop(e, folder.id)}
-              >
-                <button
-                  type="button"
-                  className="vault-card-main"
-                  onClick={() => setFolderId(folder.id)}
+            {filteredFolders.map((folder) => {
+              const count = folderCounts.get(folder.id) ?? 0;
+              return (
+                <article
+                  key={folder.id}
+                  className={`vault-card is-folder${dropFolderId === folder.id ? " is-drop-target" : ""}${menuId === folder.id ? " is-menu-open" : ""}`}
+                  onDragEnter={(e) => onFolderDragOver(e, folder.id)}
+                  onDragOver={(e) => onFolderDragOver(e, folder.id)}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    setDropFolderId((cur) => (cur === folder.id ? null : cur));
+                  }}
+                  onDrop={(e) => onFolderDrop(e, folder.id)}
                 >
-                  <span className="vault-card-media is-folder" aria-hidden>
-                    <span className="vault-card-icon is-folder">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-                        <path
-                          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </span>
-                  </span>
-                  <span className="vault-card-body">
-                    <strong>{folder.name}</strong>
-                    <span className="muted">
-                      {folderCounts.get(folder.id) ?? 0} Einträg
-                      {(folderCounts.get(folder.id) ?? 0) === 1 ? "" : "e"}
-                    </span>
-                  </span>
-                </button>
-                <div className={`vault-card-actions vault-more${menuId === folder.id ? " is-open" : ""}`}>
                   <button
                     type="button"
-                    className="btn btn-ghost btn-icon"
-                    aria-label="Ordneraktionen"
-                    onClick={() => setMenuId(menuId === folder.id ? null : folder.id)}
+                    className="vault-card-main"
+                    onClick={() => setFolderId(folder.id)}
                   >
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                      <circle cx="12" cy="5" r="1.6" />
-                      <circle cx="12" cy="12" r="1.6" />
-                      <circle cx="12" cy="19" r="1.6" />
-                    </svg>
+                    <span className="vault-card-preview is-folder" aria-hidden>
+                      <span className="vault-card-glyph">
+                        <FolderGlyph />
+                      </span>
+                    </span>
+                    <span className="vault-card-meta">
+                      <strong title={folder.name}>{folder.name}</strong>
+                      <span className="muted">
+                        {count} Einträg{count === 1 ? "" : "e"}
+                      </span>
+                    </span>
                   </button>
-                  {menuId === folder.id ? (
-                    <div className="vault-menu" role="menu">
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={() => {
-                          const name = prompt("Ordner umbenennen", folder.name);
-                          if (!name?.trim()) return;
-                          void api
-                            .updateFolder(folder.id, { name: name.trim() })
-                            .then(() => reload())
-                            .finally(() => setMenuId(null));
-                        }}
-                      >
-                        Umbenennen
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className="is-danger"
-                        onClick={() => {
-                          if (
-                            confirm(
-                              `Ordner „${folder.name}“ löschen? Dateien wandern in den übergeordneten Ordner.`,
-                            )
-                          ) {
+                  <div className={`vault-card-toolbar vault-more${menuId === folder.id ? " is-open" : ""}`}>
+                    <button
+                      type="button"
+                      className="vault-card-menu-btn"
+                      aria-label="Ordneraktionen"
+                      onClick={() => setMenuId(menuId === folder.id ? null : folder.id)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <circle cx="12" cy="5" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="12" cy="19" r="1.6" />
+                      </svg>
+                    </button>
+                    {menuId === folder.id ? (
+                      <div className="vault-menu" role="menu">
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            const name = prompt("Ordner umbenennen", folder.name);
+                            if (!name?.trim()) return;
                             void api
-                              .deleteFolder(folder.id)
+                              .updateFolder(folder.id, { name: name.trim() })
                               .then(() => reload())
-                              .catch((err) =>
-                                setError(
-                                  err instanceof Error ? err.message : "Löschen fehlgeschlagen",
-                                ),
-                              )
                               .finally(() => setMenuId(null));
-                          }
-                        }}
-                      >
-                        Löschen
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              </article>
-            ))}
+                          }}
+                        >
+                          Umbenennen
+                        </button>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="is-danger"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Ordner „${folder.name}“ löschen? Dateien wandern in den übergeordneten Ordner.`,
+                              )
+                            ) {
+                              void api
+                                .deleteFolder(folder.id)
+                                .then(() => reload())
+                                .catch((err) =>
+                                  setError(
+                                    err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+                                  ),
+                                )
+                                .finally(() => setMenuId(null));
+                            }
+                          }}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </article>
+              );
+            })}
 
             {filteredFiles.map((file) => {
               const kind = fileKind(file.mimeType, file.originalName);
@@ -648,7 +645,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
               return (
                 <article
                   key={file.id}
-                  className={`vault-card is-file kind-${kind}${dragFileId === file.id ? " is-dragging" : ""}`}
+                  className={`vault-card is-file kind-${kind}${dragFileId === file.id ? " is-dragging" : ""}${menuId === file.id ? " is-menu-open" : ""}`}
                   draggable={!scoped}
                   onDragStart={(e) => onFileDragStart(e, file)}
                   onDragEnd={onFileDragEnd}
@@ -661,34 +658,34 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       else window.open(`/api/attachments/${file.id}/download?inline=1`, "_blank");
                     }}
                   >
-                    <span className={`vault-card-media kind-${kind}`} aria-hidden>
-                      <span className={`vault-card-icon kind-${kind}`}>
-                        {isImage ? (
-                          <img
-                            src={`/api/attachments/${file.id}/download?inline=1`}
-                            alt=""
-                            loading="lazy"
-                            draggable={false}
-                          />
-                        ) : (
+                    <span className={`vault-card-preview kind-${kind}`} aria-hidden>
+                      {isImage ? (
+                        <img
+                          src={`/api/attachments/${file.id}/download?inline=1`}
+                          alt=""
+                          loading="lazy"
+                          draggable={false}
+                        />
+                      ) : (
+                        <span className={`vault-card-glyph kind-${kind}`}>
                           <FileGlyph kind={kind} />
-                        )}
-                      </span>
+                        </span>
+                      )}
+                      <span className="vault-card-kind">{kindLabel(kind)}</span>
                     </span>
-                    <span className="vault-card-body">
+                    <span className="vault-card-meta">
                       <strong title={file.originalName}>{file.originalName}</strong>
                       <span className="muted">
-                        {kindLabel(kind)} · {formatBytes(file.size)}
+                        {formatBytes(file.size)} · {formatDate(file.createdAt)}
                       </span>
-                      <span className="muted vault-card-date">{formatDate(file.createdAt)}</span>
                       {file.description ? (
                         <span className="vault-card-desc">{file.description}</span>
                       ) : null}
                     </span>
                   </button>
-                  <div className="vault-card-actions">
+                  <div className={`vault-card-toolbar vault-more${menuId === file.id ? " is-open" : ""}`}>
                     <a
-                      className="btn btn-ghost btn-icon"
+                      className="vault-card-menu-btn"
                       href={`/api/attachments/${file.id}/download`}
                       download
                       aria-label="Herunterladen"
@@ -699,52 +696,46 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                         <path d="M12 4v10M8 10l4 4 4-4M5 18h14" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </a>
-                    <div className={`vault-more${menuId === file.id ? " is-open" : ""}`}>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon"
-                        aria-label="Dateiaktionen"
-                        onClick={() => setMenuId(menuId === file.id ? null : file.id)}
-                      >
-                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                          <circle cx="12" cy="5" r="1.6" />
-                          <circle cx="12" cy="12" r="1.6" />
-                          <circle cx="12" cy="19" r="1.6" />
-                        </svg>
-                      </button>
-                      {menuId === file.id ? (
-                        <div className="vault-menu" role="menu">
-                          <button type="button" role="menuitem" onClick={() => openRename(file)}>
-                            Bearbeiten
+                    <button
+                      type="button"
+                      className="vault-card-menu-btn"
+                      aria-label="Dateiaktionen"
+                      onClick={() => setMenuId(menuId === file.id ? null : file.id)}
+                    >
+                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                        <circle cx="12" cy="5" r="1.6" />
+                        <circle cx="12" cy="12" r="1.6" />
+                        <circle cx="12" cy="19" r="1.6" />
+                      </svg>
+                    </button>
+                    {menuId === file.id ? (
+                      <div className="vault-menu" role="menu">
+                        <button type="button" role="menuitem" onClick={() => openRename(file)}>
+                          Bearbeiten
+                        </button>
+                        {!scoped ? (
+                          <button type="button" role="menuitem" onClick={() => openMove(file)}>
+                            Verschieben…
                           </button>
-                          {!scoped ? (
-                            <button type="button" role="menuitem" onClick={() => openMove(file)}>
-                              Verschieben…
-                            </button>
-                          ) : null}
-                          <a
-                            role="menuitem"
-                            href={`/api/attachments/${file.id}/download`}
-                            download
-                          >
-                            Download
-                          </a>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            className="is-danger"
-                            onClick={() => {
-                              setMenuId(null);
-                              if (confirm(`„${file.originalName}“ löschen?`)) {
-                                void api.deleteAttachment(file.id).then(() => reload());
-                              }
-                            }}
-                          >
-                            Löschen
-                          </button>
-                        </div>
-                      ) : null}
-                    </div>
+                        ) : null}
+                        <a role="menuitem" href={`/api/attachments/${file.id}/download`} download>
+                          Download
+                        </a>
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="is-danger"
+                          onClick={() => {
+                            setMenuId(null);
+                            if (confirm(`„${file.originalName}“ löschen?`)) {
+                              void api.deleteAttachment(file.id).then(() => reload());
+                            }
+                          }}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               );
@@ -882,6 +873,27 @@ function folderPathLabel(folders: FileFolderItem[], id: string): string {
     cur = cur.parentId ? folders.find((f) => f.id === cur!.parentId) : undefined;
   }
   return parts.join(" / ");
+}
+
+function FolderGlyph() {
+  return (
+    <svg viewBox="0 0 48 40" fill="none" aria-hidden>
+      <path
+        d="M2 10.5C2 8 4 6 6.5 6h9.2l2.8 3.2H41.5C44 9.2 46 11.2 46 13.7V32c0 2.5-2 4.5-4.5 4.5h-35C4 36.5 2 34.5 2 32V10.5Z"
+        fill="#d97706"
+        opacity="0.55"
+      />
+      <path
+        d="M2 15h44v17c0 2.5-2 4.5-4.5 4.5h-35C4 36.5 2 34.5 2 32V15Z"
+        fill="#f59e0b"
+      />
+      <path
+        d="M2 15h44v2.2H2V15Z"
+        fill="#fbbf24"
+        opacity="0.7"
+      />
+    </svg>
+  );
 }
 
 function FileGlyph({ kind }: { kind: FileKind }) {

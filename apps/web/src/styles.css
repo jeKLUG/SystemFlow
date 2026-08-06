@@ -2051,46 +2051,55 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .vault-board {
   display: grid;
-  gap: 0.65rem;
+  gap: 0.85rem;
 }
 
 .vault-board.is-grid {
-  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(10.75rem, 1fr));
 }
 
 .vault-board.is-list {
   grid-template-columns: 1fr;
+  gap: 0.45rem;
 }
 
 .vault-card {
   position: relative;
   display: flex;
-  align-items: stretch;
-  gap: 0.55rem;
-  padding: 0.75rem;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), var(--surface-2, var(--surface));
-  text-align: left;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 16px;
+  background:
+    linear-gradient(165deg, rgba(255, 255, 255, 0.045), transparent 42%),
+    var(--surface-2, var(--surface));
   color: inherit;
   font: inherit;
   animation: fade-up 0.25s ease both;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-button.vault-card {
-  appearance: none;
-  cursor: pointer;
-  width: 100%;
+.vault-card:hover,
+.vault-card.is-menu-open {
+  border-color: rgba(96, 165, 250, 0.38);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-.vault-card:hover {
-  border-color: rgba(148, 163, 184, 0.32);
-  transform: translateY(-1px);
+.vault-card.is-drop-target {
+  border-color: rgba(96, 165, 250, 0.7);
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.25),
+    0 10px 28px rgba(0, 0, 0, 0.28);
 }
 
-.vault-board.is-list .vault-card {
-  align-items: center;
+.vault-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
 }
 
 .vault-card-main {
@@ -2104,85 +2113,141 @@ button.vault-card {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
   flex: 1;
   min-width: 0;
-}
-
-.vault-board.is-list .vault-card-main {
-  flex-direction: row;
-  align-items: center;
-}
-
-.vault-card-icon {
   width: 100%;
-  aspect-ratio: 1.35 / 1;
-  border-radius: 10px;
+}
+
+.vault-card-preview {
+  position: relative;
   display: grid;
   place-items: center;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.22);
-  border: 1px solid var(--border);
-  color: var(--accent-bright);
-  flex-shrink: 0;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
+    rgba(0, 0, 0, 0.28);
 }
 
-.vault-board.is-list .vault-card-icon {
-  width: 2.75rem;
-  height: 2.75rem;
-  aspect-ratio: auto;
+.vault-card-preview.is-folder {
+  background:
+    radial-gradient(120% 90% at 50% 10%, rgba(251, 191, 36, 0.18), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    rgba(0, 0, 0, 0.22);
 }
 
-.vault-card-icon svg {
-  width: 1.45rem;
-  height: 1.45rem;
+.vault-card-preview.kind-pdf {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(248, 113, 113, 0.16), transparent 55%),
+    rgba(0, 0, 0, 0.28);
 }
 
-.vault-card-icon img {
+.vault-card-preview.kind-office {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(96, 165, 250, 0.18), transparent 55%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.vault-card-preview.kind-archive {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(167, 139, 250, 0.18), transparent 55%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.vault-card-preview.kind-text {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(125, 211, 252, 0.16), transparent 55%),
+    rgba(0, 0, 0, 0.28);
+}
+
+.vault-card-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.vault-card-icon.is-folder,
-.vault-card-icon.kind-pdf {
-  color: #fbbf24;
-}
-
-.vault-card-icon.kind-office {
+.vault-card-glyph {
+  display: grid;
+  place-items: center;
+  width: 3.4rem;
+  height: 3.4rem;
   color: var(--accent-bright);
 }
 
-.vault-card-icon.kind-archive {
+.vault-card-preview.is-folder .vault-card-glyph {
+  width: 4.1rem;
+  height: 3.4rem;
+  filter: drop-shadow(0 8px 14px rgba(217, 119, 6, 0.35));
+}
+
+.vault-card-glyph svg {
+  width: 100%;
+  height: 100%;
+}
+
+.vault-card-glyph.kind-pdf {
+  color: #f87171;
+}
+
+.vault-card-glyph.kind-office {
+  color: #60a5fa;
+}
+
+.vault-card-glyph.kind-archive {
   color: #a78bfa;
 }
 
-.vault-card-icon.kind-text {
+.vault-card-glyph.kind-text {
   color: #7dd3fc;
 }
 
-.vault-card-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-  min-width: 0;
+.vault-card-kind {
+  position: absolute;
+  left: 0.55rem;
+  bottom: 0.55rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(248, 250, 252, 0.92);
+  background: rgba(15, 23, 42, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(6px);
 }
 
-.vault-card-body strong {
+.vault-card.is-folder .vault-card-kind {
+  display: none;
+}
+
+.vault-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  padding: 0.7rem 0.8rem 0.85rem;
+}
+
+.vault-card-meta strong {
   font-family: var(--font-display);
   font-size: 0.9rem;
+  font-weight: 650;
   letter-spacing: -0.02em;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.vault-card-body .muted {
-  font-size: 0.75rem;
+.vault-card-meta .muted {
+  font-size: 0.72rem;
+  line-height: 1.35;
 }
 
 .vault-card-desc {
-  font-size: 0.78rem;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -2190,17 +2255,102 @@ button.vault-card {
   overflow: hidden;
 }
 
-.vault-card-actions {
+.vault-card-toolbar {
+  position: absolute;
+  top: 0.45rem;
+  right: 0.45rem;
+  z-index: 2;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.15rem;
-  flex-shrink: 0;
+  gap: 0.25rem;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
-.vault-board.is-list .vault-card-actions {
+.vault-card:hover .vault-card-toolbar,
+.vault-card.is-menu-open .vault-card-toolbar {
+  opacity: 1;
+  transform: none;
+}
+
+.vault-card-menu-btn {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 9px;
+  background: rgba(15, 23, 42, 0.72);
+  color: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.vault-card-menu-btn:hover {
+  background: rgba(30, 41, 59, 0.92);
+  border-color: rgba(96, 165, 250, 0.4);
+}
+
+.vault-card-menu-btn svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.vault-board.is-list .vault-card {
+  flex-direction: row;
+  align-items: stretch;
+  border-radius: 12px;
+}
+
+.vault-board.is-list .vault-card:hover,
+.vault-board.is-list .vault-card.is-menu-open {
+  transform: none;
+}
+
+.vault-board.is-list .vault-card-main {
   flex-direction: row;
   align-items: center;
+  gap: 0.85rem;
+  padding: 0.45rem 0.55rem 0.45rem 0.45rem;
+}
+
+.vault-board.is-list .vault-card-preview {
+  width: 3.15rem;
+  height: 3.15rem;
+  aspect-ratio: auto;
+  flex-shrink: 0;
+  border-radius: 10px;
+}
+
+.vault-board.is-list .vault-card-glyph {
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.vault-board.is-list .vault-card-preview.is-folder .vault-card-glyph {
+  width: 1.85rem;
+  height: 1.5rem;
+  filter: none;
+}
+
+.vault-board.is-list .vault-card-kind {
+  display: none;
+}
+
+.vault-board.is-list .vault-card-meta {
+  padding: 0;
+  flex: 1;
+}
+
+.vault-board.is-list .vault-card-toolbar {
+  position: static;
+  opacity: 1;
+  transform: none;
+  align-self: center;
+  padding-right: 0.45rem;
 }
 
 .vault-more {
@@ -2296,7 +2446,12 @@ button.vault-card {
   }
 
   .vault-board.is-grid {
-    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  }
+
+  .vault-card-toolbar {
+    opacity: 1;
+    transform: none;
   }
 }
 
