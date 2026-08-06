@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.10 – 2026-08-06
+
+- Einheitliche Plattform-Checkboxen (Accent-Check, Hover/Focus) in Kalender, Zeiten, Tresor, Aufgaben
+
 ## 1.5.9 – 2026-08-06
 
 - Aufgaben als eigener Kundenreiter (Ansichten, Priorität, Projektfilter, Modal)

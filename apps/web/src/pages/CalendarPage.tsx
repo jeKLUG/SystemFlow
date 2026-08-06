@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
 import {
@@ -418,17 +419,12 @@ export function CalendarPage() {
               placeholder="Kunde suchen…"
             />
           </label>
-          <label className="field checkbox-field">
-            <span>Ganztägig</span>
-            <label className="inline-check">
-              <input
-                type="checkbox"
-                checked={form.allDay}
-                onChange={(e) => setForm({ ...form, allDay: e.target.checked })}
-              />
-              Ja
-            </label>
-          </label>
+          <Checkbox
+            fieldLabel="Ganztägig"
+            label={form.allDay ? "Ja" : "Nein"}
+            checked={form.allDay}
+            onChange={(allDay) => setForm({ ...form, allDay })}
+          />
           <label className="field">
             <span>Datum *</span>
             <input

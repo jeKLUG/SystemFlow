@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { Checkbox } from "../../components/Checkbox";
 import { addMinutesToTime, localTodayIso } from "../../lib/dates";
 import { formatDateOnly } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
@@ -215,17 +216,12 @@ export function CustomerTimePage() {
             ))}
           </select>
         </label>
-        <label className="field checkbox-field">
-          <span>Abrechenbar</span>
-          <label className="inline-check">
-            <input
-              type="checkbox"
-              checked={form.billable}
-              onChange={(e) => setForm({ ...form, billable: e.target.checked })}
-            />
-            Ja
-          </label>
-        </label>
+        <Checkbox
+          fieldLabel="Abrechenbar"
+          label={form.billable ? "Ja" : "Nein"}
+          checked={form.billable}
+          onChange={(billable) => setForm({ ...form, billable })}
+        />
         <label className="field full">
           <span>Beschreibung</span>
           <input

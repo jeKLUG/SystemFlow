@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { formatDate, vaultCategoryLabel } from "../lib/labels";
 import {
@@ -638,48 +639,36 @@ export function VaultPage() {
                     }
                   />
                 </label>
-                <label className="field vault-check">
-                  <input
-                    type="checkbox"
-                    checked={genOpts.upper}
-                    onChange={(e) => setGenOpts({ ...genOpts, upper: e.target.checked })}
-                  />
-                  <span>Großbuchstaben</span>
-                </label>
-                <label className="field vault-check">
-                  <input
-                    type="checkbox"
-                    checked={genOpts.lower}
-                    onChange={(e) => setGenOpts({ ...genOpts, lower: e.target.checked })}
-                  />
-                  <span>Kleinbuchstaben</span>
-                </label>
-                <label className="field vault-check">
-                  <input
-                    type="checkbox"
-                    checked={genOpts.digits}
-                    onChange={(e) => setGenOpts({ ...genOpts, digits: e.target.checked })}
-                  />
-                  <span>Ziffern</span>
-                </label>
-                <label className="field vault-check">
-                  <input
-                    type="checkbox"
-                    checked={genOpts.symbols}
-                    onChange={(e) => setGenOpts({ ...genOpts, symbols: e.target.checked })}
-                  />
-                  <span>Sonderzeichen</span>
-                </label>
-                <label className="field vault-check">
-                  <input
-                    type="checkbox"
-                    checked={genOpts.excludeAmbiguous}
-                    onChange={(e) =>
-                      setGenOpts({ ...genOpts, excludeAmbiguous: e.target.checked })
-                    }
-                  />
-                  <span>Mehrdeutige meiden (0/O, 1/l/I)</span>
-                </label>
+                <Checkbox
+                  className="vault-check"
+                  label="Großbuchstaben"
+                  checked={genOpts.upper}
+                  onChange={(upper) => setGenOpts({ ...genOpts, upper })}
+                />
+                <Checkbox
+                  className="vault-check"
+                  label="Kleinbuchstaben"
+                  checked={genOpts.lower}
+                  onChange={(lower) => setGenOpts({ ...genOpts, lower })}
+                />
+                <Checkbox
+                  className="vault-check"
+                  label="Ziffern"
+                  checked={genOpts.digits}
+                  onChange={(digits) => setGenOpts({ ...genOpts, digits })}
+                />
+                <Checkbox
+                  className="vault-check"
+                  label="Sonderzeichen"
+                  checked={genOpts.symbols}
+                  onChange={(symbols) => setGenOpts({ ...genOpts, symbols })}
+                />
+                <Checkbox
+                  className="vault-check"
+                  label="Mehrdeutige meiden (0/O, 1/l/I)"
+                  checked={genOpts.excludeAmbiguous}
+                  onChange={(excludeAmbiguous) => setGenOpts({ ...genOpts, excludeAmbiguous })}
+                />
               </div>
               {genHistory.length > 0 ? (
                 <div className="vault-gen-history">
@@ -766,14 +755,13 @@ export function VaultPage() {
                   placeholder="Kunde suchen…"
                 />
               </label>
-              <label className="field vault-check" style={{ alignSelf: "end" }}>
-                <input
-                  type="checkbox"
+              <div style={{ alignSelf: "end" }}>
+                <Checkbox
+                  label="Als Favorit markieren"
                   checked={form.favorite}
-                  onChange={(e) => setForm({ ...form, favorite: e.target.checked })}
+                  onChange={(favorite) => setForm({ ...form, favorite })}
                 />
-                <span>Als Favorit markieren</span>
-              </label>
+              </div>
               <label className="field">
                 <span>Benutzername</span>
                 <input
