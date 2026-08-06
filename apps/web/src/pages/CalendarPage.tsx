@@ -299,40 +299,54 @@ export function CalendarPage() {
         </div>
 
         <div className="calendar-controls">
-          <div className="calendar-view-switch" role="tablist" aria-label="Ansicht">
-            {(
-              [
-                ["month", "Monat"],
-                ["week", "Woche"],
-                ["day", "Tag"],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={view === key}
-                className={`chip ${view === key ? "chip-active" : ""}`}
-                onClick={() => setView(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          <div className="calendar-nav">
-            <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(-1)} aria-label="Zurück">
-              ‹
-            </button>
-            <div className="calendar-period" key={heading}>
-              <strong className="anim-period">{heading}</strong>
+          <div className="calendar-controls-left">
+            <div className="calendar-view-switch" role="tablist" aria-label="Ansicht">
+              {(
+                [
+                  ["month", "Monat"],
+                  ["week", "Woche"],
+                  ["day", "Tag"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={view === key}
+                  className={`cal-seg ${view === key ? "is-active" : ""}`}
+                  onClick={() => setView(key)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
-            <button type="button" className="btn btn-ghost calendar-nav-btn" onClick={() => shift(1)} aria-label="Weiter">
-              ›
-            </button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={goToday}>
-              Heute
-            </button>
+
+            <div className="calendar-nav">
+              <div className="calendar-period" key={heading}>
+                <strong className="anim-period">{heading}</strong>
+              </div>
+              <div className="calendar-nav-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost calendar-nav-btn"
+                  onClick={() => shift(-1)}
+                  aria-label="Zurück"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost calendar-nav-btn"
+                  onClick={() => shift(1)}
+                  aria-label="Weiter"
+                >
+                  ›
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm cal-today-btn" onClick={goToday}>
+                  Heute
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="calendar-legend" aria-label="Terminarten">
@@ -498,7 +512,102 @@ export function CalendarPage() {
         </form>
       </Modal>
 
-      <div className="calendar-stage anim-fade-up delay-1">
+      <section className="calendar-day-panel panel anim-fade-up delay-1" key={selected}>
+        <div className="calendar-day-panel-head">
+          <div>
+            <p className="eyebrow">Tagesübersicht</p>
+            <h3>{dayLabel(selected)}</h3>
+          </div>
+          <div className="calendar-day-panel-meta">
+            <span className="cal-day-count-pill">
+              {selectedItems.length === 0
+                ? "Keine Termine"
+                : `${selectedItems.length} Termin${selectedItems.length === 1 ? "" : "e"}`}
+            </span>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm calendar-day-add"
+              onClick={() => openNew(selected)}
+            >
+              + Termin
+            </button>
+          </div>
+        </div>
+
+        {active ? (
+          <article className={`agenda-item kind-${active.kind} is-detail`}>
+            <div className="agenda-time">{formatAppointmentTime(active)}</div>
+            <div className="agenda-body">
+              <strong>{active.title}</strong>
+              <span className="muted">
+                {appointmentKindLabel[active.kind]}
+                {active.customerId
+                  ? ` · ${active.customerCompany || active.customerName || "Kunde"}`
+                  : ""}
+                {active.location ? ` · ${active.location}` : ""}
+              </span>
+              {active.description ? <p className="agenda-note">{active.description}</p> : null}
+              <div className="agenda-actions">
+                {active.customerId ? (
+                  <Link className="btn btn-ghost btn-sm" to={`/customers/${active.customerId}`}>
+                    Zum Kunden
+                  </Link>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() =>
+                    void api.deleteAppointment(active.id).then(() => {
+                      setActiveId(null);
+                      void reload();
+                    })
+                  }
+                >
+                  Löschen
+                </button>
+              </div>
+            </div>
+          </article>
+        ) : null}
+
+        {selectedItems.length === 0 ? (
+          <div className="calendar-empty">
+            <div className="calendar-empty-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <rect x="4" y="5" width="16" height="15" rx="2" />
+                <path d="M8 3v4M16 3v4M4 10h16" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div>
+              <p>Keine Termine an diesem Tag</p>
+              <span className="muted">Über Plus oder Doppelklick im Raster anlegen.</span>
+            </div>
+          </div>
+        ) : (
+          <ul className="calendar-agenda calendar-agenda-top">
+            {selectedItems.map((a) => (
+              <li key={a.id}>
+                <button
+                  type="button"
+                  className={`agenda-item kind-${a.kind}${activeId === a.id ? " is-active" : ""}`}
+                  onClick={() => setActiveId(a.id)}
+                >
+                  <div className="agenda-time">{formatAppointmentTime(a)}</div>
+                  <div className="agenda-body">
+                    <strong>{a.title}</strong>
+                    <span className="muted">
+                      {appointmentKindLabel[a.kind]}
+                      {a.customerId ? ` · ${a.customerCompany || a.customerName || "Kunde"}` : ""}
+                    </span>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <div className="calendar-stage anim-fade-up delay-2">
         <div className="calendar-main panel" key={view}>
           {view === "month" ? (
             <>
@@ -597,9 +706,6 @@ export function CalendarPage() {
 
           {view === "day" ? (
             <div className="cal-day-view">
-              <div className="cal-day-view-head">
-                <h3>{dayLabel(selected)}</h3>
-              </div>
               <div className="cal-day-view-body" style={{ "--hours": HOURS.length } as CSSProperties}>
                 <div className="cal-gutter">
                   <div className="cal-allday-label">Tag</div>
@@ -618,83 +724,6 @@ export function CalendarPage() {
             Plus-Icon oder Doppelklick → neuer Termin · Klick auf Termin für Details
           </p>
         </div>
-
-        <aside className="calendar-side anim-fade-up delay-2">
-          <section className="calendar-day-panel panel" key={selected}>
-            <div className="calendar-day-panel-head">
-              <div>
-                <p className="eyebrow">Tagesübersicht</p>
-                <h3>{dayLabel(selected)}</h3>
-              </div>
-            </div>
-
-            {active ? (
-              <article className={`agenda-item kind-${active.kind} is-detail`}>
-                <div className="agenda-time">{formatAppointmentTime(active)}</div>
-                <div className="agenda-body">
-                  <strong>{active.title}</strong>
-                  <span className="muted">
-                    {appointmentKindLabel[active.kind]}
-                    {active.customerId
-                      ? ` · ${active.customerCompany || active.customerName || "Kunde"}`
-                      : ""}
-                    {active.location ? ` · ${active.location}` : ""}
-                  </span>
-                  {active.description ? <p className="agenda-note">{active.description}</p> : null}
-                  <div className="agenda-actions">
-                    {active.customerId ? (
-                      <Link className="btn btn-ghost btn-sm" to={`/customers/${active.customerId}`}>
-                        Zum Kunden
-                      </Link>
-                    ) : null}
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() =>
-                        void api.deleteAppointment(active.id).then(() => {
-                          setActiveId(null);
-                          void reload();
-                        })
-                      }
-                    >
-                      Löschen
-                    </button>
-                  </div>
-                </div>
-              </article>
-            ) : null}
-
-            {selectedItems.length === 0 ? (
-              <div className="calendar-empty">
-                <p>Keine Termine an diesem Tag</p>
-                <span className="muted">Über das Plus oben oder Doppelklick im Raster anlegen.</span>
-              </div>
-            ) : (
-              <ul className="calendar-agenda">
-                {selectedItems.map((a) => (
-                  <li key={a.id}>
-                    <button
-                      type="button"
-                      className={`agenda-item kind-${a.kind}${activeId === a.id ? " is-active" : ""}`}
-                      onClick={() => setActiveId(a.id)}
-                    >
-                      <div className="agenda-time">{formatAppointmentTime(a)}</div>
-                      <div className="agenda-body">
-                        <strong>{a.title}</strong>
-                        <span className="muted">
-                          {appointmentKindLabel[a.kind]}
-                          {a.customerId
-                            ? ` · ${a.customerCompany || a.customerName || "Kunde"}`
-                            : ""}
-                        </span>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
       </div>
     </div>
   );

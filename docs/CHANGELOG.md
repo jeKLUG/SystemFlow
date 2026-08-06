@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.8 – 2026-08-06
+
+- Kalender: Tagesübersicht über dem Raster, Toolbar mit Segment-Switch und klarerer Navigation
+- Tagesübersicht als horizontale Agenda mit leerem Zustand und Meta-Pill
+
 ## 1.5.7 – 2026-08-05
 
 - Kalender-Polish: Einblend-Animationen, sanfte Hover-States, Mobile-FAB und Bottom-Sheet-Modal
