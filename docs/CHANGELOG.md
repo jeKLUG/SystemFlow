@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.22 – 2026-08-06
+
+- Wiki-Editor: kompakte Toolbar ohne Text-Überlagerung, Inhalt scrollt darunter
+
 ## 1.5.21 – 2026-08-06
 
 - Branding: Haus-Logo in Sidebar/Login, Untertitel „IT Workspace“ entfernt

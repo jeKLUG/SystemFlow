@@ -249,7 +249,9 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
       {error ? <p className="form-error editor-upload-error">{error}</p> : null}
       {busy ? <p className="muted editor-upload-hint">Bild wird hochgeladen…</p> : null}
 
-      <EditorContent editor={editor} />
+      <div className="editor-body">
+        <EditorContent editor={editor} />
+      </div>
       <p className="editor-hint muted">
         Bilder per Toolbar, Einfügen aus der Zwischenablage oder Drag & Drop. Anfassen zum
         Verschieben, Ecken zum Skalieren.
