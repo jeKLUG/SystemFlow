@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.37 – 2026-08-06
+
+- UI-Polish: Surfaces, Shell, Badges, Empty States, Fokus und Motion – konsistenter SaaS-Look auf Desktop, Tablet und Mobil
+
 ## 1.5.36 – 2026-08-06
 
 - Übersicht: Dashboard mit Donut-/Balken-/Wochen-Diagrammen zu Aufgaben, Terminen, Abläufen und Kunden
