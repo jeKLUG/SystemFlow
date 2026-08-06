@@ -118,16 +118,44 @@ export function Layout() {
         </nav>
 
         <div className="sidebar-footer">
-          <div className="user-block">
-            <span className="avatar">{(user?.username ?? "?").slice(0, 1).toUpperCase()}</span>
-            <div>
-              <strong>{user?.username}</strong>
-              <span>Administrator</span>
+          <div className="user-card">
+            <div className="user-card-main">
+              <span className="avatar" aria-hidden="true">
+                {(user?.username ?? "?").slice(0, 1).toUpperCase()}
+                <i className="avatar-status" title="Angemeldet" />
+              </span>
+              <div className="user-card-meta">
+                <strong title={user?.username ?? undefined}>{user?.username}</strong>
+                <span>Administrator</span>
+              </div>
+            </div>
+            <div className="user-card-actions">
+              <NavLink
+                to="/settings"
+                className="user-action"
+                title="Konto"
+                aria-label="Konto öffnen"
+                onClick={closeMobile}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M12 3.5v2.2M12 18.3V20.5M3.5 12h2.2M18.3 12H20.5M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6" />
+                </svg>
+              </NavLink>
+              <button
+                type="button"
+                className="user-action is-logout"
+                title="Abmelden"
+                aria-label="Abmelden"
+                onClick={() => void logout()}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                  <path d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10" strokeLinecap="round" />
+                  <path d="M14 16l4-4-4-4M10 12h8" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
             </div>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void logout()}>
-            Abmelden
-          </button>
         </div>
       </aside>
 

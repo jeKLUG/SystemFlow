@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.15 – 2026-08-06
+
+- Kundenkopf: Quicklinks (Notiz, Kalender, Tresor, Export) entfernt
+- Sidebar-Profilbereich: Karte mit Status-Avatar, Konto- und Abmelden-Icons
+
 ## 1.5.14 – 2026-08-06
 
 - Dokumentenablage: Ordner, Drag&Drop, Kachel/Liste, Vorschau, Verschieben/Umbenennen

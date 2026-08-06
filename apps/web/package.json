@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tiptap/extension-image": "^2.27.2",
     "@tiptap/extension-link": "^2.14.0",
     "@tiptap/extension-placeholder": "^2.14.0",
     "@tiptap/extension-table": "^2.14.0",
@@ -20,7 +21,8 @@
     "@tiptap/starter-kit": "^2.14.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router-dom": "^7.6.2"
+    "react-router-dom": "^7.6.2",
+    "tiptap-extension-resize-image": "^1.4.5"
   },
   "devDependencies": {
     "@types/react": "^19.1.6",

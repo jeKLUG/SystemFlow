@@ -39,7 +39,7 @@ export function CustomerLayout() {
         <span>{customerDisplayName(customer)}</span>
       </div>
 
-      <div className="section-head row-between">
+      <div className="section-head">
         <div>
           <h2>{customerDisplayName(customer)}</h2>
           <p>
@@ -50,24 +50,6 @@ export function CustomerLayout() {
               <span className="muted"> · {customer.contactPerson}</span>
             ) : null}
           </p>
-        </div>
-        <div className="page-actions">
-          <Link className="btn btn-primary" to={`/quick-note?customerId=${id}`}>
-            + Notiz
-          </Link>
-          <Link className="btn btn-ghost" to={`/calendar?customerId=${id}`}>
-            Kalender
-          </Link>
-          <Link className="btn btn-ghost" to={`/vault?customerId=${id}`}>
-            Tresor
-          </Link>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={() => void api.exportCustomer(id)}
-          >
-            Export ZIP
-          </button>
         </div>
       </div>
 
