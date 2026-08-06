@@ -23,12 +23,15 @@ HTTP im LAN ist erlaubt (`usesCleartextTraffic`).
 ## APK bauen
 
 1. Android Studio öffnen → **Open** → Ordner `apps/android-app`
-2. Gradle-Sync abwarten (Projekt nutzt **Gradle 9.1** – kompatibel mit JDK 17–25)
-3. Falls die IDE noch eine alte Gradle-JVM meldet: **Settings → Build, Execution, Deployment → Build Tools → Gradle → Gradle JDK** auf Embedded JDK oder 17/21/25 stellen
-4. Menü **Build → Build Bundle(s) / APK(s) → Build APK(s)**
-5. Fertige Datei:
+2. **Wichtig (bei JDK 25):** Settings → Build Tools → Gradle → **Gradle JDK = JetBrains Runtime 17** oder **Embedded JDK** (nicht Java 25). Gradle 8.9 läuft nur bis Java 22.
+3. **File → Invalidate Caches / Restart** (einmal, falls noch AGP-9-Meldung kommt)
+4. **File → Sync Project with Gradle Files**
+5. **Build → Build Bundle(s) / APK(s) → Build APK(s)**
+6. Fertige Datei:
 
 `apps/android-app/app/build/outputs/apk/debug/app-debug.apk`
+
+Toolchain: **AGP 8.7.3** + **Gradle 8.9** (passend zu Android Studio mit max. AGP 8.7.3).
 
 Debug-APK reicht zum internen Nutzen. Signiertes Release:
 

@@ -15,7 +15,7 @@ Die Android-App unter [`apps/android-app`](../apps/android-app) ist eine schlank
 
 Siehe [apps/android-app/README.md](../apps/android-app/README.md). Kurzfassung: Projekt in Android Studio öffnen → **Build APK(s)**.
 
-Toolchain: **Gradle 9.1** + **AGP 9.0** (läuft mit JDK 17–25). App-Bytecode bleibt Java 17.
+Toolchain: **AGP 8.7.3** + **Gradle 8.9** (max. unterstützt von vielen Android-Studio-Versionen). Gradle-Daemon mit **JDK 17** betreiben, nicht mit JDK 25.
 
 Auf dem Entwicklungsrechner ohne JDK/Android-SDK kann die APK hier nicht kompiliert werden; der Build läuft lokal in Android Studio oder über CI.
 

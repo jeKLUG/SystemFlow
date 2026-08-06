@@ -29,11 +29,11 @@ import type {
 
 type TaskFilter = "open" | "today" | "upcoming" | "inbox";
 
-const taskFilters: { id: TaskFilter; label: string }[] = [
-  { id: "open", label: "Alle offen" },
-  { id: "today", label: "Heute / überfällig" },
-  { id: "upcoming", label: "Geplant" },
-  { id: "inbox", label: "Inbox" },
+const taskFilters: { id: TaskFilter; label: string; short: string }[] = [
+  { id: "open", label: "Alle offen", short: "Offen" },
+  { id: "today", label: "Heute / überfällig", short: "Heute" },
+  { id: "upcoming", label: "Geplant", short: "Geplant" },
+  { id: "inbox", label: "Inbox", short: "Inbox" },
 ];
 
 /**
@@ -111,17 +111,17 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">{dateLabel}</p>
           <h2>{greet}</h2>
-          <p>Aktuelle Lage: Aufgaben, Termine und Abläufe auf einen Blick.</p>
+          <p className="dashboard-lede">Aufgaben, Termine und Abläufe auf einen Blick.</p>
         </div>
-        <div className="page-actions">
-          <Link className="btn btn-ghost" to="/calendar">
+        <div className="page-actions dashboard-actions">
+          <Link className="btn btn-ghost dashboard-action-secondary" to="/calendar">
             Kalender
           </Link>
-          <Link className="btn btn-ghost" to="/customers">
+          <Link className="btn btn-ghost dashboard-action-secondary" to="/customers">
             Kunden
           </Link>
           <Link className="btn btn-primary" to="/quick-note">
-            + Schnellnotiz
+            + Notiz
           </Link>
         </div>
       </header>
@@ -137,10 +137,10 @@ export function DashboardPage() {
           className={`dash-kpi is-warn${filter === "today" ? " is-active" : ""}`}
           onClick={() => setFilter("today")}
         >
-          <span className="dash-kpi-label">Überfällig / Heute</span>
+          <span className="dash-kpi-label">Heute</span>
           <strong>{summary.today}</strong>
           <span className="dash-kpi-meta">
-            {summary.overdue > 0 ? `${summary.overdue} überfällig` : "Nichts überfällig"}
+            {summary.overdue > 0 ? `${summary.overdue} überfällig` : "im Plan"}
           </span>
         </button>
         <button
@@ -150,7 +150,7 @@ export function DashboardPage() {
         >
           <span className="dash-kpi-label">Offen</span>
           <strong>{summary.open}</strong>
-          <span className="dash-kpi-meta">systemweit</span>
+          <span className="dash-kpi-meta">Aufgaben</span>
         </button>
         <button
           type="button"
@@ -164,12 +164,12 @@ export function DashboardPage() {
         <Link className="dash-kpi" to="/reminders">
           <span className="dash-kpi-label">Abläufe</span>
           <strong>{reminderCount}</strong>
-          <span className="dash-kpi-meta">nächste 30 Tage</span>
+          <span className="dash-kpi-meta">30 Tage</span>
         </Link>
         <Link className="dash-kpi" to="/calendar">
-          <span className="dash-kpi-label">Termine heute</span>
+          <span className="dash-kpi-label">Termine</span>
           <strong>{todayAppts.length}</strong>
-          <span className="dash-kpi-meta">{appointments.length} kommend</span>
+          <span className="dash-kpi-meta">heute</span>
         </Link>
       </section>
 
@@ -202,8 +202,9 @@ export function DashboardPage() {
                 className={filter === tab.id ? "is-active" : undefined}
                 onClick={() => setFilter(tab.id)}
               >
-                {tab.label}
-                <span>
+                <span className="dash-tab-label">{tab.label}</span>
+                <span className="dash-tab-short">{tab.short}</span>
+                <span className="dash-tab-count">
                   {tab.id === "open"
                     ? summary.open
                     : tab.id === "today"

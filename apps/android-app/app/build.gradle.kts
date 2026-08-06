@@ -8,12 +8,12 @@ val appUrl: String = (project.findProperty("app.url") as String?)
 
 android {
     namespace = "de.systemhausess.app"
-    compileSdk = 36
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "de.systemhausess.app"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0.0"
         buildConfigField("String", "DEFAULT_APP_URL", "\"${appUrl.replace("\"", "\\\"")}\"")
@@ -34,15 +34,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     buildFeatures {
         buildConfig = true
         viewBinding = true
-    }
-}
-
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
 }
 

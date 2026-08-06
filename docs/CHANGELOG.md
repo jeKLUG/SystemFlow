@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.34 – 2026-08-06
+
+- Mobile: doppeltes Padding behoben, Übersicht kompakter, Sticky-Tabs/Tabbar ohne Überlagerung
+
+## 1.5.33 – 2026-08-06
+
+- Android-App: wieder AGP 8.7.3 + Gradle 8.9 (kompatibel mit Android Studio); Gradle-JDK 17 verwenden
+
 ## 1.5.32 – 2026-08-06
 
 - Android-App: Gradle 9.1 + AGP 9.0 (kompatibel mit JDK 25)
