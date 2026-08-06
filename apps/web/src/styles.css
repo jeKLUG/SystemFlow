@@ -1649,53 +1649,151 @@ input[type="checkbox"]:not(.check-input):checked {
   height: 0;
 }
 
+.history-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.history-hero {
+  margin: 0;
+  padding: 1.1rem 1.15rem;
+  border-radius: 16px;
+  background:
+    radial-gradient(90% 120% at 100% 0%, rgba(59, 130, 246, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent),
+    var(--surface);
+}
+
+.history-hero-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.85rem;
+}
+
+.history-hero-top h2 {
+  margin: 0;
+}
+
+.history-hero-top .muted {
+  margin: 0.35rem 0 0;
+}
+
+.history-empty {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.2rem;
+  border-radius: 16px;
+}
+
+.history-empty-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--accent-bright);
+  background: var(--accent-soft);
+  border: 1px solid rgba(59, 130, 246, 0.22);
+}
+
+.history-empty-icon svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.history-empty strong {
+  display: block;
+  margin-bottom: 0.2rem;
+  font-family: var(--font-display);
+}
+
+.history-empty p {
+  margin: 0;
+}
+
+.history-empty .btn {
+  margin-left: auto;
+}
+
 .history-feed {
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: 1.15rem;
+}
+
+.history-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
 }
 
 .history-day-label {
-  margin: 0 0 0.7rem;
+  margin: 0;
   font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 600;
+  font-size: 0.8rem;
+  font-weight: 650;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
+.history-day-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .timeline {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 0.85rem;
-  border-left: 2px solid rgba(90, 160, 255, 0.18);
+  padding: 0 0 0 0.75rem;
+  border-left: 2px solid rgba(90, 160, 255, 0.16);
 }
 
 .timeline-item {
   position: relative;
-  padding: 0 0 0.95rem 1.15rem;
-  animation: fade-up 0.35s ease both;
+  padding: 0 0 0.65rem 1.05rem;
+  animation: fade-up 0.3s ease both;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
 }
 
 .timeline-marker {
   position: absolute;
-  left: -1.05rem;
-  top: 0.55rem;
-  width: 1.55rem;
-  height: 1.55rem;
+  left: -0.95rem;
+  top: 0.7rem;
+  width: 1.4rem;
+  height: 1.4rem;
   border-radius: 999px;
   display: grid;
   place-items: center;
   background: var(--surface-2);
   border: 1px solid var(--border-strong);
   color: var(--accent-bright);
-  box-shadow: 0 0 0 4px var(--bg);
+  box-shadow: 0 0 0 3px var(--bg);
 }
 
 .timeline-marker svg {
-  width: 0.85rem;
-  height: 0.85rem;
+  width: 0.78rem;
+  height: 0.78rem;
 }
 
 .timeline-marker.is-time {
@@ -1721,6 +1819,10 @@ input[type="checkbox"]:not(.check-input):checked {
   border-color: rgba(251, 191, 36, 0.35);
 }
 
+.timeline-marker.is-manual {
+  color: var(--text-muted);
+}
+
 .timeline-dot {
   position: absolute;
   left: -0.45rem;
@@ -1733,11 +1835,35 @@ input[type="checkbox"]:not(.check-input):checked {
 }
 
 .timeline-body {
-  padding: 0.8rem 0.9rem;
+  padding: 0.7rem 0.8rem;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 12px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), var(--surface);
   transition: border-color 0.16s ease, transform 0.16s ease;
+}
+
+.timeline-body.is-time {
+  border-left: 3px solid var(--ok);
+}
+
+.timeline-body.is-wiki {
+  border-left: 3px solid var(--accent-bright);
+}
+
+.timeline-body.is-appointment {
+  border-left: 3px solid #a78bfa;
+}
+
+.timeline-body.is-project {
+  border-left: 3px solid #38bdf8;
+}
+
+.timeline-body.is-asset {
+  border-left: 3px solid var(--warn);
+}
+
+.timeline-body.is-manual {
+  border-left: 3px solid rgba(148, 163, 184, 0.45);
 }
 
 .timeline-item:hover .timeline-body {
@@ -1745,33 +1871,52 @@ input[type="checkbox"]:not(.check-input):checked {
   transform: translateY(-1px);
 }
 
-.timeline-body p {
-  margin: 0.35rem 0;
-}
-
 .timeline-card-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
-.timeline-card-head strong {
-  display: block;
-  margin-top: 0.2rem;
+.timeline-card-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.timeline-card-main strong {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.timeline-desc {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.timeline-card-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  flex-shrink: 0;
 }
 
 .timeline-kind {
   display: inline-flex;
   align-items: center;
-  min-height: 1.25rem;
+  width: fit-content;
+  min-height: 1.2rem;
   padding: 0 0.45rem;
   border-radius: 6px;
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 700;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
   background: var(--accent-soft);
   color: var(--accent-bright);
@@ -1797,11 +1942,33 @@ input[type="checkbox"]:not(.check-input):checked {
   color: var(--warn);
 }
 
-.timeline-time {
-  display: inline-block;
-  margin-top: 0.35rem;
-  font-size: 0.8rem;
+.timeline-kind.is-manual {
+  background: rgba(148, 163, 184, 0.14);
   color: var(--text-muted);
+}
+
+.timeline-time {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  .history-empty .btn {
+    margin-left: 0;
+  }
+
+  .timeline-card-head {
+    flex-direction: column;
+  }
+
+  .timeline-card-side {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .asset-row {

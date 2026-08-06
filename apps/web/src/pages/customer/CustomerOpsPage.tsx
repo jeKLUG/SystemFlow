@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import { AttachmentPanel } from "../../components/AttachmentPanel";
 import { CustomerSlaPanel } from "../../components/CustomerSlaPanel";
+import { Modal } from "../../components/Modal";
 import {
   activityKindMeta,
   detectActivityKind,
@@ -61,6 +62,14 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
   return icons[kind];
 }
 
+function activityClock(value: string): string {
+  try {
+    return new Intl.DateTimeFormat("de-DE", { timeStyle: "short" }).format(new Date(value));
+  } catch {
+    return formatDate(value);
+  }
+}
+
 /**
  * Betrieb: SLAs, Historie und Anhänge (Aufgaben liegen unter eigenem Tab).
  */
@@ -69,6 +78,8 @@ export function CustomerOpsPage() {
   const [activityList, setActivityList] = useState<Activity[]>([]);
   const [contractList, setContractList] = useState<Awaited<ReturnType<typeof api.contracts>>>([]);
   const [activityForm, setActivityForm] = useState({ title: "", description: "" });
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyError, setHistoryError] = useState("");
 
   async function reload() {
     const [h, contracts] = await Promise.all([api.activities(id), api.contracts(id)]);
@@ -82,45 +93,78 @@ export function CustomerOpsPage() {
 
   const historyDays = useMemo(() => groupActivitiesByDay(activityList), [activityList]);
 
+  function openHistoryModal() {
+    setActivityForm({ title: "", description: "" });
+    setHistoryError("");
+    setHistoryOpen(true);
+  }
+
   async function createActivity(e: FormEvent) {
     e.preventDefault();
-    await api.createActivity(id, activityForm);
-    setActivityForm({ title: "", description: "" });
-    await reload();
+    setHistoryError("");
+    try {
+      await api.createActivity(id, activityForm);
+      setActivityForm({ title: "", description: "" });
+      setHistoryOpen(false);
+      await reload();
+    } catch (err) {
+      setHistoryError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    }
   }
 
   return (
     <>
       <CustomerSlaPanel customerId={id} contracts={contractList} onChanged={reload} />
 
-      <section className="section">
-        <div className="section-head">
-          <h2>Einsatz-Historie</h2>
-          <p>Was wurde wann gemacht – manuell oder automatisch bei Wiki/Projekten/Zeiten.</p>
+      <section className="section history-section">
+        <div className="history-hero panel">
+          <div className="history-hero-top">
+            <div>
+              <p className="eyebrow">Protokoll</p>
+              <h2>Einsatz-Historie</h2>
+              <p className="muted">
+                {activityList.length} Einträg{activityList.length === 1 ? "" : "e"} · manuell und
+                automatisch bei Wiki, Projekten und Zeiten
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-lg"
+              onClick={openHistoryModal}
+              aria-label="Manuellen Einsatz eintragen"
+              title="Einsatz eintragen"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <form className="panel inline-form" onSubmit={createActivity}>
-          <input
-            placeholder="Titel des Einsatzes"
-            value={activityForm.title}
-            onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Kurzbeschreibung (optional)"
-            value={activityForm.description}
-            onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
-          />
-          <button className="btn btn-primary" type="submit">
-            Eintrag
-          </button>
-        </form>
+
         {historyDays.length === 0 ? (
-          <p className="empty">Noch keine Historie.</p>
+          <div className="history-empty panel">
+            <div className="history-empty-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M12 4v10M8 10l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 18h14" strokeLinecap="round" />
+              </svg>
+            </div>
+            <div>
+              <strong>Noch keine Historie</strong>
+              <p className="muted">Automatische Einträge entstehen bei Zeiten, Wiki und Projekten.</p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={openHistoryModal}>
+              Einsatz eintragen
+            </button>
+          </div>
         ) : (
           <div className="history-feed">
             {historyDays.map((day) => (
               <section key={day.dayKey} className="history-day">
-                <h3 className="history-day-label">{day.label}</h3>
+                <div className="history-day-head">
+                  <h3 className="history-day-label">{day.label}</h3>
+                  <span>{day.items.length}</span>
+                </div>
                 <ol className="timeline">
                   {day.items.map((item) => {
                     const kind = detectActivityKind(item.title);
@@ -130,36 +174,48 @@ export function CustomerOpsPage() {
                         <div className={`timeline-marker ${meta.className}`} aria-hidden>
                           <ActivityIcon kind={kind} />
                         </div>
-                        <div className="timeline-body">
+                        <article className={`timeline-body ${meta.className}`}>
                           <div className="timeline-card-head">
-                            <div>
+                            <div className="timeline-card-main">
                               <span className={`timeline-kind ${meta.className}`}>{meta.label}</span>
                               <strong>{polishActivityText(item.title)}</strong>
+                              {item.description ? (
+                                <p className="timeline-desc">
+                                  {polishActivityText(item.description)}
+                                </p>
+                              ) : null}
                             </div>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-icon"
-                              aria-label="Eintrag entfernen"
-                              onClick={() => void api.deleteActivity(item.id).then(() => reload())}
-                            >
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                aria-hidden
+                            <div className="timeline-card-side">
+                              <time className="timeline-time" dateTime={item.occurredAt}>
+                                {activityClock(item.occurredAt)}
+                              </time>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-icon"
+                                aria-label="Eintrag entfernen"
+                                onClick={() => {
+                                  if (confirm("Historie-Eintrag entfernen?")) {
+                                    void api.deleteActivity(item.id).then(() => reload());
+                                  }
+                                }}
                               >
-                                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-                              </svg>
-                            </button>
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  aria-hidden
+                                >
+                                  <path
+                                    d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
                           </div>
-                          {item.description ? (
-                            <p className="muted">{polishActivityText(item.description)}</p>
-                          ) : null}
-                          <time className="timeline-time" dateTime={item.occurredAt}>
-                            {formatDate(item.occurredAt)}
-                          </time>
-                        </div>
+                        </article>
                       </li>
                     );
                   })}
@@ -179,6 +235,42 @@ export function CustomerOpsPage() {
           <AttachmentPanel customerId={id} />
         </div>
       </section>
+
+      <Modal
+        open={historyOpen}
+        title="Einsatz eintragen"
+        onClose={() => setHistoryOpen(false)}
+      >
+        <form className="form-grid" onSubmit={createActivity}>
+          <label className="field full">
+            <span>Titel *</span>
+            <input
+              required
+              value={activityForm.title}
+              onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
+              placeholder="z. B. Vor-Ort-Termin / Abstimmung"
+            />
+          </label>
+          <label className="field full">
+            <span>Kurzbeschreibung</span>
+            <textarea
+              rows={3}
+              value={activityForm.description}
+              onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
+              placeholder="Optional: Ergebnis, Teilnehmer, nächste Schritte…"
+            />
+          </label>
+          {historyError ? <p className="form-error full">{historyError}</p> : null}
+          <div className="full form-actions modal-actions">
+            <button className="btn btn-primary" type="submit">
+              Speichern
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setHistoryOpen(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.13 – 2026-08-06
+
+- Einsatz-Historie: kompakte Timeline, farbige Typ-Streifen, manueller Eintrag per Plus/Modal
+
 ## 1.5.12 – 2026-08-06
 
 - Zeiterfassung: Historie nach Tagen, Buchung per Uhr-Icon/Modal
