@@ -252,10 +252,6 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
       <div className="editor-body">
         <EditorContent editor={editor} />
       </div>
-      <p className="editor-hint muted">
-        Bilder per Toolbar, Einfügen aus der Zwischenablage oder Drag & Drop. Anfassen zum
-        Verschieben, Ecken zum Skalieren.
-      </p>
     </div>
   );
 }

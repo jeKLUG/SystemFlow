@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.23 – 2026-08-06
+
+- Dateiablage: kompakteres Aktionsmenü mit Icons, ohne doppelten Download-Eintrag
+
 ## 1.5.22 – 2026-08-06
 
 - Wiki-Editor: kompakte Toolbar ohne Text-Überlagerung, Inhalt scrollt darunter

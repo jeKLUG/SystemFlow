@@ -607,8 +607,10 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                                 .finally(() => setMenuId(null));
                             }}
                           >
+                            <MenuIconRename />
                             Umbenennen
                           </button>
+                          <div className="vault-menu-sep" role="separator" />
                           <button
                             type="button"
                             role="menuitem"
@@ -631,6 +633,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                               }
                             }}
                           >
+                            <MenuIconTrash />
                             Löschen
                           </button>
                         </div>
@@ -714,16 +717,16 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       {menuId === file.id ? (
                         <div className="vault-menu" role="menu">
                           <button type="button" role="menuitem" onClick={() => openRename(file)}>
+                            <MenuIconEdit />
                             Bearbeiten
                           </button>
                           {!scoped ? (
                             <button type="button" role="menuitem" onClick={() => openMove(file)}>
+                              <MenuIconMove />
                               Verschieben…
                             </button>
                           ) : null}
-                          <a role="menuitem" href={`/api/attachments/${file.id}/download`} download>
-                            Download
-                          </a>
+                          <div className="vault-menu-sep" role="separator" />
                           <button
                             type="button"
                             role="menuitem"
@@ -735,6 +738,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                               }
                             }}
                           >
+                            <MenuIconTrash />
                             Löschen
                           </button>
                         </div>
@@ -877,6 +881,51 @@ function folderPathLabel(folders: FileFolderItem[], id: string): string {
     cur = cur.parentId ? folders.find((f) => f.id === cur!.parentId) : undefined;
   }
   return parts.join(" / ");
+}
+
+function menuIconProps() {
+  return {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    "aria-hidden": true as const,
+  };
+}
+
+function MenuIconEdit() {
+  return (
+    <svg {...menuIconProps()}>
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3z" strokeLinejoin="round" />
+      <path d="M12.5 5.5l3 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MenuIconRename() {
+  return (
+    <svg {...menuIconProps()}>
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3z" strokeLinejoin="round" />
+      <path d="M12.5 5.5l3 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MenuIconMove() {
+  return (
+    <svg {...menuIconProps()}>
+      <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" strokeLinejoin="round" />
+      <path d="M12 11v5M9.5 14L12 16.5 14.5 14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MenuIconTrash() {
+  return (
+    <svg {...menuIconProps()}>
+      <path d="M4 7h16M9 7V5h6v2M8 7l1 12h6l1-12" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 function FolderGlyph() {

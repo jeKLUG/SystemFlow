@@ -142,14 +142,8 @@ export function DocumentPage() {
         documentId={doc.id}
       />
 
-      <section className="section">
-        <div className="section-head">
-          <h2>Anhänge</h2>
-          <p>Dateien zu diesem Dokument.</p>
-        </div>
-        <div className="panel">
-          <AttachmentPanel customerId={doc.customerId} documentId={doc.id} />
-        </div>
+      <section className="section doc-attachments">
+        <AttachmentPanel customerId={doc.customerId} documentId={doc.id} />
       </section>
     </div>
   );
