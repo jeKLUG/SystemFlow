@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.30 – 2026-08-06
+
+- Mobile: Icon-Tabbar, Hamburger-Menü, größere Touch-Flächen, sticky Kunden-Tabs, Dashboard/Tasks gestapelt
+
 ## 1.5.29 – 2026-08-06
 
 - Einsatz-Historie: kompakte Timeline, Filter nach Art, Löschen nur bei Hover
