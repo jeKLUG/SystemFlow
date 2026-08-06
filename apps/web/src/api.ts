@@ -285,24 +285,44 @@ export const api = {
     request<{ ok: boolean }>(`/api/contracts/${id}`, { method: "DELETE" }),
   reminders: (days = 90) =>
     request<import("./types").Reminders>(`/api/reminders?days=${days}`),
-  attachments: (customerId: string, opts?: { documentId?: string; assetId?: string }) => {
+  attachments: (
+    customerId: string,
+    opts?: { documentId?: string; assetId?: string; folderId?: string },
+  ) => {
     const params = new URLSearchParams();
     if (opts?.documentId) params.set("documentId", opts.documentId);
     if (opts?.assetId) params.set("assetId", opts.assetId);
+    if (opts?.folderId !== undefined) params.set("folderId", opts.folderId);
     const qs = params.toString();
     return request<import("./types").AttachmentItem[]>(
       `/api/customers/${customerId}/attachments${qs ? `?${qs}` : ""}`,
     );
   },
+  folders: (customerId: string) =>
+    request<import("./types").FileFolderItem[]>(`/api/customers/${customerId}/folders`),
+  createFolder: (customerId: string, body: { name: string; parentId?: string | null }) =>
+    request<import("./types").FileFolderItem>(`/api/customers/${customerId}/folders`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateFolder: (id: string, body: { name?: string; parentId?: string | null }) =>
+    request<import("./types").FileFolderItem>(`/api/folders/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteFolder: (id: string) =>
+    request<{ ok: boolean }>(`/api/folders/${id}`, { method: "DELETE" }),
   uploadAttachment: async (
     customerId: string,
     file: File,
-    opts?: { documentId?: string; assetId?: string },
+    opts?: { documentId?: string; assetId?: string; folderId?: string | null; description?: string },
   ) => {
     const body = new FormData();
     body.append("file", file);
     if (opts?.documentId) body.append("documentId", opts.documentId);
     if (opts?.assetId) body.append("assetId", opts.assetId);
+    if (opts?.folderId) body.append("folderId", opts.folderId);
+    if (opts?.description) body.append("description", opts.description);
     const res = await fetch(`/api/customers/${customerId}/attachments`, {
       method: "POST",
       credentials: "include",
@@ -320,6 +340,14 @@ export const api = {
     }
     return res.json() as Promise<import("./types").AttachmentItem>;
   },
+  updateAttachment: (
+    id: string,
+    body: { originalName?: string; description?: string | null; folderId?: string | null },
+  ) =>
+    request<import("./types").AttachmentItem>(`/api/attachments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   deleteAttachment: (id: string) =>
     request<{ ok: boolean }>(`/api/attachments/${id}`, { method: "DELETE" }),
   vaultStatus: () => request<import("./types").VaultStatus>("/api/vault/status"),

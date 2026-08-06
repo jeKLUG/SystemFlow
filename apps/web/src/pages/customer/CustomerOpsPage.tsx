@@ -227,11 +227,7 @@ export function CustomerOpsPage() {
       </section>
 
       <section className="section">
-        <div className="section-head">
-          <h2>Anhänge</h2>
-          <p>PDFs, Fotos und Lizenzscheine zu diesem Kunden.</p>
-        </div>
-        <div className="panel">
+        <div className="panel vault-panel">
           <AttachmentPanel customerId={id} />
         </div>
       </section>

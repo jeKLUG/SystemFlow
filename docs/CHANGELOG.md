@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.14 – 2026-08-06
+
+- Dokumentenablage: Ordner, Drag&Drop, Kachel/Liste, Vorschau, Verschieben/Umbenennen
+- Aufgaben: Kennzahlen, Sortierung/Filter, Schnell-Fälligkeit, Duplizieren, Erledigte löschen
+
 ## 1.5.13 – 2026-08-06
 
 - Einsatz-Historie: kompakte Timeline, farbige Typ-Streifen, manueller Eintrag per Plus/Modal

@@ -34,7 +34,8 @@ Browser (React SPA)
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)
-- **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`)
+- **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / Beschreibung
+- **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage
 - **vault_meta** / **vault_entries** – Passworttresor (AES-256-GCM, eigene Passphrase; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
 - **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
@@ -43,7 +44,7 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 ## Kunden-UI
 
-Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie, Anhänge).
+Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie, Dokumentenablage).
 
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
 

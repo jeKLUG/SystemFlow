@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { api } from "../api";
+import { Modal } from "./Modal";
+import { fileKind, formatBytes, sortByName, type FileKind, type VaultSort } from "../lib/files";
 import { formatDate } from "../lib/labels";
-import type { AttachmentItem } from "../types";
+import type { AttachmentItem, FileFolderItem } from "../types";
 
 interface Props {
   customerId: string;
@@ -9,76 +11,762 @@ interface Props {
   assetId?: string;
 }
 
+type Layout = "grid" | "list";
+
 /**
- * Upload und Liste von Dateianhängen.
+ * Dokumentenablage: Ordner, Drag&Drop-Upload, Suche und Dateikarten.
+ * Bei Wiki-/Anlagen-Bezug kompakter ohne Ordnerhierarchie.
  */
 export function AttachmentPanel({ customerId, documentId, assetId }: Props) {
-  const [items, setItems] = useState<AttachmentItem[]>([]);
+  const scoped = Boolean(documentId || assetId);
+  const [folders, setFolders] = useState<FileFolderItem[]>([]);
+  const [files, setFiles] = useState<AttachmentItem[]>([]);
+  const [allFiles, setAllFiles] = useState<AttachmentItem[]>([]);
+  const [folderId, setFolderId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<VaultSort>("name");
+  const [layout, setLayout] = useState<Layout>("grid");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [dragOver, setDragOver] = useState(false);
+  const [folderOpen, setFolderOpen] = useState(false);
+  const [folderName, setFolderName] = useState("");
+  const [renameTarget, setRenameTarget] = useState<AttachmentItem | null>(null);
+  const [renameName, setRenameName] = useState("");
+  const [renameDesc, setRenameDesc] = useState("");
+  const [moveTarget, setMoveTarget] = useState<AttachmentItem | null>(null);
+  const [moveFolderId, setMoveFolderId] = useState("");
+  const [preview, setPreview] = useState<AttachmentItem | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function reload() {
-    setItems(await api.attachments(customerId, { documentId, assetId }));
+    if (scoped) {
+      const list = await api.attachments(customerId, { documentId, assetId });
+      setFiles(list);
+      setAllFiles(list);
+      setFolders([]);
+      return;
+    }
+    const [folderList, fileList, vaultFiles] = await Promise.all([
+      api.folders(customerId),
+      api.attachments(customerId, {
+        folderId: folderId ?? "root",
+      }),
+      api.attachments(customerId),
+    ]);
+    // Nur Ablage-Dateien (ohne Wiki/Anlage)
+    const vaultOnly = vaultFiles.filter((f) => !f.documentId && !f.assetId);
+    setFolders(folderList);
+    setFiles(fileList.filter((f) => !f.documentId && !f.assetId));
+    setAllFiles(vaultOnly);
   }
 
   useEffect(() => {
-    void reload();
-  }, [customerId, documentId, assetId]);
+    void reload().catch((err) =>
+      setError(err instanceof Error ? err.message : "Laden fehlgeschlagen"),
+    );
+  }, [customerId, documentId, assetId, folderId]);
 
-  async function onUpload(fileList: FileList | null) {
-    if (!fileList?.length) return;
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest(".vault-more")) setMenuId(null);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
+
+  const childFolders = useMemo(() => {
+    return folders
+      .filter((f) => (folderId ? f.parentId === folderId : !f.parentId))
+      .sort(sortByName);
+  }, [folders, folderId]);
+
+  const breadcrumbs = useMemo(() => {
+    const trail: FileFolderItem[] = [];
+    let cur = folderId ? folders.find((f) => f.id === folderId) : undefined;
+    while (cur) {
+      trail.unshift(cur);
+      cur = cur.parentId ? folders.find((f) => f.id === cur!.parentId) : undefined;
+    }
+    return trail;
+  }, [folders, folderId]);
+
+  const folderCounts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const f of folders) {
+      if (!f.parentId) continue;
+      map.set(f.parentId, (map.get(f.parentId) ?? 0) + 1);
+    }
+    for (const file of allFiles) {
+      if (!file.folderId) continue;
+      map.set(file.folderId, (map.get(file.folderId) ?? 0) + 1);
+    }
+    return map;
+  }, [folders, allFiles]);
+
+  const filteredFiles = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = files;
+    if (q) {
+      list = list.filter(
+        (f) =>
+          f.originalName.toLowerCase().includes(q) ||
+          (f.description ?? "").toLowerCase().includes(q),
+      );
+    }
+    list = [...list];
+    if (sort === "name") list.sort(sortByName);
+    else if (sort === "size") list.sort((a, b) => b.size - a.size);
+    else list.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    return list;
+  }, [files, query, sort]);
+
+  const filteredFolders = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return childFolders;
+    return childFolders.filter((f) => f.name.toLowerCase().includes(q));
+  }, [childFolders, query]);
+
+  const stats = useMemo(() => {
+    const totalSize = allFiles.reduce((s, f) => s + (f.size || 0), 0);
+    return {
+      files: allFiles.length,
+      folders: folders.length,
+      size: totalSize,
+    };
+  }, [allFiles, folders]);
+
+  async function onUpload(fileList: FileList | File[] | null) {
+    if (!fileList || (Array.isArray(fileList) ? fileList.length === 0 : !fileList.length)) return;
     setBusy(true);
     setError("");
     try {
-      for (const file of Array.from(fileList)) {
-        await api.uploadAttachment(customerId, file, { documentId, assetId });
+      const arr = Array.from(fileList as FileList);
+      for (const file of arr) {
+        await api.uploadAttachment(customerId, file, {
+          documentId,
+          assetId,
+          folderId: scoped ? null : folderId,
+        });
       }
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
     } finally {
       setBusy(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+    void onUpload(e.dataTransfer.files);
+  }
+
+  async function createFolder(e: FormEvent) {
+    e.preventDefault();
+    if (!folderName.trim()) return;
+    setError("");
+    try {
+      await api.createFolder(customerId, {
+        name: folderName.trim(),
+        parentId: folderId,
+      });
+      setFolderName("");
+      setFolderOpen(false);
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ordner anlegen fehlgeschlagen");
+    }
+  }
+
+  async function saveRename(e: FormEvent) {
+    e.preventDefault();
+    if (!renameTarget || !renameName.trim()) return;
+    await api.updateAttachment(renameTarget.id, {
+      originalName: renameName.trim(),
+      description: renameDesc.trim() || null,
+    });
+    setRenameTarget(null);
+    await reload();
+  }
+
+  async function saveMove(e: FormEvent) {
+    e.preventDefault();
+    if (!moveTarget) return;
+    await api.updateAttachment(moveTarget.id, {
+      folderId: moveFolderId || null,
+    });
+    setMoveTarget(null);
+    await reload();
+  }
+
+  function openRename(file: AttachmentItem) {
+    setMenuId(null);
+    setRenameTarget(file);
+    setRenameName(file.originalName);
+    setRenameDesc(file.description ?? "");
+  }
+
+  function openMove(file: AttachmentItem) {
+    setMenuId(null);
+    setMoveTarget(file);
+    setMoveFolderId(file.folderId ?? "");
+  }
+
+  function kindLabel(kind: FileKind) {
+    switch (kind) {
+      case "image":
+        return "Bild";
+      case "pdf":
+        return "PDF";
+      case "office":
+        return "Office";
+      case "archive":
+        return "Archiv";
+      case "text":
+        return "Text";
+      default:
+        return "Datei";
     }
   }
 
   return (
-    <div className="attachment-panel">
-      <label className="btn btn-ghost file-btn">
-        {busy ? "Lädt hoch…" : "Datei hochladen"}
-        <input
-          type="file"
-          multiple
-          hidden
-          disabled={busy}
-          onChange={(e) => void onUpload(e.target.files)}
-        />
-      </label>
-      {error ? <p className="form-error">{error}</p> : null}
-      {items.length === 0 ? (
-        <p className="empty">Keine Anhänge.</p>
-      ) : (
-        <ul className="list">
-          {items.map((att) => (
-            <li key={att.id} className="list-row">
-              <div>
-                <a href={`/api/attachments/${att.id}/download`} className="link-accent">
-                  <strong>{att.originalName}</strong>
-                </a>
-                <span className="muted">
-                  {(att.size / 1024).toFixed(0)} KB · {formatDate(att.createdAt)}
-                </span>
-              </div>
+    <div className={`vault${scoped ? " is-scoped" : ""}`}>
+      {!scoped ? (
+        <div className="vault-hero">
+          <div className="vault-hero-top">
+            <div>
+              <p className="eyebrow">Ablage</p>
+              <h3>Dokumentenablage</h3>
+              <p className="muted">Ordner, Uploads und Kundenunterlagen an einem Ort.</p>
+            </div>
+            <div className="vault-hero-actions">
+              <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
+                Ordner
+              </button>
               <button
                 type="button"
-                className="btn btn-danger btn-sm"
-                onClick={() => void api.deleteAttachment(att.id).then(() => reload())}
+                className="btn btn-primary"
+                disabled={busy}
+                onClick={() => fileInputRef.current?.click()}
               >
-                Löschen
+                {busy ? "Lädt…" : "Hochladen"}
               </button>
-            </li>
-          ))}
-        </ul>
+            </div>
+          </div>
+          <div className="stat-strip vault-stats">
+            <div className="stat-chip">
+              <strong>{stats.files}</strong>
+              <span>Dateien</span>
+            </div>
+            <div className="stat-chip">
+              <strong>{stats.folders}</strong>
+              <span>Ordner</span>
+            </div>
+            <div className="stat-chip">
+              <strong>{formatBytes(stats.size)}</strong>
+              <span>Speicher</span>
+            </div>
+            <div className="stat-chip">
+              <strong>{filteredFiles.length + filteredFolders.length}</strong>
+              <span>Hier sichtbar</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="vault-scoped-bar">
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {busy ? "Lädt…" : "Datei hochladen"}
+          </button>
+        </div>
       )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        hidden
+        disabled={busy}
+        onChange={(e) => void onUpload(e.target.files)}
+      />
+
+      {!scoped ? (
+        <div className="vault-toolbar">
+          <nav className="vault-crumbs" aria-label="Ordnerpfad">
+            <button
+              type="button"
+              className={!folderId ? "is-current" : undefined}
+              onClick={() => setFolderId(null)}
+            >
+              Root
+            </button>
+            {breadcrumbs.map((crumb) => (
+              <span key={crumb.id} className="vault-crumb">
+                <span aria-hidden>/</span>
+                <button
+                  type="button"
+                  className={folderId === crumb.id ? "is-current" : undefined}
+                  onClick={() => setFolderId(crumb.id)}
+                >
+                  {crumb.name}
+                </button>
+              </span>
+            ))}
+          </nav>
+          <div className="vault-tools">
+            <label className="field vault-search">
+              <span className="sr-only">Suche</span>
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Dateien & Ordner suchen…"
+              />
+            </label>
+            <label className="field vault-sort">
+              <span className="sr-only">Sortierung</span>
+              <select value={sort} onChange={(e) => setSort(e.target.value as VaultSort)}>
+                <option value="name">Name</option>
+                <option value="date">Datum</option>
+                <option value="size">Größe</option>
+              </select>
+            </label>
+            <div className="vault-layout" role="group" aria-label="Darstellung">
+              <button
+                type="button"
+                className={layout === "grid" ? "is-active" : undefined}
+                aria-pressed={layout === "grid"}
+                title="Kacheln"
+                onClick={() => setLayout("grid")}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={layout === "list" ? "is-active" : undefined}
+                aria-pressed={layout === "list"}
+                title="Liste"
+                onClick={() => setLayout("list")}
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <div
+        className={`vault-dropzone${dragOver ? " is-over" : ""}${busy ? " is-busy" : ""}`}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setDragOver(false);
+        }}
+        onDrop={onDrop}
+      >
+        {error ? <p className="form-error">{error}</p> : null}
+
+        {filteredFolders.length === 0 && filteredFiles.length === 0 ? (
+          <div className="vault-empty">
+            <div className="vault-empty-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path
+                  d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+            <div>
+              <strong>{scoped ? "Keine Anhänge" : "Ordner ist leer"}</strong>
+              <p className="muted">
+                Dateien hierher ziehen oder über „Hochladen“ hinzufügen
+                {!scoped ? " – optional zuerst einen Ordner anlegen" : ""}.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Datei wählen
+            </button>
+          </div>
+        ) : (
+          <div className={`vault-board is-${layout}`}>
+            {filteredFolders.map((folder) => (
+              <article key={folder.id} className="vault-card is-folder">
+                <button
+                  type="button"
+                  className="vault-card-main"
+                  onClick={() => setFolderId(folder.id)}
+                >
+                  <span className="vault-card-icon is-folder" aria-hidden>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                      <path
+                        d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  <span className="vault-card-body">
+                    <strong>{folder.name}</strong>
+                    <span className="muted">{folderCounts.get(folder.id) ?? 0} Einträge</span>
+                  </span>
+                </button>
+                <span className={`vault-more${menuId === folder.id ? " is-open" : ""}`}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    aria-label="Ordneraktionen"
+                    onClick={() => setMenuId(menuId === folder.id ? null : folder.id)}
+                  >
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      <circle cx="12" cy="5" r="1.6" />
+                      <circle cx="12" cy="12" r="1.6" />
+                      <circle cx="12" cy="19" r="1.6" />
+                    </svg>
+                  </button>
+                  {menuId === folder.id ? (
+                    <div className="vault-menu" role="menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={() => {
+                          const name = prompt("Ordner umbenennen", folder.name);
+                          if (!name?.trim()) return;
+                          void api
+                            .updateFolder(folder.id, { name: name.trim() })
+                            .then(() => reload())
+                            .finally(() => setMenuId(null));
+                        }}
+                      >
+                        Umbenennen
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="is-danger"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Ordner „${folder.name}“ löschen? Dateien wandern in den übergeordneten Ordner.`,
+                            )
+                          ) {
+                            void api
+                              .deleteFolder(folder.id)
+                              .then(() => reload())
+                              .catch((err) =>
+                                setError(
+                                  err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+                                ),
+                              )
+                              .finally(() => setMenuId(null));
+                          }
+                        }}
+                      >
+                        Löschen
+                      </button>
+                    </div>
+                  ) : null}
+                </span>
+              </article>
+            ))}
+
+            {filteredFiles.map((file) => {
+              const kind = fileKind(file.mimeType, file.originalName);
+              const isImage = kind === "image";
+              return (
+                <article key={file.id} className={`vault-card is-file kind-${kind}`}>
+                  <button
+                    type="button"
+                    className="vault-card-main"
+                    onClick={() => {
+                      if (isImage) setPreview(file);
+                      else window.open(`/api/attachments/${file.id}/download?inline=1`, "_blank");
+                    }}
+                  >
+                    <span className={`vault-card-icon kind-${kind}`} aria-hidden>
+                      {isImage ? (
+                        <img
+                          src={`/api/attachments/${file.id}/download?inline=1`}
+                          alt=""
+                          loading="lazy"
+                        />
+                      ) : (
+                        <FileGlyph kind={kind} />
+                      )}
+                    </span>
+                    <span className="vault-card-body">
+                      <strong title={file.originalName}>{file.originalName}</strong>
+                      <span className="muted">
+                        {kindLabel(kind)} · {formatBytes(file.size)} · {formatDate(file.createdAt)}
+                      </span>
+                      {file.description ? (
+                        <span className="vault-card-desc">{file.description}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                  <div className="vault-card-actions">
+                    <a
+                      className="btn btn-ghost btn-icon"
+                      href={`/api/attachments/${file.id}/download`}
+                      download
+                      aria-label="Herunterladen"
+                      title="Herunterladen"
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path d="M12 4v10M8 10l4 4 4-4M5 18h14" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </a>
+                    <div className={`vault-more${menuId === file.id ? " is-open" : ""}`}>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-icon"
+                        aria-label="Dateiaktionen"
+                        onClick={() => setMenuId(menuId === file.id ? null : file.id)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <circle cx="12" cy="5" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                      </button>
+                      {menuId === file.id ? (
+                        <div className="vault-menu" role="menu">
+                          <button type="button" role="menuitem" onClick={() => openRename(file)}>
+                            Bearbeiten
+                          </button>
+                          {!scoped ? (
+                            <button type="button" role="menuitem" onClick={() => openMove(file)}>
+                              Verschieben
+                            </button>
+                          ) : null}
+                          <a
+                            role="menuitem"
+                            href={`/api/attachments/${file.id}/download`}
+                            download
+                          >
+                            Download
+                          </a>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="is-danger"
+                            onClick={() => {
+                              setMenuId(null);
+                              if (confirm(`„${file.originalName}“ löschen?`)) {
+                                void api.deleteAttachment(file.id).then(() => reload());
+                              }
+                            }}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <p className="vault-drop-hint muted">Dateien zum Hochladen hierher ziehen</p>
+      </div>
+
+      <Modal open={folderOpen} title="Ordner anlegen" onClose={() => setFolderOpen(false)}>
+        <form className="form-grid" onSubmit={createFolder}>
+          <label className="field full">
+            <span>Name *</span>
+            <input
+              required
+              autoFocus
+              value={folderName}
+              onChange={(e) => setFolderName(e.target.value)}
+              placeholder="z. B. Verträge, Lizenzen, Fotos"
+            />
+          </label>
+          <p className="muted full">
+            Wird angelegt in: {breadcrumbs.map((b) => b.name).join(" / ") || "Root"}
+          </p>
+          <div className="full form-actions modal-actions">
+            <button className="btn btn-primary" type="submit">
+              Anlegen
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(false)}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(renameTarget)}
+        title="Datei bearbeiten"
+        onClose={() => setRenameTarget(null)}
+      >
+        <form className="form-grid" onSubmit={saveRename}>
+          <label className="field full">
+            <span>Dateiname *</span>
+            <input
+              required
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+            />
+          </label>
+          <label className="field full">
+            <span>Beschreibung</span>
+            <textarea
+              rows={3}
+              value={renameDesc}
+              onChange={(e) => setRenameDesc(e.target.value)}
+              placeholder="Optional: Kurznotiz zur Datei"
+            />
+          </label>
+          <div className="full form-actions modal-actions">
+            <button className="btn btn-primary" type="submit">
+              Speichern
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setRenameTarget(null)}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(moveTarget)}
+        title="Datei verschieben"
+        onClose={() => setMoveTarget(null)}
+      >
+        <form className="form-grid" onSubmit={saveMove}>
+          <label className="field full">
+            <span>Zielordner</span>
+            <select value={moveFolderId} onChange={(e) => setMoveFolderId(e.target.value)}>
+              <option value="">Root</option>
+              {folders.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {folderPathLabel(folders, f.id)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="full form-actions modal-actions">
+            <button className="btn btn-primary" type="submit">
+              Verschieben
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => setMoveTarget(null)}>
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        open={Boolean(preview)}
+        title={preview?.originalName ?? "Vorschau"}
+        onClose={() => setPreview(null)}
+        className="modal-preview"
+      >
+        {preview ? (
+          <div className="vault-preview">
+            <img
+              src={`/api/attachments/${preview.id}/download?inline=1`}
+              alt={preview.originalName}
+            />
+            <div className="form-actions modal-actions">
+              <a className="btn btn-primary" href={`/api/attachments/${preview.id}/download`} download>
+                Download
+              </a>
+              <button type="button" className="btn btn-ghost" onClick={() => setPreview(null)}>
+                Schließen
+              </button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
     </div>
+  );
+}
+
+function folderPathLabel(folders: FileFolderItem[], id: string): string {
+  const parts: string[] = [];
+  let cur = folders.find((f) => f.id === id);
+  while (cur) {
+    parts.unshift(cur.name);
+    cur = cur.parentId ? folders.find((f) => f.id === cur!.parentId) : undefined;
+  }
+  return parts.join(" / ");
+}
+
+function FileGlyph({ kind }: { kind: FileKind }) {
+  const props = {
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.7,
+    "aria-hidden": true as const,
+  };
+  if (kind === "pdf") {
+    return (
+      <svg {...props}>
+        <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+        <path d="M14 3v5h5M9 14h6M9 17h4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (kind === "office") {
+    return (
+      <svg {...props}>
+        <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+        <path d="M14 3v5h5M9 13h6M9 16h6M9 19h3" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (kind === "archive") {
+    return (
+      <svg {...props}>
+        <path d="M4 7h16v12H4zM8 7V5h8v2" strokeLinejoin="round" />
+        <path d="M12 11v4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (kind === "text") {
+    return (
+      <svg {...props}>
+        <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+        <path d="M14 3v5h5M9 13h6M9 16h6M9 19h4" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg {...props}>
+      <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+      <path d="M14 3v5h5" strokeLinecap="round" />
+    </svg>
   );
 }

@@ -407,13 +407,25 @@ export interface ContractItem {
 export interface AttachmentItem {
   id: string;
   customerId: string;
+  folderId?: string | null;
   documentId: string | null;
   assetId: string | null;
   originalName: string;
   storedName: string;
   mimeType: string | null;
   size: number;
+  description?: string | null;
   createdAt: string;
+  updatedAt?: string;
+}
+
+export interface FileFolderItem {
+  id: string;
+  customerId: string;
+  parentId: string | null;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Reminders {

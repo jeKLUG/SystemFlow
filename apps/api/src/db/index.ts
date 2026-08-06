@@ -284,16 +284,28 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS file_folders (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      parent_id TEXT,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS attachments (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      folder_id TEXT,
       document_id TEXT,
       asset_id TEXT,
       original_name TEXT NOT NULL,
       stored_name TEXT NOT NULL,
       mime_type TEXT,
       size INTEGER NOT NULL DEFAULT 0,
-      created_at INTEGER NOT NULL
+      description TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
@@ -309,6 +321,8 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
     CREATE INDEX IF NOT EXISTS idx_contracts_customer ON contracts(customer_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_file_folders_customer ON file_folders(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_attachments_folder ON attachments(folder_id);
     CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);

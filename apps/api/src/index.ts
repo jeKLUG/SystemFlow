@@ -15,6 +15,7 @@ import { appointmentRoutes } from "./routes/appointments.js";
 import { assetRoutes } from "./routes/assets.js";
 import { networkRoutes } from "./routes/network.js";
 import { attachmentRoutes } from "./routes/attachments.js";
+import { folderRoutes } from "./routes/folders.js";
 import { authRoutes } from "./routes/auth.js";
 import { contractRoutes } from "./routes/contracts.js";
 import { customerRoutes } from "./routes/customers.js";
@@ -81,6 +82,7 @@ async function main() {
   await app.register(async (scoped) => reminderRoutes(scoped, db));
   await app.register(async (scoped) => searchRoutes(scoped, db));
   await app.register(async (scoped) => templateRoutes(scoped));
+  await app.register(async (scoped) => folderRoutes(scoped, db));
   await app.register(async (scoped) => attachmentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => exportRoutes(scoped, db, config.uploadDir));
 

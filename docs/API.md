@@ -151,12 +151,17 @@ Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat
 | GET/POST | `/api/customers/:id/contracts` |
 | PUT/DELETE | `/api/contracts/:id` |
 
-## Anhänge
+## Anhänge / Dokumentenablage
+
+Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-Anhänge bleiben ohne Ordner.
 
 | Methode | Pfad |
 |---------|------|
-| GET/POST | `/api/customers/:id/attachments` |
-| GET | `/api/attachments/:id/download` |
+| GET/POST | `/api/customers/:id/folders` |
+| PUT/DELETE | `/api/folders/:id` |
+| GET/POST | `/api/customers/:id/attachments` (`folderId=root` für Root) |
+| PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner) |
+| GET | `/api/attachments/:id/download?inline=1` |
 | DELETE | `/api/attachments/:id` |
 
 ## Erinnerungen & Export
