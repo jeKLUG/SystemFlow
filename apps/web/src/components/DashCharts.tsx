@@ -1,12 +1,12 @@
 type Slice = { label: string; value: number; color: string };
 
 /**
- * Donut-Diagramm aus Wertescheiben (reine SVG, ohne Chart-Lib).
+ * Schlankes Donut-Diagramm aus Wertescheiben (reine SVG, ohne Chart-Lib).
  */
 export function DonutChart({
   slices,
-  size = 168,
-  thickness = 22,
+  size = 118,
+  thickness = 9,
   centerLabel,
   centerValue,
 }: {
@@ -29,7 +29,7 @@ export function DonutChart({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgba(148,163,184,0.12)"
+          stroke="rgba(148,163,184,0.1)"
           strokeWidth={thickness}
         />
         {slices.map((slice) => {
@@ -45,7 +45,7 @@ export function DonutChart({
               strokeWidth={thickness}
               strokeDasharray={`${len} ${c - len}`}
               strokeDashoffset={-offset}
-              strokeLinecap="butt"
+              strokeLinecap="round"
               transform={`rotate(-90 ${size / 2} ${size / 2})`}
             />
           );
@@ -62,7 +62,7 @@ export function DonutChart({
 }
 
 /**
- * Horizontale Balken für Verteilungen.
+ * Schlanke horizontale Balken für Verteilungen.
  */
 export function HBarChart({
   items,
@@ -74,23 +74,32 @@ export function HBarChart({
   const peak = max ?? Math.max(1, ...items.map((i) => i.value));
   return (
     <ul className="dash-hbar">
-      {items.map((item) => (
-        <li key={item.label}>
-          <div className="dash-hbar-meta">
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-          <div className="dash-hbar-track" aria-hidden>
-            <i style={{ width: `${(item.value / peak) * 100}%`, background: item.color }} />
-          </div>
-        </li>
-      ))}
+      {items.map((item) => {
+        const pct = item.value <= 0 ? 0 : Math.max(4, (item.value / peak) * 100);
+        return (
+          <li key={item.label}>
+            <div className="dash-hbar-meta">
+              <span>{item.label}</span>
+              <strong>{item.value}</strong>
+            </div>
+            <div className="dash-hbar-track" aria-hidden>
+              <i
+                className={item.value <= 0 ? "is-zero" : undefined}
+                style={{
+                  width: `${pct}%`,
+                  background: item.value <= 0 ? "transparent" : item.color,
+                }}
+              />
+            </div>
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
 /**
- * Einfaches Säulendiagramm (z. B. Termine der Woche).
+ * Schlankes Säulendiagramm (z. B. Termine der Woche).
  */
 export function ColumnChart({
   columns,
@@ -98,8 +107,10 @@ export function ColumnChart({
   columns: { label: string; value: number; active?: boolean; tone?: string }[];
 }) {
   const peak = Math.max(1, ...columns.map((c) => c.value));
+  const hasAny = columns.some((c) => c.value > 0);
+
   return (
-    <div className="dash-cols" role="img" aria-label="Wochenverlauf">
+    <div className={`dash-cols${hasAny ? "" : " is-empty-week"}`} role="img" aria-label="Wochenverlauf">
       {columns.map((col) => (
         <div
           key={col.label}
@@ -110,7 +121,7 @@ export function ColumnChart({
             <div
               className="dash-col-bar"
               style={{
-                height: `${Math.max(col.value ? 12 : 4, (col.value / peak) * 100)}%`,
+                height: `${Math.max(col.value ? 8 : 3, (col.value / peak) * 100)}%`,
                 background: col.tone || undefined,
               }}
             />
@@ -123,7 +134,7 @@ export function ColumnChart({
 }
 
 /**
- * Legende zu Diagramm-Scheiben.
+ * Legende zu Diagramm-Scheiben – Wert und Anteil klar getrennt.
  */
 export function ChartLegend({ slices }: { slices: Slice[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0) || 1;
@@ -131,12 +142,12 @@ export function ChartLegend({ slices }: { slices: Slice[] }) {
     <ul className="dash-legend">
       {slices.map((s) => (
         <li key={s.label}>
-          <i style={{ background: s.color }} />
-          <span>{s.label}</span>
-          <em>
-            {s.value}
+          <i style={{ background: s.color }} aria-hidden />
+          <span className="dash-legend-label">{s.label}</span>
+          <span className="dash-legend-stats">
+            <strong>{s.value}</strong>
             <small>{Math.round((s.value / total) * 100)}%</small>
-          </em>
+          </span>
         </li>
       ))}
     </ul>

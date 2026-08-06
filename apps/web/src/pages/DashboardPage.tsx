@@ -303,6 +303,8 @@ export function DashboardPage() {
             <div className="dash-chart-body is-split">
               <DonutChart
                 slices={statusSlices.length ? statusSlices : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]}
+                size={112}
+                thickness={8}
                 centerValue={summary.open}
                 centerLabel="offen"
               />
@@ -365,8 +367,8 @@ export function DashboardPage() {
             <div className="dash-chart-body is-split">
               <DonutChart
                 slices={kindSlices}
-                size={148}
-                thickness={18}
+                size={112}
+                thickness={8}
                 centerValue={appointments.length}
                 centerLabel="Termine"
               />
@@ -402,8 +404,8 @@ export function DashboardPage() {
                     { label: "Aktiv", value: stats?.activeCount ?? 0, color: "#34d399" },
                     { label: "Inaktiv", value: inactiveCustomers, color: "#64748b" },
                   ].filter((s) => s.value > 0)}
-                  size={132}
-                  thickness={16}
+                  size={108}
+                  thickness={8}
                   centerValue={stats?.customerCount ?? 0}
                   centerLabel="gesamt"
                 />

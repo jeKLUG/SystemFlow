@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.38 – 2026-08-06
+
+- Dashboard mobil: alle Blöcke (KPIs, Quick-Links, Tabs, Charts) einspaltig – keine Mehrspalten-Zeilen
+- Dashboard-Diagramme: schlankere Donuts/Balken, Legende ohne Überlappung
+
 ## 1.5.37 – 2026-08-06
 
 - UI-Polish: Surfaces, Shell, Badges, Empty States, Fokus und Motion – konsistenter SaaS-Look auf Desktop, Tablet und Mobil
