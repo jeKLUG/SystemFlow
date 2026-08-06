@@ -144,6 +144,11 @@ export function CalendarPage() {
   }
 
   function selectDay(iso: string) {
+    if (iso === selected && view === "month") {
+      setView("day");
+      setActiveId(null);
+      return;
+    }
     setSelected(iso);
     setAnchor(fromIsoDate(iso));
     setActiveId(null);
@@ -564,7 +569,7 @@ export function CalendarPage() {
             </div>
             <div>
               <p>Keine Termine an diesem Tag</p>
-              <span className="muted">Über „+ Termin“ oder Doppelklick im Raster anlegen.</span>
+              <span className="muted">Tippe „+ Termin“ oder den Button unten rechts.</span>
             </div>
           </div>
         ) : (
@@ -638,6 +643,11 @@ export function CalendarPage() {
                           <span className="calendar-day-count">{items.length}</span>
                         ) : null}
                       </span>
+                      <span className="calendar-day-dots" aria-hidden>
+                        {items.slice(0, 4).map((a) => (
+                          <i key={a.id} className={`dot kind-${a.kind}`} />
+                        ))}
+                      </span>
                       <span className="calendar-day-events">
                         {items.slice(0, MONTH_EVENT_LIMIT).map((a) => renderEventCard(a, true))}
                         {items.length > MONTH_EVENT_LIMIT ? (
@@ -652,40 +662,76 @@ export function CalendarPage() {
           ) : null}
 
           {view === "week" ? (
-            <div className="cal-week">
-              <div className="cal-week-head">
-                <span className="cal-gutter-spacer" />
-                {weekDays.map((day) => {
-                  const iso = toIsoDate(day);
-                  return (
-                    <button
-                      key={iso}
-                      type="button"
-                      className={`cal-week-dayhead${iso === selected ? " is-selected" : ""}${sameDay(day, today) ? " is-today" : ""}`}
-                      onClick={() => selectDay(iso)}
-                    >
-                      <span>{weekdays[(day.getDay() + 6) % 7]}</span>
-                      <strong>{day.getDate()}</strong>
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="cal-week-body" style={{ "--hours": HOURS.length } as CSSProperties}>
-                <div className="cal-gutter">
-                  <div className="cal-allday-label">Tag</div>
-                  <div className="cal-hour-labels">
-                    {HOURS.map((h) => (
-                      <span key={h}>{formatHour(h)}</span>
-                    ))}
-                  </div>
+            <>
+              <div className="cal-week cal-week-desktop">
+                <div className="cal-week-head">
+                  <span className="cal-gutter-spacer" />
+                  {weekDays.map((day) => {
+                    const iso = toIsoDate(day);
+                    return (
+                      <button
+                        key={iso}
+                        type="button"
+                        className={`cal-week-dayhead${iso === selected ? " is-selected" : ""}${sameDay(day, today) ? " is-today" : ""}`}
+                        onClick={() => selectDay(iso)}
+                      >
+                        <span>{weekdays[(day.getDay() + 6) % 7]}</span>
+                        <strong>{day.getDate()}</strong>
+                      </button>
+                    );
+                  })}
                 </div>
-                {weekDays.map((day) => (
-                  <div key={toIsoDate(day)} className="cal-week-col">
-                    {renderTimedLane(toIsoDate(day))}
+                <div className="cal-week-body" style={{ "--hours": HOURS.length } as CSSProperties}>
+                  <div className="cal-gutter">
+                    <div className="cal-allday-label">Tag</div>
+                    <div className="cal-hour-labels">
+                      {HOURS.map((h) => (
+                        <span key={h}>{formatHour(h)}</span>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                  {weekDays.map((day) => (
+                    <div key={toIsoDate(day)} className="cal-week-col">
+                      {renderTimedLane(toIsoDate(day))}
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+
+              <div className="cal-week-mobile">
+                <div className="cal-week-strip" role="tablist" aria-label="Wochentage">
+                  {weekDays.map((day) => {
+                    const iso = toIsoDate(day);
+                    const count = itemsForDay(iso).length;
+                    return (
+                      <button
+                        key={iso}
+                        type="button"
+                        role="tab"
+                        aria-selected={iso === selected}
+                        className={`cal-week-strip-day${iso === selected ? " is-selected" : ""}${sameDay(day, today) ? " is-today" : ""}`}
+                        onClick={() => selectDay(iso)}
+                      >
+                        <span>{weekdays[(day.getDay() + 6) % 7]}</span>
+                        <strong>{day.getDate()}</strong>
+                        {count > 0 ? <em>{count}</em> : null}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="cal-day-view-body" style={{ "--hours": HOURS.length } as CSSProperties}>
+                  <div className="cal-gutter">
+                    <div className="cal-allday-label">Tag</div>
+                    <div className="cal-hour-labels">
+                      {HOURS.map((h) => (
+                        <span key={h}>{formatHour(h)}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="cal-day-col">{renderTimedLane(selected)}</div>
+                </div>
+              </div>
+            </>
           ) : null}
 
           {view === "day" ? (
@@ -705,7 +751,12 @@ export function CalendarPage() {
           ) : null}
 
           <p className="calendar-hint muted">
-            Doppelklick oder „+ Termin“ → neuer Termin · Klick auf Termin für Details
+            <span className="calendar-hint-desktop">
+              Doppelklick oder „+ Termin“ → neuer Termin · Klick auf Termin für Details
+            </span>
+            <span className="calendar-hint-mobile">
+              Tag tippen · nochmal tippen für Tagesansicht · Termin öffnet Details
+            </span>
           </p>
         </div>
       </div>

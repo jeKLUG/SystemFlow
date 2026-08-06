@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.35 – 2026-08-06
+
+- Kalender mobil: Monat mit Dots, Woche als Tagesstreifen, Raster oben / Agenda darunter
+
 ## 1.5.34 – 2026-08-06
 
 - Mobile: doppeltes Padding behoben, Übersicht kompakter, Sticky-Tabs/Tabbar ohne Überlagerung

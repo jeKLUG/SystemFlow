@@ -139,14 +139,6 @@ export function Layout() {
         <div className="sidebar-brand">
           <img className="brand-mark" src="/logo.png" alt="" width={36} height={36} />
           <strong>Systemhaus-Ess</strong>
-          <button
-            type="button"
-            className="btn btn-ghost btn-icon sidebar-close"
-            aria-label="Menü schließen"
-            onClick={closeMobile}
-          >
-            {icon.close}
-          </button>
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
