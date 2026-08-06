@@ -972,10 +972,50 @@ input[type="checkbox"]:not(.check-input):checked {
   margin: 0.35rem 0 0;
 }
 
+.tasks-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.tasks-stats {
+  margin: 0 0 1rem;
+}
+
+.tasks-stats .stat-chip {
+  appearance: none;
+  cursor: pointer;
+  text-align: left;
+  min-height: 4.4rem;
+  padding: 0.85rem 1rem;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+.tasks-stats .stat-chip strong {
+  font-size: 1.35rem;
+}
+
+.tasks-stats .stat-chip:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: var(--surface-2);
+  transform: translateY(-1px);
+}
+
+.tasks-stats .stat-chip.is-active {
+  border-color: rgba(96, 165, 250, 0.5);
+  background: var(--accent-soft);
+  box-shadow: var(--ring);
+}
+
+.tasks-stats .stat-chip.is-warn strong {
+  color: #fca5a5;
+}
+
 .tasks-quick-add {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.55rem;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  gap: 0.5rem;
   align-items: center;
   margin: 0;
 }
@@ -1027,10 +1067,44 @@ input[type="checkbox"]:not(.check-input):checked {
   color: var(--text-muted);
 }
 
-.tasks-quick-chips {
+.tasks-quick-chips,
+.tasks-quick-prio {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
+  gap: 0.3rem;
+}
+
+.task-mini-prio {
+  appearance: none;
+  min-width: 2rem;
+  min-height: 2rem;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.task-mini-prio.prio-1 {
+  color: #fecaca;
+}
+
+.task-mini-prio.prio-2 {
+  color: #fde68a;
+}
+
+.task-mini-prio.prio-3 {
+  color: var(--accent-bright);
+}
+
+.task-mini-prio.is-active {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: var(--accent-soft);
 }
 
 .tasks-toolbar {
@@ -1056,23 +1130,61 @@ input[type="checkbox"]:not(.check-input):checked {
   border: 1px solid var(--border);
 }
 
+.tasks-views .cal-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.tasks-views .cal-seg em {
+  font-style: normal;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.tasks-views .cal-seg.is-active em {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text);
+}
+
 .tasks-filters {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.65rem;
+  gap: 0.55rem;
   align-items: end;
 }
 
 .tasks-search,
-.tasks-project-filter {
+.tasks-project-filter,
+.tasks-prio-filter,
+.tasks-sort,
+.tasks-group {
   margin: 0;
-  min-width: 10rem;
+  min-width: 8.5rem;
+}
+
+.tasks-search {
+  min-width: 11rem;
 }
 
 .tasks-board {
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
+  gap: 1rem;
+}
+
+.tasks-result-meta {
+  margin: 0;
+  font-size: 0.8rem;
 }
 
 .tasks-group-title {
@@ -1156,9 +1268,9 @@ input[type="checkbox"]:not(.check-input):checked {
 .task-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
-  gap: 0.7rem;
+  gap: 0.65rem 0.75rem;
   align-items: start;
-  padding: 0.8rem 0.9rem;
+  padding: 0.85rem 0.95rem;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent), var(--surface);
@@ -1200,6 +1312,7 @@ input[type="checkbox"]:not(.check-input):checked {
 .task-row .check {
   min-height: 1.4rem;
   margin-top: 0.1rem;
+  grid-row: 1;
 }
 
 .task-main {
@@ -1215,6 +1328,7 @@ input[type="checkbox"]:not(.check-input):checked {
   gap: 0.3rem;
   min-width: 0;
   font: inherit;
+  grid-column: 2;
 }
 
 .task-main strong {
@@ -1245,6 +1359,18 @@ input[type="checkbox"]:not(.check-input):checked {
   color: var(--text-muted);
 }
 
+.task-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.task-due svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  opacity: 0.8;
+}
+
 .task-due.tone-overdue {
   color: #fca5a5;
   font-weight: 650;
@@ -1270,10 +1396,52 @@ input[type="checkbox"]:not(.check-input):checked {
   overflow: hidden;
 }
 
+.task-quick-due {
+  display: none;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  grid-column: 2;
+  align-self: center;
+}
+
+.task-row:hover .task-quick-due,
+.task-row:focus-within .task-quick-due {
+  display: flex;
+}
+
+.task-due-btn {
+  appearance: none;
+  min-height: 1.55rem;
+  padding: 0 0.5rem;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.task-due-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.task-due-btn.is-active {
+  border-color: rgba(96, 165, 250, 0.4);
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+}
+
 .task-actions {
   display: flex;
   align-items: center;
   gap: 0.25rem;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
 }
 
 .task-prio-btn {
@@ -1318,6 +1486,48 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .task-prio-btn:hover {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.task-more {
+  position: relative;
+}
+
+.task-menu {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 20;
+  min-width: 10.5rem;
+  padding: 0.35rem;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2);
+  box-shadow: var(--shadow-md, 0 12px 30px rgba(0, 0, 0, 0.35));
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  animation: fade-up 0.16s ease both;
+}
+
+.task-menu button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.task-menu button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.task-menu button.is-danger {
+  color: #fca5a5;
 }
 
 .field-label {
@@ -1389,12 +1599,24 @@ input[type="checkbox"]:not(.check-input):checked {
   justify-content: flex-end;
 }
 
+@media (max-width: 1100px) {
+  .tasks-quick-add {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .tasks-quick-chips,
+  .tasks-quick-prio {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 860px) {
   .tasks-quick-add {
     grid-template-columns: 1fr;
   }
 
   .tasks-quick-chips,
+  .tasks-quick-prio,
   .tasks-quick-add > .btn {
     width: 100%;
   }
@@ -1414,15 +1636,18 @@ input[type="checkbox"]:not(.check-input):checked {
 
   .tasks-views .cal-seg {
     flex: 1;
-    text-align: center;
-    padding: 0 0.35rem;
-    font-size: 0.78rem;
+    justify-content: center;
+    padding: 0 0.3rem;
+    font-size: 0.76rem;
   }
 
   .tasks-search,
-  .tasks-project-filter {
+  .tasks-project-filter,
+  .tasks-prio-filter,
+  .tasks-sort,
+  .tasks-group {
     flex: 1;
-    min-width: 0;
+    min-width: calc(50% - 0.3rem);
   }
 
   .tasks-empty {
@@ -1436,6 +1661,19 @@ input[type="checkbox"]:not(.check-input):checked {
 
   .task-prio-picker {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .task-row {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .task-quick-due {
+    display: flex;
+    grid-column: 1 / -1;
+  }
+
+  .task-actions {
+    grid-column: 3;
   }
 }
 
