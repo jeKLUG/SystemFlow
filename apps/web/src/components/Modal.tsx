@@ -11,25 +11,35 @@ type Props = {
 
 /**
  * Einfaches Modal-Overlay mit Escape, Backdrop-Klick und Fokusfang.
+ * Initialfokus nur beim Öffnen (nicht bei jedem Parent-Re-Render).
  */
 export function Modal({ open, title, onClose, children, className = "" }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     window.addEventListener("keydown", onKey);
-    panelRef.current?.querySelector<HTMLElement>("input, select, textarea, button")?.focus();
+
+    // Erstes Feld im Body – nicht der Schließen-Button im Header
+    const body = panelRef.current?.querySelector(".modal-body");
+    const focusable = body?.querySelector<HTMLElement>(
+      "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
+    );
+    (focusable ?? panelRef.current)?.focus();
+
     return () => {
       document.body.style.overflow = prev;
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -42,6 +52,7 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        tabIndex={-1}
       >
         <div className="modal-head">
           <h3 id={titleId}>{title}</h3>

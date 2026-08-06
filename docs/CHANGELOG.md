@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.29 – 2026-08-06
+
+- Einsatz-Historie: kompakte Timeline, Filter nach Art, Löschen nur bei Hover
+
+## 1.5.28 – 2026-08-06
+
+- Modal: Fokus springt beim Tippen nicht mehr weg (Initialfokus nur beim Öffnen, nicht auf den Schließen-Button)
+
 ## 1.5.27 – 2026-08-06
 
 - Aufgabenliste: kompaktere Hero-KPIs, Filter ohne Extra-Labels und einzeilige Task-Zeilen

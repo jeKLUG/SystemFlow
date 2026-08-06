@@ -304,10 +304,9 @@ export function CustomerWikiPage() {
           <label className="field full">
             <span>Titel</span>
             <input
-              autoFocus
               placeholder={form.templateId ? "Optional – sonst Vorlagentitel" : "Titel der Seite"}
               value={form.title}
-              onChange={(e) => setForm({ ...form, title: e.target.value })}
+              onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               required={!form.templateId}
             />
           </label>

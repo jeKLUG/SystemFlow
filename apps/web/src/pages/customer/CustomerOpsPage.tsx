@@ -18,7 +18,7 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.8,
+    strokeWidth: 1.85,
     "aria-hidden": true as const,
   };
   const icons: Record<ActivityKind, ReactNode> = {
@@ -69,8 +69,17 @@ function activityClock(value: string): string {
   }
 }
 
+const kindFilters: { id: "all" | ActivityKind; label: string }[] = [
+  { id: "all", label: "Alle" },
+  { id: "time", label: "Zeit" },
+  { id: "wiki", label: "Wiki" },
+  { id: "appointment", label: "Termin" },
+  { id: "project", label: "Projekt" },
+  { id: "manual", label: "Einsatz" },
+];
+
 /**
- * Betrieb: SLAs, Historie und Anhänge (Aufgaben liegen unter eigenem Tab).
+ * Betrieb: SLAs und Einsatz-Historie (Aufgaben liegen unter eigenem Tab).
  */
 export function CustomerOpsPage() {
   const { id = "" } = useParams();
@@ -79,6 +88,7 @@ export function CustomerOpsPage() {
   const [activityForm, setActivityForm] = useState({ title: "", description: "" });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyError, setHistoryError] = useState("");
+  const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");
 
   async function reload() {
     const [h, contracts] = await Promise.all([api.activities(id), api.contracts(id)]);
@@ -90,7 +100,27 @@ export function CustomerOpsPage() {
     void reload();
   }, [id]);
 
-  const historyDays = useMemo(() => groupActivitiesByDay(activityList), [activityList]);
+  const kindCounts = useMemo(() => {
+    const map: Record<ActivityKind, number> = {
+      time: 0,
+      wiki: 0,
+      appointment: 0,
+      project: 0,
+      asset: 0,
+      manual: 0,
+    };
+    for (const item of activityList) {
+      map[detectActivityKind(item.title)] += 1;
+    }
+    return map;
+  }, [activityList]);
+
+  const filtered = useMemo(() => {
+    if (kindFilter === "all") return activityList;
+    return activityList.filter((item) => detectActivityKind(item.title) === kindFilter);
+  }, [activityList, kindFilter]);
+
+  const historyDays = useMemo(() => groupActivitiesByDay(filtered), [filtered]);
 
   function openHistoryModal() {
     setActivityForm({ title: "", description: "" });
@@ -111,6 +141,12 @@ export function CustomerOpsPage() {
     }
   }
 
+  async function removeActivity(item: Activity) {
+    if (!confirm("Historie-Eintrag entfernen?")) return;
+    await api.deleteActivity(item.id);
+    await reload();
+  }
+
   return (
     <>
       <CustomerSlaPanel customerId={id} contracts={contractList} onChanged={reload} />
@@ -122,22 +158,51 @@ export function CustomerOpsPage() {
               <p className="eyebrow">Protokoll</p>
               <h2>Einsatz-Historie</h2>
               <p className="muted">
-                {activityList.length} Einträg{activityList.length === 1 ? "" : "e"} · manuell und
-                automatisch bei Wiki, Projekten und Zeiten
+                {activityList.length} Einträg{activityList.length === 1 ? "" : "e"} · automatisch und
+                manuell
               </p>
             </div>
             <button
               type="button"
-              className="btn btn-primary btn-icon-lg"
+              className="btn btn-primary"
               onClick={openHistoryModal}
-              aria-label="Manuellen Einsatz eintragen"
               title="Einsatz eintragen"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
+              Eintrag
             </button>
           </div>
+
+          {activityList.length > 0 ? (
+            <div className="history-filters" role="tablist" aria-label="Nach Art filtern">
+              {kindFilters.map((tab) => {
+                const count = tab.id === "all" ? activityList.length : kindCounts[tab.id];
+                if (tab.id !== "all" && count === 0) return null;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={kindFilter === tab.id}
+                    className={`history-filter${kindFilter === tab.id ? " is-active" : ""}${
+                      tab.id !== "all" ? ` ${activityKindMeta(tab.id).className}` : ""
+                    }`}
+                    onClick={() => setKindFilter(tab.id)}
+                  >
+                    {tab.id !== "all" ? (
+                      <span className="history-filter-icon" aria-hidden>
+                        <ActivityIcon kind={tab.id} />
+                      </span>
+                    ) : null}
+                    <span>{tab.label}</span>
+                    <em>{count}</em>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
 
         {historyDays.length === 0 ? (
@@ -149,70 +214,78 @@ export function CustomerOpsPage() {
               </svg>
             </div>
             <div>
-              <strong>Noch keine Historie</strong>
-              <p className="muted">Automatische Einträge entstehen bei Zeiten, Wiki und Projekten.</p>
+              <strong>
+                {activityList.length === 0 ? "Noch keine Historie" : "Keine Treffer"}
+              </strong>
+              <p className="muted">
+                {activityList.length === 0
+                  ? "Automatische Einträge entstehen bei Zeiten, Wiki und Projekten."
+                  : "Für diesen Filter gibt es keine Einträge."}
+              </p>
             </div>
-            <button type="button" className="btn btn-primary" onClick={openHistoryModal}>
-              Einsatz eintragen
-            </button>
+            {activityList.length === 0 ? (
+              <button type="button" className="btn btn-primary" onClick={openHistoryModal}>
+                Einsatz eintragen
+              </button>
+            ) : (
+              <button type="button" className="btn btn-ghost" onClick={() => setKindFilter("all")}>
+                Filter zurücksetzen
+              </button>
+            )}
           </div>
         ) : (
-          <div className="history-feed">
+          <div className="history-feed panel">
             {historyDays.map((day) => (
               <section key={day.dayKey} className="history-day">
                 <div className="history-day-head">
                   <h3 className="history-day-label">{day.label}</h3>
-                  <span>{day.items.length}</span>
+                  <span className="history-day-count">{day.items.length}</span>
+                  <i className="history-day-rule" aria-hidden />
                 </div>
                 <ol className="timeline">
                   {day.items.map((item) => {
                     const kind = detectActivityKind(item.title);
                     const meta = activityKindMeta(kind);
+                    const title = polishActivityText(item.title);
+                    const desc = item.description ? polishActivityText(item.description) : "";
                     return (
                       <li key={item.id} className={`timeline-item ${meta.className}`}>
                         <div className={`timeline-marker ${meta.className}`} aria-hidden>
                           <ActivityIcon kind={kind} />
                         </div>
                         <article className={`timeline-body ${meta.className}`}>
-                          <div className="timeline-card-head">
-                            <div className="timeline-card-main">
-                              <span className={`timeline-kind ${meta.className}`}>{meta.label}</span>
-                              <strong>{polishActivityText(item.title)}</strong>
-                              {item.description ? (
-                                <p className="timeline-desc">
-                                  {polishActivityText(item.description)}
-                                </p>
-                              ) : null}
+                          <div className="timeline-row">
+                            <div className="timeline-main">
+                              <div className="timeline-topline">
+                                <span className={`timeline-kind ${meta.className}`}>{meta.label}</span>
+                                <time className="timeline-time" dateTime={item.occurredAt}>
+                                  {activityClock(item.occurredAt)}
+                                </time>
+                              </div>
+                              <strong className="timeline-title">{title}</strong>
+                              {desc ? <p className="timeline-desc">{desc}</p> : null}
                             </div>
-                            <div className="timeline-card-side">
-                              <time className="timeline-time" dateTime={item.occurredAt}>
-                                {activityClock(item.occurredAt)}
-                              </time>
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-icon"
-                                aria-label="Eintrag entfernen"
-                                onClick={() => {
-                                  if (confirm("Historie-Eintrag entfernen?")) {
-                                    void api.deleteActivity(item.id).then(() => reload());
-                                  }
-                                }}
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-icon timeline-delete"
+                              aria-label="Eintrag entfernen"
+                              title="Entfernen"
+                              onClick={() => void removeActivity(item)}
+                            >
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                aria-hidden
                               >
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  aria-hidden
-                                >
-                                  <path
-                                    d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </button>
-                            </div>
+                                <path
+                                  d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </button>
                           </div>
                         </article>
                       </li>
@@ -225,18 +298,14 @@ export function CustomerOpsPage() {
         )}
       </section>
 
-      <Modal
-        open={historyOpen}
-        title="Einsatz eintragen"
-        onClose={() => setHistoryOpen(false)}
-      >
+      <Modal open={historyOpen} title="Einsatz eintragen" onClose={() => setHistoryOpen(false)}>
         <form className="form-grid" onSubmit={createActivity}>
           <label className="field full">
             <span>Titel *</span>
             <input
               required
               value={activityForm.title}
-              onChange={(e) => setActivityForm({ ...activityForm, title: e.target.value })}
+              onChange={(e) => setActivityForm((f) => ({ ...f, title: e.target.value }))}
               placeholder="z. B. Vor-Ort-Termin / Abstimmung"
             />
           </label>
@@ -245,7 +314,7 @@ export function CustomerOpsPage() {
             <textarea
               rows={3}
               value={activityForm.description}
-              onChange={(e) => setActivityForm({ ...activityForm, description: e.target.value })}
+              onChange={(e) => setActivityForm((f) => ({ ...f, description: e.target.value }))}
               placeholder="Optional: Ergebnis, Teilnehmer, nächste Schritte…"
             />
           </label>
