@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.39 – 2026-08-06
+
+- Sicherung: Vollbackup (SQLite + Uploads) im Browser herunterladen und wiederherstellen (Konto → Sicherung)
+- Wiki-PDF: Inline-Bilder aus Anhängen werden echt eingebettet
+- Wiki-Vorlagen: IT-Übergabe, Projektabschluss, Vor-Ort-Protokoll; bestehende Protokolle erweitert
+
 ## 1.5.38 – 2026-08-06
 
 - Dashboard mobil: alle Blöcke (KPIs, Quick-Links, Tabs, Charts) einspaltig – keine Mehrspalten-Zeilen

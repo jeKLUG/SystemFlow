@@ -173,8 +173,18 @@ Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; 
 |---------|------|
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
-| GET | `/api/customers/:id/wiki/pdf` (alle Wiki-Seiten als PDF) |
+| GET | `/api/customers/:id/wiki/pdf` (alle Wiki-Seiten als PDF, inkl. eingebetteter Bilder) |
 | GET | `/api/documents/:id/pdf` (eine Wiki-Seite als PDF) |
+
+## Systemsicherung
+
+Siehe auch [BACKUP.md](BACKUP.md).
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/admin/backup` | ZIP: SQLite-Snapshot + `uploads/` |
+| GET | `/api/admin/backup/info` | Größen-/Pfad-Meta |
+| POST | `/api/admin/backup/restore` | multipart `file` – ersetzt Daten, Prozess-Neustart |
 
 ## Health
 

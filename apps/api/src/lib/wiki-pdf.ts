@@ -13,6 +13,13 @@ export type WikiPdfCustomer = {
   company?: string | null;
 };
 
+/** Löst TipTap-Bild-URLs in lokale Dateipfade auf. */
+export type WikiPdfImageResolver = (src: string) => string | null | undefined;
+
+export type WikiPdfOptions = {
+  resolveImage?: WikiPdfImageResolver;
+};
+
 const typeLabel: Record<string, string> = {
   note: "Notiz",
   protocol: "Protokoll",
@@ -38,14 +45,17 @@ const RULE = "#e2e8f0";
 
 /**
  * Erzeugt ein PDF für eine oder mehrere Wiki-Seiten (Deckblatt + Inhaltsverzeichnis bei mehreren).
+ * Inline-Bilder werden über `options.resolveImage` eingebettet, sofern die Datei lokal liegt.
  */
 export async function buildWikiPdf(
   customer: WikiPdfCustomer,
   docs: WikiPdfDoc[],
+  options: WikiPdfOptions = {},
 ): Promise<Buffer> {
   const sorted = [...docs].sort((a, b) => a.title.localeCompare(b.title, "de"));
   const customerLabel = customer.company?.trim() || customer.name;
   const stamp = new Date();
+  const resolveImage = options.resolveImage;
 
   const doc = new PDFDocument({
     size: "A4",
@@ -75,14 +85,14 @@ export async function buildWikiPdf(
       .fillColor(MUTED)
       .text("Für diesen Kunden liegen keine Dokumente vor.");
   } else if (sorted.length === 1) {
-    renderDocument(doc, sorted[0]!, customerLabel, true);
+    renderDocument(doc, sorted[0]!, customerLabel, true, resolveImage);
   } else {
     drawCover(doc, customerLabel, sorted.length, stamp);
     doc.addPage();
     drawToc(doc, sorted);
     for (const page of sorted) {
       doc.addPage();
-      renderDocument(doc, page, customerLabel, false);
+      renderDocument(doc, page, customerLabel, false, resolveImage);
     }
   }
 
@@ -194,6 +204,7 @@ function renderDocument(
   page: WikiPdfDoc,
   customerLabel: string,
   single: boolean,
+  resolveImage?: WikiPdfImageResolver,
 ) {
   if (single) {
     doc.save().rect(0, 0, doc.page.width, 6).fill(ACCENT).restore();
@@ -229,7 +240,7 @@ function renderDocument(
     .stroke();
   doc.moveDown(0.8);
 
-  renderNodes(doc, parseTipTap(page.content), { listDepth: 0 });
+  renderNodes(doc, parseTipTap(page.content), { listDepth: 0, resolveImage });
 }
 
 function parseTipTap(raw: string): TipTapNode[] {
@@ -245,7 +256,7 @@ function parseTipTap(raw: string): TipTapNode[] {
 function renderNodes(
   doc: PDFKit.PDFDocument,
   nodes: TipTapNode[],
-  ctx: { listDepth: number },
+  ctx: { listDepth: number; resolveImage?: WikiPdfImageResolver },
 ) {
   for (const node of nodes) {
     if (!node?.type) continue;
@@ -329,10 +340,7 @@ function renderNodes(
         break;
       case "image":
       case "imageResize": {
-        ensureSpace(doc, 24);
-        const alt = String(node.attrs?.alt ?? "Bild");
-        doc.font("Helvetica-Oblique").fontSize(9).fillColor(MUTED).text(`[Bild: ${alt}]`);
-        doc.moveDown(0.4);
+        renderImage(doc, node, ctx.resolveImage);
         break;
       }
       case "hardBreak":
@@ -343,6 +351,57 @@ function renderNodes(
         break;
     }
   }
+}
+
+/**
+ * Betten ein Wiki-Bild in das PDF ein oder zeigt einen Platzhalter.
+ */
+function renderImage(
+  doc: PDFKit.PDFDocument,
+  node: TipTapNode,
+  resolveImage?: WikiPdfImageResolver,
+) {
+  const alt = String(node.attrs?.alt ?? "Bild");
+  const src = String(node.attrs?.src ?? "");
+  const maxW = doc.page.width - MARGIN * 2;
+  const maxH = 320;
+  const filePath = src && resolveImage ? resolveImage(src) : null;
+
+  if (filePath) {
+    try {
+      const openImage = (
+        doc as PDFKit.PDFDocument & {
+          openImage: (src: string) => { width: number; height: number };
+        }
+      ).openImage.bind(doc);
+      const img = openImage(filePath);
+      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ensureSpace(doc, h + 28);
+      const x = MARGIN + (maxW - w) / 2;
+      doc.image(filePath, x, doc.y, { width: w, height: h });
+      doc.y += h + 6;
+      doc.x = MARGIN;
+      if (alt && alt !== "Bild") {
+        doc
+          .font("Helvetica-Oblique")
+          .fontSize(8)
+          .fillColor(MUTED)
+          .text(alt, { width: maxW, align: "center" });
+        doc.moveDown(0.35);
+      } else {
+        doc.moveDown(0.45);
+      }
+      return;
+    } catch {
+      /* Fallback Platzhalter */
+    }
+  }
+
+  ensureSpace(doc, 24);
+  doc.font("Helvetica-Oblique").fontSize(9).fillColor(MUTED).text(`[Bild: ${alt}]`);
+  doc.moveDown(0.4);
 }
 
 function renderNodesBlockquote(doc: PDFKit.PDFDocument, nodes: TipTapNode[], x: number) {
@@ -362,7 +421,7 @@ function renderList(
   doc: PDFKit.PDFDocument,
   items: TipTapNode[],
   ordered: boolean,
-  ctx: { listDepth: number },
+  ctx: { listDepth: number; resolveImage?: WikiPdfImageResolver },
 ) {
   const depth = ctx.listDepth;
   let index = 0;
@@ -387,7 +446,7 @@ function renderList(
           listDepth: depth + 1,
         });
       } else if (child.content) {
-        renderNodes(doc, [child], { listDepth: depth + 1 });
+        renderNodes(doc, [child], { listDepth: depth + 1, resolveImage: ctx.resolveImage });
       }
     }
     doc.x = MARGIN;

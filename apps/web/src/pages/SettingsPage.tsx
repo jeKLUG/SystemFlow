@@ -44,6 +44,14 @@ export function SettingsPage() {
   const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
   const [priceError, setPriceError] = useState("");
 
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupMsg, setBackupMsg] = useState("");
+  const [backupInfo, setBackupInfo] = useState<{
+    databaseBytes: number;
+    uploadFiles: number;
+    hint: string;
+  } | null>(null);
+
   async function loadPricing() {
     const [settings, items] = await Promise.all([api.orgSettings(), api.priceItems()]);
     setOrg(settings);
@@ -60,7 +68,47 @@ export function SettingsPage() {
 
   useEffect(() => {
     void loadPricing();
+    void api
+      .backupInfo()
+      .then((info) => setBackupInfo(info))
+      .catch(() => setBackupInfo(null));
   }, []);
+
+  async function downloadBackup() {
+    setBackupMsg("");
+    setBackupBusy(true);
+    try {
+      await api.downloadBackup();
+      setBackupMsg("Backup heruntergeladen. Bewahre die ZIP sicher auf.");
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : "Download fehlgeschlagen");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function onRestoreFile(file: File | null) {
+    if (!file) return;
+    const ok = confirm(
+      "Achtung: Die aktuelle Datenbank und alle Uploads werden durch das Backup ersetzt.\n\nDer Dienst startet danach neu. Fortfahren?",
+    );
+    if (!ok) return;
+    setBackupMsg("");
+    setBackupBusy(true);
+    try {
+      const result = await api.restoreBackup(file);
+      setBackupMsg(
+        result.message ||
+          "Sicherung eingespielt. Bitte die Seite in wenigen Sekunden neu laden.",
+      );
+      setTimeout(() => {
+        window.location.reload();
+      }, 2500);
+    } catch (err) {
+      setBackupMsg(err instanceof Error ? err.message : "Import fehlgeschlagen");
+      setBackupBusy(false);
+    }
+  }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -162,7 +210,7 @@ export function SettingsPage() {
         <div>
           <p className="eyebrow">Konto</p>
           <h2>Einstellungen</h2>
-          <p>Profil, Stundensätze und Preiskatalog für {user?.username}</p>
+          <p>Profil, Sicherung, Stundensätze und Preiskatalog für {user?.username}</p>
         </div>
       </div>
 
@@ -368,6 +416,53 @@ export function SettingsPage() {
             ))}
           </ul>
         )}
+      </section>
+
+      <section className="panel settings-card">
+        <h3>Sicherung</h3>
+        <p className="muted">
+          Vollbackup der Datenbank und Uploads als ZIP. Zum Wiederherstellen dieselbe Datei hier
+          hochladen – bestehende Daten werden ersetzt, der Dienst startet neu. Vor dem Import empfiehlt
+          sich ein frischer Download der aktuellen Instanz.
+        </p>
+        {backupInfo ? (
+          <p className="muted">
+            Aktuell ca. {(backupInfo.databaseBytes / (1024 * 1024)).toFixed(2)} MB Datenbank ·{" "}
+            {backupInfo.uploadFiles} Upload-Datei
+            {backupInfo.uploadFiles === 1 ? "" : "en"}
+          </p>
+        ) : null}
+        <div className="cta-row" style={{ marginTop: "0.85rem" }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={backupBusy}
+            onClick={() => void downloadBackup()}
+          >
+            {backupBusy ? "Bitte warten…" : "Backup herunterladen"}
+          </button>
+          <label className="btn btn-ghost" style={{ cursor: backupBusy ? "wait" : "pointer" }}>
+            Backup importieren…
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              hidden
+              disabled={backupBusy}
+              onChange={(e) => {
+                const f = e.target.files?.[0] ?? null;
+                e.target.value = "";
+                void onRestoreFile(f);
+              }}
+            />
+          </label>
+        </div>
+        {backupMsg ? (
+          <p className={backupMsg.includes("fehl") ? "form-error" : "form-success"}>{backupMsg}</p>
+        ) : null}
+        <p className="muted" style={{ marginTop: "0.85rem", fontSize: "0.86rem" }}>
+          Tresor-Einträge stecken in der Datenbank – die Tresor-Passphrase musst du weiterhin kennen.
+          Manuelle Server-Wiederherstellung: siehe RESTORE.md in der ZIP bzw. docs/BACKUP.md.
+        </p>
       </section>
 
       <section className="panel settings-card">

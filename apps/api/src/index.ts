@@ -29,6 +29,7 @@ import { taskRoutes } from "./routes/tasks.js";
 import { templateRoutes } from "./routes/templates.js";
 import { timeEntryRoutes } from "./routes/timeEntries.js";
 import { vaultRoutes } from "./routes/vault.js";
+import { backupRoutes } from "./routes/backup.js";
 
 /**
  * Startet die Systemhaus-Ess API und liefert optional das Frontend aus.
@@ -48,7 +49,7 @@ async function main() {
 
   await app.register(cookie);
   await app.register(multipart, {
-    limits: { fileSize: 25 * 1024 * 1024 },
+    limits: { fileSize: 512 * 1024 * 1024 },
   });
 
   // 32-Byte-Key stabil aus SESSION_SECRET ableiten
@@ -68,7 +69,7 @@ async function main() {
 
   await authRoutes(app, db);
   await app.register(async (scoped) => customerRoutes(scoped, db));
-  await app.register(async (scoped) => documentRoutes(scoped, db));
+  await app.register(async (scoped) => documentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => projectRoutes(scoped, db));
   await app.register(async (scoped) => timeEntryRoutes(scoped, db));
   await app.register(async (scoped) => assetRoutes(scoped, db));
@@ -85,6 +86,7 @@ async function main() {
   await app.register(async (scoped) => folderRoutes(scoped, db));
   await app.register(async (scoped) => attachmentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => exportRoutes(scoped, db, config.uploadDir));
+  await app.register(async (scoped) => backupRoutes(scoped, config.databasePath, config.uploadDir));
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 

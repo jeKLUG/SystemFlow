@@ -1,11 +1,13 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { customers, documents } from "../db/schema.js";
+import { attachments, customers, documents } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { getTemplate } from "../lib/templates.js";
-import { buildWikiPdf } from "../lib/wiki-pdf.js";
+import { buildWikiPdf, type WikiPdfImageResolver } from "../lib/wiki-pdf.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -51,10 +53,41 @@ function sendPdf(reply: import("fastify").FastifyReply, buffer: Buffer, filename
     .send(buffer);
 }
 
+/** Sammelt Attachment-IDs aus TipTap-Inhalten und liefert einen Pfad-Resolver. */
+async function createImageResolver(
+  db: Db,
+  uploadDir: string,
+  contents: string[],
+): Promise<WikiPdfImageResolver> {
+  const ids = new Set<string>();
+  for (const raw of contents) {
+    for (const match of raw.matchAll(/\/api\/attachments\/([A-Za-z0-9_-]+)/g)) {
+      ids.add(match[1]!);
+    }
+  }
+  const map = new Map<string, string>();
+  if (ids.size > 0) {
+    const rows = await db
+      .select()
+      .from(attachments)
+      .where(inArray(attachments.id, [...ids]))
+      .all();
+    for (const row of rows) {
+      const path = join(uploadDir, row.storedName);
+      if (existsSync(path)) map.set(row.id, path);
+    }
+  }
+  return (src: string) => {
+    const m = /\/api\/attachments\/([A-Za-z0-9_-]+)/.exec(src);
+    if (!m) return null;
+    return map.get(m[1]!) ?? null;
+  };
+}
+
 /**
  * Registriert Wiki-/Dokument-Routen inkl. TipTap-Inhalt und PDF-Export.
  */
-export async function documentRoutes(app: FastifyInstance, db: Db) {
+export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: string) {
   app.addHook("preHandler", requireAuth);
 
   /** Alle Wiki-Seiten eines Kunden als ein PDF. */
@@ -70,6 +103,12 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
       .orderBy(asc(documents.title))
       .all();
 
+    const resolveImage = await createImageResolver(
+      db,
+      uploadDir,
+      docs.map((d) => d.content),
+    );
+
     const buffer = await buildWikiPdf(
       { name: customer.name, company: customer.company },
       docs.map((d) => ({
@@ -79,6 +118,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
         updatedAt: d.updatedAt,
         createdAt: d.createdAt,
       })),
+      { resolveImage },
     );
 
     const label = customer.company || customer.name;
@@ -166,6 +206,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
           createdAt: row.createdAt,
         },
       ],
+      { resolveImage: await createImageResolver(db, uploadDir, [row.content]) },
     );
 
     return sendPdf(reply, buffer, pdfFilename(row.title));

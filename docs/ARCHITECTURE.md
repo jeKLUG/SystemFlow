@@ -68,4 +68,4 @@ deploy.sh
   → docker compose up -d --build
 ```
 
-Daten liegen im Volume `systemhaus-data` und überleben Updates.
+Daten liegen im Volume `systemhaus-data` und überleben Updates. Systemsicherung (Download/Restore) siehe [BACKUP.md](BACKUP.md).

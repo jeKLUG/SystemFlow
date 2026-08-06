@@ -441,6 +441,50 @@ export const api = {
     const safe = (title || contractId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 60);
     await downloadPdf(`/api/contracts/${contractId}/pdf`, `SLA_${safe || "Vertrag"}.pdf`);
   },
+  /** Meta zur Systemsicherung. */
+  backupInfo: () =>
+    request<{
+      databaseBytes: number;
+      uploadFiles: number;
+      hint: string;
+      format: string;
+      version: number;
+    }>("/api/admin/backup/info"),
+  /** Vollbackup (SQLite + Uploads) herunterladen. */
+  downloadBackup: async () => {
+    const res = await fetch("/api/admin/backup", { credentials: "include" });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || "Backup fehlgeschlagen");
+    }
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = /filename="([^"]+)"/i.exec(disposition);
+    const filename = match?.[1] || `systemhaus-backup.zip`;
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(objectUrl);
+  },
+  /** Backup-ZIP wiederherstellen (ersetzt Daten, Server startet neu). */
+  restoreBackup: async (file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/admin/backup/restore", {
+      method: "POST",
+      credentials: "include",
+      body,
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      message?: string;
+      restarting?: boolean;
+    };
+    if (!res.ok) throw new Error(data.error || "Restore fehlgeschlagen");
+    return data;
+  },
 };
 
 async function downloadPdf(url: string, fallbackName: string) {
