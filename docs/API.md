@@ -128,7 +128,7 @@ Kategorien: `vpn` · `admin` · `hosting` · `email` · `firewall` · `remote` �
 |---------|------|--------------|
 | GET | `/api/templates` | Vorlagen-Metadaten |
 | GET | `/api/templates/:id` | Vorlage inkl. TipTap-Inhalt |
-| GET | `/api/search?q=` | Volltextsuche (Kunden, Dokumente, Anlagen, Historie) |
+| GET | `/api/search?q=` | Volltextsuche (Kunden, Wiki, Dateien, Ordner, Anlagen, Historie) |
 
 Dokument anlegen akzeptiert optional `templateId`.
 

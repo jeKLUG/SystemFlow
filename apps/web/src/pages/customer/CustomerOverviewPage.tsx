@@ -85,7 +85,7 @@ export function CustomerOverviewPage() {
       <div className="stat-strip">
         <Link className="stat-chip" to="wiki">
           <strong>{stats.wiki}</strong>
-          <span>Wiki-Seiten</span>
+          <span>Dokumente</span>
         </Link>
         <Link className="stat-chip" to="projects">
           <strong>{stats.projects}</strong>

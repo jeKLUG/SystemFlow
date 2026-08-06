@@ -70,7 +70,7 @@ export function DocumentPage() {
         <span>/</span>
         <Link to={`/customers/${doc.customerId}`}>Kunde</Link>
         <span>/</span>
-        <Link to={`/customers/${doc.customerId}/wiki`}>Wiki</Link>
+        <Link to={`/customers/${doc.customerId}/wiki`}>Dokumente</Link>
         <span>/</span>
         <span>{title || "Seite"}</span>
       </div>

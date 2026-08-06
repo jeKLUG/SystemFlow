@@ -324,6 +324,26 @@ export interface SearchResult {
     customerName: string;
     occurredAt: string;
   }>;
+  attachments: Array<{
+    id: string;
+    originalName: string;
+    description: string | null;
+    mimeType: string | null;
+    size: number;
+    folderId: string | null;
+    documentId: string | null;
+    customerId: string;
+    customerName: string;
+    createdAt: string;
+  }>;
+  folders: Array<{
+    id: string;
+    name: string;
+    parentId: string | null;
+    customerId: string;
+    customerName: string;
+    updatedAt: string;
+  }>;
 }
 
 export interface Stats {

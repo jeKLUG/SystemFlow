@@ -391,16 +391,6 @@ export function VaultPage() {
         ) : null}
       </div>
 
-      <div className="vault-security-note panel">
-        <strong>Wichtig</strong>
-        <ul>
-          <li>Vault-Passphrase mindestens 12 Zeichen – getrennt vom Login speichern.</li>
-          <li>Schlüssel liegt nur während der Freischaltung im Server-RAM (ca. 15 Min.).</li>
-          <li>Generator-Verlauf liegt nur lokal im Browser – nicht auf dem Server.</li>
-          <li>Vault-Inhalte werden nicht im Kunden-ZIP-Export mitgeliefert.</li>
-        </ul>
-      </div>
-
       {!status.configured ? (
         <section className="panel vault-lock-card">
           <h3>Tresor einrichten</h3>

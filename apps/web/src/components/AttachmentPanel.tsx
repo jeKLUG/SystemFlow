@@ -9,6 +9,8 @@ interface Props {
   customerId: string;
   documentId?: string;
   assetId?: string;
+  /** Ohne eigenen Hero – für Einbettung im Dokumente-Hub. */
+  embedded?: boolean;
 }
 
 type Layout = "grid" | "list";
@@ -17,7 +19,7 @@ type Layout = "grid" | "list";
  * Dokumentenablage: Ordner, Drag&Drop-Upload, Suche und Dateikarten.
  * Bei Wiki-/Anlagen-Bezug kompakter ohne Ordnerhierarchie.
  */
-export function AttachmentPanel({ customerId, documentId, assetId }: Props) {
+export function AttachmentPanel({ customerId, documentId, assetId, embedded = false }: Props) {
   const scoped = Boolean(documentId || assetId);
   const [folders, setFolders] = useState<FileFolderItem[]>([]);
   const [files, setFiles] = useState<AttachmentItem[]>([]);
@@ -235,8 +237,8 @@ export function AttachmentPanel({ customerId, documentId, assetId }: Props) {
   }
 
   return (
-    <div className={`vault${scoped ? " is-scoped" : ""}`}>
-      {!scoped ? (
+    <div className={`vault${scoped ? " is-scoped" : ""}${embedded ? " is-embedded" : ""}`}>
+      {!scoped && !embedded ? (
         <div className="vault-hero">
           <div className="vault-hero-top">
             <div>
@@ -277,7 +279,9 @@ export function AttachmentPanel({ customerId, documentId, assetId }: Props) {
             </div>
           </div>
         </div>
-      ) : (
+      ) : null}
+
+      {scoped ? (
         <div className="vault-scoped-bar">
           <button
             type="button"
@@ -288,7 +292,23 @@ export function AttachmentPanel({ customerId, documentId, assetId }: Props) {
             {busy ? "Lädt…" : "Datei hochladen"}
           </button>
         </div>
-      )}
+      ) : null}
+
+      {embedded && !scoped ? (
+        <div className="vault-embedded-actions">
+          <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
+            Ordner anlegen
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            {busy ? "Lädt…" : "Hochladen"}
+          </button>
+        </div>
+      ) : null}
 
       <input
         ref={fileInputRef}

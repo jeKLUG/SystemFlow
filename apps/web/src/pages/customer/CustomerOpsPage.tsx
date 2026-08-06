@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
-import { AttachmentPanel } from "../../components/AttachmentPanel";
 import { CustomerSlaPanel } from "../../components/CustomerSlaPanel";
 import { Modal } from "../../components/Modal";
 import {
@@ -224,12 +223,6 @@ export function CustomerOpsPage() {
             ))}
           </div>
         )}
-      </section>
-
-      <section className="section">
-        <div className="panel vault-panel">
-          <AttachmentPanel customerId={id} />
-        </div>
       </section>
 
       <Modal

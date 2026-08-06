@@ -2,6 +2,7 @@ import { useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { customerDisplayName } from "../lib/customer";
+import { formatBytes } from "../lib/files";
 import { assetKindLabel, documentTypeLabel, formatDate } from "../lib/labels";
 import type { SearchResult } from "../types";
 
@@ -29,6 +30,8 @@ export function SearchPage() {
   const total =
     (result?.customers.length ?? 0) +
     (result?.documents.length ?? 0) +
+    (result?.attachments.length ?? 0) +
+    (result?.folders.length ?? 0) +
     (result?.assets.length ?? 0) +
     (result?.activities.length ?? 0);
 
@@ -36,13 +39,15 @@ export function SearchPage() {
     <div className="page">
       <div className="section-head">
         <h2>Suche</h2>
-        <p>Durchsucht Kunden, Dokumente, Anlagen und die Einsatz-Historie.</p>
+        <p>
+          Durchsucht Kunden, Wiki-Seiten, Dateien, Ordner, Anlagen und die Einsatz-Historie.
+        </p>
       </div>
 
       <form className="search-bar" onSubmit={onSearch}>
         <input
           autoFocus
-          placeholder="z. B. Seriennummer, Kundenname, Störung…"
+          placeholder="z. B. Lizenz, Protokoll, Seriennummer…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -76,7 +81,7 @@ export function SearchPage() {
             </ul>
           </ResultBlock>
 
-          <ResultBlock title="Dokumente" empty={result.documents.length === 0}>
+          <ResultBlock title="Wiki-Seiten" empty={result.documents.length === 0}>
             <ul className="list">
               {result.documents.map((d) => (
                 <li key={d.id}>
@@ -94,11 +99,65 @@ export function SearchPage() {
             </ul>
           </ResultBlock>
 
+          <ResultBlock title="Dateien" empty={(result.attachments?.length ?? 0) === 0}>
+            <ul className="list">
+              {(result.attachments ?? []).map((a) => (
+                <li key={a.id}>
+                  <div className="list-row">
+                    <div>
+                      <a
+                        className="link-accent"
+                        href={`/api/attachments/${a.id}/download`}
+                        download
+                      >
+                        <strong>{a.originalName}</strong>
+                      </a>
+                      <span className="muted">
+                        {a.customerName}
+                        {a.description ? ` · ${a.description}` : ""}
+                        {" · "}
+                        {formatBytes(a.size)}
+                      </span>
+                    </div>
+                    <Link
+                      className="btn btn-ghost btn-sm"
+                      to={
+                        a.documentId
+                          ? `/documents/${a.documentId}`
+                          : `/customers/${a.customerId}/wiki?view=files`
+                      }
+                    >
+                      Öffnen
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </ResultBlock>
+
+          <ResultBlock title="Ordner" empty={(result.folders?.length ?? 0) === 0}>
+            <ul className="list">
+              {(result.folders ?? []).map((f) => (
+                <li key={f.id}>
+                  <Link
+                    className="list-row"
+                    to={`/customers/${f.customerId}/wiki?view=files`}
+                  >
+                    <div>
+                      <strong>{f.name}</strong>
+                      <span className="muted">{f.customerName} · Ordner</span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </ResultBlock>
+
           <ResultBlock title="Anlagen" empty={result.assets.length === 0}>
             <ul className="list">
               {result.assets.map((a) => (
                 <li key={a.id}>
-                  <Link className="list-row" to={`/customers/${a.customerId}`}>
+                  <Link className="list-row" to={`/customers/${a.customerId}/assets`}>
                     <div>
                       <strong>{a.name}</strong>
                       <span className="muted">
@@ -116,7 +175,7 @@ export function SearchPage() {
             <ul className="list">
               {result.activities.map((a) => (
                 <li key={a.id}>
-                  <Link className="list-row" to={`/customers/${a.customerId}`}>
+                  <Link className="list-row" to={`/customers/${a.customerId}/ops`}>
                     <div>
                       <strong>{a.title}</strong>
                       <span className="muted">

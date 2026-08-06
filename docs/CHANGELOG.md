@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.16 – 2026-08-06
+
+- Dokumente-Hub: Wiki und Dateiablage unter einem Tab, Ablage aus Betrieb entfernt
+- Globale Suche findet Dateien (Name/Beschreibung) und Ordner
+
 ## 1.5.15 – 2026-08-06
 
 - Kundenkopf: Quicklinks (Notiz, Kalender, Tresor, Export) entfernt

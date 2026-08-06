@@ -6,7 +6,7 @@ import type { Customer } from "../../types";
 
 const tabs = [
   { to: ".", end: true, label: "Übersicht" },
-  { to: "wiki", label: "Wiki" },
+  { to: "wiki", label: "Dokumente" },
   { to: "projects", label: "Projekte" },
   { to: "tasks", label: "Aufgaben" },
   { to: "time", label: "Zeiten" },
@@ -15,7 +15,7 @@ const tabs = [
 ] as const;
 
 /**
- * Kunden-Shell mit Tabs für Wiki, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
+ * Kunden-Shell mit Tabs für Dokumente, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
  */
 export function CustomerLayout() {
   const { id = "" } = useParams();

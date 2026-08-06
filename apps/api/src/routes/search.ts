@@ -2,11 +2,18 @@ import { desc, eq, like, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { activities, assets, customers, documents } from "../db/schema.js";
+import {
+  activities,
+  assets,
+  attachments,
+  customers,
+  documents,
+  fileFolders,
+} from "../db/schema.js";
 import { requireAuth } from "../plugins/auth.js";
 
 /**
- * Registriert die globale Volltextsuche.
+ * Registriert die globale Volltextsuche (inkl. Dateien und Ordner).
  */
 export async function searchRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -19,7 +26,14 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
     const term = q.trim();
     const pattern = `%${term}%`;
 
-    const [customerHits, documentHits, assetHits, activityHits] = await Promise.all([
+    const [
+      customerHits,
+      documentHits,
+      assetHits,
+      activityHits,
+      attachmentHits,
+      folderHits,
+    ] = await Promise.all([
       db
         .select({
           id: customers.id,
@@ -107,6 +121,42 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
         .orderBy(desc(activities.occurredAt))
         .limit(20)
         .all(),
+      db
+        .select({
+          id: attachments.id,
+          originalName: attachments.originalName,
+          description: attachments.description,
+          mimeType: attachments.mimeType,
+          size: attachments.size,
+          folderId: attachments.folderId,
+          documentId: attachments.documentId,
+          customerId: attachments.customerId,
+          customerName: customers.name,
+          createdAt: attachments.createdAt,
+        })
+        .from(attachments)
+        .innerJoin(customers, eq(attachments.customerId, customers.id))
+        .where(
+          or(like(attachments.originalName, pattern), like(attachments.description, pattern)),
+        )
+        .orderBy(desc(attachments.createdAt))
+        .limit(20)
+        .all(),
+      db
+        .select({
+          id: fileFolders.id,
+          name: fileFolders.name,
+          parentId: fileFolders.parentId,
+          customerId: fileFolders.customerId,
+          customerName: customers.name,
+          updatedAt: fileFolders.updatedAt,
+        })
+        .from(fileFolders)
+        .innerJoin(customers, eq(fileFolders.customerId, customers.id))
+        .where(like(fileFolders.name, pattern))
+        .orderBy(desc(fileFolders.updatedAt))
+        .limit(20)
+        .all(),
     ]);
 
     return {
@@ -115,6 +165,8 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
       documents: documentHits,
       assets: assetHits,
       activities: activityHits,
+      attachments: attachmentHits,
+      folders: folderHits,
     };
   });
 }

@@ -44,7 +44,7 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 ## Kunden-UI
 
-Unter `/customers/:id` Tabs: Übersicht · Wiki · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie, Dokumentenablage).
+Unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki + Dateiablage) · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie).
 
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
 
