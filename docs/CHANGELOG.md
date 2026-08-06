@@ -1,8 +1,13 @@
 # Changelog
 
+## 1.5.21 – 2026-08-06
+
+- Branding: Haus-Logo in Sidebar/Login, Untertitel „IT Workspace“ entfernt
+
 ## 1.5.20 – 2026-08-06
 
 - Dateiablage: Ordner- und Dateikarten mit vollflächiger Vorschau, Typ-Badge und Hover-Aktionen
+- Dateiablage: Aktionsleiste (Download/Menü) oben rechts auf der Vorschau statt am Kartenfuß
 
 ## 1.5.19 – 2026-08-06
 

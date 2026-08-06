@@ -34,11 +34,8 @@ export function LoginPage() {
       <div className="login-layout">
         <section className="login-hero">
           <div className="sidebar-brand" style={{ border: 0, padding: 0, marginBottom: "1rem" }}>
-            <span className="brand-mark" aria-hidden="true" />
-            <div>
-              <strong>Systemhaus-Ess</strong>
-              <span>IT Workspace</span>
-            </div>
+            <img className="brand-mark" src="/logo.png" alt="" width={40} height={40} />
+            <strong>Systemhaus-Ess</strong>
           </div>
           <h1>Kunden, Einsätze und Dokumentation – klar organisiert.</h1>
           <p className="lede">

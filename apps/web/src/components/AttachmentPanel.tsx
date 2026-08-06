@@ -579,61 +579,63 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       </span>
                     </span>
                   </button>
-                  <div className={`vault-card-toolbar vault-more${menuId === folder.id ? " is-open" : ""}`}>
-                    <button
-                      type="button"
-                      className="vault-card-menu-btn"
-                      aria-label="Ordneraktionen"
-                      onClick={() => setMenuId(menuId === folder.id ? null : folder.id)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <circle cx="12" cy="5" r="1.6" />
-                        <circle cx="12" cy="12" r="1.6" />
-                        <circle cx="12" cy="19" r="1.6" />
-                      </svg>
-                    </button>
-                    {menuId === folder.id ? (
-                      <div className="vault-menu" role="menu">
-                        <button
-                          type="button"
-                          role="menuitem"
-                          onClick={() => {
-                            const name = prompt("Ordner umbenennen", folder.name);
-                            if (!name?.trim()) return;
-                            void api
-                              .updateFolder(folder.id, { name: name.trim() })
-                              .then(() => reload())
-                              .finally(() => setMenuId(null));
-                          }}
-                        >
-                          Umbenennen
-                        </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="is-danger"
-                          onClick={() => {
-                            if (
-                              confirm(
-                                `Ordner „${folder.name}“ löschen? Dateien wandern in den übergeordneten Ordner.`,
-                              )
-                            ) {
+                  <div className={`vault-card-toolbar${menuId === folder.id ? " is-open" : ""}`}>
+                    <div className={`vault-more${menuId === folder.id ? " is-open" : ""}`}>
+                      <button
+                        type="button"
+                        className="vault-card-menu-btn"
+                        aria-label="Ordneraktionen"
+                        onClick={() => setMenuId(menuId === folder.id ? null : folder.id)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <circle cx="12" cy="5" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                      </button>
+                      {menuId === folder.id ? (
+                        <div className="vault-menu" role="menu">
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              const name = prompt("Ordner umbenennen", folder.name);
+                              if (!name?.trim()) return;
                               void api
-                                .deleteFolder(folder.id)
+                                .updateFolder(folder.id, { name: name.trim() })
                                 .then(() => reload())
-                                .catch((err) =>
-                                  setError(
-                                    err instanceof Error ? err.message : "Löschen fehlgeschlagen",
-                                  ),
-                                )
                                 .finally(() => setMenuId(null));
-                            }
-                          }}
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    ) : null}
+                            }}
+                          >
+                            Umbenennen
+                          </button>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="is-danger"
+                            onClick={() => {
+                              if (
+                                confirm(
+                                  `Ordner „${folder.name}“ löschen? Dateien wandern in den übergeordneten Ordner.`,
+                                )
+                              ) {
+                                void api
+                                  .deleteFolder(folder.id)
+                                  .then(() => reload())
+                                  .catch((err) =>
+                                    setError(
+                                      err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+                                    ),
+                                  )
+                                  .finally(() => setMenuId(null));
+                              }
+                            }}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </article>
               );
@@ -683,7 +685,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       ) : null}
                     </span>
                   </button>
-                  <div className={`vault-card-toolbar vault-more${menuId === file.id ? " is-open" : ""}`}>
+                  <div className={`vault-card-toolbar${menuId === file.id ? " is-open" : ""}`}>
                     <a
                       className="vault-card-menu-btn"
                       href={`/api/attachments/${file.id}/download`}
@@ -696,46 +698,48 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                         <path d="M12 4v10M8 10l4 4 4-4M5 18h14" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </a>
-                    <button
-                      type="button"
-                      className="vault-card-menu-btn"
-                      aria-label="Dateiaktionen"
-                      onClick={() => setMenuId(menuId === file.id ? null : file.id)}
-                    >
-                      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                        <circle cx="12" cy="5" r="1.6" />
-                        <circle cx="12" cy="12" r="1.6" />
-                        <circle cx="12" cy="19" r="1.6" />
-                      </svg>
-                    </button>
-                    {menuId === file.id ? (
-                      <div className="vault-menu" role="menu">
-                        <button type="button" role="menuitem" onClick={() => openRename(file)}>
-                          Bearbeiten
-                        </button>
-                        {!scoped ? (
-                          <button type="button" role="menuitem" onClick={() => openMove(file)}>
-                            Verschieben…
+                    <div className={`vault-more${menuId === file.id ? " is-open" : ""}`}>
+                      <button
+                        type="button"
+                        className="vault-card-menu-btn"
+                        aria-label="Dateiaktionen"
+                        onClick={() => setMenuId(menuId === file.id ? null : file.id)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                          <circle cx="12" cy="5" r="1.6" />
+                          <circle cx="12" cy="12" r="1.6" />
+                          <circle cx="12" cy="19" r="1.6" />
+                        </svg>
+                      </button>
+                      {menuId === file.id ? (
+                        <div className="vault-menu" role="menu">
+                          <button type="button" role="menuitem" onClick={() => openRename(file)}>
+                            Bearbeiten
                           </button>
-                        ) : null}
-                        <a role="menuitem" href={`/api/attachments/${file.id}/download`} download>
-                          Download
-                        </a>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="is-danger"
-                          onClick={() => {
-                            setMenuId(null);
-                            if (confirm(`„${file.originalName}“ löschen?`)) {
-                              void api.deleteAttachment(file.id).then(() => reload());
-                            }
-                          }}
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    ) : null}
+                          {!scoped ? (
+                            <button type="button" role="menuitem" onClick={() => openMove(file)}>
+                              Verschieben…
+                            </button>
+                          ) : null}
+                          <a role="menuitem" href={`/api/attachments/${file.id}/download`} download>
+                            Download
+                          </a>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="is-danger"
+                            onClick={() => {
+                              setMenuId(null);
+                              if (confirm(`„${file.originalName}“ löschen?`)) {
+                                void api.deleteAttachment(file.id).then(() => reload());
+                              }
+                            }}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
                 </article>
               );

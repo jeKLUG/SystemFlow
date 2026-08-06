@@ -109,7 +109,7 @@ textarea {
 .sidebar-brand {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.7rem;
   padding: 0.55rem 0.65rem 1rem;
   margin: 0 0.15rem;
   border-bottom: 1px solid var(--border);
@@ -118,32 +118,23 @@ textarea {
 .sidebar-brand strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 0.98rem;
+  font-size: 1rem;
   letter-spacing: -0.03em;
-}
-
-.sidebar-brand span {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  font-weight: 500;
+  line-height: 1.2;
 }
 
 .brand-mark {
-  width: 2rem;
-  height: 2rem;
-  border-radius: 9px;
-  background: linear-gradient(145deg, var(--accent-bright), var(--accent) 55%, #1d4ed8);
-  box-shadow: var(--shadow-sm);
+  width: 2.15rem;
+  height: 2.15rem;
+  object-fit: contain;
   flex-shrink: 0;
-  position: relative;
+  display: block;
 }
 
-.brand-mark::after {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  border: 1.5px solid rgba(255, 255, 255, 0.75);
-  border-radius: 4px;
+img.brand-mark {
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .sidebar-nav {
@@ -2257,19 +2248,29 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .vault-card-toolbar {
   position: absolute;
-  top: 0.45rem;
-  right: 0.45rem;
-  z-index: 2;
+  top: 0.55rem;
+  right: 0.55rem;
+  z-index: 3;
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem;
+  border-radius: 11px;
+  background: rgba(8, 14, 24, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
   opacity: 0;
-  transform: translateY(-2px);
+  pointer-events: none;
+  transform: translateY(-3px);
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .vault-card:hover .vault-card-toolbar,
-.vault-card.is-menu-open .vault-card-toolbar {
+.vault-card.is-menu-open .vault-card-toolbar,
+.vault-card-toolbar.is-open {
   opacity: 1;
+  pointer-events: auto;
   transform: none;
 }
 
@@ -2277,26 +2278,26 @@ input[type="checkbox"]:not(.check-input):checked {
   appearance: none;
   display: grid;
   place-items: center;
-  width: 1.85rem;
-  height: 1.85rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 9px;
-  background: rgba(15, 23, 42, 0.72);
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
   color: rgba(248, 250, 252, 0.92);
-  backdrop-filter: blur(8px);
   cursor: pointer;
   text-decoration: none;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .vault-card-menu-btn:hover {
-  background: rgba(30, 41, 59, 0.92);
-  border-color: rgba(96, 165, 250, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .vault-card-menu-btn svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 .vault-board.is-list .vault-card {
@@ -2348,9 +2349,12 @@ input[type="checkbox"]:not(.check-input):checked {
 .vault-board.is-list .vault-card-toolbar {
   position: static;
   opacity: 1;
+  pointer-events: auto;
   transform: none;
   align-self: center;
-  padding-right: 0.45rem;
+  margin-right: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
 }
 
 .vault-more {
@@ -2451,6 +2455,7 @@ input[type="checkbox"]:not(.check-input):checked {
 
   .vault-card-toolbar {
     opacity: 1;
+    pointer-events: auto;
     transform: none;
   }
 }

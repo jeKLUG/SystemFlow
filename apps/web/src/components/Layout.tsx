@@ -105,11 +105,8 @@ export function Layout() {
 
       <aside className={`sidebar${mobileOpen ? " is-open" : ""}`}>
         <div className="sidebar-brand">
-          <span className="brand-mark" aria-hidden="true" />
-          <div>
-            <strong>Systemhaus-Ess</strong>
-            <span>IT Workspace</span>
-          </div>
+          <img className="brand-mark" src="/logo.png" alt="" width={36} height={36} />
+          <strong>Systemhaus-Ess</strong>
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">

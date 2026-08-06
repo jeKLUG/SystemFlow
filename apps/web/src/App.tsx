@@ -26,7 +26,7 @@ function Protected({ children }: { children: React.ReactNode }) {
     return (
       <div className="boot">
         <div className="boot-card">
-          <span className="brand-mark" />
+          <img className="brand-mark" src="/logo.png" alt="" width={32} height={32} />
           <p>Systemhaus-Ess wird geladen…</p>
         </div>
       </div>
