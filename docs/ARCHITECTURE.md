@@ -18,6 +18,7 @@ Browser (React SPA)
 |------------|------|-------|
 | API | `apps/api` | Auth, Kunden, Dokumente |
 | Web | `apps/web` | UI, TipTap-Editor |
+| Android | `apps/android-app` | WebView-Hülle (APK) |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
 | Compose | `docker-compose.yml` | Container + Volume |
 

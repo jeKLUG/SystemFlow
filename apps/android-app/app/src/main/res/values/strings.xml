@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Systemhaus-Ess</string>
+    <string name="action_reload">Neu laden</string>
+    <string name="action_server">Server-URL</string>
+    <string name="action_home">Startseite</string>
+    <string name="server_dialog_title">Server-Adresse</string>
+    <string name="server_dialog_hint">http://217.154.167.140:8081</string>
+    <string name="server_dialog_save">Speichern</string>
+    <string name="server_dialog_cancel">Abbrechen</string>
+    <string name="offline_title">Keine Verbindung</string>
+    <string name="offline_body">Die Web-App ist nicht erreichbar. Prüfe WLAN und die Server-URL.</string>
+    <string name="offline_retry">Erneut versuchen</string>
+    <string name="offline_change_url">URL ändern</string>
+</resources>

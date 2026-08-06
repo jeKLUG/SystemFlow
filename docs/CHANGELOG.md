@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.32 – 2026-08-06
+
+- Android-App: Gradle 9.1 + AGP 9.0 (kompatibel mit JDK 25)
+
+## 1.5.31 – 2026-08-06
+
+- Android-WebView-App unter `apps/android-app` (APK via Android Studio / CI)
+
 ## 1.5.30 – 2026-08-06
 
 - Mobile: Icon-Tabbar, Hamburger-Menü, größere Touch-Flächen, sticky Kunden-Tabs, Dashboard/Tasks gestapelt
