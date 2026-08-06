@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.19 – 2026-08-06
+
+- Wiki-Seiten: Autosave entfernt, manueller Speichern-Button
+
 ## 1.5.18 – 2026-08-06
 
 - Wiki-Editor: Icon-Toolbar, Inline-Bilder mit Upload/Paste/Drop und Skalierung

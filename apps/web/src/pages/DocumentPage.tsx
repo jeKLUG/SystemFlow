@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { AttachmentPanel } from "../components/AttachmentPanel";
@@ -13,9 +13,9 @@ export function DocumentPage() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<DocumentType>("note");
   const [content, setContent] = useState("");
+  const [savedSnapshot, setSavedSnapshot] = useState({ title: "", type: "note" as DocumentType, content: "" });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const timer = useRef<number | null>(null);
-  const skipFirst = useRef(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     void api
@@ -25,34 +25,45 @@ export function DocumentPage() {
         setTitle(d.title);
         setType(d.type);
         setContent(d.content);
-        skipFirst.current = true;
+        setSavedSnapshot({ title: d.title, type: d.type, content: d.content });
+        setSaveState("idle");
+        setError("");
       })
       .catch(() => navigate("/customers"));
   }, [id, navigate]);
 
+  const dirty = useMemo(() => {
+    return (
+      title !== savedSnapshot.title ||
+      type !== savedSnapshot.type ||
+      content !== savedSnapshot.content
+    );
+  }, [title, type, content, savedSnapshot]);
+
   useEffect(() => {
-    if (!doc) return;
-    if (skipFirst.current) {
-      skipFirst.current = false;
-      return;
-    }
-    if (timer.current) window.clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => {
-      void (async () => {
-        setSaveState("saving");
-        try {
-          const updated = await api.updateDocument(id, { title, type, content });
-          setDoc(updated);
-          setSaveState("saved");
-        } catch {
-          setSaveState("error");
-        }
-      })();
-    }, 700);
-    return () => {
-      if (timer.current) window.clearTimeout(timer.current);
+    if (!dirty) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
     };
-  }, [title, type, content, doc, id]);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [dirty]);
+
+  async function save() {
+    if (!doc || !dirty) return;
+    setSaveState("saving");
+    setError("");
+    try {
+      const updated = await api.updateDocument(id, { title, type, content });
+      setDoc(updated);
+      setSavedSnapshot({ title, type, content });
+      setSaveState("saved");
+    } catch (err) {
+      setSaveState("error");
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    }
+  }
 
   async function remove() {
     if (!confirm("Dokument wirklich löschen?")) return;
@@ -79,12 +90,18 @@ export function DocumentPage() {
         <input
           className="title-input"
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setSaveState("idle");
+          }}
           aria-label="Titel"
         />
         <select
           value={type}
-          onChange={(e) => setType(e.target.value as DocumentType)}
+          onChange={(e) => {
+            setType(e.target.value as DocumentType);
+            setSaveState("idle");
+          }}
           aria-label="Dokumenttyp"
         >
           <option value="article">Artikel</option>
@@ -95,18 +112,32 @@ export function DocumentPage() {
         </select>
         <span className="save-state">
           {saveState === "saving" && "Speichert…"}
-          {saveState === "saved" && `Gespeichert · ${formatDate(doc.updatedAt)}`}
+          {saveState === "saved" && !dirty && `Gespeichert · ${formatDate(doc.updatedAt)}`}
           {saveState === "error" && "Speichern fehlgeschlagen"}
-          {saveState === "idle" && documentTypeLabel[type]}
+          {dirty && saveState !== "saving" && "Ungespeicherte Änderungen"}
+          {!dirty && saveState === "idle" && documentTypeLabel[type]}
         </span>
+        <button
+          type="button"
+          className="btn btn-primary"
+          disabled={!dirty || saveState === "saving"}
+          onClick={() => void save()}
+        >
+          {saveState === "saving" ? "Speichert…" : "Speichern"}
+        </button>
         <button type="button" className="btn btn-danger btn-sm" onClick={() => void remove()}>
           Löschen
         </button>
       </div>
 
+      {error ? <p className="form-error">{error}</p> : null}
+
       <DocumentEditor
         content={content}
-        onChange={setContent}
+        onChange={(next) => {
+          setContent(next);
+          setSaveState("idle");
+        }}
         customerId={doc.customerId}
         documentId={doc.id}
       />
