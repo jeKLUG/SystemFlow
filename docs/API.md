@@ -73,7 +73,9 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | PUT | `/api/time-entries/:id` | Aktualisieren |
 | DELETE | `/api/time-entries/:id` | Löschen |
 
-Body: `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `billable`. Alternativ weiterhin `hours` ohne Uhrzeiten.
+Body: `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `billable`, `billed` (bereits abgerechnet). Alternativ weiterhin `hours` ohne Uhrzeiten.
+
+`summary` enthält u. a. `unbilledHours` und `unbilledAmount` (abrechenbar, noch nicht abgerechnet).
 
 ## Anlagen
 
@@ -170,6 +172,8 @@ Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; 
 |---------|------|
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
+| GET | `/api/customers/:id/wiki/pdf` (alle Wiki-Seiten als PDF) |
+| GET | `/api/documents/:id/pdf` (eine Wiki-Seite als PDF) |
 
 ## Health
 

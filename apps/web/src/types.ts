@@ -147,6 +147,8 @@ export interface TimeEntryItem {
   hours: number;
   description: string | null;
   billable: boolean;
+  /** Bereits abgerechnet. */
+  billed: boolean;
   rateSnapshot?: number | null;
   amountSnapshot?: number | null;
   createdAt: string;
@@ -159,6 +161,8 @@ export interface TimeEntriesResponse {
     totalHours: number;
     billableHours: number;
     billableAmount?: number;
+    unbilledHours?: number;
+    unbilledAmount?: number;
     entryCount: number;
   };
 }

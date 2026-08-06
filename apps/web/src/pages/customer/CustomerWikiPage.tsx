@@ -28,6 +28,7 @@ export function CustomerWikiPage() {
   const [filter, setFilter] = useState<"all" | DocumentType>("all");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const [form, setForm] = useState({
     title: "",
     type: "article" as DocumentType,
@@ -114,9 +115,27 @@ export function CustomerWikiPage() {
           </div>
           <div className="docs-hero-actions">
             {view === "wiki" ? (
-              <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-                + Wiki-Seite
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={docs.length === 0 || pdfBusy}
+                  onClick={() => {
+                    setPdfBusy(true);
+                    void api
+                      .exportWikiPdf(id)
+                      .catch((err) =>
+                        alert(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
+                      )
+                      .finally(() => setPdfBusy(false));
+                  }}
+                >
+                  {pdfBusy ? "PDF…" : "Alle als PDF"}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+                  + Wiki-Seite
+                </button>
+              </>
             ) : (
               <Link className="btn btn-ghost" to="/search">
                 Globale Suche

@@ -426,4 +426,31 @@ export const api = {
     a.click();
     URL.revokeObjectURL(url);
   },
+  /** Alle Wiki-Seiten eines Kunden als PDF herunterladen. */
+  exportWikiPdf: async (customerId: string) => {
+    await downloadPdf(`/api/customers/${customerId}/wiki/pdf`, `wiki-${customerId}.pdf`);
+  },
+  /** Eine Wiki-Seite als PDF herunterladen. */
+  exportDocumentPdf: async (documentId: string, title?: string) => {
+    const safe = (title || documentId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 60);
+    await downloadPdf(`/api/documents/${documentId}/pdf`, `${safe || "wiki"}.pdf`);
+  },
 };
+
+async function downloadPdf(url: string, fallbackName: string) {
+  const res = await fetch(url, { credentials: "include" });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => "");
+    throw new Error(msg || "PDF-Export fehlgeschlagen");
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = /filename="([^"]+)"/i.exec(disposition);
+  const filename = match?.[1] || fallbackName;
+  const objectUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = objectUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+}

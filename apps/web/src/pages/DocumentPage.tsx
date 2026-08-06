@@ -16,6 +16,7 @@ export function DocumentPage() {
   const [savedSnapshot, setSavedSnapshot] = useState({ title: "", type: "note" as DocumentType, content: "" });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     void api
@@ -124,6 +125,23 @@ export function DocumentPage() {
           onClick={() => void save()}
         >
           {saveState === "saving" ? "Speichert…" : "Speichern"}
+        </button>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          disabled={pdfBusy || dirty}
+          title={dirty ? "Zuerst speichern" : "Als PDF exportieren"}
+          onClick={() => {
+            setPdfBusy(true);
+            void api
+              .exportDocumentPdf(id, title)
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
+              )
+              .finally(() => setPdfBusy(false));
+          }}
+        >
+          {pdfBusy ? "PDF…" : "PDF"}
         </button>
         <button type="button" className="btn btn-danger btn-sm" onClick={() => void remove()}>
           Löschen

@@ -1,10 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { customers, documents } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { getTemplate } from "../lib/templates.js";
+import { buildWikiPdf } from "../lib/wiki-pdf.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -38,11 +39,51 @@ function emptyToNull(value: string | null | undefined) {
   return value.trim();
 }
 
+function pdfFilename(base: string): string {
+  const safe = base.replace(/[^\w\-äöüÄÖÜß]+/gi, "_").replace(/_+/g, "_").slice(0, 80);
+  return `${safe || "wiki"}.pdf`;
+}
+
+function sendPdf(reply: import("fastify").FastifyReply, buffer: Buffer, filename: string) {
+  return reply
+    .header("Content-Type", "application/pdf")
+    .header("Content-Disposition", `attachment; filename="${filename}"`)
+    .send(buffer);
+}
+
 /**
- * Registriert Wiki-/Dokument-Routen inkl. TipTap-Inhalt.
+ * Registriert Wiki-/Dokument-Routen inkl. TipTap-Inhalt und PDF-Export.
  */
 export async function documentRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
+
+  /** Alle Wiki-Seiten eines Kunden als ein PDF. */
+  app.get("/api/customers/:customerId/wiki/pdf", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const docs = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.customerId, customerId))
+      .orderBy(asc(documents.title))
+      .all();
+
+    const buffer = await buildWikiPdf(
+      { name: customer.name, company: customer.company },
+      docs.map((d) => ({
+        title: d.title,
+        type: d.type,
+        content: d.content,
+        updatedAt: d.updatedAt,
+        createdAt: d.createdAt,
+      })),
+    );
+
+    const label = customer.company || customer.name;
+    return sendPdf(reply, buffer, pdfFilename(`Wiki_${label}`));
+  });
 
   app.get("/api/documents", async (request) => {
     const q = z
@@ -99,6 +140,35 @@ export async function documentRoutes(app: FastifyInstance, db: Db) {
     const row = await db.select().from(documents).where(eq(documents.id, id)).get();
     if (!row) return reply.code(404).send({ error: "Dokument nicht gefunden" });
     return row;
+  });
+
+  /** Einzelne Wiki-Seite als PDF. */
+  app.get("/api/documents/:id/pdf", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const row = await db.select().from(documents).where(eq(documents.id, id)).get();
+    if (!row) return reply.code(404).send({ error: "Dokument nicht gefunden" });
+
+    const customer = await db
+      .select()
+      .from(customers)
+      .where(eq(customers.id, row.customerId))
+      .get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const buffer = await buildWikiPdf(
+      { name: customer.name, company: customer.company },
+      [
+        {
+          title: row.title,
+          type: row.type,
+          content: row.content,
+          updatedAt: row.updatedAt,
+          createdAt: row.createdAt,
+        },
+      ],
+    );
+
+    return sendPdf(reply, buffer, pdfFilename(row.title));
   });
 
   app.post("/api/documents", async (request, reply) => {

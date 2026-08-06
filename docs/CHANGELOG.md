@@ -1,7 +1,12 @@
 # Changelog
 
+## 1.5.24 – 2026-08-06
+
+- Zeiterfassung: Status „abgerechnet“ je Eintrag, Kennzahlen für offene Stunden/Beträge
+
 ## 1.5.23 – 2026-08-06
 
+- Wiki: PDF-Export einzelner Seiten und aller Wiki-Einträge je Kunde (Deckblatt, Inhaltsverzeichnis, formatierter Inhalt)
 - Dateiablage: kompakteres Aktionsmenü mit Icons, ohne doppelten Download-Eintrag
 
 ## 1.5.22 – 2026-08-06

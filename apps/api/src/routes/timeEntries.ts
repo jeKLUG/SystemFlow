@@ -21,6 +21,7 @@ const entryBody = z
     projectId: z.string().optional().nullable().or(z.literal("")),
     priceItemId: z.string().optional().nullable().or(z.literal("")),
     billable: z.boolean().optional(),
+    billed: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     const hasStart = Boolean(data.startTime);
@@ -114,6 +115,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         hours: timeEntries.hours,
         description: timeEntries.description,
         billable: timeEntries.billable,
+        billed: timeEntries.billed,
         rateSnapshot: timeEntries.rateSnapshot,
         amountSnapshot: timeEntries.amountSnapshot,
         createdAt: timeEntries.createdAt,
@@ -138,6 +140,12 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     const billableAmount = filtered
       .filter((r) => r.billable && r.amountSnapshot != null)
       .reduce((sum, r) => sum + (Number(r.amountSnapshot) || 0), 0);
+    const unbilledHours = filtered
+      .filter((r) => r.billable && !r.billed)
+      .reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
+    const unbilledAmount = filtered
+      .filter((r) => r.billable && !r.billed && r.amountSnapshot != null)
+      .reduce((sum, r) => sum + (Number(r.amountSnapshot) || 0), 0);
 
     return {
       entries: filtered,
@@ -145,6 +153,8 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         totalHours: Math.round(totalHours * 100) / 100,
         billableHours: Math.round(billableHours * 100) / 100,
         billableAmount: Math.round(billableAmount * 100) / 100,
+        unbilledHours: Math.round(unbilledHours * 100) / 100,
+        unbilledAmount: Math.round(unbilledAmount * 100) / 100,
         entryCount: filtered.length,
       },
     };
@@ -203,6 +213,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       projectId,
     });
     const billable = parsed.data.billable ?? true;
+    const billed = parsed.data.billed ?? false;
     const money = amountFrom(resolved.hours, rate, billable);
 
     const now = new Date();
@@ -217,6 +228,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       hours: resolved.hours,
       description: emptyToNull(parsed.data.description),
       billable,
+      billed,
       rateSnapshot: money.rateSnapshot,
       amountSnapshot: money.amountSnapshot,
       createdAt: now,
@@ -252,6 +264,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       projectId: z.string().optional().nullable().or(z.literal("")),
       priceItemId: z.string().optional().nullable().or(z.literal("")),
       billable: z.boolean().optional(),
+      billed: z.boolean().optional(),
     });
 
     const parsed = updateBody.safeParse(request.body);
@@ -296,6 +309,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         ? emptyToNull(parsed.data.priceItemId)
         : existing.priceItemId;
     const billable = parsed.data.billable ?? existing.billable;
+    const billed = parsed.data.billed ?? existing.billed;
     const { rate, priceItemId: resolvedPriceId } = await resolveHourlyRate(db, {
       priceItemId,
       projectId,
@@ -314,6 +328,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       projectId,
       priceItemId: resolvedPriceId,
       billable,
+      billed,
       rateSnapshot: money.rateSnapshot,
       amountSnapshot: money.amountSnapshot,
       updatedAt: new Date(),

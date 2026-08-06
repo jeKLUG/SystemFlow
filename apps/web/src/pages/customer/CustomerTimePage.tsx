@@ -48,6 +48,8 @@ export function CustomerTimePage() {
     totalHours: 0,
     billableHours: 0,
     billableAmount: 0,
+    unbilledHours: 0,
+    unbilledAmount: 0,
     entryCount: 0,
   });
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -56,6 +58,7 @@ export function CustomerTimePage() {
   const [filterProject, setFilterProject] = useState("");
   const [open, setOpen] = useState(false);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [form, setForm] = useState({
     workDate: localTodayIso(),
     startTime: "09:00",
@@ -64,6 +67,7 @@ export function CustomerTimePage() {
     projectId: "",
     priceItemId: "",
     billable: true,
+    billed: false,
   });
 
   const computedHours = useMemo(
@@ -88,6 +92,8 @@ export function CustomerTimePage() {
       totalHours: time.summary.totalHours,
       billableHours: time.summary.billableHours,
       billableAmount: time.summary.billableAmount ?? 0,
+      unbilledHours: time.summary.unbilledHours ?? 0,
+      unbilledAmount: time.summary.unbilledAmount ?? 0,
       entryCount: time.summary.entryCount,
     });
     setProjects(p);
@@ -134,8 +140,19 @@ export function CustomerTimePage() {
       workDate: localTodayIso(),
       description: "",
       billable: true,
+      billed: false,
     }));
     setOpen(true);
+  }
+
+  async function toggleBilled(entry: TimeEntryItem) {
+    setBusyId(entry.id);
+    try {
+      await api.updateTimeEntry(entry.id, { billed: !entry.billed });
+      await reload();
+    } finally {
+      setBusyId(null);
+    }
   }
 
   function closeModal() {
@@ -159,6 +176,7 @@ export function CustomerTimePage() {
         projectId: form.projectId || null,
         priceItemId: form.priceItemId || null,
         billable: form.billable,
+        billed: form.billed,
       });
       setForm({
         workDate: localTodayIso(),
@@ -168,6 +186,7 @@ export function CustomerTimePage() {
         projectId: form.projectId,
         priceItemId: form.priceItemId,
         billable: true,
+        billed: false,
       });
       closeModal();
       await reload();
@@ -211,6 +230,19 @@ export function CustomerTimePage() {
             <strong>{summary.billableHours}</strong>
             <span>Abrechenbar</span>
           </div>
+          <div className={`stat-chip${summary.unbilledHours > 0 ? " is-warn" : ""}`}>
+            <strong>{summary.unbilledHours}</strong>
+            <span>Noch offen</span>
+          </div>
+          <div className="stat-chip">
+            <strong>
+              {summary.unbilledAmount.toLocaleString("de-DE", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+              })}
+            </strong>
+            <span>Offen {currency}</span>
+          </div>
           <div className="stat-chip">
             <strong>
               {summary.billableAmount.toLocaleString("de-DE", {
@@ -218,11 +250,7 @@ export function CustomerTimePage() {
                 maximumFractionDigits: 2,
               })}
             </strong>
-            <span>Netto {currency}</span>
-          </div>
-          <div className="stat-chip">
-            <strong>{summary.entryCount}</strong>
-            <span>Einträge</span>
+            <span>Netto gesamt</span>
           </div>
         </div>
       </div>
@@ -276,7 +304,10 @@ export function CustomerTimePage() {
               </div>
               <ul className="time-entry-list">
                 {group.items.map((entry) => (
-                  <li key={entry.id} className={`time-entry${entry.billable ? "" : " is-nonbillable"}`}>
+                  <li
+                    key={entry.id}
+                    className={`time-entry${entry.billable ? "" : " is-nonbillable"}${entry.billed ? " is-billed" : ""}`}
+                  >
                     <div className="time-entry-range">
                       <strong>
                         {entry.startTime && entry.endTime
@@ -307,6 +338,21 @@ export function CustomerTimePage() {
                         <span className={`time-chip ${entry.billable ? "is-ok" : "is-muted"}`}>
                           {entry.billable ? "Abrechenbar" : "Nicht abrechenbar"}
                         </span>
+                        {entry.billable ? (
+                          <button
+                            type="button"
+                            className={`time-chip time-billed-toggle ${entry.billed ? "is-billed" : "is-open"}`}
+                            disabled={busyId === entry.id}
+                            title={
+                              entry.billed
+                                ? "Als noch nicht abgerechnet markieren"
+                                : "Als abgerechnet markieren"
+                            }
+                            onClick={() => void toggleBilled(entry)}
+                          >
+                            {entry.billed ? "Abgerechnet" : "Nicht abgerechnet"}
+                          </button>
+                        ) : null}
                       </span>
                     </div>
                     <button
@@ -416,7 +462,16 @@ export function CustomerTimePage() {
             fieldLabel="Abrechenbar"
             label={form.billable ? "Ja" : "Nein"}
             checked={form.billable}
-            onChange={(billable) => setForm({ ...form, billable })}
+            onChange={(billable) =>
+              setForm({ ...form, billable, billed: billable ? form.billed : false })
+            }
+          />
+          <Checkbox
+            fieldLabel="Bereits abgerechnet"
+            label={form.billed ? "Ja" : "Nein"}
+            checked={form.billed}
+            disabled={!form.billable}
+            onChange={(billed) => setForm({ ...form, billed })}
           />
           <label className="field full">
             <span>Beschreibung</span>
