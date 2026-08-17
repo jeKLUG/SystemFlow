@@ -132,19 +132,23 @@ Kategorien: `vpn` · `admin` · `hosting` · `email` · `firewall` · `remote` �
 |---------|------|--------------|
 | GET | `/api/templates` | Vorlagen-Metadaten |
 | GET | `/api/templates/:id` | Vorlage inkl. TipTap-Inhalt |
-| GET | `/api/search?q=` | Volltextsuche (Kunden, Wiki, Dateien, Ordner, Anlagen, Historie) |
+| GET | `/api/search?q=&types=` | Suche (Fuzzy-LIKE, Snippets). `types`: `contact,customer,wiki,file,asset,activity,folder` |
+| POST | `/api/customers/:id/promote` | Kontakt → Kunde (`kind=customer`) + `missing[]` Hinweise |
 
 Dokument anlegen akzeptiert optional `templateId`.
 
 ## Aufgaben
 
-Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne Projekt), `openOnly`.
+Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne Projekt), `openOnly`, `scope=all|customer|internal`.
 
 | Methode | Pfad |
 |---------|------|
-| GET | `/api/tasks?openOnly=&view=&projectId=` |
+| GET | `/api/tasks?openOnly=&view=&projectId=&scope=&limit=` |
+| POST | `/api/tasks` (`customerId` optional = intern) |
 | GET/POST | `/api/customers/:id/tasks` |
 | PUT/DELETE | `/api/tasks/:id` |
+
+`customerId` kann `null` sein (interne Aufgabe). Kundenaufgaben erscheinen weiterhin unter dem Kunden-Tab.
 
 ## Verträge / SLA
 

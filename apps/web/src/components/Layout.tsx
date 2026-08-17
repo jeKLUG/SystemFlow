@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth";
+import { OfflineBanner } from "./OfflineBanner";
 
 type NavItem = { to: string; label: string; end?: boolean; icon: ReactNode };
 
@@ -75,7 +76,7 @@ const primaryNav: NavItem[] = [
 ];
 
 const secondaryNav: NavItem[] = [
-  { to: "/reminders", label: "Ablauf", icon: icon.reminders },
+  { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
   { to: "/search", label: "Suche", icon: icon.search },
   { to: "/quick-note", label: "Schnellnotiz", icon: icon.note },
   { to: "/settings", label: "Konto", icon: icon.settings },
@@ -85,8 +86,8 @@ const mobileTabs: { to: string; label: string; end?: boolean; icon: ReactNode; p
   { to: "/", label: "Start", end: true, icon: icon.home },
   { to: "/customers", label: "Kontakte", icon: icon.customers },
   { to: "/quick-note", label: "Notiz", icon: icon.note, primary: true },
+  { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
   { to: "/calendar", label: "Kalender", icon: icon.calendar },
-  { to: "/vault", label: "Tresor", icon: icon.vault },
 ];
 
 function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[]; onNavigate: () => void }) {
@@ -134,6 +135,7 @@ export function Layout() {
   return (
     <div className={`app-shell${mobileOpen ? " is-nav-open" : ""}`}>
       <div className="atmosphere" aria-hidden="true" />
+      <OfflineBanner />
 
       <aside className={`sidebar${mobileOpen ? " is-open" : ""}`} id="app-sidebar">
         <div className="sidebar-brand">

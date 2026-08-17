@@ -12,6 +12,8 @@ const taskBody = z.object({
   description: z.string().max(5000).optional().nullable().or(z.literal("")),
   dueDate: z.string().max(40).optional().nullable().or(z.literal("")),
   projectId: z.string().optional().nullable().or(z.literal("")),
+  /** Leer / null = interne Aufgabe ohne Kunde. */
+  customerId: z.string().optional().nullable().or(z.literal("")),
   priority: z.number().int().min(1).max(4).optional(),
   sortOrder: z.number().int().optional(),
   done: z.boolean().optional(),
@@ -68,8 +70,16 @@ function viewConditions(view: View | undefined, openOnly: boolean | undefined) {
   return conditions;
 }
 
+function tasksBase(db: Db) {
+  return db
+    .select(selectTaskFields())
+    .from(tasks)
+    .leftJoin(customers, eq(tasks.customerId, customers.id))
+    .leftJoin(projects, eq(tasks.projectId, projects.id));
+}
+
 /**
- * Aufgaben-API im Todoist-Stil: Priorität, Projekt, Ansichten.
+ * Aufgaben-API: global inkl. interner Tasks ohne Kunde.
  */
 export async function taskRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -79,6 +89,8 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       .object({
         openOnly: z.coerce.boolean().optional(),
         customerId: z.string().optional(),
+        /** `none` = nur interne Aufgaben ohne Kunde */
+        scope: z.enum(["all", "customer", "internal"]).optional(),
         projectId: z.string().optional(),
         view: z.enum(["today", "upcoming", "inbox", "all", "done"]).optional(),
         limit: z.coerce.number().int().positive().max(500).optional(),
@@ -86,19 +98,21 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       .parse(request.query);
 
     const conditions = [...viewConditions(q.view, q.openOnly)];
-    if (q.customerId) conditions.push(eq(tasks.customerId, q.customerId));
+    if (q.customerId) {
+      conditions.push(eq(tasks.customerId, q.customerId));
+    } else if (q.scope === "internal") {
+      conditions.push(or(isNull(tasks.customerId), eq(tasks.customerId, ""))!);
+    } else if (q.scope === "customer") {
+      conditions.push(isNotNull(tasks.customerId));
+      conditions.push(ne(tasks.customerId, ""));
+    }
     if (q.projectId === "none") {
       conditions.push(or(isNull(tasks.projectId), eq(tasks.projectId, ""))!);
     } else if (q.projectId) {
       conditions.push(eq(tasks.projectId, q.projectId));
     }
 
-    const base = db
-      .select(selectTaskFields())
-      .from(tasks)
-      .innerJoin(customers, eq(tasks.customerId, customers.id))
-      .leftJoin(projects, eq(tasks.projectId, projects.id));
-
+    const base = tasksBase(db);
     const rows = conditions.length
       ? await base
           .where(and(...conditions))
@@ -125,6 +139,61 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
     return rows;
   });
 
+  /**
+   * Globale Aufgabe anlegen (optional mit Kunde).
+   */
+  app.post("/api/tasks", async (request, reply) => {
+    const parsed = taskBody.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
+    }
+
+    const customerId = emptyToNull(parsed.data.customerId);
+    let customer = null as typeof customers.$inferSelect | null;
+    if (customerId) {
+      customer = (await db.select().from(customers).where(eq(customers.id, customerId)).get()) ?? null;
+      if (!customer) return reply.code(400).send({ error: "Kontakt nicht gefunden" });
+    }
+
+    const projectId = emptyToNull(parsed.data.projectId);
+    if (projectId) {
+      if (!customerId) {
+        return reply.code(400).send({ error: "Projekt nur mit Kundenbezug möglich" });
+      }
+      const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
+      if (!project || project.customerId !== customerId) {
+        return reply.code(400).send({ error: "Projekt nicht gefunden" });
+      }
+    }
+
+    const now = new Date();
+    const row = {
+      id: createId("tsk"),
+      customerId,
+      projectId,
+      title: parsed.data.title.trim(),
+      description: emptyToNull(parsed.data.description),
+      dueDate: emptyToNull(parsed.data.dueDate),
+      priority: parsed.data.priority ?? 4,
+      sortOrder: parsed.data.sortOrder ?? 0,
+      done: parsed.data.done ?? false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.insert(tasks).values(row);
+
+    const project = projectId
+      ? await db.select().from(projects).where(eq(projects.id, projectId)).get()
+      : null;
+
+    return reply.code(201).send({
+      ...row,
+      customerName: customer?.name ?? null,
+      customerCompany: customer?.company ?? null,
+      projectName: project?.name ?? null,
+    });
+  });
+
   app.get("/api/customers/:customerId/tasks", async (request, reply) => {
     const { customerId } = request.params as { customerId: string };
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
@@ -138,20 +207,14 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       .parse(request.query);
 
     const conditions = [eq(tasks.customerId, customerId), ...viewConditions(q.view, !q.view || q.view !== "all")];
-    // For customer list default show all including done at bottom unless view set
     if (!q.view) {
-      // reset: only customer filter, show open+done
       const onlyCustomer = [eq(tasks.customerId, customerId)];
       if (q.projectId === "none") {
         onlyCustomer.push(or(isNull(tasks.projectId), eq(tasks.projectId, ""))!);
       } else if (q.projectId) {
         onlyCustomer.push(eq(tasks.projectId, q.projectId));
       }
-      return await db
-        .select(selectTaskFields())
-        .from(tasks)
-        .innerJoin(customers, eq(tasks.customerId, customers.id))
-        .leftJoin(projects, eq(tasks.projectId, projects.id))
+      return await tasksBase(db)
         .where(and(...onlyCustomer))
         .orderBy(
           asc(tasks.done),
@@ -169,11 +232,7 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       conditions.push(eq(tasks.projectId, q.projectId));
     }
 
-    return await db
-      .select(selectTaskFields())
-      .from(tasks)
-      .innerJoin(customers, eq(tasks.customerId, customers.id))
-      .leftJoin(projects, eq(tasks.projectId, projects.id))
+    return await tasksBase(db)
       .where(and(...conditions))
       .orderBy(
         asc(tasks.done),
@@ -190,7 +249,7 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    const parsed = taskBody.safeParse(request.body);
+    const parsed = taskBody.safeParse({ ...(request.body as object), customerId });
     if (!parsed.success) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
@@ -241,18 +300,34 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
-    let projectId = existing.projectId;
-    if (parsed.data.projectId !== undefined) {
-      projectId = emptyToNull(parsed.data.projectId);
-      if (projectId) {
-        const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
-        if (!project || project.customerId !== existing.customerId) {
-          return reply.code(400).send({ error: "Projekt nicht gefunden" });
-        }
+    let customerId = existing.customerId;
+    if (parsed.data.customerId !== undefined) {
+      customerId = emptyToNull(parsed.data.customerId);
+      if (customerId) {
+        const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+        if (!customer) return reply.code(400).send({ error: "Kontakt nicht gefunden" });
       }
     }
 
+    let projectId = existing.projectId;
+    if (parsed.data.projectId !== undefined) {
+      projectId = emptyToNull(parsed.data.projectId);
+    }
+    if (projectId) {
+      if (!customerId) {
+        return reply.code(400).send({ error: "Projekt nur mit Kundenbezug möglich" });
+      }
+      const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
+      if (!project || project.customerId !== customerId) {
+        return reply.code(400).send({ error: "Projekt nicht gefunden" });
+      }
+    } else if (customerId !== existing.customerId) {
+      // Kunde gewechselt ohne gültiges Projekt → Projekt lösen
+      projectId = null;
+    }
+
     const updated = {
+      customerId,
       title: parsed.data.title?.trim() ?? existing.title,
       description:
         parsed.data.description !== undefined
@@ -268,11 +343,9 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
     };
     await db.update(tasks).set(updated).where(eq(tasks.id, id));
 
-    const customer = await db
-      .select()
-      .from(customers)
-      .where(eq(customers.id, existing.customerId))
-      .get();
+    const customer = customerId
+      ? await db.select().from(customers).where(eq(customers.id, customerId)).get()
+      : null;
     const project = projectId
       ? await db.select().from(projects).where(eq(projects.id, projectId)).get()
       : null;
@@ -280,8 +353,8 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
     return {
       ...existing,
       ...updated,
-      customerName: customer?.name,
-      customerCompany: customer?.company,
+      customerName: customer?.name ?? null,
+      customerCompany: customer?.company ?? null,
       projectName: project?.name ?? null,
     };
   });

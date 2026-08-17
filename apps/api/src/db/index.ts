@@ -200,7 +200,7 @@ export async function createDb(databasePath: string) {
 
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
-      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      customer_id TEXT REFERENCES customers(id) ON DELETE CASCADE,
       project_id TEXT,
       title TEXT NOT NULL,
       description TEXT,
@@ -436,9 +436,46 @@ export async function createDb(databasePath: string) {
   await client.execute(
     `CREATE INDEX IF NOT EXISTS idx_customer_emails_customer ON customer_emails(customer_id)`,
   );
+
+  await migrateTasksCustomerOptional(client);
+
   await client.execute(`PRAGMA foreign_keys = ON`);
 
   return drizzle(client, { schema });
+}
+
+/**
+ * Macht tasks.customer_id optional (interne Aufgaben ohne Kunde).
+ * SQLite: Tabelle neu anlegen, wenn die Spalte noch NOT NULL ist.
+ */
+async function migrateTasksCustomerOptional(client: Client) {
+  const info = await client.execute(`PRAGMA table_info(tasks)`);
+  const customerCol = info.rows.find((row) => String(row.name) === "customer_id");
+  if (!customerCol) return;
+  // notnull === 1 → noch Pflichtfeld
+  if (Number(customerCol.notnull) !== 1) return;
+
+  await client.execute(`PRAGMA foreign_keys = OFF`);
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS tasks_mig (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT REFERENCES customers(id) ON DELETE CASCADE,
+      project_id TEXT,
+      title TEXT NOT NULL,
+      description TEXT,
+      due_date TEXT,
+      priority INTEGER NOT NULL DEFAULT 4,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      done INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    INSERT INTO tasks_mig (id, customer_id, project_id, title, description, due_date, priority, sort_order, done, created_at, updated_at)
+    SELECT id, customer_id, project_id, title, description, due_date, priority, sort_order, done, created_at, updated_at FROM tasks;
+    DROP TABLE tasks;
+    ALTER TABLE tasks_mig RENAME TO tasks;
+    CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
+  `);
 }
 
 export type Db = Awaited<ReturnType<typeof createDb>>;

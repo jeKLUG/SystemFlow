@@ -1,7 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
-import { customerDisplayName, contactKindLabel } from "../../lib/customer";
+import {
+  contactKindLabel,
+  customerDisplayName,
+  customerUpgradeGaps,
+} from "../../lib/customer";
 import type { Customer } from "../../types";
 
 type Tab = {
@@ -76,12 +80,14 @@ const tabs: Tab[] = [
 ];
 
 /**
- * Kontakt-/Kunden-Shell mit Tabs für Dokumente, E-Mails, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
+ * Kontakt-/Kunden-Shell mit Tabs und Upgrade Kontakt → Kunde.
  */
 export function CustomerLayout() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [promoting, setPromoting] = useState(false);
+  const [promoteMsg, setPromoteMsg] = useState("");
 
   useEffect(() => {
     void api
@@ -90,9 +96,31 @@ export function CustomerLayout() {
       .catch(() => navigate("/customers"));
   }, [id, navigate]);
 
+  async function promoteToCustomer() {
+    if (!customer) return;
+    setPromoting(true);
+    setPromoteMsg("");
+    try {
+      const res = await api.promoteCustomer(customer.id);
+      setCustomer(res.customer);
+      if (res.missing.length) {
+        setPromoteMsg(
+          `Als Kunde gespeichert. Noch ergänzen: ${res.missing.join(", ")}.`,
+        );
+      } else {
+        setPromoteMsg("Als Kunde gespeichert – Stammdaten sind vollständig.");
+      }
+    } catch (err) {
+      setPromoteMsg(err instanceof Error ? err.message : "Upgrade fehlgeschlagen");
+    } finally {
+      setPromoting(false);
+    }
+  }
+
   if (!customer) return <div className="boot">Lade Kontakt…</div>;
 
   const kind = customer.kind ?? "customer";
+  const gaps = kind === "contact" ? customerUpgradeGaps(customer) : [];
 
   return (
     <div className="page customer-hub">
@@ -102,7 +130,7 @@ export function CustomerLayout() {
         <span>{customerDisplayName(customer)}</span>
       </div>
 
-      <div className="section-head">
+      <div className="section-head row-between">
         <div>
           <h2>{customerDisplayName(customer)}</h2>
           <p>
@@ -124,7 +152,33 @@ export function CustomerLayout() {
             ) : null}
           </p>
         </div>
+        {kind === "contact" ? (
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={promoting}
+            onClick={() => void promoteToCustomer()}
+          >
+            {promoting ? "Wird umgewandelt…" : "Zu Kunde machen"}
+          </button>
+        ) : null}
       </div>
+
+      {kind === "contact" ? (
+        <div className="promote-banner panel" role="status">
+          <div>
+            <strong>Einfacher Kontakt</strong>
+            <p className="muted">
+              {gaps.length
+                ? `Für einen vollständigen Kunden fehlen noch: ${gaps.join(", ")}. Du kannst trotzdem jetzt upgraden.`
+                : "Stammdaten wirken vollständig – ein Klick macht daraus einen Kunden."}
+            </p>
+            {promoteMsg ? <p className="promote-msg">{promoteMsg}</p> : null}
+          </div>
+        </div>
+      ) : promoteMsg ? (
+        <p className="muted promote-ok">{promoteMsg}</p>
+      ) : null}
 
       <nav className="customer-tabs" aria-label="Kontaktbereiche">
         {tabs.map((tab) => (

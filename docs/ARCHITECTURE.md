@@ -51,6 +51,10 @@ Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
 Mobil (≤860px): Sticky Topbar/Tabbar mit Safe-Area, Bottom-Sheets, sticky Kontakt-Tabs, größere Touch-Targets (`--mobile-hit`), Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+
+PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
+
+Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
 
 ## Zeitzone

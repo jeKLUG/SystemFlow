@@ -76,7 +76,7 @@ export async function reminderRoutes(app: FastifyInstance, db: Db) {
           customerCompany: customers.company,
         })
         .from(tasks)
-        .innerJoin(customers, eq(tasks.customerId, customers.id))
+        .leftJoin(customers, eq(tasks.customerId, customers.id))
         .where(
           and(
             eq(tasks.done, false),

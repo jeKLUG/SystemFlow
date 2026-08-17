@@ -78,6 +78,13 @@ export const api = {
     }),
   deleteCustomer: (id: string) =>
     request<{ ok: boolean }>(`/api/customers/${id}`, { method: "DELETE" }),
+  /** Kontakt → Kunde umwandeln. */
+  promoteCustomer: (id: string) =>
+    request<{
+      customer: import("./types").Customer;
+      alreadyCustomer: boolean;
+      missing: string[];
+    }>(`/api/customers/${id}/promote`, { method: "POST" }),
   documents: (customerId?: string, opts?: { assetId?: string; projectId?: string; type?: string }) => {
     const params = new URLSearchParams();
     if (customerId) params.set("customerId", customerId);
@@ -228,8 +235,11 @@ export const api = {
   deleteActivity: (id: string) =>
     request<{ ok: boolean }>(`/api/activities/${id}`, { method: "DELETE" }),
   templates: () => request<import("./types").TemplateMeta[]>("/api/templates"),
-  search: (q: string) =>
-    request<import("./types").SearchResult>(`/api/search?q=${encodeURIComponent(q)}`),
+  search: (q: string, opts?: { types?: string[] }) => {
+    const params = new URLSearchParams({ q });
+    if (opts?.types?.length) params.set("types", opts.types.join(","));
+    return request<import("./types").SearchResult>(`/api/search?${params}`);
+  },
   tasks: (
     customerId: string,
     opts?: { projectId?: string; view?: string },
@@ -245,6 +255,7 @@ export const api = {
   allTasks: (opts?: {
     openOnly?: boolean;
     customerId?: string;
+    scope?: "all" | "customer" | "internal";
     projectId?: string;
     view?: string;
     limit?: number;
@@ -252,6 +263,7 @@ export const api = {
     const params = new URLSearchParams();
     if (opts?.openOnly) params.set("openOnly", "true");
     if (opts?.customerId) params.set("customerId", opts.customerId);
+    if (opts?.scope) params.set("scope", opts.scope);
     if (opts?.projectId) params.set("projectId", opts.projectId);
     if (opts?.view) params.set("view", opts.view);
     if (opts?.limit) params.set("limit", String(opts.limit));
@@ -261,6 +273,12 @@ export const api = {
   openTasks: () => request<import("./types").TaskItem[]>("/api/tasks?openOnly=true&limit=30"),
   createTask: (customerId: string, body: Record<string, unknown>) =>
     request<import("./types").TaskItem>(`/api/customers/${customerId}/tasks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  /** Globale Aufgabe anlegen (Kunde optional). */
+  createGlobalTask: (body: Record<string, unknown>) =>
+    request<import("./types").TaskItem>("/api/tasks", {
       method: "POST",
       body: JSON.stringify(body),
     }),

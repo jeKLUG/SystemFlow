@@ -4,6 +4,7 @@ import { api } from "../api";
 import { ChartLegend, ColumnChart, DonutChart } from "../components/DashCharts";
 import { customerDisplayName } from "../lib/customer";
 import { localTodayIso } from "../lib/dates";
+import { withOfflineFallback } from "../lib/offlineCache";
 import { appointmentKindLabel, formatDateOnly } from "../lib/labels";
 import {
   addDaysIso,
@@ -31,22 +32,27 @@ export function DashboardPage() {
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fromCache, setFromCache] = useState(false);
 
   const todayIso = localTodayIso();
   const weekEnd = addDaysIso(todayIso, 6);
 
   useEffect(() => {
-    void Promise.all([
-      api.stats(),
-      api.openTasks(),
-      api.reminders(30),
-      api.appointments({ from: todayIso, to: weekEnd }),
-    ])
-      .then(([s, t, rem, appts]) => {
+    void withOfflineFallback(`dashboard:${todayIso}`, () =>
+      Promise.all([
+        api.stats(),
+        api.openTasks(),
+        api.reminders(30),
+        api.appointments({ from: todayIso, to: weekEnd }),
+      ]),
+    )
+      .then(({ data, fromCache: cached }) => {
+        const [s, t, rem, appts] = data;
         setStats(s);
         setOpenTasks(sortTasks(t, "due"));
         setReminders(rem);
         setAppointments(appts);
+        setFromCache(cached);
       })
       .finally(() => setLoading(false));
   }, [todayIso, weekEnd]);
@@ -155,6 +161,9 @@ export function DashboardPage() {
         <div>
           <p className="eyebrow">{dateLabel}</p>
           <h2>{greet}</h2>
+          {fromCache ? (
+            <p className="muted">Offline-Stand – zuletzt synchronisierte Daten</p>
+          ) : null}
         </div>
       </header>
 
@@ -176,7 +185,7 @@ export function DashboardPage() {
           <strong>{loading ? "–" : todayAppts.length}</strong>
           <span className="dash-kpi-meta">{appointments.length} diese Woche</span>
         </Link>
-        <Link className="dash-kpi" to="/reminders">
+        <Link className="dash-kpi" to="/tasks">
           <span className="dash-kpi-label">Abläufe</span>
           <strong>{loading ? "–" : reminderTotal}</strong>
           <span className="dash-kpi-meta">30 Tage</span>
@@ -240,7 +249,7 @@ export function DashboardPage() {
               <h2>Fokus</h2>
               <p>Heute und als Nächstes</p>
             </div>
-            <Link className="btn btn-ghost btn-sm" to="/reminders">
+            <Link className="btn btn-ghost btn-sm" to="/tasks">
               Alle ({summary.open})
             </Link>
           </div>
@@ -298,7 +307,7 @@ export function DashboardPage() {
                 <h2>Abläufe</h2>
                 <p>Garantien & Verträge</p>
               </div>
-              <Link className="btn btn-ghost btn-sm" to="/reminders">
+              <Link className="btn btn-ghost btn-sm" to="/tasks">
                 Alle
               </Link>
             </div>
@@ -363,10 +372,13 @@ function DashTaskRow({
 }) {
   const prio = (Number(task.priority) || 4) as TaskPriority;
   const due = dueLabel(task.dueDate, false);
-  const customer = customerDisplayName({
-    name: task.customerName ?? "",
-    company: task.customerCompany ?? null,
-  });
+  const customer = task.customerId
+    ? customerDisplayName({
+        name: task.customerName ?? "",
+        company: task.customerCompany ?? null,
+      })
+    : "Intern";
+  const taskTo = task.customerId ? `/customers/${task.customerId}/tasks` : "/tasks";
 
   return (
     <article className={`dash-task-row prio-${prio}${busy ? " is-busy" : ""}`}>
@@ -377,7 +389,7 @@ function DashTaskRow({
         disabled={busy}
         onClick={onToggle}
       />
-      <Link className="dash-task-main" to={`/customers/${task.customerId}/tasks`}>
+      <Link className="dash-task-main" to={taskTo}>
         <strong>{task.title}</strong>
         <span className="dash-task-meta">
           <span className={`task-chip task-prio-chip prio-${prio}`}>{priorityLabel[prio]}</span>

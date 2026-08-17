@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { withOfflineFallback } from "../lib/offlineCache";
 import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
@@ -81,7 +82,11 @@ export function CalendarPage() {
   }, [view, monthGrid, weekDays, selected]);
 
   async function reload() {
-    setAppointments(await api.appointments({ from: range.from, to: range.to }));
+    const { data } = await withOfflineFallback(
+      `appointments:${range.from}:${range.to}`,
+      () => api.appointments({ from: range.from, to: range.to }),
+    );
+    setAppointments(data);
   }
 
   useEffect(() => {

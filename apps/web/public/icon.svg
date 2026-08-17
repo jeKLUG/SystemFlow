@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Systemhaus-Ess">
+  <rect width="512" height="512" rx="96" fill="#080d16"/>
+  <rect x="64" y="64" width="384" height="384" rx="72" fill="#121b29"/>
+  <path d="M156 320V192l100-56 100 56v128l-100 56-100-56z" fill="none" stroke="#3b82f6" stroke-width="28" stroke-linejoin="round"/>
+  <circle cx="256" cy="256" r="36" fill="#6babff"/>
+</svg>

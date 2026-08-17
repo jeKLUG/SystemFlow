@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.5.51 – 2026-08-17
+
+- Reiter „Ablauf“ → „Aufgaben“ (`/tasks`): globale Aufgabenliste, Anlegen mit/ohne Kunde, Ansichten Heute/Geplant/Inbox; Abläufe (Garantien/Verträge) darunter
+- Tasks: `customerId` optional für interne Aufgaben; `POST /api/tasks`
+
+## 1.5.50 – 2026-08-17
+
+- Wiki-PDF: keine Ketten leerer Seiten mehr (leere TipTap-Absätze werden entfernt, Page-Breaks entschärft); Layout etwas klarer
+
+## 1.5.49 – 2026-08-17
+
+- Suche: Typ-Filter (Kontakt/Kunde/Wiki/Dateien/…), tipptolerante LIKE-Muster, Kontext-Snippets
+- Kontakt → Kunde: Ein-Klick-Upgrade (`POST /api/customers/:id/promote`) inkl. fehlender Stammdaten-Hinweise
+- PWA / Offline-Lesemodus: Installierbare App, Service Worker, Snapshots für Dashboard, Kontakte und Kalender
+
 ## 1.5.48 – 2026-08-17
 
 - Mobile: großes UX-Polish – Tokens/Safe-Area, Topbar & Tabbar, Bottom-Sheets mit Griff, Listen/Chips, Kontakt-Hub, Dashboard-KPIs 2×2, Touch-Targets, Padding-Fix ≤640px

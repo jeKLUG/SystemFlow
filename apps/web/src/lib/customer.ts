@@ -15,6 +15,21 @@ export function contactKindLabel(kind?: ContactKind | null): string {
   return kind === "contact" ? "Kontakt" : "Kunde";
 }
 
+/**
+ * Empfohlene Felder beim Upgrade Kontakt → Kunde (fehlende Stammdaten).
+ */
+export function customerUpgradeGaps(
+  customer: Pick<Customer, "company" | "vatId" | "address" | "email" | "phone">,
+): string[] {
+  const gaps: string[] = [];
+  if (!customer.company?.trim()) gaps.push("Firma");
+  if (!customer.vatId?.trim()) gaps.push("USt-IdNr.");
+  if (!customer.address?.trim()) gaps.push("Adresse");
+  if (!customer.email?.trim()) gaps.push("E-Mail");
+  if (!customer.phone?.trim()) gaps.push("Telefon");
+  return gaps;
+}
+
 /** Formatierte Adresszeile. */
 export function customerAddressLine(
   customer: Pick<Customer, "address" | "zip" | "city" | "country">,

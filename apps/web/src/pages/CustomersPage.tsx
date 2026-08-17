@@ -6,6 +6,7 @@ import { contactKindLabel, customerDisplayName } from "../lib/customer";
 import { pushRecentCustomer } from "../lib/recentCustomers";
 import { formatDate } from "../lib/labels";
 import { emptyCustomerForm, type ContactKind, type Customer } from "../types";
+import { withOfflineFallback } from "../lib/offlineCache";
 
 const PAGE_SIZE = 40;
 
@@ -24,6 +25,7 @@ export function CustomersPage() {
   const [form, setForm] = useState(emptyCustomerForm);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState("");
+  const [fromCache, setFromCache] = useState(false);
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const debounceRef = useRef<number | null>(null);
@@ -34,16 +36,20 @@ export function CustomersPage() {
     const search = opts?.search ?? q;
     setLoading(true);
     try {
-      const res = await api.customers({
-        q: search.trim() || undefined,
-        status,
-        kind,
-        sort,
-        limit: PAGE_SIZE,
-        offset,
-      });
+      const cacheKey = `customers:${status}:${kind}:${sort}:${search.trim()}:${offset}`;
+      const { data: res, fromCache: cached } = await withOfflineFallback(cacheKey, () =>
+        api.customers({
+          q: search.trim() || undefined,
+          status,
+          kind,
+          sort,
+          limit: PAGE_SIZE,
+          offset,
+        }),
+      );
       setTotal(res.total);
       setCustomers((prev) => (append ? [...prev, ...res.items] : res.items));
+      if (!append) setFromCache(cached);
     } finally {
       setLoading(false);
     }
@@ -106,6 +112,7 @@ export function CustomersPage() {
             {kind === "contact" ? " · Kontakte" : kind === "customer" ? " · Kunden" : ""}
             {status === "active" ? " · aktive" : status === "inactive" ? " · inaktive" : ""}
             {q.trim() ? ` · Suche „${q.trim()}“` : ""}
+            {fromCache ? " · Offline-Stand" : ""}
           </p>
         </div>
         <div className="page-actions">

@@ -199,12 +199,10 @@ export const activities = sqliteTable("activities", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Offene Aufgaben / To-dos pro Kunde. */
+/** Offene Aufgaben / To-dos – optional einem Kunden zugeordnet. */
 export const tasks = sqliteTable("tasks", {
   id: text("id").primaryKey(),
-  customerId: text("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "cascade" }),
   projectId: text("project_id"),
   title: text("title").notNull(),
   description: text("description"),

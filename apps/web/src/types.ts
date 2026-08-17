@@ -306,8 +306,12 @@ export interface TemplateMeta {
 
 export interface SearchResult {
   q: string;
+  types?: string[] | null;
   customers: Array<
-    Pick<Customer, "id" | "name" | "company" | "email" | "phone" | "status" | "city">
+    Pick<Customer, "id" | "name" | "company" | "email" | "phone" | "status" | "city"> & {
+      kind?: ContactKind;
+      snippet?: string | null;
+    }
   >;
   documents: Array<{
     id: string;
@@ -316,6 +320,7 @@ export interface SearchResult {
     customerId: string;
     customerName: string;
     updatedAt: string;
+    snippet?: string | null;
   }>;
   assets: Array<{
     id: string;
@@ -324,6 +329,7 @@ export interface SearchResult {
     serialNumber: string | null;
     customerId: string;
     customerName: string;
+    snippet?: string | null;
   }>;
   activities: Array<{
     id: string;
@@ -332,6 +338,7 @@ export interface SearchResult {
     customerId: string;
     customerName: string;
     occurredAt: string;
+    snippet?: string | null;
   }>;
   attachments: Array<{
     id: string;
@@ -344,6 +351,7 @@ export interface SearchResult {
     customerId: string;
     customerName: string;
     createdAt: string;
+    snippet?: string | null;
   }>;
   folders: Array<{
     id: string;
@@ -352,6 +360,7 @@ export interface SearchResult {
     customerId: string;
     customerName: string;
     updatedAt: string;
+    snippet?: string | null;
   }>;
 }
 
@@ -365,7 +374,8 @@ export type TaskPriority = 1 | 2 | 3 | 4;
 
 export interface TaskItem {
   id: string;
-  customerId: string;
+  /** null = interne Aufgabe ohne Kundenbezug */
+  customerId: string | null;
   projectId?: string | null;
   projectName?: string | null;
   title: string;
@@ -376,7 +386,7 @@ export interface TaskItem {
   done: boolean;
   createdAt: string;
   updatedAt: string;
-  customerName?: string;
+  customerName?: string | null;
   customerCompany?: string | null;
 }
 
@@ -504,8 +514,8 @@ export interface Reminders {
     id: string;
     title: string;
     dueDate: string | null;
-    customerId: string;
-    customerName: string;
+    customerId: string | null;
+    customerName: string | null;
     customerCompany: string | null;
   }>;
 }

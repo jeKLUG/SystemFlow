@@ -51,7 +51,8 @@ export default function App() {
       >
         <Route index element={<DashboardPage />} />
         <Route path="search" element={<SearchPage />} />
-        <Route path="reminders" element={<RemindersPage />} />
+        <Route path="tasks" element={<RemindersPage />} />
+        <Route path="reminders" element={<Navigate to="/tasks" replace />} />
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="vault" element={<VaultPage />} />

@@ -44,6 +44,25 @@ function mapCustomerInput(data: z.infer<typeof customerBody>) {
   };
 }
 
+/**
+ * Fehlende typische Kundenfelder nach Upgrade (Hinweise für die UI).
+ */
+function missingCustomerFields(row: {
+  company: string | null;
+  vatId: string | null;
+  address: string | null;
+  email: string | null;
+  phone: string | null;
+}): string[] {
+  const missing: string[] = [];
+  if (!row.company?.trim()) missing.push("Firma");
+  if (!row.vatId?.trim()) missing.push("USt-IdNr.");
+  if (!row.address?.trim()) missing.push("Adresse");
+  if (!row.email?.trim()) missing.push("E-Mail");
+  if (!row.phone?.trim()) missing.push("Telefon");
+  return missing;
+}
+
 function buildCustomerWhere(opts: {
   term?: string;
   status?: "active" | "inactive" | "all";
@@ -191,6 +210,37 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
 
     await db.update(customers).set(updated).where(eq(customers.id, id));
     return { ...existing, ...updated };
+  });
+
+  /**
+   * Wandelt einen Kontakt in einen Kunden um (kind → customer).
+   * Liefert zusätzlich Hinweise zu fehlenden Stammdaten.
+   */
+  app.post("/api/customers/:id/promote", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await db.select().from(customers).where(eq(customers.id, id)).get();
+    if (!existing) return reply.code(404).send({ error: "Kontakt nicht gefunden" });
+
+    if (existing.kind === "customer") {
+      return {
+        customer: existing,
+        alreadyCustomer: true,
+        missing: missingCustomerFields(existing),
+      };
+    }
+
+    const updatedAt = new Date();
+    await db
+      .update(customers)
+      .set({ kind: "customer", updatedAt })
+      .where(eq(customers.id, id));
+
+    const customer = { ...existing, kind: "customer" as const, updatedAt };
+    return {
+      customer,
+      alreadyCustomer: false,
+      missing: missingCustomerFields(customer),
+    };
   });
 
   app.delete("/api/customers/:id", async (request, reply) => {
