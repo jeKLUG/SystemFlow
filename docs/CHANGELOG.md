@@ -3,6 +3,7 @@
 ## 1.5.46 – 2026-08-17
 
 - Fix: DB-Start crashte auf bestehenden Installationen (`no such column: email_id`) – Index erst nach Spalten-Migration
+- Dashboard: Diagramme „Aufgaben“ und „Woche“ wieder nebeneinander (auch mobil)
 
 ## 1.5.45 – 2026-08-17
 
