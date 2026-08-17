@@ -6,6 +6,7 @@ export type ActivityKind =
   | "appointment"
   | "project"
   | "asset"
+  | "email"
   | "manual";
 
 const kindMeta: Record<
@@ -17,6 +18,7 @@ const kindMeta: Record<
   appointment: { label: "Termin", className: "is-appointment" },
   project: { label: "Projekt", className: "is-project" },
   asset: { label: "Gerät", className: "is-asset" },
+  email: { label: "E-Mail", className: "is-email" },
   manual: { label: "Einsatz", className: "is-manual" },
 };
 
@@ -29,6 +31,7 @@ export function detectActivityKind(title: string): ActivityKind {
   if (t.startsWith("wiki")) return "wiki";
   if (t.startsWith("termin")) return "appointment";
   if (t.startsWith("projekt")) return "project";
+  if (t.startsWith("e-mail") || t.startsWith("email")) return "email";
   if (t.includes("anlage") || t.includes("gerät") || t.includes("netzwerk")) return "asset";
   return "manual";
 }

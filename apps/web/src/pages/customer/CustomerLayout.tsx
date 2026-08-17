@@ -56,11 +56,18 @@ const tabIcon = {
       <path d="M5 18h14" strokeLinecap="round" />
     </svg>
   ),
+  emails: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+      <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 const tabs: Tab[] = [
   { to: ".", end: true, label: "Übersicht", short: "Start", icon: tabIcon.overview },
   { to: "wiki", label: "Dokumente", short: "Docs", icon: tabIcon.docs },
+  { to: "emails", label: "E-Mails", short: "Mail", icon: tabIcon.emails },
   { to: "projects", label: "Projekte", short: "Projekte", icon: tabIcon.projects },
   { to: "tasks", label: "Aufgaben", short: "Tasks", icon: tabIcon.tasks },
   { to: "time", label: "Zeiten", short: "Zeit", icon: tabIcon.time },
@@ -69,7 +76,7 @@ const tabs: Tab[] = [
 ];
 
 /**
- * Kunden-Shell mit Tabs für Dokumente, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
+ * Kunden-Shell mit Tabs für Dokumente, E-Mails, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
  */
 export function CustomerLayout() {
   const { id = "" } = useParams();

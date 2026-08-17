@@ -283,15 +283,42 @@ export const api = {
     }),
   deleteContract: (id: string) =>
     request<{ ok: boolean }>(`/api/contracts/${id}`, { method: "DELETE" }),
+  emails: (
+    customerId: string,
+    opts?: { q?: string; direction?: import("./types").EmailDirection },
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.q) params.set("q", opts.q);
+    if (opts?.direction) params.set("direction", opts.direction);
+    const qs = params.toString();
+    return request<import("./types").CustomerEmailItem[]>(
+      `/api/customers/${customerId}/emails${qs ? `?${qs}` : ""}`,
+    );
+  },
+  createEmail: (customerId: string, body: Record<string, unknown>) =>
+    request<import("./types").CustomerEmailItem>(`/api/customers/${customerId}/emails`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  email: (id: string) =>
+    request<import("./types").CustomerEmailItem>(`/api/emails/${id}`),
+  updateEmail: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").CustomerEmailItem>(`/api/emails/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteEmail: (id: string) =>
+    request<{ ok: boolean }>(`/api/emails/${id}`, { method: "DELETE" }),
   reminders: (days = 90) =>
     request<import("./types").Reminders>(`/api/reminders?days=${days}`),
   attachments: (
     customerId: string,
-    opts?: { documentId?: string; assetId?: string; folderId?: string },
+    opts?: { documentId?: string; assetId?: string; emailId?: string; folderId?: string },
   ) => {
     const params = new URLSearchParams();
     if (opts?.documentId) params.set("documentId", opts.documentId);
     if (opts?.assetId) params.set("assetId", opts.assetId);
+    if (opts?.emailId) params.set("emailId", opts.emailId);
     if (opts?.folderId !== undefined) params.set("folderId", opts.folderId);
     const qs = params.toString();
     return request<import("./types").AttachmentItem[]>(
@@ -315,12 +342,19 @@ export const api = {
   uploadAttachment: async (
     customerId: string,
     file: File,
-    opts?: { documentId?: string; assetId?: string; folderId?: string | null; description?: string },
+    opts?: {
+      documentId?: string;
+      assetId?: string;
+      emailId?: string;
+      folderId?: string | null;
+      description?: string;
+    },
   ) => {
     const body = new FormData();
     // Metadaten VOR der Datei: @fastify/multipart liest Felder nach dem File-Part sonst nicht
     if (opts?.documentId) body.append("documentId", opts.documentId);
     if (opts?.assetId) body.append("assetId", opts.assetId);
+    if (opts?.emailId) body.append("emailId", opts.emailId);
     if (opts?.folderId) body.append("folderId", opts.folderId);
     if (opts?.description) body.append("description", opts.description);
     body.append("file", file);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.42 – 2026-08-17
+
+- Dashboard: Aufgaben- und Wochen-Diagramm nebeneinander; Prioritäten-Widget entfernt
+
+## 1.5.41 – 2026-08-17
+
+- Kunden: E-Mail-Archiv (Tab „E-Mails“) – Korrespondenz ablegen, suchen, Anhänge (.eml/PDF/…) zuordnen
+
 ## 1.5.40 – 2026-08-17
 
 - Dashboard: kompakter Aufbau – 4 KPIs, 3 Diagramme, Fokus-Liste statt voller Aufgaben-/Nebenpanels

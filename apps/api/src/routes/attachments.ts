@@ -38,6 +38,7 @@ export async function attachmentRoutes(
       .object({
         documentId: z.string().optional(),
         assetId: z.string().optional(),
+        emailId: z.string().optional(),
         folderId: z.string().optional(),
       })
       .parse(request.query);
@@ -48,6 +49,7 @@ export async function attachmentRoutes(
     const conditions = [eq(attachments.customerId, customerId)];
     if (q.documentId) conditions.push(eq(attachments.documentId, q.documentId));
     if (q.assetId) conditions.push(eq(attachments.assetId, q.assetId));
+    if (q.emailId) conditions.push(eq(attachments.emailId, q.emailId));
     if (q.folderId === "root" || q.folderId === "") {
       conditions.push(isNull(attachments.folderId));
     } else if (q.folderId) {
@@ -69,6 +71,7 @@ export async function attachmentRoutes(
 
     let documentId: string | null = null;
     let assetId: string | null = null;
+    let emailId: string | null = null;
     let folderId: string | null = null;
     let description: string | null = null;
     let uploaded: {
@@ -106,6 +109,7 @@ export async function attachmentRoutes(
         const value = String(part.value ?? "").trim();
         if (part.fieldname === "documentId") documentId = value || null;
         else if (part.fieldname === "assetId") assetId = value || null;
+        else if (part.fieldname === "emailId") emailId = value || null;
         else if (part.fieldname === "folderId") folderId = emptyToNull(value);
         else if (part.fieldname === "description") description = emptyToNull(value);
       }
@@ -120,8 +124,8 @@ export async function attachmentRoutes(
       }
     }
 
-    // Wiki-/Anlagen-Anhänge liegen nicht in der Ablage-Hierarchie
-    if (documentId || assetId) folderId = null;
+    // Wiki-/Anlagen-/Mail-Anhänge liegen nicht in der Ablage-Hierarchie
+    if (documentId || assetId || emailId) folderId = null;
 
     const id =
       (uploaded as { id?: string }).id ??
@@ -134,6 +138,7 @@ export async function attachmentRoutes(
       folderId,
       documentId,
       assetId,
+      emailId,
       originalName: uploaded.filename,
       storedName: uploaded.storedName,
       mimeType: uploaded.mimetype || null,
@@ -173,7 +178,7 @@ export async function attachmentRoutes(
         parsed.data.description !== undefined
           ? emptyToNull(parsed.data.description)
           : existing.description,
-      folderId: existing.documentId || existing.assetId ? null : folderId,
+      folderId: existing.documentId || existing.assetId || existing.emailId ? null : folderId,
       updatedAt: new Date(),
     };
     await db.update(attachments).set(updated).where(eq(attachments.id, id));

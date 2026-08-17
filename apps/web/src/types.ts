@@ -436,6 +436,7 @@ export interface AttachmentItem {
   folderId?: string | null;
   documentId: string | null;
   assetId: string | null;
+  emailId?: string | null;
   originalName: string;
   storedName: string;
   mimeType: string | null;
@@ -443,6 +444,26 @@ export interface AttachmentItem {
   description?: string | null;
   createdAt: string;
   updatedAt?: string;
+}
+
+export type EmailDirection = "inbound" | "outbound" | "internal";
+
+/** Archivierte Kunden-E-Mail. */
+export interface CustomerEmailItem {
+  id: string;
+  customerId: string;
+  subject: string;
+  fromAddress: string | null;
+  toAddress: string | null;
+  ccAddress: string | null;
+  direction: EmailDirection;
+  sentAt: string;
+  bodyText: string | null;
+  notes: string | null;
+  attachmentCount?: number;
+  attachments?: AttachmentItem[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface FileFolderItem {

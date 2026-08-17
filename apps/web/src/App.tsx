@@ -3,6 +3,7 @@ import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { CustomerAssetsPage } from "./pages/customer/CustomerAssetsPage";
 import { CustomerLayout } from "./pages/customer/CustomerLayout";
+import { CustomerEmailsPage } from "./pages/customer/CustomerEmailsPage";
 import { CustomerOpsPage } from "./pages/customer/CustomerOpsPage";
 import { CustomerOverviewPage } from "./pages/customer/CustomerOverviewPage";
 import { CustomerProjectsPage } from "./pages/customer/CustomerProjectsPage";
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerLayout />}>
           <Route index element={<CustomerOverviewPage />} />
           <Route path="wiki" element={<CustomerWikiPage />} />
+          <Route path="emails" element={<CustomerEmailsPage />} />
           <Route path="projects" element={<CustomerProjectsPage />} />
           <Route path="time" element={<CustomerTimePage />} />
           <Route path="assets" element={<CustomerAssetsPage />} />

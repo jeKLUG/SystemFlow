@@ -300,11 +300,27 @@ export async function createDb(databasePath: string) {
       folder_id TEXT,
       document_id TEXT,
       asset_id TEXT,
+      email_id TEXT,
       original_name TEXT NOT NULL,
       stored_name TEXT NOT NULL,
       mime_type TEXT,
       size INTEGER NOT NULL DEFAULT 0,
       description TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS customer_emails (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      subject TEXT NOT NULL,
+      from_address TEXT,
+      to_address TEXT,
+      cc_address TEXT,
+      direction TEXT NOT NULL DEFAULT 'inbound',
+      sent_at TEXT NOT NULL,
+      body_text TEXT,
+      notes TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -324,6 +340,9 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
     CREATE INDEX IF NOT EXISTS idx_file_folders_customer ON file_folders(customer_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_folder ON attachments(folder_id);
+    CREATE INDEX IF NOT EXISTS idx_customer_emails_customer ON customer_emails(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_customer_emails_sent ON customer_emails(sent_at);
+    CREATE INDEX IF NOT EXISTS idx_attachments_email ON attachments(email_id);
     CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
@@ -375,6 +394,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "attachments", "updated_at", "INTEGER");
   await ensureColumn(client, "attachments", "folder_id", "TEXT");
   await ensureColumn(client, "attachments", "description", "TEXT");
+  await ensureColumn(client, "attachments", "email_id", "TEXT");
   await ensureColumn(client, "contracts", "contract_number", "TEXT");
   await ensureColumn(client, "contracts", "status", "TEXT NOT NULL DEFAULT 'active'");
   await ensureColumn(client, "contracts", "description", "TEXT");
@@ -406,6 +426,12 @@ export async function createDb(databasePath: string) {
   // Indizes, die Spalten aus ensureColumn brauchen (bestehende DBs)
   await client.execute(
     `CREATE INDEX IF NOT EXISTS idx_documents_asset ON documents(asset_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_attachments_email ON attachments(email_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_customer_emails_customer ON customer_emails(customer_id)`,
   );
   await client.execute(`PRAGMA foreign_keys = ON`);
 

@@ -4,6 +4,7 @@ import type {
   AssetStatus,
   ContractStatus,
   DocumentType,
+  EmailDirection,
   ProjectStatus,
   VaultCategory,
 } from "../types";
@@ -15,6 +16,12 @@ export const documentTypeLabel: Record<DocumentType, string> = {
   documentation: "Dokumentation",
   article: "Artikel",
   workflow: "Workflow",
+};
+
+export const emailDirectionLabel: Record<EmailDirection, string> = {
+  inbound: "Eingang",
+  outbound: "Ausgang",
+  internal: "Intern",
 };
 
 export const projectStatusLabel: Record<ProjectStatus, string> = {

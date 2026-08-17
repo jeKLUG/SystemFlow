@@ -51,6 +51,12 @@ function ActivityIcon({ kind }: { kind: ActivityKind }) {
         <path d="M8 21h8M12 17v4" strokeLinecap="round" />
       </svg>
     ),
+    email: (
+      <svg {...props}>
+        <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+        <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
     manual: (
       <svg {...props}>
         <path d="M12 4v10M8 10l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
@@ -75,6 +81,7 @@ const kindFilters: { id: "all" | ActivityKind; label: string }[] = [
   { id: "wiki", label: "Wiki" },
   { id: "appointment", label: "Termin" },
   { id: "project", label: "Projekt" },
+  { id: "email", label: "E-Mail" },
   { id: "manual", label: "Einsatz" },
 ];
 
@@ -107,6 +114,7 @@ export function CustomerOpsPage() {
       appointment: 0,
       project: 0,
       asset: 0,
+      email: 0,
       manual: 0,
     };
     for (const item of activityList) {

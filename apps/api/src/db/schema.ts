@@ -368,7 +368,7 @@ export const fileFolders = sqliteTable("file_folders", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Dateien / Anhänge zu Kunde, Ordner, Wiki-Dokument oder Anlage. */
+/** Dateien / Anhänge zu Kunde, Ordner, Wiki-Dokument, Anlage oder E-Mail. */
 export const attachments = sqliteTable("attachments", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
@@ -377,6 +377,7 @@ export const attachments = sqliteTable("attachments", {
   folderId: text("folder_id"),
   documentId: text("document_id"),
   assetId: text("asset_id"),
+  emailId: text("email_id"),
   originalName: text("original_name").notNull(),
   storedName: text("stored_name").notNull(),
   mimeType: text("mime_type"),
@@ -385,6 +386,27 @@ export const attachments = sqliteTable("attachments", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+/** Archivierte Kunden-E-Mails (Mailverkehr). */
+export const customerEmails = sqliteTable("customer_emails", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(),
+  fromAddress: text("from_address"),
+  toAddress: text("to_address"),
+  ccAddress: text("cc_address"),
+  direction: text("direction").notNull().default("inbound"),
+  sentAt: text("sent_at").notNull(),
+  bodyText: text("body_text"),
+  notes: text("notes"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const emailDirections = ["inbound", "outbound", "internal"] as const;
+export type EmailDirection = (typeof emailDirections)[number];
 
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
@@ -404,3 +426,4 @@ export type VaultMeta = typeof vaultMeta.$inferSelect;
 export type VaultEntry = typeof vaultEntries.$inferSelect;
 export type FileFolder = typeof fileFolders.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
+export type CustomerEmail = typeof customerEmails.$inferSelect;

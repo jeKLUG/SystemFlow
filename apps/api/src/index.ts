@@ -30,6 +30,7 @@ import { templateRoutes } from "./routes/templates.js";
 import { timeEntryRoutes } from "./routes/timeEntries.js";
 import { vaultRoutes } from "./routes/vault.js";
 import { backupRoutes } from "./routes/backup.js";
+import { emailRoutes } from "./routes/emails.js";
 
 /**
  * Startet die Systemhaus-Ess API und liefert optional das Frontend aus.
@@ -87,6 +88,7 @@ async function main() {
   await app.register(async (scoped) => attachmentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => exportRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => backupRoutes(scoped, config.databasePath, config.uploadDir));
+  await app.register(async (scoped) => emailRoutes(scoped, db, config.uploadDir));
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 

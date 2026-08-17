@@ -156,16 +156,28 @@ Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat
 
 ## Anhänge / Dokumentenablage
 
-Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-Anhänge bleiben ohne Ordner.
+Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-/E-Mail-Anhänge bleiben ohne Ordner.
 
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/folders` |
 | PUT/DELETE | `/api/folders/:id` |
-| GET/POST | `/api/customers/:id/attachments` (`folderId=root` für Root) |
+| GET/POST | `/api/customers/:id/attachments` (`folderId=root`, optional `documentId` / `assetId` / `emailId`) |
 | PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner) |
 | GET | `/api/attachments/:id/download?inline=1` |
 | DELETE | `/api/attachments/:id` |
+
+## Kunden-E-Mails (Archiv)
+
+Mailverkehr manuell ablegen (kein IMAP). Anhänge über `emailId` an `attachments`.
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/customers/:id/emails?q=&direction=` | Liste (`inbound`\|`outbound`\|`internal`) |
+| POST | `/api/customers/:id/emails` | Ablegen |
+| GET/PUT/DELETE | `/api/emails/:id` | Detail (inkl. Anhänge) / ändern / löschen |
+
+Body: `subject`, `sentAt` (YYYY-MM-DD), optional `fromAddress`, `toAddress`, `ccAddress`, `direction`, `bodyText`, `notes`.
 
 ## Erinnerungen & Export
 
