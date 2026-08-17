@@ -339,10 +339,8 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_contracts_customer ON contracts(customer_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_customer ON attachments(customer_id);
     CREATE INDEX IF NOT EXISTS idx_file_folders_customer ON file_folders(customer_id);
-    CREATE INDEX IF NOT EXISTS idx_attachments_folder ON attachments(folder_id);
     CREATE INDEX IF NOT EXISTS idx_customer_emails_customer ON customer_emails(customer_id);
     CREATE INDEX IF NOT EXISTS idx_customer_emails_sent ON customer_emails(sent_at);
-    CREATE INDEX IF NOT EXISTS idx_attachments_email ON attachments(email_id);
     CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
@@ -426,6 +424,9 @@ export async function createDb(databasePath: string) {
   // Indizes, die Spalten aus ensureColumn brauchen (bestehende DBs)
   await client.execute(
     `CREATE INDEX IF NOT EXISTS idx_documents_asset ON documents(asset_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_attachments_folder ON attachments(folder_id)`,
   );
   await client.execute(
     `CREATE INDEX IF NOT EXISTS idx_attachments_email ON attachments(email_id)`,

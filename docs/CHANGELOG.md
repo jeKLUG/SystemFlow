@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.46 – 2026-08-17
+
+- Fix: DB-Start crashte auf bestehenden Installationen (`no such column: email_id`) – Index erst nach Spalten-Migration
+
 ## 1.5.45 – 2026-08-17
 
 - Deploy: Port explizit auf 0.0.0.0, längerer Health-Check mit Diagnose, systemd startet ohne erneutes `--build`
