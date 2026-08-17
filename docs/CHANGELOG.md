@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.43 – 2026-08-17
+
+- Mobile: dichtere Seiten/KPIs, Chart+Legende nebeneinander, sticky Kunden-Tabs, E-Mail- und Modal-Sheets verbessert
+
 ## 1.5.42 – 2026-08-17
 
 - Dashboard: Aufgaben- und Wochen-Diagramm nebeneinander; Prioritäten-Widget entfernt
