@@ -49,6 +49,8 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki + Dateiablage) · E-Mails · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie).
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
+
+Mobil (≤860px): Sticky Topbar/Tabbar mit Safe-Area, Bottom-Sheets, sticky Kontakt-Tabs, größere Touch-Targets (`--mobile-hit`), Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
 
 ## Zeitzone

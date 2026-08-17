@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.48 – 2026-08-17
+
+- Mobile: großes UX-Polish – Tokens/Safe-Area, Topbar & Tabbar, Bottom-Sheets mit Griff, Listen/Chips, Kontakt-Hub, Dashboard-KPIs 2×2, Touch-Targets, Padding-Fix ≤640px
+
 ## 1.5.47 – 2026-08-17
 
 - Bereich „Kunden“ → „Kontakte“: einfache Kontakte und Kunden anlegbar (`kind`: contact/customer), Filter und Badges
