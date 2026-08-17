@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
-import { ChartLegend, ColumnChart, DonutChart, HBarChart } from "../components/DashCharts";
+import { ChartLegend, ColumnChart, DonutChart } from "../components/DashCharts";
 import { customerDisplayName } from "../lib/customer";
 import { localTodayIso } from "../lib/dates";
 import { appointmentKindLabel, formatDateOnly } from "../lib/labels";
@@ -20,13 +20,6 @@ import type {
   TaskItem,
   TaskPriority,
 } from "../types";
-
-const prioColors: Record<TaskPriority, string> = {
-  1: "#f87171",
-  2: "#fbbf24",
-  3: "#60a5fa",
-  4: "#94a3b8",
-};
 
 /**
  * Kompaktes Start-Dashboard: Kennzahlen, Diagramme und Heute-Liste.
@@ -98,21 +91,6 @@ export function DashboardPage() {
       ].filter((s) => s.value > 0),
     [summary, openTasks],
   );
-
-  const prioBars = useMemo(() => {
-    const counts: Record<TaskPriority, number> = { 1: 0, 2: 0, 3: 0, 4: 0 };
-    for (const t of openTasks.filter((x) => !x.done)) {
-      const p = (Number(t.priority) || 4) as TaskPriority;
-      counts[p] += 1;
-    }
-    return ([1, 2, 3, 4] as TaskPriority[])
-      .map((p) => ({
-        label: priorityLabel[p],
-        value: counts[p],
-        color: prioColors[p],
-      }))
-      .filter((x) => x.value > 0);
-  }, [openTasks]);
 
   const weekColumns = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
@@ -252,22 +230,6 @@ export function DashboardPage() {
             </Link>
           </div>
           {loading ? <p className="empty">Lade…</p> : <ColumnChart columns={weekColumns} />}
-        </article>
-
-        <article className="panel dash-chart-card">
-          <div className="dash-chart-head">
-            <div>
-              <h3>Prioritäten</h3>
-              <p className="muted">Gewicht der offenen</p>
-            </div>
-          </div>
-          {loading ? (
-            <p className="empty">Lade…</p>
-          ) : prioBars.length === 0 ? (
-            <p className="empty">Keine Daten.</p>
-          ) : (
-            <HBarChart items={prioBars} />
-          )}
         </article>
       </section>
 
