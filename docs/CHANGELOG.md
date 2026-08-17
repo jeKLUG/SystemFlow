@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.45 – 2026-08-17
+
+- Deploy: Port explizit auf 0.0.0.0, längerer Health-Check mit Diagnose, systemd startet ohne erneutes `--build`
+
 ## 1.5.44 – 2026-08-17
 
 - Deploy: UTF-8-BOM entfernt, UFW/firewalld-Port öffnen, lokaler Health-Check nach Start

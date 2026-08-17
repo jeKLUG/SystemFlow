@@ -168,7 +168,7 @@ RemainAfterExit=yes
 WorkingDirectory=${INSTALL_DIR}
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 EnvironmentFile=-${INSTALL_DIR}/.env
-ExecStart=/bin/bash -lc 'cd "${INSTALL_DIR}" && docker compose --env-file .env up -d --build --remove-orphans'
+ExecStart=/bin/bash -lc 'cd "${INSTALL_DIR}" && docker compose --env-file .env up -d --remove-orphans'
 ExecStop=/bin/bash -lc 'cd "${INSTALL_DIR}" && docker compose --env-file .env down'
 TimeoutStartSec=0
 
@@ -244,20 +244,32 @@ compose_up() {
 
 health_check() {
   local url="http://127.0.0.1:${PORT}/api/health"
-  local i
+  local i code
   log "Pruefe Erreichbarkeit lokal (${url})…"
-  for i in 1 2 3 4 5 6 7 8 9 10; do
-    if curl -fsS --max-time 3 "${url}" >/dev/null 2>&1; then
+  for i in $(seq 1 30); do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "${url}" 2>/dev/null || true)"
+    if [[ "${code}" == "200" ]]; then
       ok "Health-Check OK (lokal Port ${PORT})"
       return 0
     fi
-    sleep 1
+    # Container evtl. noch am Neustart
+    if ! docker ps --filter "name=systemhaus-ess" --filter "status=running" --format '{{.Names}}' | grep -q systemhaus-ess; then
+      warn "Container nicht running (Versuch ${i}/30)…"
+      docker ps -a --filter "name=systemhaus-ess" || true
+    fi
+    sleep 2
   done
 
-  warn "Health-Check lokal fehlgeschlagen – Container-Logs:"
-  docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=60 || true
-  ss -lntp "sport = :${PORT}" 2>/dev/null || true
+  warn "Health-Check lokal fehlgeschlagen – Diagnose:"
+  echo "--- curl ---"
+  curl -v --max-time 5 "${url}" || true
+  echo "--- ports ---"
+  ss -lntp "sport = :${PORT}" 2>/dev/null || ss -lntp | grep "${PORT}" || true
+  docker port systemhaus-ess 2>/dev/null || true
+  echo "--- docker ps ---"
   docker ps -a --filter "name=systemhaus" || true
+  echo "--- logs ---"
+  docker logs systemhaus-ess --tail 100 2>&1 || true
   die "App antwortet nicht auf Port ${PORT}"
 }
 
@@ -272,15 +284,17 @@ start_service() {
     die "Start fehlgeschlagen – siehe Ausgabe oben"
   fi
 
+  # systemd nur markieren/aktivieren – kein zweites --build (das wuerde den Start verzoegern)
   systemctl reset-failed "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
   systemctl start "${SERVICE_NAME}.service" >/dev/null 2>&1 || true
-  sleep 2
+
+  sleep 3
   if docker ps --filter "name=systemhaus-ess" --filter "status=running" --format '{{.Names}}' | grep -q systemhaus-ess; then
     ok "Container laeuft"
   else
     warn "Container nicht aktiv:"
     docker ps -a --filter "name=systemhaus" || true
-    docker compose --env-file "${INSTALL_DIR}/.env" -f "${INSTALL_DIR}/docker-compose.yml" logs --tail=80 || true
+    docker logs systemhaus-ess --tail 100 2>&1 || true
     die "Start fehlgeschlagen"
   fi
 
