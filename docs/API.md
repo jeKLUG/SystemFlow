@@ -72,10 +72,16 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | GET | `/api/customers/:id/time-entries?projectId=&from=&to=` | Einträge + `summary` |
 | GET | `/api/customers/:id/time-summary` | Gesamtstunden |
 | POST | `/api/customers/:id/time-entries` | Buchen |
-| PUT | `/api/time-entries/:id` | Aktualisieren |
+| POST | `/api/customers/:id/time-clock/in` | Einstempeln (laufender Eintrag: `startTime`, `endTime` leer, `hours` 0) |
+| POST | `/api/customers/:id/time-clock/out` | Ausstempeln (setzt `endTime`, berechnet Stunden) |
+| PUT | `/api/time-entries/:id` | Aktualisieren (Zeiten/Stunden nachträglich anpassen) |
 | DELETE | `/api/time-entries/:id` | Löschen |
 
-Body: `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `billable`, `billed` (bereits abgerechnet). Alternativ weiterhin `hours` ohne Uhrzeiten.
+Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `billable`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+
+Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
+
+Body (Clock-out): optional `endTime`, `description`, `entryId`.
 
 `summary` enthält u. a. `unbilledHours` und `unbilledAmount` (abrechenbar, noch nicht abgerechnet).
 

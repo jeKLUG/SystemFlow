@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.52 – 2026-08-17
+
+- Zeiterfassung: Stempeluhr am Kunden-Reiter „Zeit“ (Ein-/Ausstempeln, live Dauer)
+- Zeiteinträge nachträglich bearbeitbar (Zeiten, manuelle Stunden, Projekt/Satz)
+- API: `POST …/time-clock/in` und `…/time-clock/out`; laufende Einträge ohne Endzeit
+
 ## 1.5.51 – 2026-08-17
 
 - Reiter „Ablauf“ → „Aufgaben“ (`/tasks`): globale Aufgabenliste, Anlegen mit/ohne Kunde, Ansichten Heute/Geplant/Inbox; Abläufe (Garantien/Verträge) darunter

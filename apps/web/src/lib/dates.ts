@@ -32,3 +32,9 @@ export function addMinutesToTime(time: string, minutes: number): string {
   const min = total % 60;
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
 }
+
+/** Aktuelle lokale Uhrzeit als `HH:mm`. */
+export function localNowTime(): string {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}

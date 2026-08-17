@@ -142,6 +142,18 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  /** Startet die Stempeluhr für einen Kunden (laufender Zeiteintrag). */
+  timeClockIn: (customerId: string, body?: Record<string, unknown>) =>
+    request<import("./types").TimeEntryItem>(`/api/customers/${customerId}/time-clock/in`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+  /** Beendet die laufende Stempeluhr und berechnet die Stunden. */
+  timeClockOut: (customerId: string, body?: Record<string, unknown>) =>
+    request<import("./types").TimeEntryItem>(`/api/customers/${customerId}/time-clock/out`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
   updateTimeEntry: (id: string, body: Record<string, unknown>) =>
     request<import("./types").TimeEntryItem>(`/api/time-entries/${id}`, {
       method: "PUT",

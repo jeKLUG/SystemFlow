@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
@@ -17,6 +17,8 @@ const entryBody = z
     startTime: timeStr.optional(),
     endTime: timeStr.optional(),
     hours: z.number().positive().max(24).optional(),
+    /** Laufende Stempeluhr: nur Startzeit, Stunden = 0 bis Ausstempeln. */
+    running: z.boolean().optional(),
     description: z.string().max(5000).optional().or(z.literal("")),
     projectId: z.string().optional().nullable().or(z.literal("")),
     priceItemId: z.string().optional().nullable().or(z.literal("")),
@@ -24,6 +26,16 @@ const entryBody = z
     billed: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
+    if (data.running) {
+      if (!data.startTime) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Startzeit für Einstempeln erforderlich",
+          path: ["startTime"],
+        });
+      }
+      return;
+    }
     const hasStart = Boolean(data.startTime);
     const hasEnd = Boolean(data.endTime);
     if (hasStart !== hasEnd) {
@@ -59,16 +71,27 @@ function emptyToNull(value: string | null | undefined) {
 }
 
 function resolveHours(data: {
-  startTime?: string;
-  endTime?: string;
+  startTime?: string | null;
+  endTime?: string | null;
   hours?: number;
+  running?: boolean;
 }): { hours: number; startTime: string | null; endTime: string | null } | null {
-  if (data.startTime && data.endTime) {
-    const hours = hoursFromRange(data.startTime, data.endTime);
-    if (hours == null) return null;
-    return { hours, startTime: data.startTime, endTime: data.endTime };
+  const start = data.startTime || undefined;
+  const end = data.endTime || undefined;
+
+  if (data.running && start && !end) {
+    return { hours: 0, startTime: start, endTime: null };
   }
-  if (data.hours != null) {
+  if (start && end) {
+    const hours = hoursFromRange(start, end);
+    if (hours == null) return null;
+    return { hours, startTime: start, endTime: end };
+  }
+  if (start && !end) {
+    // Laufender Eintrag beibehalten
+    return { hours: data.hours ?? 0, startTime: start, endTime: null };
+  }
+  if (data.hours != null && data.hours > 0) {
     return { hours: data.hours, startTime: null, endTime: null };
   }
   return null;
@@ -197,6 +220,26 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum" });
     }
 
+    // Nur ein laufender Timer pro Kunde
+    if (parsed.data.running) {
+      const open = await db
+        .select({ id: timeEntries.id })
+        .from(timeEntries)
+        .where(
+          and(
+            eq(timeEntries.customerId, customerId),
+            isNotNull(timeEntries.startTime),
+            isNull(timeEntries.endTime),
+          ),
+        )
+        .get();
+      if (open) {
+        return reply
+          .code(409)
+          .send({ error: "Es läuft bereits eine Stempeluhr für diesen Kunden", runningId: open.id });
+      }
+    }
+
     const projectId = emptyToNull(parsed.data.projectId);
     if (projectId) {
       const project = await db
@@ -236,18 +279,168 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     };
 
     await db.insert(timeEntries).values(row);
-    const rangeLabel =
-      resolved.startTime && resolved.endTime
-        ? `${resolved.startTime}–${resolved.endTime}`
-        : `${resolved.hours}h`;
     await addActivity(
       db,
       customerId,
-      `Zeit erfasst: ${resolved.hours}h (${rangeLabel}) am ${row.workDate}`,
+      parsed.data.running
+        ? `Eingestempelt um ${resolved.startTime}`
+        : `Zeit erfasst: ${resolved.hours}h (${
+            resolved.startTime && resolved.endTime
+              ? `${resolved.startTime}–${resolved.endTime}`
+              : `${resolved.hours}h`
+          }) am ${row.workDate}`,
       row.description,
       now,
     );
     return reply.code(201).send(row);
+  });
+
+  /**
+   * Einstempeln: startet laufenden Zeiteintrag (startTime jetzt, endTime leer).
+   */
+  app.post("/api/customers/:customerId/time-clock/in", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const body = z
+      .object({
+        startTime: timeStr.optional(),
+        workDate: z.string().min(1).max(40).optional(),
+        description: z.string().max(5000).optional().or(z.literal("")),
+        projectId: z.string().optional().nullable().or(z.literal("")),
+        priceItemId: z.string().optional().nullable().or(z.literal("")),
+        billable: z.boolean().optional(),
+      })
+      .parse(request.body ?? {});
+
+    const open = await db
+      .select()
+      .from(timeEntries)
+      .where(
+        and(
+          eq(timeEntries.customerId, customerId),
+          isNotNull(timeEntries.startTime),
+          isNull(timeEntries.endTime),
+        ),
+      )
+      .get();
+    if (open) {
+      return reply.code(409).send({ error: "Stempeluhr läuft bereits", entry: open });
+    }
+
+    const now = new Date();
+    const startTime =
+      body.startTime ??
+      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const workDate =
+      body.workDate ??
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+    const projectId = emptyToNull(body.projectId);
+    if (projectId) {
+      const project = await db
+        .select()
+        .from(projects)
+        .where(and(eq(projects.id, projectId), eq(projects.customerId, customerId)))
+        .get();
+      if (!project) return reply.code(400).send({ error: "Projekt gehört nicht zu diesem Kunden" });
+    }
+
+    const priceItemId = emptyToNull(body.priceItemId);
+    const { rate, priceItemId: resolvedPriceId } = await resolveHourlyRate(db, {
+      priceItemId,
+      projectId,
+    });
+    const billable = body.billable ?? true;
+
+    const row = {
+      id: createId("time"),
+      customerId,
+      projectId,
+      priceItemId: resolvedPriceId,
+      workDate,
+      startTime,
+      endTime: null as string | null,
+      hours: 0,
+      description: emptyToNull(body.description),
+      billable,
+      billed: false,
+      rateSnapshot: billable ? rate : null,
+      amountSnapshot: null as number | null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await db.insert(timeEntries).values(row);
+    await addActivity(db, customerId, `Eingestempelt um ${startTime}`, row.description, now);
+    return reply.code(201).send(row);
+  });
+
+  /**
+   * Ausstempeln: setzt Endzeit und berechnet Stunden.
+   */
+  app.post("/api/customers/:customerId/time-clock/out", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const body = z
+      .object({
+        endTime: timeStr.optional(),
+        description: z.string().max(5000).optional().or(z.literal("")),
+        entryId: z.string().optional(),
+      })
+      .parse(request.body ?? {});
+
+    const open = body.entryId
+      ? await db.select().from(timeEntries).where(eq(timeEntries.id, body.entryId)).get()
+      : await db
+          .select()
+          .from(timeEntries)
+          .where(
+            and(
+              eq(timeEntries.customerId, customerId),
+              isNotNull(timeEntries.startTime),
+              isNull(timeEntries.endTime),
+            ),
+          )
+          .get();
+
+    if (!open || open.customerId !== customerId || !open.startTime || open.endTime) {
+      return reply.code(404).send({ error: "Keine laufende Stempeluhr gefunden" });
+    }
+
+    const now = new Date();
+    const endTime =
+      body.endTime ??
+      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const hours = hoursFromRange(open.startTime, endTime);
+    if (hours == null) {
+      return reply.code(400).send({ error: "Ungültiger Zeitraum beim Ausstempeln" });
+    }
+
+    const billable = open.billable;
+    const money = amountFrom(hours, open.rateSnapshot, billable);
+    const description =
+      body.description !== undefined ? emptyToNull(body.description) : open.description;
+
+    const updated = {
+      endTime,
+      hours,
+      description,
+      rateSnapshot: money.rateSnapshot,
+      amountSnapshot: money.amountSnapshot,
+      updatedAt: now,
+    };
+    await db.update(timeEntries).set(updated).where(eq(timeEntries.id, open.id));
+    await addActivity(
+      db,
+      customerId,
+      `Ausgestempelt: ${hours}h (${open.startTime}–${endTime})`,
+      description,
+      now,
+    );
+    return { ...open, ...updated };
   });
 
   app.put("/api/time-entries/:id", async (request, reply) => {
@@ -259,7 +452,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       workDate: z.string().min(1).max(40).optional(),
       startTime: timeStr.optional().nullable(),
       endTime: timeStr.optional().nullable(),
-      hours: z.number().positive().max(24).optional(),
+      hours: z.number().min(0.01).max(24).optional(),
       description: z.string().max(5000).optional().or(z.literal("")),
       projectId: z.string().optional().nullable().or(z.literal("")),
       priceItemId: z.string().optional().nullable().or(z.literal("")),
@@ -288,18 +481,23 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const startTime =
-      parsed.data.startTime !== undefined
-        ? (parsed.data.startTime ?? undefined)
-        : (existing.startTime ?? undefined);
-    const endTime =
-      parsed.data.endTime !== undefined
-        ? (parsed.data.endTime ?? undefined)
-        : (existing.endTime ?? undefined);
-    const resolved = resolveHours({
-      startTime,
-      endTime,
-      hours: parsed.data.hours ?? existing.hours,
-    });
+      parsed.data.startTime !== undefined ? parsed.data.startTime : existing.startTime;
+    const endTime = parsed.data.endTime !== undefined ? parsed.data.endTime : existing.endTime;
+
+    // Explizite Stunden ohne Zeiten → nur Stunden speichern
+    const hoursOnly =
+      parsed.data.hours != null &&
+      parsed.data.startTime === null &&
+      parsed.data.endTime === null;
+
+    const resolved = hoursOnly
+      ? { hours: parsed.data.hours!, startTime: null, endTime: null }
+      : resolveHours({
+          startTime,
+          endTime,
+          hours: parsed.data.hours ?? existing.hours,
+          running: Boolean(startTime && !endTime),
+        });
     if (!resolved) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum" });
     }
