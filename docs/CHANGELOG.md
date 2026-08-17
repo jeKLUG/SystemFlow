@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.44 – 2026-08-17
+
+- Deploy: UTF-8-BOM entfernt, UFW/firewalld-Port öffnen, lokaler Health-Check nach Start
+
 ## 1.5.43 – 2026-08-17
 
 - Mobile: dichtere Seiten/KPIs, Chart+Legende nebeneinander, sticky Kunden-Tabs, E-Mail- und Modal-Sheets verbessert
