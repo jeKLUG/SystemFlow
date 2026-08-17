@@ -25,8 +25,9 @@ function formatBytes(n: number): string {
 
 /**
  * Kunden-E-Mail-Archiv: Mailverkehr ablegen, durchsuchen und mit Anhängen versehen.
+ * @param embedded Ohne eigenen Hero – für Einbettung im Dokumente-Hub.
  */
-export function CustomerEmailsPage() {
+export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean }) {
   const { id = "" } = useParams();
   const [emails, setEmails] = useState<CustomerEmailItem[]>([]);
   const [query, setQuery] = useState("");
@@ -171,23 +172,9 @@ export function CustomerEmailsPage() {
   }
 
   return (
-    <section className="section emails-page">
-      <div className="emails-hero panel">
-        <div className="emails-hero-top">
-          <div>
-            <p className="eyebrow">Archiv</p>
-            <h2>E-Mails</h2>
-            <p className="muted">
-              {summary.total} abgelegt
-              {summary.inbound ? ` · ${summary.inbound} Eingang` : ""}
-              {summary.outbound ? ` · ${summary.outbound} Ausgang` : ""}
-            </p>
-          </div>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            + E-Mail
-          </button>
-        </div>
-        <div className="emails-toolbar">
+    <section className={`section emails-page${embedded ? " is-embedded" : ""}`}>
+      {embedded ? (
+        <div className="emails-toolbar panel docs-emails-toolbar">
           <input
             className="emails-search"
             type="search"
@@ -205,8 +192,47 @@ export function CustomerEmailsPage() {
             <option value="outbound">Ausgang</option>
             <option value="internal">Intern</option>
           </select>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + E-Mail
+          </button>
         </div>
-      </div>
+      ) : (
+        <div className="emails-hero panel">
+          <div className="emails-hero-top">
+            <div>
+              <p className="eyebrow">Archiv</p>
+              <h2>E-Mails</h2>
+              <p className="muted">
+                {summary.total} abgelegt
+                {summary.inbound ? ` · ${summary.inbound} Eingang` : ""}
+                {summary.outbound ? ` · ${summary.outbound} Ausgang` : ""}
+              </p>
+            </div>
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
+              + E-Mail
+            </button>
+          </div>
+          <div className="emails-toolbar">
+            <input
+              className="emails-search"
+              type="search"
+              placeholder="Suche in Betreff, Absender, Text…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <select
+              value={directionFilter}
+              onChange={(e) => setDirectionFilter(e.target.value as "" | EmailDirection)}
+              aria-label="Richtung filtern"
+            >
+              <option value="">Alle Richtungen</option>
+              <option value="inbound">Eingang</option>
+              <option value="outbound">Ausgang</option>
+              <option value="internal">Intern</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {emails.length === 0 ? (
         <div className="emails-empty panel">

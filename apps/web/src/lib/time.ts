@@ -2,6 +2,7 @@ const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /**
  * Berechnet Stunden aus Start-/Endzeit (`HH:mm`), inkl. Übernacht.
+ * Gleiche Minute → 1 Minute (nicht 24h).
  */
 export function hoursFromRange(startTime: string, endTime: string): number | null {
   const sm = TIME_RE.exec(startTime.trim());
@@ -10,7 +11,8 @@ export function hoursFromRange(startTime: string, endTime: string): number | nul
   const start = Number(sm[1]) * 60 + Number(sm[2]);
   const end = Number(em[1]) * 60 + Number(em[2]);
   let diff = end - start;
-  if (diff <= 0) diff += 24 * 60;
+  if (diff < 0) diff += 24 * 60;
+  if (diff === 0) diff = 1;
   const hours = Math.round((diff / 60) * 100) / 100;
   if (hours <= 0 || hours > 24) return null;
   return hours;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import { Checkbox } from "../../components/Checkbox";
 import { Modal } from "../../components/Modal";
@@ -242,6 +242,8 @@ export function CustomerTimePage() {
     setError("");
     try {
       await api.timeClockIn(id, {
+        startTime: localNowTime(),
+        workDate: localTodayIso(),
         projectId: clockProjectId || null,
         description: clockNote.trim() || undefined,
       });
@@ -259,6 +261,7 @@ export function CustomerTimePage() {
     setError("");
     try {
       await api.timeClockOut(id, {
+        endTime: localNowTime(),
         description: clockNote.trim() || undefined,
         entryId: running?.id,
       });
@@ -326,10 +329,6 @@ export function CustomerTimePage() {
           <div>
             <p className="eyebrow">Abrechnung</p>
             <h2>Zeiterfassung</h2>
-            <p className="muted">
-              Einstempeln vor Ort, danach ausstempeln – oder Stunden manuell buchen und
-              nachträglich anpassen. Sätze unter <Link to="/settings">Konto</Link>.
-            </p>
           </div>
           <button
             type="button"
@@ -359,10 +358,6 @@ export function CustomerTimePage() {
             ) : (
               <>
                 <p className="time-clock-status">Stempeluhr</p>
-                <p className="muted time-clock-hint">
-                  Vor dem Termin einstempeln, danach ausstempeln – die Dauer wird automatisch
-                  gebucht.
-                </p>
               </>
             )}
           </div>

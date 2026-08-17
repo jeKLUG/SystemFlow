@@ -2,26 +2,42 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { AttachmentPanel } from "../../components/AttachmentPanel";
+import { CustomerSlaPanel } from "../../components/CustomerSlaPanel";
 import { Modal } from "../../components/Modal";
 import { formatBytes } from "../../lib/files";
 import { documentTypeLabel, formatDate } from "../../lib/labels";
-import type { AttachmentItem, DocumentItem, DocumentType, ProjectItem, TemplateMeta } from "../../types";
+import type {
+  AttachmentItem,
+  ContractItem,
+  DocumentItem,
+  DocumentType,
+  ProjectItem,
+  TemplateMeta,
+} from "../../types";
+import { CustomerEmailsPage } from "./CustomerEmailsPage";
 
 const wikiTypes: DocumentType[] = ["article", "documentation", "note", "workflow", "protocol"];
 
-type DocsView = "wiki" | "files";
+type DocsView = "wiki" | "files" | "emails" | "contracts";
+
+function parseDocsView(value: string | null): DocsView {
+  if (value === "files" || value === "emails" || value === "contracts") return value;
+  return "wiki";
+}
 
 /**
- * Einheitlicher Dokumente-Bereich: Wiki-Seiten und Dateiablage.
+ * Einheitlicher Dokumente-Bereich: Wiki, Dateiablage, E-Mails und Verträge/SLA.
  */
 export function CustomerWikiPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const view: DocsView = searchParams.get("view") === "files" ? "files" : "wiki";
+  const view = parseDocsView(searchParams.get("view"));
 
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [files, setFiles] = useState<AttachmentItem[]>([]);
+  const [emailCount, setEmailCount] = useState(0);
+  const [contracts, setContracts] = useState<ContractItem[]>([]);
   const [folderCount, setFolderCount] = useState(0);
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [templates, setTemplates] = useState<TemplateMeta[]>([]);
@@ -37,18 +53,22 @@ export function CustomerWikiPage() {
   });
 
   async function reload() {
-    const [d, p, t, attachments, folders] = await Promise.all([
+    const [d, p, t, attachments, folders, mails, contractRows] = await Promise.all([
       api.documents(id),
       api.projects(id),
       api.templates(),
       api.attachments(id),
       api.folders(id),
+      api.emails(id),
+      api.contracts(id),
     ]);
     setDocs(d);
     setProjects(p);
     setTemplates(t);
-    setFiles(attachments.filter((f) => !f.documentId && !f.assetId));
+    setFiles(attachments.filter((f) => !f.documentId && !f.assetId && !f.emailId));
     setFolderCount(folders.length);
+    setEmailCount(mails.length);
+    setContracts(contractRows);
   }
 
   useEffect(() => {
@@ -57,8 +77,8 @@ export function CustomerWikiPage() {
 
   function setView(next: DocsView) {
     const params = new URLSearchParams(searchParams);
-    if (next === "files") params.set("view", "files");
-    else params.delete("view");
+    if (next === "wiki") params.delete("view");
+    else params.set("view", next);
     setSearchParams(params, { replace: true });
   }
 
@@ -108,10 +128,6 @@ export function CustomerWikiPage() {
           <div>
             <p className="eyebrow">Wissen</p>
             <h2>Dokumente</h2>
-            <p className="muted">
-              Wiki-Seiten schreiben und Dateien ablegen – alles an einem Ort, auffindbar über die
-              globale Suche.
-            </p>
           </div>
           <div className="docs-hero-actions">
             {view === "wiki" ? (
@@ -136,11 +152,11 @@ export function CustomerWikiPage() {
                   + Wiki-Seite
                 </button>
               </>
-            ) : (
+            ) : view === "files" ? (
               <Link className="btn btn-ghost" to="/search">
                 Globale Suche
               </Link>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -160,6 +176,22 @@ export function CustomerWikiPage() {
           >
             <strong>{files.length}</strong>
             <span>Dateien</span>
+          </button>
+          <button
+            type="button"
+            className={`stat-chip${view === "emails" ? " is-active" : ""}`}
+            onClick={() => setView("emails")}
+          >
+            <strong>{emailCount}</strong>
+            <span>E-Mails</span>
+          </button>
+          <button
+            type="button"
+            className={`stat-chip${view === "contracts" ? " is-active" : ""}`}
+            onClick={() => setView("contracts")}
+          >
+            <strong>{contracts.length}</strong>
+            <span>Verträge</span>
           </button>
           <button type="button" className="stat-chip" onClick={() => setView("files")}>
             <strong>{folderCount}</strong>
@@ -188,7 +220,25 @@ export function CustomerWikiPage() {
             className={`cal-seg${view === "files" ? " is-active" : ""}`}
             onClick={() => setView("files")}
           >
-            Dateiablage
+            Dokumente
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "emails"}
+            className={`cal-seg${view === "emails" ? " is-active" : ""}`}
+            onClick={() => setView("emails")}
+          >
+            E-Mails
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "contracts"}
+            className={`cal-seg${view === "contracts" ? " is-active" : ""}`}
+            onClick={() => setView("contracts")}
+          >
+            Verträge
           </button>
         </div>
       </div>
@@ -293,10 +343,19 @@ export function CustomerWikiPage() {
             </div>
           )}
         </>
-      ) : (
+      ) : view === "files" ? (
         <div className="panel vault-panel docs-vault">
           <AttachmentPanel customerId={id} embedded />
         </div>
+      ) : view === "emails" ? (
+        <CustomerEmailsPage embedded />
+      ) : (
+        <CustomerSlaPanel
+          customerId={id}
+          contracts={contracts}
+          onChanged={reload}
+          embedded
+        />
       )}
 
       <Modal open={createOpen} title="Wiki-Seite anlegen" onClose={() => setCreateOpen(false)}>

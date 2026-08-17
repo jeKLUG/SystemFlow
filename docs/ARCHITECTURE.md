@@ -46,7 +46,7 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 ## Kontakte-UI
 
-Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki + Dateiablage) · E-Mails · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Betrieb (SLAs, Historie).
+Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateiablage / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Protokoll (Einsatz-Historie).
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 

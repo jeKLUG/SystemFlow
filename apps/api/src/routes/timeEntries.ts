@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { customers, priceItems, projects, timeEntries } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { nowTime, todayIso } from "../lib/dates.js";
 import { hoursFromRange } from "../lib/time.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
@@ -330,12 +331,8 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const now = new Date();
-    const startTime =
-      body.startTime ??
-      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const workDate =
-      body.workDate ??
-      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const startTime = body.startTime ?? nowTime();
+    const workDate = body.workDate ?? todayIso();
 
     const projectId = emptyToNull(body.projectId);
     if (projectId) {
@@ -411,9 +408,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const now = new Date();
-    const endTime =
-      body.endTime ??
-      `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const endTime = body.endTime ?? nowTime();
     const hours = hoursFromRange(open.startTime, endTime);
     if (hours == null) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum beim Ausstempeln" });

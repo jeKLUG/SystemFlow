@@ -318,7 +318,7 @@ export function RemindersPage() {
               <ul className="list">
                 {reminders.contracts.map((c) => (
                   <li key={c.id}>
-                    <Link className="list-row" to={`/customers/${c.customerId}/ops`}>
+                    <Link className="list-row" to={`/customers/${c.customerId}/wiki?view=contracts`}>
                       <div>
                         <strong>{c.title}</strong>
                         <span className="muted">

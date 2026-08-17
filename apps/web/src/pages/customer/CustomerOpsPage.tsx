@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
-import { CustomerSlaPanel } from "../../components/CustomerSlaPanel";
 import { Modal } from "../../components/Modal";
 import {
   activityKindMeta,
@@ -86,21 +85,18 @@ const kindFilters: { id: "all" | ActivityKind; label: string }[] = [
 ];
 
 /**
- * Betrieb: SLAs und Einsatz-Historie (Aufgaben liegen unter eigenem Tab).
+ * Protokoll: Einsatz-Historie (Verträge/SLA unter Dokumente, Aufgaben eigener Tab).
  */
 export function CustomerOpsPage() {
   const { id = "" } = useParams();
   const [activityList, setActivityList] = useState<Activity[]>([]);
-  const [contractList, setContractList] = useState<Awaited<ReturnType<typeof api.contracts>>>([]);
   const [activityForm, setActivityForm] = useState({ title: "", description: "" });
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyError, setHistoryError] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | ActivityKind>("all");
 
   async function reload() {
-    const [h, contracts] = await Promise.all([api.activities(id), api.contracts(id)]);
-    setActivityList(h);
-    setContractList(contracts);
+    setActivityList(await api.activities(id));
   }
 
   useEffect(() => {
@@ -157,8 +153,6 @@ export function CustomerOpsPage() {
 
   return (
     <>
-      <CustomerSlaPanel customerId={id} contracts={contractList} onChanged={reload} />
-
       <section className="section history-section">
         <div className="history-hero panel">
           <div className="history-hero-top">

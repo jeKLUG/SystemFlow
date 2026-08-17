@@ -79,9 +79,9 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 
 Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `billable`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
 
-Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
+Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Ohne Zeiten: App-Zeitzone (`APP_TIMEZONE`, Standard `Europe/Berlin`). Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
 
-Body (Clock-out): optional `endTime`, `description`, `entryId`.
+Body (Clock-out): optional `endTime`, `description`, `entryId`. Gleiche Minute wie Start → 1 Minute (nicht 24 h).
 
 `summary` enthält u. a. `unbilledHours` und `unbilledAmount` (abrechenbar, noch nicht abgerechnet).
 

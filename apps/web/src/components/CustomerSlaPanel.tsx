@@ -36,6 +36,8 @@ type Props = {
   customerId: string;
   contracts: ContractItem[];
   onChanged: () => Promise<void> | void;
+  /** Ohne eigenen Hero – für Einbettung im Dokumente-Hub. */
+  embedded?: boolean;
 };
 
 function numOrNull(value: string): number | null {
@@ -114,7 +116,12 @@ function toBody(form: typeof emptyForm) {
 /**
  * SLA-/Vertragsübersicht mit Modal zum Anlegen und Bearbeiten.
  */
-export function CustomerSlaPanel({ customerId, contracts, onChanged }: Props) {
+export function CustomerSlaPanel({
+  customerId,
+  contracts,
+  onChanged,
+  embedded = false,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -170,24 +177,35 @@ export function CustomerSlaPanel({ customerId, contracts, onChanged }: Props) {
   }
 
   return (
-    <section className="section">
-      <div className="section-head row-between">
-        <div>
-          <h2>Verträge / SLA</h2>
-          <p>Servicezeiten, Prioritäten und Eskalation – keine Rechnungen (Lexware).</p>
+    <section className={`section sla-panel${embedded ? " is-embedded" : ""}`}>
+      {embedded ? (
+        <div className="docs-sla-toolbar panel">
+          <p className="muted">
+            {contracts.length} Vertrag{contracts.length === 1 ? "" : "e"} / SLA
+          </p>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            + Vertrag
+          </button>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary btn-icon-lg"
-          onClick={openCreate}
-          aria-label="Neuen SLA-/Vertrag anlegen"
-          title="Neuen SLA anlegen"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-          </svg>
-        </button>
-      </div>
+      ) : (
+        <div className="section-head row-between">
+          <div>
+            <h2>Verträge / SLA</h2>
+            <p>Servicezeiten, Prioritäten und Eskalation – keine Rechnungen (Lexware).</p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary btn-icon-lg"
+            onClick={openCreate}
+            aria-label="Neuen SLA-/Vertrag anlegen"
+            title="Neuen SLA anlegen"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <p className="empty">Noch keine SLAs. Lege über das Plus einen Vertrag mit Prioritätszeiten an.</p>

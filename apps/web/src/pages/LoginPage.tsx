@@ -38,15 +38,11 @@ export function LoginPage() {
             <strong>Systemhaus-Ess</strong>
           </div>
           <h1>Kunden, Einsätze und Dokumentation – klar organisiert.</h1>
-          <p className="lede">
-            Die interne Plattform für den Systemhaus-Alltag. Rechnungen bleiben bewusst in Lexware.
-          </p>
         </section>
 
         <form className="login-panel panel" onSubmit={onSubmit}>
           <p className="eyebrow">Anmelden</p>
           <h2>Willkommen zurück</h2>
-          <p className="muted">Session bleibt 30 Tage aktiv – kein erneutes Login nach Reload.</p>
 
           <label className="field">
             <span>Benutzername</span>

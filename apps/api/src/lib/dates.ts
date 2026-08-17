@@ -15,6 +15,21 @@ export function todayIso(timeZone: string = APP_TIMEZONE): string {
 }
 
 /**
+ * Aktuelle Uhrzeit `HH:mm` in der App-Zeitzone (nicht Server-UTC).
+ */
+export function nowTime(timeZone: string = APP_TIMEZONE): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date());
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const minute = parts.find((p) => p.type === "minute")?.value ?? "00";
+  return `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`;
+}
+
+/**
  * Addiert Tage zu einem ISO-Datum `YYYY-MM-DD` (kalendarisch).
  */
 export function addDaysIso(iso: string, days: number): string {

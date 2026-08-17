@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.55 – 2026-08-17
+
+- Dokumente-Hub: Verträge/SLA als vierte Ansicht (`?view=contracts`)
+- Kunden-Reiter „Betrieb“ → „Protokoll“ (nur noch Einsatz-Historie)
+
+## 1.5.54 – 2026-08-17
+
+- Kunden-Reiter „E-Mails“ in „Dokumente“ integriert: Umschalter Wiki / Dokumente / E-Mails (`?view=emails`); alte URL leitet um
+
+## 1.5.53 – 2026-08-17
+
+- Stempeluhr: Uhrzeit in App-Zeitzone (`Europe/Berlin` / Client-Lokalzeit), nicht Server-UTC (−2h)
+- Stempeluhr: Ein-/Ausstempeln in derselben Minute → 1 min statt fälschlich 24 h
+
 ## 1.5.52 – 2026-08-17
 
 - Zeiterfassung: Stempeluhr am Kunden-Reiter „Zeit“ (Ein-/Ausstempeln, live Dauer)

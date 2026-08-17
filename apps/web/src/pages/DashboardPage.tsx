@@ -151,7 +151,7 @@ export function DashboardPage() {
         name: c.customerName,
         company: c.customerCompany,
       })}`,
-      to: `/customers/${c.customerId}/ops`,
+      to: `/customers/${c.customerId}/wiki?view=contracts`,
     })) ?? []),
   ].slice(0, 3);
 

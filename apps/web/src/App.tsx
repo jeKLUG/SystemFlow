@@ -1,9 +1,8 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useAuth } from "./auth";
 import { Layout } from "./components/Layout";
 import { CustomerAssetsPage } from "./pages/customer/CustomerAssetsPage";
 import { CustomerLayout } from "./pages/customer/CustomerLayout";
-import { CustomerEmailsPage } from "./pages/customer/CustomerEmailsPage";
 import { CustomerOpsPage } from "./pages/customer/CustomerOpsPage";
 import { CustomerOverviewPage } from "./pages/customer/CustomerOverviewPage";
 import { CustomerProjectsPage } from "./pages/customer/CustomerProjectsPage";
@@ -20,6 +19,12 @@ import { RemindersPage } from "./pages/RemindersPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
+
+/** Alte URL `/customers/:id/emails` → Dokumente-Hub mit E-Mail-Ansicht. */
+function CustomerEmailsRedirect() {
+  const { id = "" } = useParams();
+  return <Navigate to={`/customers/${id}/wiki?view=emails`} replace />;
+}
 
 function Protected({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -61,7 +66,7 @@ export default function App() {
         <Route path="customers/:id" element={<CustomerLayout />}>
           <Route index element={<CustomerOverviewPage />} />
           <Route path="wiki" element={<CustomerWikiPage />} />
-          <Route path="emails" element={<CustomerEmailsPage />} />
+          <Route path="emails" element={<CustomerEmailsRedirect />} />
           <Route path="projects" element={<CustomerProjectsPage />} />
           <Route path="time" element={<CustomerTimePage />} />
           <Route path="assets" element={<CustomerAssetsPage />} />

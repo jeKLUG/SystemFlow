@@ -12,13 +12,15 @@ export function parseTimeToMinutes(value: string): number | null {
 /**
  * Berechnet Stunden aus Start-/Endzeit (`HH:mm`).
  * Endzeit vor Startzeit gilt als Übernacht (bis +24h).
+ * Gleiche Minute → 1 Minute (nicht 24h).
  */
 export function hoursFromRange(startTime: string, endTime: string): number | null {
   const start = parseTimeToMinutes(startTime);
   const end = parseTimeToMinutes(endTime);
   if (start == null || end == null) return null;
   let diff = end - start;
-  if (diff <= 0) diff += 24 * 60;
+  if (diff < 0) diff += 24 * 60;
+  if (diff === 0) diff = 1;
   const hours = Math.round((diff / 60) * 100) / 100;
   if (hours <= 0 || hours > 24) return null;
   return hours;
