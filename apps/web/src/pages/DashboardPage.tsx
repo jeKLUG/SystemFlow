@@ -29,7 +29,7 @@ const prioColors: Record<TaskPriority, string> = {
 };
 
 /**
- * Kompaktes Start-Dashboard: Kennzahlen, drei Diagramme, Heute-Fokus.
+ * Kompaktes Start-Dashboard: Kennzahlen, Diagramme und Heute-Liste.
  */
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -65,14 +65,20 @@ export function DashboardPage() {
     return reminders.warranties.length + reminders.contracts.length + reminders.tasks.length;
   }, [reminders]);
 
-  const todayAppts = appointments.filter((a) => a.startDate === todayIso);
-  const upcomingAppts = appointments.filter((a) => a.startDate !== todayIso).slice(0, 4);
-
   const focusTasks = useMemo(() => {
     const today = sortTasks(filterTasksByView(openTasks, "today"), "due");
-    if (today.length > 0) return today.slice(0, 6);
-    return sortTasks(openTasks.filter((t) => !t.done), "due").slice(0, 6);
+    if (today.length >= 5) return today.slice(0, 5);
+    const rest = sortTasks(
+      openTasks.filter((t) => !t.done && !today.some((x) => x.id === t.id)),
+      "due",
+    );
+    return [...today, ...rest].slice(0, 5);
   }, [openTasks]);
+
+  const todayAppts = appointments.filter((a) => a.startDate === todayIso).slice(0, 4);
+  const soonAppts = appointments
+    .filter((a) => a.startDate !== todayIso)
+    .slice(0, 3);
 
   const statusSlices = useMemo(
     () =>
@@ -142,47 +148,50 @@ export function DashboardPage() {
     month: "long",
   }).format(new Date());
 
-  const taskSlices =
-    statusSlices.length > 0
-      ? statusSlices
-      : summary.open > 0
-        ? [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
-        : [];
+  const sideReminders = [
+    ...(reminders?.warranties.slice(0, 2).map((w) => ({
+      id: `w-${w.id}`,
+      when: w.warrantyUntil,
+      title: w.name,
+      meta: `Garantie · ${customerDisplayName({
+        name: w.customerName,
+        company: w.customerCompany,
+      })}`,
+      to: `/customers/${w.customerId}`,
+    })) ?? []),
+    ...(reminders?.contracts.slice(0, 2).map((c) => ({
+      id: `c-${c.id}`,
+      when: c.endDate,
+      title: c.title,
+      meta: `Vertrag · ${customerDisplayName({
+        name: c.customerName,
+        company: c.customerCompany,
+      })}`,
+      to: `/customers/${c.customerId}/ops`,
+    })) ?? []),
+  ].slice(0, 3);
 
   return (
-    <div className="page dashboard-page dash-compact">
-      <header className="page-header dashboard-header">
+    <div className="page dashboard-page">
+      <header className="dashboard-hero">
         <div>
           <p className="eyebrow">{dateLabel}</p>
           <h2>{greet}</h2>
         </div>
-        <div className="page-actions dashboard-actions">
-          <Link className="btn btn-ghost btn-sm" to="/calendar">
-            Kalender
-          </Link>
-          <Link className="btn btn-ghost btn-sm dashboard-action-secondary" to="/customers">
-            Kunden
-          </Link>
-          <Link className="btn btn-primary btn-sm" to="/quick-note">
-            + Notiz
-          </Link>
-        </div>
       </header>
 
-      <section className="dash-kpis dash-kpis-4" aria-label="Kennzahlen">
-        <Link className="dash-kpi" to="/reminders">
+      <section className="dash-kpis dash-kpis-compact" aria-label="Kennzahlen">
+        <Link className="dash-kpi" to="/customers">
+          <span className="dash-kpi-label">Kunden</span>
+          <strong>{loading ? "–" : (stats?.activeCount ?? "–")}</strong>
+          <span className="dash-kpi-meta">aktiv</span>
+        </Link>
+        <div className={`dash-kpi${summary.today > 0 ? " is-warn" : ""}`}>
           <span className="dash-kpi-label">Heute</span>
-          <strong className={summary.overdue > 0 ? "is-alert" : undefined}>
-            {loading ? "–" : summary.today}
-          </strong>
+          <strong>{loading ? "–" : summary.today}</strong>
           <span className="dash-kpi-meta">
             {summary.overdue > 0 ? `${summary.overdue} überfällig` : "Aufgaben"}
           </span>
-        </Link>
-        <div className="dash-kpi">
-          <span className="dash-kpi-label">Offen</span>
-          <strong>{loading ? "–" : summary.open}</strong>
-          <span className="dash-kpi-meta">{summary.inbox} Inbox</span>
         </div>
         <Link className="dash-kpi" to="/calendar">
           <span className="dash-kpi-label">Termine</span>
@@ -192,40 +201,54 @@ export function DashboardPage() {
         <Link className="dash-kpi" to="/reminders">
           <span className="dash-kpi-label">Abläufe</span>
           <strong>{loading ? "–" : reminderTotal}</strong>
-          <span className="dash-kpi-meta">
-            {stats?.activeCount ?? "–"} Kunden aktiv
-          </span>
+          <span className="dash-kpi-meta">30 Tage</span>
         </Link>
       </section>
 
-      <section className="dash-analytics dash-analytics-3" aria-label="Diagramme">
+      <section className="dash-analytics dash-analytics-compact" aria-label="Diagramme">
         <article className="panel dash-chart-card">
           <div className="dash-chart-head">
-            <h3>Aufgaben</h3>
+            <div>
+              <h3>Aufgaben</h3>
+              <p className="muted">Offene To-dos</p>
+            </div>
           </div>
           {loading ? (
             <p className="empty">Lade…</p>
-          ) : taskSlices.length === 0 ? (
-            <p className="empty">Alles erledigt.</p>
+          ) : summary.open === 0 ? (
+            <p className="empty">Keine offenen Aufgaben.</p>
           ) : (
             <div className="dash-chart-body is-split">
               <DonutChart
-                slices={taskSlices}
+                slices={
+                  statusSlices.length
+                    ? statusSlices
+                    : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
+                }
                 size={104}
                 thickness={7}
                 centerValue={summary.open}
                 centerLabel="offen"
               />
-              <ChartLegend slices={taskSlices} />
+              <ChartLegend
+                slices={
+                  statusSlices.length
+                    ? statusSlices
+                    : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
+                }
+              />
             </div>
           )}
         </article>
 
         <article className="panel dash-chart-card">
           <div className="dash-chart-head">
-            <h3>Woche</h3>
-            <Link className="dash-chart-link" to="/calendar">
-              Kalender
+            <div>
+              <h3>Woche</h3>
+              <p className="muted">Termine · 7 Tage</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/calendar">
+              Öffnen
             </Link>
           </div>
           {loading ? <p className="empty">Lade…</p> : <ColumnChart columns={weekColumns} />}
@@ -233,12 +256,15 @@ export function DashboardPage() {
 
         <article className="panel dash-chart-card">
           <div className="dash-chart-head">
-            <h3>Prioritäten</h3>
+            <div>
+              <h3>Prioritäten</h3>
+              <p className="muted">Gewicht der offenen</p>
+            </div>
           </div>
           {loading ? (
             <p className="empty">Lade…</p>
           ) : prioBars.length === 0 ? (
-            <p className="empty">Keine offenen Aufgaben.</p>
+            <p className="empty">Keine Daten.</p>
           ) : (
             <HBarChart items={prioBars} />
           )}
@@ -247,21 +273,24 @@ export function DashboardPage() {
 
       <div className="dash-focus">
         <section className="panel dash-panel dash-focus-tasks">
-          <div className="dash-focus-head">
-            <h3>Fokus heute</h3>
-            <Link className="dash-chart-link" to="/reminders">
-              Alle
+          <div className="section-head row-between">
+            <div>
+              <h2>Fokus</h2>
+              <p>Heute und als Nächstes</p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/reminders">
+              Alle ({summary.open})
             </Link>
           </div>
           {loading ? (
-            <p className="empty">Lade…</p>
+            <p className="empty">Lade Aufgaben…</p>
           ) : focusTasks.length === 0 ? (
-            <p className="empty">Keine dringenden Aufgaben.</p>
+            <p className="empty">Nichts Offenes – gut so.</p>
           ) : (
-            <ul className="dash-focus-list">
+            <ul className="dash-task-list">
               {focusTasks.map((task) => (
                 <li key={task.id}>
-                  <FocusTaskRow
+                  <DashTaskRow
                     task={task}
                     busy={busyId === task.id}
                     onToggle={() => void toggleDone(task)}
@@ -272,38 +301,96 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="panel dash-panel dash-focus-cal">
-          <div className="dash-focus-head">
-            <h3>Termine</h3>
-            <Link className="dash-chart-link" to="/calendar">
-              Öffnen
-            </Link>
-          </div>
-          {loading ? (
-            <p className="empty">Lade…</p>
-          ) : todayAppts.length === 0 && upcomingAppts.length === 0 ? (
-            <p className="empty">Keine Termine diese Woche.</p>
-          ) : (
-            <ul className="dash-focus-list">
-              {todayAppts.map((a) => (
-                <li key={a.id}>
-                  <ApptRow appointment={a} today />
-                </li>
-              ))}
-              {upcomingAppts.map((a) => (
-                <li key={a.id}>
-                  <ApptRow appointment={a} />
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <aside className="dash-focus-side">
+          <section className="panel dash-panel">
+            <div className="section-head row-between">
+              <div>
+                <h2>Kalender</h2>
+                <p>Heute & demnächst</p>
+              </div>
+              <Link className="btn btn-ghost btn-sm" to="/calendar">
+                Öffnen
+              </Link>
+            </div>
+            {appointments.length === 0 ? (
+              <p className="empty">Keine Termine diese Woche.</p>
+            ) : (
+              <ul className="dash-side-list">
+                {todayAppts.map((a) => (
+                  <li key={a.id}>
+                    <ApptRow appointment={a} today />
+                  </li>
+                ))}
+                {soonAppts.map((a) => (
+                  <li key={a.id}>
+                    <ApptRow appointment={a} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <section className="panel dash-panel">
+            <div className="section-head row-between">
+              <div>
+                <h2>Abläufe</h2>
+                <p>Garantien & Verträge</p>
+              </div>
+              <Link className="btn btn-ghost btn-sm" to="/reminders">
+                Alle
+              </Link>
+            </div>
+            {sideReminders.length === 0 ? (
+              <p className="empty">Nichts in 30 Tagen.</p>
+            ) : (
+              <ul className="dash-side-list">
+                {sideReminders.map((r) => (
+                  <li key={r.id}>
+                    <Link className="dash-side-row" to={r.to}>
+                      <span className="dash-side-when is-warn">{formatDateOnly(r.when)}</span>
+                      <span className="dash-side-body">
+                        <strong>{r.title}</strong>
+                        <span className="muted">{r.meta}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
       </div>
     </div>
   );
 }
 
-function FocusTaskRow({
+function ApptRow({ appointment: a, today }: { appointment: AppointmentItem; today?: boolean }) {
+  return (
+    <Link className="dash-side-row" to="/calendar">
+      <span className={`dash-side-when${today ? " is-today" : ""}`}>
+        {today
+          ? a.allDay
+            ? "Ganztägig"
+            : a.startTime?.slice(0, 5) || "–"
+          : formatDateOnly(a.startDate)}
+      </span>
+      <span className="dash-side-body">
+        <strong>{a.title}</strong>
+        <span className="muted">
+          {appointmentKindLabel[a.kind]}
+          {a.customerName
+            ? ` · ${customerDisplayName({
+                name: a.customerName,
+                company: a.customerCompany ?? null,
+              })}`
+            : ""}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function DashTaskRow({
   task,
   busy,
   onToggle,
@@ -320,7 +407,7 @@ function FocusTaskRow({
   });
 
   return (
-    <article className={`dash-focus-row prio-${prio}${busy ? " is-busy" : ""}`}>
+    <article className={`dash-task-row prio-${prio}${busy ? " is-busy" : ""}`}>
       <button
         type="button"
         className="dash-task-check"
@@ -328,41 +415,15 @@ function FocusTaskRow({
         disabled={busy}
         onClick={onToggle}
       />
-      <Link className="dash-focus-main" to={`/customers/${task.customerId}/tasks`}>
+      <Link className="dash-task-main" to={`/customers/${task.customerId}/tasks`}>
         <strong>{task.title}</strong>
-        <span className="dash-focus-meta">
-          <span className={`tone-${due.tone}`}>{due.text}</span>
-          <span>·</span>
-          <span>{customer}</span>
+        <span className="dash-task-meta">
+          <span className={`task-chip task-prio-chip prio-${prio}`}>{priorityLabel[prio]}</span>
+          <span className={`task-chip task-due tone-${due.tone}`}>{due.text}</span>
+          <span className="task-chip is-muted">{customer}</span>
         </span>
       </Link>
     </article>
-  );
-}
-
-function ApptRow({ appointment: a, today }: { appointment: AppointmentItem; today?: boolean }) {
-  const when = today
-    ? a.allDay
-      ? "Ganztägig"
-      : a.startTime?.slice(0, 5) || "–"
-    : formatDateOnly(a.startDate);
-
-  return (
-    <Link className="dash-focus-row dash-focus-appt" to="/calendar">
-      <span className={`dash-focus-when${today ? " is-today" : ""}`}>{when}</span>
-      <span className="dash-focus-main">
-        <strong>{a.title}</strong>
-        <span className="dash-focus-meta">
-          {appointmentKindLabel[a.kind]}
-          {a.customerName
-            ? ` · ${customerDisplayName({
-                name: a.customerName,
-                company: a.customerCompany ?? null,
-              })}`
-            : ""}
-        </span>
-      </span>
-    </Link>
   );
 }
 

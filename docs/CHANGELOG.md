@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.40 – 2026-08-17
+
+- Dashboard: kompakter Aufbau – 4 KPIs, 3 Diagramme, Fokus-Liste statt voller Aufgaben-/Nebenpanels
+
 ## 1.5.39 – 2026-08-06
 
 - Sicherung: Vollbackup (SQLite + Uploads) im Browser herunterladen und wiederherstellen (Konto → Sicherung)
