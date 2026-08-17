@@ -25,15 +25,17 @@ Keine Lexware-Anbindung – Stammdaten für spätere Abrechnung aus der Historie
 
 Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot` und optional `priceItemId`.
 
-## Kunden
+## Kunden / Kontakte
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/customers?q=&status=&limit=&offset=&sort=&ids=` | Paginierte Liste `{ items, total, limit, offset }` |
+| GET | `/api/customers?q=&status=&kind=&limit=&offset=&sort=&ids=` | Paginierte Liste `{ items, total, limit, offset }`. `kind`: `contact` \| `customer` \| `all` |
 | GET | `/api/customers/:id` | Detail |
-| POST | `/api/customers` | Anlegen |
+| POST | `/api/customers` | Anlegen (`kind` optional, Default `contact`) |
 | PUT | `/api/customers/:id` | Aktualisieren |
 | DELETE | `/api/customers/:id` | Löschen (inkl. Dokumente) |
+
+Feld `kind`: `contact` (einfacher Kontakt) oder `customer` (Kunde). Bestehende Datensätze ohne Spalte werden beim Start auf `customer` migriert.
 | GET | `/api/stats` | `{ customerCount, activeCount }` |
 
 Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `website`, `notes`, `status` (`active`\|`inactive`).

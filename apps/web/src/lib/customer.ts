@@ -1,10 +1,18 @@
-import type { Customer } from "../types";
+import type { ContactKind, Customer } from "../types";
 
-/** Anzeigename: Firma bevorzugt, sonst Kurzname. */
+/** Anzeigename: bei Kunden Firma bevorzugt, bei Kontakten der Name. */
 export function customerDisplayName(
-  customer: Pick<Customer, "name" | "company">,
+  customer: Pick<Customer, "name" | "company"> & { kind?: ContactKind },
 ): string {
+  if (customer.kind === "contact") {
+    return customer.name?.trim() || customer.company?.trim() || "Kontakt";
+  }
   return customer.company?.trim() || customer.name;
+}
+
+/** Deutsche Bezeichnung für Kontakt/Kunde. */
+export function contactKindLabel(kind?: ContactKind | null): string {
+  return kind === "contact" ? "Kontakt" : "Kunde";
 }
 
 /** Formatierte Adresszeile. */

@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
-import { customerDisplayName } from "../../lib/customer";
+import { customerDisplayName, contactKindLabel } from "../../lib/customer";
 import type { Customer } from "../../types";
 
 type Tab = {
@@ -76,7 +76,7 @@ const tabs: Tab[] = [
 ];
 
 /**
- * Kunden-Shell mit Tabs für Dokumente, E-Mails, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
+ * Kontakt-/Kunden-Shell mit Tabs für Dokumente, E-Mails, Projekte, Aufgaben, Zeiten, Geräte & Netzwerk und Betrieb.
  */
 export function CustomerLayout() {
   const { id = "" } = useParams();
@@ -90,12 +90,14 @@ export function CustomerLayout() {
       .catch(() => navigate("/customers"));
   }, [id, navigate]);
 
-  if (!customer) return <div className="boot">Lade Kunde…</div>;
+  if (!customer) return <div className="boot">Lade Kontakt…</div>;
+
+  const kind = customer.kind ?? "customer";
 
   return (
     <div className="page customer-hub">
       <div className="breadcrumb">
-        <Link to="/customers">Kunden</Link>
+        <Link to="/customers">Kontakte</Link>
         <span>/</span>
         <span>{customerDisplayName(customer)}</span>
       </div>
@@ -104,17 +106,27 @@ export function CustomerLayout() {
         <div>
           <h2>{customerDisplayName(customer)}</h2>
           <p>
+            <span
+              className={`badge ${
+                kind === "customer" ? "badge-kind-customer" : "badge-kind-contact"
+              }`}
+            >
+              {contactKindLabel(kind)}
+            </span>{" "}
             <span className={`badge badge-${customer.status}`}>
               {customer.status === "active" ? "Aktiv" : "Inaktiv"}
             </span>
-            {customer.contactPerson ? (
+            {kind === "customer" && customer.contactPerson ? (
               <span className="muted"> · {customer.contactPerson}</span>
+            ) : null}
+            {kind === "contact" && customer.company ? (
+              <span className="muted"> · {customer.company}</span>
             ) : null}
           </p>
         </div>
       </div>
 
-      <nav className="customer-tabs" aria-label="Kundenbereiche">
+      <nav className="customer-tabs" aria-label="Kontaktbereiche">
         {tabs.map((tab) => (
           <NavLink
             key={tab.label}

@@ -25,7 +25,7 @@ export function CustomerPicker({
   allowEmpty = true,
   emptyLabel = "Kein Kunde",
   required = false,
-  placeholder = "Kunde suchen…",
+  placeholder = "Kontakt suchen…",
   className = "",
   activeOnly = true,
 }: Props) {

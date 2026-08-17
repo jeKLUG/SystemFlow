@@ -11,7 +11,7 @@ type OutletCtx = {
 };
 
 /**
- * Stammdaten und Kurzüberblick eines Kunden.
+ * Stammdaten und Kurzüberblick eines Kontakts oder Kunden.
  */
 export function CustomerOverviewPage() {
   const { id = "" } = useParams();
@@ -42,6 +42,7 @@ export function CustomerOverviewPage() {
       vatId: customer.vatId ?? "",
       website: customer.website ?? "",
       notes: customer.notes ?? "",
+      kind: customer.kind ?? "customer",
       status: customer.status,
     });
   }, [customer]);
@@ -75,10 +76,14 @@ export function CustomerOverviewPage() {
   }
 
   async function removeCustomer() {
-    if (!confirm("Kunde und alle zugehörigen Daten wirklich löschen?")) return;
+    const label = (customer.kind ?? "customer") === "contact" ? "Kontakt" : "Kunde";
+    if (!confirm(`${label} und alle zugehörigen Daten wirklich löschen?`)) return;
     await api.deleteCustomer(id);
     navigate("/customers");
   }
+
+  const kind = customer.kind ?? "customer";
+  const isCustomer = kind === "customer";
 
   return (
     <>
@@ -105,7 +110,7 @@ export function CustomerOverviewPage() {
         <div className="section-head row-between">
           <div>
             <h2>Stammdaten</h2>
-            <p>Firma, Kontakt und Adresse.</p>
+            <p>{isCustomer ? "Firma, Kontakt und Adresse." : "Person, Organisation und Adresse."}</p>
           </div>
           <div className="cta-row">
             <button type="button" className="btn btn-ghost" onClick={() => setEditing((v) => !v)}>
@@ -130,21 +135,29 @@ export function CustomerOverviewPage() {
         ) : (
           <div className="detail-grid">
             <div>
-              <span className="label">Firma</span>
+              <span className="label">Typ</span>
+              <p>{isCustomer ? "Kunde" : "Kontakt"}</p>
+            </div>
+            <div>
+              <span className="label">{isCustomer ? "Firma" : "Firma / Organisation"}</span>
               <p>{customer.company || "–"}</p>
             </div>
             <div>
-              <span className="label">Kurzname</span>
+              <span className="label">{isCustomer ? "Kurzname" : "Name"}</span>
               <p>{customer.name || "–"}</p>
             </div>
-            <div>
-              <span className="label">Ansprechpartner</span>
-              <p>{customer.contactPerson || "–"}</p>
-            </div>
-            <div>
-              <span className="label">USt-IdNr.</span>
-              <p>{customer.vatId || "–"}</p>
-            </div>
+            {isCustomer ? (
+              <div>
+                <span className="label">Ansprechpartner</span>
+                <p>{customer.contactPerson || "–"}</p>
+              </div>
+            ) : null}
+            {isCustomer ? (
+              <div>
+                <span className="label">USt-IdNr.</span>
+                <p>{customer.vatId || "–"}</p>
+              </div>
+            ) : null}
             <div>
               <span className="label">E-Mail</span>
               <p>{customer.email || "–"}</p>
@@ -183,3 +196,4 @@ export function CustomerOverviewPage() {
     </>
   );
 }
+

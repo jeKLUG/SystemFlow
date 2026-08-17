@@ -160,7 +160,7 @@ export function DashboardPage() {
 
       <section className="dash-kpis dash-kpis-compact" aria-label="Kennzahlen">
         <Link className="dash-kpi" to="/customers">
-          <span className="dash-kpi-label">Kunden</span>
+          <span className="dash-kpi-label">Kontakte</span>
           <strong>{loading ? "–" : (stats?.activeCount ?? "–")}</strong>
           <span className="dash-kpi-meta">aktiv</span>
         </Link>

@@ -1,4 +1,4 @@
-import type { CustomerStatus } from "../types";
+import type { ContactKind, CustomerStatus } from "../types";
 
 export interface CustomerFormState {
   name: string;
@@ -14,6 +14,7 @@ export interface CustomerFormState {
   vatId: string;
   website: string;
   notes: string;
+  kind: ContactKind;
   status: CustomerStatus;
 }
 
@@ -21,42 +22,82 @@ interface Props {
   form: CustomerFormState;
   onChange: (next: CustomerFormState) => void;
   showStatus?: boolean;
+  /** Typ Kontakt/Kunde anzeigen (Standard: ja). */
+  showKind?: boolean;
 }
 
 /**
- * Gemeinsame Eingabefelder für Kundenformulare.
+ * Gemeinsame Eingabefelder für Kontakt- und Kundenformulare.
  */
-export function CustomerFields({ form, onChange, showStatus = false }: Props) {
+export function CustomerFields({
+  form,
+  onChange,
+  showStatus = false,
+  showKind = true,
+}: Props) {
   function set<K extends keyof CustomerFormState>(key: K, value: CustomerFormState[K]) {
     onChange({ ...form, [key]: value });
   }
 
+  const isCustomer = form.kind === "customer";
+
   return (
     <>
+      {showKind ? (
+        <label className="field">
+          <span>Typ</span>
+          <select
+            value={form.kind}
+            onChange={(e) => set("kind", e.target.value as ContactKind)}
+          >
+            <option value="contact">Kontakt</option>
+            <option value="customer">Kunde</option>
+          </select>
+        </label>
+      ) : null}
+
+      {isCustomer ? (
+        <label className="field">
+          <span>Firma</span>
+          <input
+            value={form.company}
+            onChange={(e) => set("company", e.target.value)}
+            placeholder="z. B. Muster GmbH"
+          />
+        </label>
+      ) : (
+        <label className="field">
+          <span>Firma / Organisation</span>
+          <input
+            value={form.company}
+            onChange={(e) => set("company", e.target.value)}
+            placeholder="optional"
+          />
+        </label>
+      )}
+
       <label className="field">
-        <span>Firma</span>
-        <input
-          value={form.company}
-          onChange={(e) => set("company", e.target.value)}
-          placeholder="z. B. Muster GmbH"
-        />
-      </label>
-      <label className="field">
-        <span>Kurzname / Anzeigename *</span>
+        <span>{isCustomer ? "Kurzname / Anzeigename *" : "Name *"}</span>
         <input
           required
           value={form.name}
           onChange={(e) => set("name", e.target.value)}
-          placeholder="z. B. Muster"
+          placeholder={isCustomer ? "z. B. Muster" : "z. B. Max Mustermann"}
         />
       </label>
-      <label className="field">
-        <span>Ansprechpartner</span>
-        <input
-          value={form.contactPerson}
-          onChange={(e) => set("contactPerson", e.target.value)}
-        />
-      </label>
+
+      {isCustomer ? (
+        <label className="field">
+          <span>Ansprechpartner</span>
+          <input
+            value={form.contactPerson}
+            onChange={(e) => set("contactPerson", e.target.value)}
+          />
+        </label>
+      ) : showStatus ? (
+        <div />
+      ) : null}
+
       {showStatus ? (
         <label className="field">
           <span>Status</span>
@@ -68,9 +109,10 @@ export function CustomerFields({ form, onChange, showStatus = false }: Props) {
             <option value="inactive">Inaktiv</option>
           </select>
         </label>
-      ) : (
+      ) : showKind && isCustomer ? (
         <div />
-      )}
+      ) : null}
+
       <label className="field">
         <span>E-Mail</span>
         <input
@@ -112,14 +154,16 @@ export function CustomerFields({ form, onChange, showStatus = false }: Props) {
         <span>Land</span>
         <input value={form.country} onChange={(e) => set("country", e.target.value)} />
       </label>
-      <label className="field">
-        <span>USt-IdNr.</span>
-        <input
-          value={form.vatId}
-          onChange={(e) => set("vatId", e.target.value)}
-          placeholder="DE…"
-        />
-      </label>
+      {isCustomer ? (
+        <label className="field">
+          <span>USt-IdNr.</span>
+          <input
+            value={form.vatId}
+            onChange={(e) => set("vatId", e.target.value)}
+            placeholder="DE…"
+          />
+        </label>
+      ) : null}
       <label className="field full">
         <span>Kurznotiz</span>
         <textarea

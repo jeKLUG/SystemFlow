@@ -40,7 +40,7 @@ export function SearchPage() {
       <div className="section-head">
         <h2>Suche</h2>
         <p>
-          Durchsucht Kunden, Wiki-Seiten, Dateien, Ordner, Anlagen und die Einsatz-Historie.
+          Durchsucht Kontakte, Wiki-Seiten, Dateien, Ordner, Anlagen und die Einsatz-Historie.
         </p>
       </div>
 
@@ -64,7 +64,7 @@ export function SearchPage() {
             {total} Treffer für „{result.q}“
           </p>
 
-          <ResultBlock title="Kunden" empty={result.customers.length === 0}>
+          <ResultBlock title="Kontakte" empty={result.customers.length === 0}>
             <ul className="list">
               {result.customers.map((c) => (
                 <li key={c.id}>

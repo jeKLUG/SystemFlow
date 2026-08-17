@@ -3510,6 +3510,16 @@ input[type="checkbox"]:not(.check-input):checked {
   color: var(--text-muted);
 }
 
+.badge-kind-contact {
+  background: rgba(96, 165, 250, 0.16);
+  color: #93c5fd;
+}
+
+.badge-kind-customer {
+  background: rgba(52, 211, 153, 0.16);
+  color: #6ee7b7;
+}
+
 .badge-asset-active {
   background: rgba(56, 180, 120, 0.18);
   color: #8ee0b4;

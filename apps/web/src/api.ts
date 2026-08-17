@@ -46,6 +46,7 @@ export const api = {
   customers: (opts?: {
     q?: string;
     status?: "active" | "inactive" | "all";
+    kind?: "contact" | "customer" | "all";
     limit?: number;
     offset?: number;
     sort?: "updated" | "name";
@@ -54,6 +55,7 @@ export const api = {
     const params = new URLSearchParams();
     if (opts?.q) params.set("q", opts.q);
     if (opts?.status) params.set("status", opts.status);
+    if (opts?.kind) params.set("kind", opts.kind);
     if (opts?.limit != null) params.set("limit", String(opts.limit));
     if (opts?.offset != null) params.set("offset", String(opts.offset));
     if (opts?.sort) params.set("sort", opts.sort);

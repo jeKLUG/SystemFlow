@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.47 – 2026-08-17
+
+- Bereich „Kunden“ → „Kontakte“: einfache Kontakte und Kunden anlegbar (`kind`: contact/customer), Filter und Badges
+
 ## 1.5.46 – 2026-08-17
 
 - Fix: DB-Start crashte auf bestehenden Installationen (`no such column: email_id`) – Index erst nach Spalten-Migration

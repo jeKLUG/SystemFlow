@@ -69,7 +69,7 @@ const icon = {
 
 const primaryNav: NavItem[] = [
   { to: "/", label: "Übersicht", end: true, icon: icon.home },
-  { to: "/customers", label: "Kunden", icon: icon.customers },
+  { to: "/customers", label: "Kontakte", icon: icon.customers },
   { to: "/calendar", label: "Kalender", icon: icon.calendar },
   { to: "/vault", label: "Tresor", icon: icon.vault },
 ];
@@ -83,7 +83,7 @@ const secondaryNav: NavItem[] = [
 
 const mobileTabs: { to: string; label: string; end?: boolean; icon: ReactNode; primary?: boolean }[] = [
   { to: "/", label: "Start", end: true, icon: icon.home },
-  { to: "/customers", label: "Kunden", icon: icon.customers },
+  { to: "/customers", label: "Kontakte", icon: icon.customers },
   { to: "/quick-note", label: "Notiz", icon: icon.note, primary: true },
   { to: "/calendar", label: "Kalender", icon: icon.calendar },
   { to: "/vault", label: "Tresor", icon: icon.vault },

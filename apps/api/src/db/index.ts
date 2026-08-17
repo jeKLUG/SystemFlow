@@ -54,6 +54,7 @@ export async function createDb(databasePath: string) {
       vat_id TEXT,
       website TEXT,
       notes TEXT,
+      kind TEXT NOT NULL DEFAULT 'customer',
       status TEXT NOT NULL DEFAULT 'active',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
@@ -355,6 +356,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "customers", "country", "TEXT");
   await ensureColumn(client, "customers", "vat_id", "TEXT");
   await ensureColumn(client, "customers", "website", "TEXT");
+  await ensureColumn(client, "customers", "kind", "TEXT NOT NULL DEFAULT 'customer'");
   await ensureColumn(client, "documents", "project_id", "TEXT");
   await ensureColumn(client, "documents", "asset_id", "TEXT");
   await ensureColumn(client, "tasks", "project_id", "TEXT");

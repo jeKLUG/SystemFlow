@@ -1,4 +1,6 @@
 export type CustomerStatus = "active" | "inactive";
+/** Kontakt (Person) oder Kunde (geschäftlich). */
+export type ContactKind = "contact" | "customer";
 export type DocumentType = "note" | "protocol" | "documentation" | "article" | "workflow";
 export type ProjectStatus = "planned" | "active" | "on_hold" | "done";
 export type AppointmentKind = "customer" | "internal" | "personal" | "other";
@@ -99,6 +101,7 @@ export interface Customer {
   vatId: string | null;
   website: string | null;
   notes: string | null;
+  kind: ContactKind;
   status: CustomerStatus;
   createdAt: string;
   updatedAt: string;
@@ -521,6 +524,7 @@ export const emptyCustomerForm: {
   vatId: string;
   website: string;
   notes: string;
+  kind: ContactKind;
   status: CustomerStatus;
 } = {
   name: "",
@@ -536,5 +540,6 @@ export const emptyCustomerForm: {
   vatId: "",
   website: "",
   notes: "",
+  kind: "contact",
   status: "active",
 };

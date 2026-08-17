@@ -22,6 +22,7 @@ const customerBody = z.object({
   vatId: optionalText(40),
   website: optionalText(300),
   notes: optionalText(2000),
+  kind: z.enum(["contact", "customer"]).optional(),
   status: z.enum(["active", "inactive"]).optional(),
 });
 
@@ -46,11 +47,16 @@ function mapCustomerInput(data: z.infer<typeof customerBody>) {
 function buildCustomerWhere(opts: {
   term?: string;
   status?: "active" | "inactive" | "all";
+  kind?: "contact" | "customer" | "all";
 }): SQL | undefined {
   const parts: SQL[] = [];
 
   if (opts.status === "active" || opts.status === "inactive") {
     parts.push(eq(customers.status, opts.status));
+  }
+
+  if (opts.kind === "contact" || opts.kind === "customer") {
+    parts.push(eq(customers.kind, opts.kind));
   }
 
   const term = opts.term?.trim();
@@ -77,7 +83,7 @@ function buildCustomerWhere(opts: {
 }
 
 /**
- * Registriert Kunden-CRUD-Routen (inkl. paginierter Suche).
+ * Registriert Kontakt-/Kunden-CRUD-Routen (inkl. paginierter Suche).
  */
 export async function customerRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -87,6 +93,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
       .object({
         q: z.string().optional(),
         status: z.enum(["active", "inactive", "all"]).optional(),
+        kind: z.enum(["contact", "customer", "all"]).optional(),
         limit: z.coerce.number().int().positive().max(200).optional(),
         offset: z.coerce.number().int().nonnegative().optional(),
         sort: z.enum(["updated", "name"]).optional(),
@@ -97,6 +104,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
     const limit = q.limit ?? 50;
     const offset = q.offset ?? 0;
     const status = q.status ?? "all";
+    const kind = q.kind ?? "all";
     const sort = q.sort ?? "updated";
 
     // Gezielte IDs (z. B. Recent-Auswahl im Picker)
@@ -116,7 +124,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
       return { items, total: items.length, limit, offset: 0 };
     }
 
-    const where = buildCustomerWhere({ term: q.q, status });
+    const where = buildCustomerWhere({ term: q.q, status, kind });
 
     const countQuery = db.select({ count: sql<number>`count(*)` }).from(customers);
     const totalRow = where
@@ -140,7 +148,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
   app.get("/api/customers/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const row = await db.select().from(customers).where(eq(customers.id, id)).get();
-    if (!row) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    if (!row) return reply.code(404).send({ error: "Kontakt nicht gefunden" });
     return row;
   });
 
@@ -154,6 +162,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
     const row = {
       id: createId("cus"),
       ...mapCustomerInput(parsed.data),
+      kind: parsed.data.kind ?? ("contact" as const),
       status: parsed.data.status ?? ("active" as const),
       createdAt: now,
       updatedAt: now,
@@ -166,7 +175,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
   app.put("/api/customers/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(customers).where(eq(customers.id, id)).get();
-    if (!existing) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    if (!existing) return reply.code(404).send({ error: "Kontakt nicht gefunden" });
 
     const parsed = customerBody.safeParse(request.body);
     if (!parsed.success) {
@@ -175,6 +184,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
 
     const updated = {
       ...mapCustomerInput(parsed.data),
+      kind: parsed.data.kind ?? existing.kind,
       status: parsed.data.status ?? existing.status,
       updatedAt: new Date(),
     };
@@ -186,7 +196,7 @@ export async function customerRoutes(app: FastifyInstance, db: Db) {
   app.delete("/api/customers/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(customers).where(eq(customers.id, id)).get();
-    if (!existing) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    if (!existing) return reply.code(404).send({ error: "Kontakt nicht gefunden" });
     await db.delete(customers).where(eq(customers.id, id));
     return { ok: true };
   });

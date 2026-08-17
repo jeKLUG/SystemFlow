@@ -10,4 +10,4 @@
 | [BACKUP.md](BACKUP.md) | Systemsicherung Download/Restore |
 | [ANDROID.md](ANDROID.md) | Android-WebView-App / APK |
 
-Systemhaus-Ess ist die interne App für Kundenstammdaten, Kunden-Wiki, E-Mail-Archiv, Projekte/Budget, Zeiterfassung, Anlagen, Einsatz-Historie und Vorlagen/Suche. Lexware bleibt extern für Rechnungen.
+Systemhaus-Ess ist die interne App für Kontakte/Kundenstammdaten, Wiki, E-Mail-Archiv, Projekte/Budget, Zeiterfassung, Anlagen, Einsatz-Historie und Vorlagen/Suche. Lexware bleibt extern für Rechnungen.

@@ -8,7 +8,7 @@ export const users = sqliteTable("users", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Kundenstammdaten. */
+/** Kontakte und Kunden (gleiche Stammdaten-Tabelle, unterschieden über `kind`). */
 export const customers = sqliteTable("customers", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -24,6 +24,8 @@ export const customers = sqliteTable("customers", {
   vatId: text("vat_id"),
   website: text("website"),
   notes: text("notes"),
+  /** `contact` = einfacher Kontakt, `customer` = Kunde. */
+  kind: text("kind", { enum: ["contact", "customer"] }).notNull().default("customer"),
   status: text("status", { enum: ["active", "inactive"] }).notNull().default("active"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
