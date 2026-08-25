@@ -2,10 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { AttachmentPanel } from "../components/AttachmentPanel";
+import { CustomerPicker } from "../components/CustomerPicker";
 import { DocumentEditor } from "../components/DocumentEditor";
 import { documentTypeLabel, formatDate } from "../lib/labels";
 import type { DocumentItem, DocumentType } from "../types";
 
+/**
+ * Wiki-/Notiz-Editor inkl. optionaler Kundenzuordnung für Schnellnotizen.
+ */
 export function DocumentPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -13,7 +17,13 @@ export function DocumentPage() {
   const [title, setTitle] = useState("");
   const [type, setType] = useState<DocumentType>("note");
   const [content, setContent] = useState("");
-  const [savedSnapshot, setSavedSnapshot] = useState({ title: "", type: "note" as DocumentType, content: "" });
+  const [customerId, setCustomerId] = useState("");
+  const [savedSnapshot, setSavedSnapshot] = useState({
+    title: "",
+    type: "note" as DocumentType,
+    content: "",
+    customerId: "",
+  });
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
@@ -26,20 +36,27 @@ export function DocumentPage() {
         setTitle(d.title);
         setType(d.type);
         setContent(d.content);
-        setSavedSnapshot({ title: d.title, type: d.type, content: d.content });
+        setCustomerId(d.customerId ?? "");
+        setSavedSnapshot({
+          title: d.title,
+          type: d.type,
+          content: d.content,
+          customerId: d.customerId ?? "",
+        });
         setSaveState("idle");
         setError("");
       })
-      .catch(() => navigate("/customers"));
+      .catch(() => navigate("/quick-note"));
   }, [id, navigate]);
 
   const dirty = useMemo(() => {
     return (
       title !== savedSnapshot.title ||
       type !== savedSnapshot.type ||
-      content !== savedSnapshot.content
+      content !== savedSnapshot.content ||
+      customerId !== savedSnapshot.customerId
     );
-  }, [title, type, content, savedSnapshot]);
+  }, [title, type, content, customerId, savedSnapshot]);
 
   useEffect(() => {
     if (!dirty) return;
@@ -56,9 +73,20 @@ export function DocumentPage() {
     setSaveState("saving");
     setError("");
     try {
-      const updated = await api.updateDocument(id, { title, type, content });
+      const updated = await api.updateDocument(id, {
+        title,
+        type,
+        content,
+        customerId: customerId || null,
+      });
       setDoc(updated);
-      setSavedSnapshot({ title, type, content });
+      setCustomerId(updated.customerId ?? "");
+      setSavedSnapshot({
+        title,
+        type,
+        content,
+        customerId: updated.customerId ?? "",
+      });
       setSaveState("saved");
     } catch (err) {
       setSaveState("error");
@@ -68,9 +96,9 @@ export function DocumentPage() {
 
   async function remove() {
     if (!confirm("Dokument wirklich löschen?")) return;
-    const customerId = doc?.customerId;
+    const cid = doc?.customerId;
     await api.deleteDocument(id);
-    navigate(customerId ? `/customers/${customerId}/wiki` : "/customers");
+    navigate(cid ? `/customers/${cid}/wiki` : "/quick-note");
   }
 
   if (!doc) return <div className="boot">Lade Dokument…</div>;
@@ -78,11 +106,21 @@ export function DocumentPage() {
   return (
     <div className="page editor-page">
       <div className="breadcrumb">
-        <Link to="/customers">Kunden</Link>
-        <span>/</span>
-        <Link to={`/customers/${doc.customerId}`}>Kunde</Link>
-        <span>/</span>
-        <Link to={`/customers/${doc.customerId}/wiki`}>Dokumente</Link>
+        {doc.customerId || customerId ? (
+          <>
+            <Link to="/customers">Kunden</Link>
+            <span>/</span>
+            <Link to={`/customers/${customerId || doc.customerId}`}>Kunde</Link>
+            <span>/</span>
+            <Link to={`/customers/${customerId || doc.customerId}/wiki`}>Dokumente</Link>
+          </>
+        ) : (
+          <>
+            <Link to="/quick-note">Schnellnotiz</Link>
+            <span>/</span>
+            <span>Ohne Kunde</span>
+          </>
+        )}
         <span>/</span>
         <span>{title || "Seite"}</span>
       </div>
@@ -148,6 +186,20 @@ export function DocumentPage() {
         </button>
       </div>
 
+      <label className="field editor-customer-field">
+        <span>Kunde</span>
+        <CustomerPicker
+          value={customerId}
+          onChange={(next) => {
+            setCustomerId(next);
+            setSaveState("idle");
+          }}
+          allowEmpty
+          emptyLabel="Ohne Kunde"
+          placeholder="Kunde zuordnen…"
+        />
+      </label>
+
       {error ? <p className="form-error">{error}</p> : null}
 
       <DocumentEditor
@@ -156,13 +208,19 @@ export function DocumentPage() {
           setContent(next);
           setSaveState("idle");
         }}
-        customerId={doc.customerId}
+        customerId={customerId || undefined}
         documentId={doc.id}
       />
 
-      <section className="section doc-attachments">
-        <AttachmentPanel customerId={doc.customerId} documentId={doc.id} />
-      </section>
+      {customerId ? (
+        <section className="section doc-attachments">
+          <AttachmentPanel customerId={customerId} documentId={doc.id} />
+        </section>
+      ) : (
+        <p className="muted editor-attach-hint">
+          Anhänge und Bild-Upload sind verfügbar, sobald ein Kunde zugeordnet ist.
+        </p>
+      )}
     </div>
   );
 }

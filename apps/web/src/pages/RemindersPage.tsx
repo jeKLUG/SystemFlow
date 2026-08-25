@@ -427,7 +427,7 @@ export function RemindersPage() {
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full cta-row">
+          <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
               Speichern
             </button>

@@ -1,4 +1,4 @@
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, isNull, inArray, or } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -19,7 +19,8 @@ const EMPTY_DOC = JSON.stringify({
 const wikiTypes = z.enum(["note", "protocol", "documentation", "article", "workflow"]);
 
 const createBody = z.object({
-  customerId: z.string().min(1),
+  /** Leer/fehlt = Schnellnotiz ohne Kundenbezug. */
+  customerId: z.string().optional().nullable().or(z.literal("")),
   type: wikiTypes.optional(),
   title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
@@ -32,6 +33,7 @@ const updateBody = z.object({
   type: wikiTypes.optional(),
   title: z.string().min(1).max(300).optional(),
   content: z.string().optional(),
+  customerId: z.string().optional().nullable().or(z.literal("")),
   projectId: z.string().optional().nullable().or(z.literal("")),
   assetId: z.string().optional().nullable().or(z.literal("")),
 });
@@ -129,6 +131,8 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
     const q = z
       .object({
         customerId: z.string().optional(),
+        /** `1` / `true` = nur Notizen ohne Kundenbezug */
+        unassigned: z.string().optional(),
         type: wikiTypes.optional(),
         projectId: z.string().optional(),
         assetId: z.string().optional(),
@@ -136,26 +140,39 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
       })
       .parse(request.query);
 
-    if (q.customerId) {
-      let rows = await db
+    const unassigned =
+      q.unassigned === "1" || q.unassigned === "true" || q.customerId === "unassigned";
+
+    let rows;
+    if (unassigned) {
+      rows = await db
+        .select()
+        .from(documents)
+        .where(or(isNull(documents.customerId), eq(documents.customerId, "")))
+        .orderBy(desc(documents.updatedAt))
+        .limit(q.limit ?? 100)
+        .all();
+    } else if (q.customerId) {
+      rows = await db
         .select()
         .from(documents)
         .where(eq(documents.customerId, q.customerId))
         .orderBy(desc(documents.updatedAt))
         .limit(q.limit ?? 100)
         .all();
-      if (q.type) rows = rows.filter((r) => r.type === q.type);
-      if (q.projectId) rows = rows.filter((r) => r.projectId === q.projectId);
-      if (q.assetId) rows = rows.filter((r) => r.assetId === q.assetId);
-      return rows;
+    } else {
+      rows = await db
+        .select()
+        .from(documents)
+        .orderBy(desc(documents.updatedAt))
+        .limit(q.limit ?? 50)
+        .all();
     }
 
-    return await db
-      .select()
-      .from(documents)
-      .orderBy(desc(documents.updatedAt))
-      .limit(q.limit ?? 50)
-      .all();
+    if (q.type) rows = rows.filter((r) => r.type === q.type);
+    if (q.projectId) rows = rows.filter((r) => r.projectId === q.projectId);
+    if (q.assetId) rows = rows.filter((r) => r.assetId === q.assetId);
+    return rows;
   });
 
   app.get("/api/documents/recent", async () => {
@@ -169,7 +186,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
         updatedAt: documents.updatedAt,
       })
       .from(documents)
-      .innerJoin(customers, eq(documents.customerId, customers.id))
+      .leftJoin(customers, eq(documents.customerId, customers.id))
       .orderBy(desc(documents.updatedAt))
       .limit(8)
       .all();
@@ -188,15 +205,15 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
     const row = await db.select().from(documents).where(eq(documents.id, id)).get();
     if (!row) return reply.code(404).send({ error: "Dokument nicht gefunden" });
 
-    const customer = await db
-      .select()
-      .from(customers)
-      .where(eq(customers.id, row.customerId))
-      .get();
-    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    const customer = row.customerId
+      ? await db.select().from(customers).where(eq(customers.id, row.customerId)).get()
+      : null;
 
     const buffer = await buildWikiPdf(
-      { name: customer.name, company: customer.company },
+      {
+        name: customer?.name ?? "Ohne Kunde",
+        company: customer?.company ?? null,
+      },
       [
         {
           title: row.title,
@@ -218,12 +235,11 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
-    const customer = await db
-      .select()
-      .from(customers)
-      .where(eq(customers.id, parsed.data.customerId))
-      .get();
-    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    const customerId = emptyToNull(parsed.data.customerId);
+    if (customerId) {
+      const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+      if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    }
 
     const template = parsed.data.templateId ? getTemplate(parsed.data.templateId) : undefined;
     if (parsed.data.templateId && !template) {
@@ -237,7 +253,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
 
     const row = {
       id: createId("doc"),
-      customerId: parsed.data.customerId,
+      customerId,
       projectId: emptyToNull(parsed.data.projectId),
       assetId: emptyToNull(parsed.data.assetId),
       type,
@@ -248,13 +264,15 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
     };
 
     await db.insert(documents).values(row);
-    await addActivity(
-      db,
-      parsed.data.customerId,
-      `Wiki-Seite erstellt: ${title}`,
-      template ? `Vorlage: ${template.name}` : `Typ: ${type}`,
-      now,
-    );
+    if (customerId) {
+      await addActivity(
+        db,
+        customerId,
+        `Wiki-Seite erstellt: ${title}`,
+        template ? `Vorlage: ${template.name}` : `Typ: ${type}`,
+        now,
+      );
+    }
     return reply.code(201).send(row);
   });
 
@@ -268,10 +286,24 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
+    let nextCustomerId = existing.customerId;
+    if (parsed.data.customerId !== undefined) {
+      nextCustomerId = emptyToNull(parsed.data.customerId);
+      if (nextCustomerId) {
+        const customer = await db
+          .select()
+          .from(customers)
+          .where(eq(customers.id, nextCustomerId))
+          .get();
+        if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+      }
+    }
+
     const updated = {
       type: parsed.data.type ?? existing.type,
       title: parsed.data.title?.trim() ?? existing.title,
       content: parsed.data.content ?? existing.content,
+      customerId: nextCustomerId,
       projectId:
         parsed.data.projectId !== undefined
           ? emptyToNull(parsed.data.projectId)
@@ -282,6 +314,17 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
     };
 
     await db.update(documents).set(updated).where(eq(documents.id, id));
+
+    if (nextCustomerId && nextCustomerId !== existing.customerId) {
+      await addActivity(
+        db,
+        nextCustomerId,
+        `Wiki-Seite zugeordnet: ${updated.title}`,
+        "Schnellnotiz / Dokument zugewiesen",
+        updated.updatedAt,
+      );
+    }
+
     return { ...existing, ...updated };
   });
 

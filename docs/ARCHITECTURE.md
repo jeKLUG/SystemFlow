@@ -27,7 +27,7 @@ Browser (React SPA)
 - **users** – Admin (V1: ein Benutzer aus Env)
 - **customers** – Stammdaten
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz
-- **documents** – Kunden-Wiki (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`, optional `projectId`
+- **documents** – Wiki/Notizen (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`; `customerId` optional (Schnellnotiz ohne Kunde), optional `projectId`
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
@@ -36,7 +36,7 @@ Browser (React SPA)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id`
-- **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung)
+- **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`
 - **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage
 - **vault_meta** / **vault_entries** – Passworttresor (AES-256-GCM, eigene Passphrase; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
 - **appointments** – Termine (Kunde / intern / persönlich)
@@ -50,7 +50,7 @@ Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail 
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
-Mobil (≤860px): Sticky Topbar/Tabbar mit Safe-Area, Bottom-Sheets, sticky Kontakt-Tabs, größere Touch-Targets (`--mobile-hit`), Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+Mobil (≤860px): Sticky Topbar (Menü / Suche / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
@@ -63,7 +63,7 @@ Kalendertage (`YYYY-MM-DD`) und „heute“ laufen über `Europe/Berlin` (API: E
 
 ## Auth
 
-Session-Cookie (`systemhaus_session`) via `@fastify/secure-session`, Passwort mit bcrypt. Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.
+Session-Cookie (`systemhaus_session`) via `@fastify/secure-session` (Cookie + Session-`expiry` 30 Tage bei „Angemeldet bleiben“, sonst 12 h; Sliding über `/api/auth/me`). Passwort mit bcrypt. Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.
 
 ## Deploy-Flow
 

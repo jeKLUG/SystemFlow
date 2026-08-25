@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth";
+import { Checkbox } from "../components/Checkbox";
 
 /**
  * Login-Ansicht im SaaS-Look.
@@ -10,6 +11,7 @@ export function LoginPage() {
   const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -20,7 +22,7 @@ export function LoginPage() {
     setBusy(true);
     setError("");
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login fehlgeschlagen");
     } finally {
@@ -71,6 +73,12 @@ export function LoginPage() {
               </button>
             </div>
           </label>
+
+          <Checkbox
+            label="Angemeldet bleiben"
+            checked={rememberMe}
+            onChange={setRememberMe}
+          />
 
           {error ? <p className="form-error">{error}</p> : null}
 

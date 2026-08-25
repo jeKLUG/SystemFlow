@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, NavLink, Outlet, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
 import {
   contactKindLabel,
@@ -78,6 +78,8 @@ const tabs: Tab[] = [
 export function CustomerLayout() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const tabsRef = useRef<HTMLElement>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [promoting, setPromoting] = useState(false);
   const [promoteMsg, setPromoteMsg] = useState("");
@@ -88,6 +90,11 @@ export function CustomerLayout() {
       .then(setCustomer)
       .catch(() => navigate("/customers"));
   }, [id, navigate]);
+
+  useEffect(() => {
+    const active = tabsRef.current?.querySelector<HTMLElement>(".customer-tab-active");
+    active?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [location.pathname, customer?.id]);
 
   async function promoteToCustomer() {
     if (!customer) return;
@@ -173,7 +180,7 @@ export function CustomerLayout() {
         <p className="muted promote-ok">{promoteMsg}</p>
       ) : null}
 
-      <nav className="customer-tabs" aria-label="Kontaktbereiche">
+      <nav ref={tabsRef} className="customer-tabs" aria-label="Kontaktbereiche">
         {tabs.map((tab) => (
           <NavLink
             key={tab.label}

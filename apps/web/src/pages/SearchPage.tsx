@@ -150,7 +150,7 @@ export function SearchPage() {
                       <div>
                         <strong>{d.title}</strong>
                         <span className="muted">
-                          {d.customerName} · {documentTypeLabel[d.type]}
+                          {d.customerName || "Ohne Kunde"} · {documentTypeLabel[d.type]}
                         </span>
                         {d.snippet ? <span className="search-snippet">{d.snippet}</span> : null}
                       </div>

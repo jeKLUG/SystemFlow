@@ -4,6 +4,7 @@ declare module "@fastify/secure-session" {
   interface SessionData {
     userId?: string;
     username?: string;
+    rememberMe?: string;
   }
 }
 

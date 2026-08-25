@@ -30,10 +30,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  login: (username: string, password: string) =>
+  login: (username: string, password: string, rememberMe = true) =>
     request<{ user: { id: string; username: string } }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, rememberMe }),
     }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
   me: () => request<{ user: { id: string; username: string } }>("/api/auth/me"),
@@ -85,12 +85,17 @@ export const api = {
       alreadyCustomer: boolean;
       missing: string[];
     }>(`/api/customers/${id}/promote`, { method: "POST" }),
-  documents: (customerId?: string, opts?: { assetId?: string; projectId?: string; type?: string }) => {
+  documents: (
+    customerId?: string,
+    opts?: { assetId?: string; projectId?: string; type?: string; unassigned?: boolean; limit?: number },
+  ) => {
     const params = new URLSearchParams();
-    if (customerId) params.set("customerId", customerId);
+    if (opts?.unassigned) params.set("unassigned", "1");
+    else if (customerId) params.set("customerId", customerId);
     if (opts?.assetId) params.set("assetId", opts.assetId);
     if (opts?.projectId) params.set("projectId", opts.projectId);
     if (opts?.type) params.set("type", opts.type);
+    if (opts?.limit) params.set("limit", String(opts.limit));
     const qs = params.toString();
     return request<import("./types").DocumentItem[]>(`/api/documents${qs ? `?${qs}` : ""}`);
   },
@@ -332,6 +337,42 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  /**
+   * Importiert eine oder mehrere .eml-Dateien (Betreff, Absender, Text, Anhänge).
+   */
+  importEmails: async (customerId: string, files: File[]) => {
+    const body = new FormData();
+    for (const file of files) {
+      body.append("files", file);
+    }
+    const res = await fetch(`/api/customers/${customerId}/emails/import`, {
+      method: "POST",
+      credentials: "include",
+      body,
+    });
+    if (!res.ok) {
+      let message = "EML-Import fehlgeschlagen";
+      try {
+        const data = (await res.json()) as { error?: string };
+        if (data.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return res.json() as Promise<{
+      count: number;
+      imported: Array<{
+        id: string;
+        subject: string;
+        sentAt: string;
+        direction: string;
+        attachmentCount: number;
+        sourceFilename: string;
+      }>;
+      errors: Array<{ filename: string; error: string }>;
+    }>;
+  },
   email: (id: string) =>
     request<import("./types").CustomerEmailItem>(`/api/emails/${id}`),
   updateEmail: (id: string, body: Record<string, unknown>) =>

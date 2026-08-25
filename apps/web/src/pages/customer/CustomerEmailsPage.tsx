@@ -24,7 +24,7 @@ function formatBytes(n: number): string {
 }
 
 /**
- * Kunden-E-Mail-Archiv: Mailverkehr ablegen, durchsuchen und mit Anhängen versehen.
+ * Kunden-E-Mail-Archiv: Mailverkehr ablegen, .eml importieren, durchsuchen und mit Anhängen versehen.
  * @param embedded Ohne eigenen Hero – für Einbettung im Dokumente-Hub.
  */
 export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean }) {
@@ -39,7 +39,9 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
   const [detail, setDetail] = useState<CustomerEmailItem | null>(null);
   const [files, setFiles] = useState<AttachmentItem[]>([]);
   const [uploadBusy, setUploadBusy] = useState(false);
+  const [importBusy, setImportBusy] = useState(false);
   const [error, setError] = useState("");
+  const [importNotice, setImportNotice] = useState("");
 
   async function reload() {
     const rows = await api.emails(id, {
@@ -168,6 +170,34 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
     }
   }
 
+  async function onImportEml(fileList: FileList | null) {
+    if (!fileList?.length) return;
+    const files = Array.from(fileList).filter((f) => f.name.toLowerCase().endsWith(".eml"));
+    if (!files.length) {
+      setError("Bitte .eml-Dateien wählen (Outlook: „Als .eml speichern“).");
+      return;
+    }
+    setImportBusy(true);
+    setError("");
+    setImportNotice("");
+    try {
+      const result = await api.importEmails(id, files);
+      await reload();
+      if (result.imported[0]?.id) setSelectedId(result.imported[0].id);
+      const parts = [`${result.count} E-Mail${result.count === 1 ? "" : "s"} importiert`];
+      if (result.errors.length) {
+        parts.push(
+          `${result.errors.length} Fehler: ${result.errors.map((e) => `${e.filename}: ${e.error}`).join("; ")}`,
+        );
+      }
+      setImportNotice(parts.join(" · "));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "EML-Import fehlgeschlagen");
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
   async function removeFile(att: AttachmentItem) {
     if (!confirm(`Anhang „${att.originalName}“ löschen?`)) return;
     await api.deleteAttachment(att.id);
@@ -204,9 +234,25 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
           </button>
         ))}
       </div>
-      <button type="button" className="btn btn-primary" onClick={openCreate}>
-        + E-Mail
-      </button>
+      <div className="emails-toolbar-actions">
+        <label className={`btn btn-ghost${importBusy ? " is-busy" : ""}`}>
+          {importBusy ? "Import…" : ".eml importieren"}
+          <input
+            type="file"
+            accept=".eml,message/rfc822"
+            multiple
+            hidden
+            disabled={importBusy}
+            onChange={(e) => {
+              void onImportEml(e.target.files);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        <button type="button" className="btn btn-primary" onClick={openCreate}>
+          + E-Mail
+        </button>
+      </div>
     </div>
   );
 
@@ -231,6 +277,9 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
         </div>
       )}
 
+      {error ? <p className="form-error emails-banner-error">{error}</p> : null}
+      {importNotice ? <p className="muted emails-banner-notice">{importNotice}</p> : null}
+
       {emails.length === 0 ? (
         <div className="emails-empty panel">
           <div className="emails-empty-icon" aria-hidden>
@@ -241,11 +290,30 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
           </div>
           <div>
             <strong>Noch keine E-Mails</strong>
-            <p className="muted">Korrespondenz mit Betreff, Absender und optionalen Anhängen ablegen.</p>
+            <p className="muted">
+              Korrespondenz ablegen oder .eml-Dateien importieren – Betreff, Absender und Text werden
+              automatisch gelesen.
+            </p>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            Erste E-Mail
-          </button>
+          <div className="emails-empty-actions">
+            <label className={`btn btn-ghost${importBusy ? " is-busy" : ""}`}>
+              {importBusy ? "Import…" : ".eml importieren"}
+              <input
+                type="file"
+                accept=".eml,message/rfc822"
+                multiple
+                hidden
+                disabled={importBusy}
+                onChange={(e) => {
+                  void onImportEml(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <button type="button" className="btn btn-primary" onClick={openCreate}>
+              Erste E-Mail
+            </button>
+          </div>
         </div>
       ) : (
         <div className="emails-shell panel">
@@ -478,7 +546,7 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
           <label className="field full">
             <span>Text</span>
             <textarea
-              rows={10}
+              rows={6}
               value={form.bodyText}
               onChange={(e) => setForm({ ...form, bodyText: e.target.value })}
               placeholder="Mailtext einfügen oder Kurzfassung…"
@@ -493,7 +561,7 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full cta-row">
+          <div className="full form-actions modal-actions">
             <button type="submit" className="btn btn-primary">
               Speichern
             </button>

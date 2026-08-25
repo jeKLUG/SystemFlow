@@ -192,7 +192,7 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
               updatedAt: documents.updatedAt,
             })
             .from(documents)
-            .innerJoin(customers, eq(documents.customerId, customers.id))
+            .leftJoin(customers, eq(documents.customerId, customers.id))
             .where(
               anyMatch([
                 columnMatches(documents.title, patterns),

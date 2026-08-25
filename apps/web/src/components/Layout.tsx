@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
 import { OfflineBanner } from "./OfflineBanner";
 
@@ -82,12 +82,13 @@ const secondaryNav: NavItem[] = [
   { to: "/settings", label: "Konto", icon: icon.settings },
 ];
 
+/** Untere Leiste: häufigste Aktionen für den Außeneinsatz. */
 const mobileTabs: { to: string; label: string; end?: boolean; icon: ReactNode; primary?: boolean }[] = [
   { to: "/", label: "Start", end: true, icon: icon.home },
   { to: "/customers", label: "Kontakte", icon: icon.customers },
   { to: "/quick-note", label: "Notiz", icon: icon.note, primary: true },
-  { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
-  { to: "/calendar", label: "Kalender", icon: icon.calendar },
+  { to: "/vault", label: "Tresor", icon: icon.vault },
+  { to: "/calendar", label: "Termin", icon: icon.calendar },
 ];
 
 function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[]; onNavigate: () => void }) {
@@ -115,8 +116,13 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
  */
 export function Layout() {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const closeMobile = () => setMobileOpen(false);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!mobileOpen) return;
@@ -210,9 +216,14 @@ export function Layout() {
             <img className="brand-mark" src="/logo.png" alt="" width={28} height={28} />
             <strong>Systemhaus-Ess</strong>
           </div>
-          <NavLink to="/search" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Suche">
-            {icon.search}
-          </NavLink>
+          <div className="app-topbar-actions">
+            <NavLink to="/tasks" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Aufgaben">
+              {icon.reminders}
+            </NavLink>
+            <NavLink to="/search" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Suche">
+              {icon.search}
+            </NavLink>
+          </div>
         </header>
         <main className="app-content">
           <Outlet />

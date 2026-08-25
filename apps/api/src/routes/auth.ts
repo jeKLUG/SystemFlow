@@ -10,12 +10,17 @@ import { requireAuth } from "../plugins/auth.js";
 const loginSchema = z.object({
   username: z.string().min(1),
   password: z.string().min(1),
+  /** Längere Session (30 Tage); sonst nur bis Browser-Ende / kurze Laufzeit. */
+  rememberMe: z.boolean().optional().default(true),
 });
 
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8).max(200),
 });
+
+const SESSION_LONG_SEC = 60 * 60 * 24 * 30;
+const SESSION_SHORT_SEC = 60 * 60 * 12;
 
 /**
  * Registriert Auth-Routen (Login, Logout, Session, Passwort ändern).
@@ -27,7 +32,7 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültige Eingabe" });
     }
 
-    const { username, password } = parsed.data;
+    const { username, password, rememberMe } = parsed.data;
     const user = await db.select().from(users).where(eq(users.username, username)).get();
     if (!user) {
       return reply.code(401).send({ error: "Benutzername oder Passwort falsch" });
@@ -40,8 +45,10 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
 
     request.session.set("userId", user.id);
     request.session.set("username", user.username);
-    // Session-Cookie explizit „frisch“ halten
-    request.session.options({ maxAge: 60 * 60 * 24 * 30 });
+    request.session.set("rememberMe", rememberMe ? "1" : "0");
+    request.session.options({
+      maxAge: rememberMe ? SESSION_LONG_SEC : SESSION_SHORT_SEC,
+    });
 
     return { user: { id: user.id, username: user.username } };
   });
@@ -54,6 +61,13 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
   });
 
   app.get("/api/auth/me", { preHandler: requireAuth }, async (request) => {
+    // Cookie-Ablauf bei Nutzung verlängern (Sliding)
+    const remember = request.session.get("rememberMe") !== "0";
+    request.session.options({
+      maxAge: remember ? SESSION_LONG_SEC : SESSION_SHORT_SEC,
+    });
+    request.session.touch();
+
     return {
       user: {
         id: request.session.get("userId"),

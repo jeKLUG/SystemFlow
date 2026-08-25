@@ -6,7 +6,7 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| POST | `/api/auth/login` | `{ username, password }` – Session 30 Tage |
+| POST | `/api/auth/login` | `{ username, password, rememberMe? }` – Session 30 Tage (oder 12 h ohne „Angemeldet bleiben“) |
 | POST | `/api/auth/logout` | Session beenden |
 | GET | `/api/auth/me` | Aktueller Benutzer |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
@@ -42,15 +42,16 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 
 ## Wiki / Dokumente
 
-Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optional `projectId`.
+Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optional `projectId`.  
+`customerId` optional (Schnellnotiz ohne Kundenbezug; später per PUT zuordenbar).
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/documents?customerId=&type=&projectId=` | Liste |
-| GET | `/api/documents/recent` | Zuletzt bearbeitet |
+| GET | `/api/documents?customerId=&type=&projectId=&unassigned=` | Liste (`unassigned=1` = ohne Kunde) |
+| GET | `/api/documents/recent` | Zuletzt bearbeitet (inkl. ohne Kunde) |
 | GET | `/api/documents/:id` | Detail inkl. TipTap-JSON |
-| POST | `/api/documents` | Anlegen (`templateId` optional) |
-| PUT | `/api/documents/:id` | Titel/Typ/Inhalt/Projekt |
+| POST | `/api/documents` | Anlegen (`templateId` optional; `customerId` optional) |
+| PUT | `/api/documents/:id` | Titel/Typ/Inhalt/Projekt/`customerId` |
 | DELETE | `/api/documents/:id` | Löschen |
 
 ## Projekte
@@ -181,15 +182,18 @@ Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; 
 
 ## Kunden-E-Mails (Archiv)
 
-Mailverkehr manuell ablegen (kein IMAP). Anhänge über `emailId` an `attachments`.
+Mailverkehr manuell ablegen oder als `.eml` importieren (kein IMAP). Anhänge über `emailId` an `attachments`.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | GET | `/api/customers/:id/emails?q=&direction=` | Liste (`inbound`\|`outbound`\|`internal`) |
 | POST | `/api/customers/:id/emails` | Ablegen |
+| POST | `/api/customers/:id/emails/import` | Multipart: eine/mehrere `.eml` → Felder + Original + Anhänge |
 | GET/PUT/DELETE | `/api/emails/:id` | Detail (inkl. Anhänge) / ändern / löschen |
 
-Body: `subject`, `sentAt` (YYYY-MM-DD), optional `fromAddress`, `toAddress`, `ccAddress`, `direction`, `bodyText`, `notes`.
+Body (manuell): `subject`, `sentAt` (YYYY-MM-DD), optional `fromAddress`, `toAddress`, `ccAddress`, `direction`, `bodyText`, `notes`.
+
+Import (`multipart/form-data`, Feld `files`): parst Betreff, Von/An/Cc, Datum, Textkörper und Dateianhänge; Richtung wird anhand Kunden-E-Mail und Domain `systemhaus-ess.de` geschätzt. Antwort: `{ count, imported[], errors[] }`.
 
 ## Termine / Kalender
 

@@ -109,7 +109,7 @@ export interface Customer {
 
 export interface DocumentItem {
   id: string;
-  customerId: string;
+  customerId: string | null;
   projectId: string | null;
   assetId: string | null;
   type: DocumentType;
@@ -199,8 +199,8 @@ export interface RecentDocument {
   id: string;
   title: string;
   type: DocumentType;
-  customerId: string;
-  customerName: string;
+  customerId: string | null;
+  customerName: string | null;
   updatedAt: string;
 }
 

@@ -53,12 +53,10 @@ export const projects = sqliteTable("projects", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Wiki-/Dokumentseiten pro Kunde (optional Projekt oder Gerät). */
+/** Wiki-/Dokumentseiten (optional Kunde, z. B. Schnellnotiz vom Anruf). */
 export const documents = sqliteTable("documents", {
   id: text("id").primaryKey(),
-  customerId: text("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "cascade" }),
   projectId: text("project_id"),
   assetId: text("asset_id"),
   type: text("type", {

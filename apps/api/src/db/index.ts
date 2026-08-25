@@ -77,7 +77,7 @@ export async function createDb(databasePath: string) {
 
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,
-      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      customer_id TEXT REFERENCES customers(id) ON DELETE CASCADE,
       project_id TEXT,
       asset_id TEXT,
       type TEXT NOT NULL,
@@ -438,6 +438,7 @@ export async function createDb(databasePath: string) {
   );
 
   await migrateTasksCustomerOptional(client);
+  await migrateDocumentsCustomerOptional(client);
 
   await client.execute(`PRAGMA foreign_keys = ON`);
 
@@ -475,6 +476,36 @@ async function migrateTasksCustomerOptional(client: Client) {
     DROP TABLE tasks;
     ALTER TABLE tasks_mig RENAME TO tasks;
     CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_id);
+  `);
+}
+
+/**
+ * Macht documents.customer_id optional (Schnellnotizen ohne Kunde).
+ */
+async function migrateDocumentsCustomerOptional(client: Client) {
+  const info = await client.execute(`PRAGMA table_info(documents)`);
+  const customerCol = info.rows.find((row) => String(row.name) === "customer_id");
+  if (!customerCol) return;
+  if (Number(customerCol.notnull) !== 1) return;
+
+  await client.execute(`PRAGMA foreign_keys = OFF`);
+  await client.executeMultiple(`
+    CREATE TABLE IF NOT EXISTS documents_mig (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT REFERENCES customers(id) ON DELETE CASCADE,
+      project_id TEXT,
+      asset_id TEXT,
+      type TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '{"type":"doc","content":[{"type":"paragraph"}]}',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    INSERT INTO documents_mig (id, customer_id, project_id, asset_id, type, title, content, created_at, updated_at)
+    SELECT id, customer_id, project_id, asset_id, type, title, content, created_at, updated_at FROM documents;
+    DROP TABLE documents;
+    ALTER TABLE documents_mig RENAME TO documents;
+    CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
   `);
 }
 

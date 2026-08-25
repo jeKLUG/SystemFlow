@@ -539,7 +539,7 @@ export function CalendarPage() {
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full form-actions">
+          <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
               {editingId ? "Änderungen speichern" : "Termin speichern"}
             </button>

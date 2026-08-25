@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.5.71 – 2026-08-25
+
+- Schnellnotiz: Speichern ohne Kundenwahl (Anruf-Inbox); später im Editor zuordenbar
+- Offene Notizen ohne Kunde unter Schnellnotiz gelistet
+
+## 1.5.70 – 2026-08-25
+
+- E-Mails: `.eml`-Import (Betreff, Absender/Empfänger, Datum, Text, Anhänge; Richtung automatisch)
+- Original-`.eml` wird als Anhang mit abgelegt
+
+## 1.5.69 – 2026-08-25
+
+- Modals: immer im Viewport (Flex + scrollbarer Body); Speichern/Abbrechen sticky erreichbar – u. a. E-Mail ablegen
+
+## 1.5.68 – 2026-08-25
+
+- Mobile: größere Touch-Flächen, bessere Tabbar (Tresor statt Aufgaben), Topbar mit Suche + Aufgaben
+- Mobile: Kunden-Tabs scrollen zum aktiven Reiter; Login, Stempeluhr, Toolbars und Aktionsleisten handlicher
+- Mobile: Menü schließt bei Navigation; Inputs 16 px (kein iOS-Zoom)
+
+## 1.5.67 – 2026-08-25
+
+- Login: „Angemeldet bleiben“ (Session wirklich 30 Tage); Session-`expiry` war zuvor auf 1 Tag begrenzt
+- Session wird bei App-Nutzung verlängert (`/api/auth/me`)
+
+## 1.5.66 – 2026-08-25
+
+- Einsatz-Historie: Timeline-Strich läuft nicht mehr durch die Icons (opake Marker)
+
 ## 1.5.65 – 2026-08-25
 
 - Passworttresor: kompakte Toolbar, dichtere Zugangsliste; Anlegen/Bearbeiten, Generator und Geheimnis-Anzeige als Dialoge

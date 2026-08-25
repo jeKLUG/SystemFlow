@@ -55,16 +55,20 @@ async function main() {
 
   // 32-Byte-Key stabil aus SESSION_SECRET ableiten
   const secretBuffer = createHash("sha256").update(config.sessionSecret).digest();
+  /** Session- und Cookie-Laufzeit: 30 Tage (Angemeldet bleiben). */
+  const sessionTtlSec = 60 * 60 * 24 * 30;
   await app.register(secureSession, {
     cookieName: "systemhaus_session",
     key: secretBuffer,
+    // Wichtig: expiry = Gültigkeit der Session-Daten (Default wäre nur 1 Tag)
+    expiry: sessionTtlSec,
     cookie: {
       path: "/",
       httpOnly: true,
       // HTTP-Deploy: secure=false, sonst verwirft der Browser das Cookie
       secure: config.cookieSecure,
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: sessionTtlSec,
     },
   });
 

@@ -10,12 +10,13 @@ type Props = {
 };
 
 /**
- * Einfaches Modal-Overlay mit Escape, Backdrop-Klick und Fokusfang.
- * Initialfokus nur beim Öffnen (nicht bei jedem Parent-Re-Render).
+ * Modal-Overlay mit Escape, Backdrop-Klick und Fokusfang.
+ * Panel ist viewport-begrenzt; der Body scrollt – Aktionsleisten bleiben erreichbar.
  */
 export function Modal({ open, title, onClose, children, className = "" }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
 
@@ -28,8 +29,7 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
     };
     window.addEventListener("keydown", onKey);
 
-    // Erstes Feld im Body – nicht der Schließen-Button im Header
-    const body = panelRef.current?.querySelector(".modal-body");
+    const body = bodyRef.current;
     const focusable = body?.querySelector<HTMLElement>(
       "input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex='-1'])",
     );
@@ -62,7 +62,9 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
             </svg>
           </button>
         </div>
-        <div className="modal-body">{children}</div>
+        <div ref={bodyRef} className="modal-body">
+          {children}
+        </div>
       </div>
     </div>
   );

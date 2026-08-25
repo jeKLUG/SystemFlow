@@ -20,6 +20,7 @@
     "bcryptjs": "^3.0.2",
     "drizzle-orm": "^0.44.2",
     "fastify": "^5.4.0",
+    "mailparser": "^3.9.16",
     "pdfkit": "^0.19.1",
     "unzipper": "^0.12.5",
     "zod": "^3.25.67"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@types/archiver": "^6.0.3",
     "@types/bcryptjs": "^2.4.6",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^22.15.30",
     "@types/pdfkit": "^0.17.6",
     "@types/unzipper": "^0.10.11",
