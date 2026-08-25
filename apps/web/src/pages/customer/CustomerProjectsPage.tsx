@@ -16,6 +16,8 @@ const emptyForm = {
   hourlyRate: "",
 };
 
+type StatusFilter = "all" | ProjectStatus;
+
 function formatEuro(value: number | null | undefined): string {
   if (value == null) return "–";
   return `${value.toLocaleString("de-DE", {
@@ -26,11 +28,12 @@ function formatEuro(value: number | null | undefined): string {
 
 function formatHours(value: number | null | undefined): string {
   if (value == null) return "–";
-  return `${value} h`;
+  const n = Math.round(value * 100) / 100;
+  return `${n} h`;
 }
 
 /**
- * Projekte und Budgetplanung pro Kunde.
+ * Projekte und Budgetplanung pro Kunde – kompakte Listenansicht.
  */
 export function CustomerProjectsPage() {
   const { id = "" } = useParams();
@@ -39,6 +42,7 @@ export function CustomerProjectsPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saveHint, setSaveHint] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   async function reload() {
     setProjects(await api.projects(id));
@@ -53,6 +57,24 @@ export function CustomerProjectsPage() {
     const hours = projects.reduce((sum, p) => sum + (p.loggedHours ?? 0), 0);
     return { total: projects.length, active, hours: Math.round(hours * 100) / 100 };
   }, [projects]);
+
+  const sorted = useMemo(() => {
+    const rank: Record<ProjectStatus, number> = {
+      active: 0,
+      planned: 1,
+      on_hold: 2,
+      done: 3,
+    };
+    return [...projects].sort(
+      (a, b) =>
+        (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || a.name.localeCompare(b.name, "de"),
+    );
+  }, [projects]);
+
+  const filtered = useMemo(() => {
+    if (statusFilter === "all") return sorted;
+    return sorted.filter((p) => p.status === statusFilter);
+  }, [sorted, statusFilter]);
 
   function openCreate() {
     setEditingId(null);
@@ -107,12 +129,17 @@ export function CustomerProjectsPage() {
     await reload();
   }
 
+  async function removeProject(p: ProjectItem) {
+    if (!confirm(`Projekt „${p.name}“ löschen?`)) return;
+    await api.deleteProject(p.id);
+    await reload();
+  }
+
   return (
     <section className="section projects-page">
       <div className="projects-hero panel">
         <div className="projects-hero-top">
           <div>
-            <p className="eyebrow">Planung</p>
             <h2>Projekte</h2>
             <p className="muted">
               {summary.total} Projekt{summary.total === 1 ? "" : "e"}
@@ -124,6 +151,34 @@ export function CustomerProjectsPage() {
             + Projekt
           </button>
         </div>
+
+        {projects.length > 0 ? (
+          <div className="projects-filters" role="group" aria-label="Statusfilter">
+            {(
+              [
+                ["all", "Alle"],
+                ["active", "Aktiv"],
+                ["planned", "Geplant"],
+                ["on_hold", "Pausiert"],
+                ["done", "Abgeschlossen"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={`projects-filter${statusFilter === key ? " is-active" : ""}`}
+                onClick={() => setStatusFilter(key)}
+              >
+                {label}
+                <em>
+                  {key === "all"
+                    ? projects.length
+                    : projects.filter((p) => p.status === key).length}
+                </em>
+              </button>
+            ))}
+          </div>
+        ) : null}
       </div>
 
       {saveHint ? <p className="form-success">{saveHint}</p> : null}
@@ -137,113 +192,110 @@ export function CustomerProjectsPage() {
           </div>
           <div>
             <strong>Noch keine Projekte</strong>
-            <p className="muted">Plane Budgets, Laufzeiten und Stundensätze für diesen Kunden.</p>
+            <p className="muted">Budgets, Laufzeiten und Stundensätze für diesen Kunden planen.</p>
           </div>
           <button type="button" className="btn btn-primary" onClick={openCreate}>
             Projekt anlegen
           </button>
         </div>
+      ) : filtered.length === 0 ? (
+        <p className="empty panel">Keine Projekte in diesem Status.</p>
       ) : (
         <ul className="project-list">
-          {projects.map((p) => {
+          {filtered.map((p) => {
             const logged = p.loggedHours ?? 0;
             const budget = p.budgetHours;
             const remaining = p.budgetHoursRemaining;
             const pct =
               budget && budget > 0 ? Math.min(100, Math.round((logged / budget) * 100)) : null;
             const barTone = pct == null ? "" : pct >= 100 ? "over" : pct >= 80 ? "warn" : "ok";
+            const period =
+              p.startDate || p.endDate
+                ? `${formatDateOnly(p.startDate)} – ${formatDateOnly(p.endDate)}`
+                : null;
+
             return (
-              <li key={p.id} className={`project-card is-${p.status}`}>
-                <div className="project-card-head">
-                  <div className="project-card-title">
+              <li key={p.id} className={`project-row is-${p.status}`}>
+                <div className="project-row-main">
+                  <div className="project-row-title">
                     <h3>{p.name}</h3>
                     <span className={`badge badge-status-${p.status}`}>
                       {projectStatusLabel[p.status]}
                     </span>
                   </div>
-                  <div className="list-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => startEdit(p)}
-                    >
-                      Bearbeiten
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-danger btn-sm"
-                      onClick={() => {
-                        if (confirm(`Projekt „${p.name}“ löschen?`)) {
-                          void api.deleteProject(p.id).then(() => reload());
-                        }
-                      }}
-                    >
-                      Löschen
-                    </button>
+                  <div className="project-row-meta">
+                    {period ? <span>{period}</span> : null}
+                    {p.hourlyRate != null ? (
+                      <span>{p.hourlyRate.toLocaleString("de-DE")} €/h</span>
+                    ) : null}
+                    {p.budgetAmount != null ? (
+                      <span>Budget {formatEuro(p.budgetAmount)}</span>
+                    ) : null}
+                    {p.estimatedCost != null && p.estimatedCost > 0 ? (
+                      <span>≈ {formatEuro(p.estimatedCost)}</span>
+                    ) : null}
                   </div>
-                </div>
-
-                <div className="project-card-meta">
-                  <span className="project-meta-chip">
-                    {formatDateOnly(p.startDate)} – {formatDateOnly(p.endDate)}
-                  </span>
-                  {p.hourlyRate != null ? (
-                    <span className="project-meta-chip">
-                      {p.hourlyRate.toLocaleString("de-DE")} €/h
-                    </span>
+                  {p.description ? (
+                    <p className="project-row-desc">{p.description}</p>
                   ) : null}
                 </div>
 
-                {p.description ? <p className="project-card-desc">{p.description}</p> : null}
-
-                <div className="budget-grid">
-                  <div className="budget-metric">
-                    <span className="label">Gebucht</span>
-                    <strong>{formatHours(logged)}</strong>
-                  </div>
-                  <div className="budget-metric">
-                    <span className="label">Budget</span>
-                    <strong>{formatHours(budget)}</strong>
-                  </div>
-                  <div className="budget-metric">
-                    <span className="label">Rest</span>
-                    <strong className={remaining != null && remaining < 0 ? "is-over" : undefined}>
-                      {formatHours(remaining)}
-                    </strong>
-                  </div>
-                  <div className="budget-metric">
-                    <span className="label">Budget €</span>
-                    <strong>{formatEuro(p.budgetAmount)}</strong>
-                  </div>
-                  <div className="budget-metric">
-                    <span className="label">Geschätzt</span>
-                    <strong>{formatEuro(p.estimatedCost)}</strong>
-                  </div>
+                <div className="project-row-budget">
+                  {pct != null ? (
+                    <>
+                      <div className="project-budget-stats">
+                        <strong>
+                          {formatHours(logged)}
+                          <span> / {formatHours(budget)}</span>
+                        </strong>
+                        <span
+                          className={
+                            remaining != null && remaining < 0
+                              ? "project-rest is-over"
+                              : "project-rest"
+                          }
+                        >
+                          Rest {formatHours(remaining)}
+                        </span>
+                        <em className={`is-${barTone}`}>{pct}%</em>
+                      </div>
+                      <div
+                        className="budget-bar"
+                        aria-label={`Budgetverbrauch ${pct}%`}
+                        role="progressbar"
+                        aria-valuenow={pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                      >
+                        <div
+                          className={`budget-bar-fill ${barTone === "ok" ? "" : barTone}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="project-no-budget muted">
+                      {formatHours(logged)} gebucht · kein Stundenbudget
+                    </p>
+                  )}
                 </div>
 
-                {pct != null ? (
-                  <div className={`budget-progress is-${barTone}`}>
-                    <div className="budget-progress-head">
-                      <span>Stundenbudget</span>
-                      <strong>{pct}%</strong>
-                    </div>
-                    <div
-                      className="budget-bar"
-                      aria-label={`Budgetverbrauch ${pct}%`}
-                      role="progressbar"
-                      aria-valuenow={pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                    >
-                      <div
-                        className={`budget-bar-fill ${barTone === "ok" ? "" : barTone}`}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <p className="project-no-budget muted">Kein Stundenbudget hinterlegt</p>
-                )}
+                <div className="project-row-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => startEdit(p)}
+                  >
+                    Bearbeiten
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => void removeProject(p)}
+                  >
+                    Löschen
+                  </button>
+                </div>
               </li>
             );
           })}

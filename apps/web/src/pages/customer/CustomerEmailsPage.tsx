@@ -47,6 +47,10 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
       direction: directionFilter || undefined,
     });
     setEmails(rows);
+    setSelectedId((prev) => {
+      if (prev && rows.some((r) => r.id === prev)) return prev;
+      return rows[0]?.id ?? null;
+    });
   }
 
   useEffect(() => {
@@ -171,31 +175,45 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
     await reload();
   }
 
+  const toolbar = (
+    <div className={`emails-toolbar${embedded ? " docs-emails-toolbar" : ""}`}>
+      <input
+        className="emails-search"
+        type="search"
+        placeholder="Suche in Betreff, Absender, Text…"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        aria-label="E-Mails durchsuchen"
+      />
+      <div className="emails-dir-seg" role="group" aria-label="Richtung">
+        {(
+          [
+            ["", "Alle"],
+            ["inbound", "Eingang"],
+            ["outbound", "Ausgang"],
+            ["internal", "Intern"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key || "all"}
+            type="button"
+            className={directionFilter === key ? "is-active" : ""}
+            onClick={() => setDirectionFilter(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <button type="button" className="btn btn-primary" onClick={openCreate}>
+        + E-Mail
+      </button>
+    </div>
+  );
+
   return (
     <section className={`section emails-page${embedded ? " is-embedded" : ""}`}>
       {embedded ? (
-        <div className="emails-toolbar panel docs-emails-toolbar">
-          <input
-            className="emails-search"
-            type="search"
-            placeholder="Suche in Betreff, Absender, Text…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <select
-            value={directionFilter}
-            onChange={(e) => setDirectionFilter(e.target.value as "" | EmailDirection)}
-            aria-label="Richtung filtern"
-          >
-            <option value="">Alle Richtungen</option>
-            <option value="inbound">Eingang</option>
-            <option value="outbound">Ausgang</option>
-            <option value="internal">Intern</option>
-          </select>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            + E-Mail
-          </button>
-        </div>
+        <div className="panel emails-toolbar-shell">{toolbar}</div>
       ) : (
         <div className="emails-hero panel">
           <div className="emails-hero-top">
@@ -208,87 +226,100 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                 {summary.outbound ? ` · ${summary.outbound} Ausgang` : ""}
               </p>
             </div>
-            <button type="button" className="btn btn-primary" onClick={openCreate}>
-              + E-Mail
-            </button>
           </div>
-          <div className="emails-toolbar">
-            <input
-              className="emails-search"
-              type="search"
-              placeholder="Suche in Betreff, Absender, Text…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <select
-              value={directionFilter}
-              onChange={(e) => setDirectionFilter(e.target.value as "" | EmailDirection)}
-              aria-label="Richtung filtern"
-            >
-              <option value="">Alle Richtungen</option>
-              <option value="inbound">Eingang</option>
-              <option value="outbound">Ausgang</option>
-              <option value="internal">Intern</option>
-            </select>
-          </div>
+          {toolbar}
         </div>
       )}
 
       {emails.length === 0 ? (
         <div className="emails-empty panel">
-          <strong>Noch keine E-Mails</strong>
-          <p className="muted">
-            Lege wichtige Korrespondenz hier ab – mit Betreff, Absender, Datum und optionalen Anhängen
-            (.eml, PDF, …).
-          </p>
+          <div className="emails-empty-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+              <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div>
+            <strong>Noch keine E-Mails</strong>
+            <p className="muted">Korrespondenz mit Betreff, Absender und optionalen Anhängen ablegen.</p>
+          </div>
           <button type="button" className="btn btn-primary" onClick={openCreate}>
-            Erste E-Mail ablegen
+            Erste E-Mail
           </button>
         </div>
       ) : (
-        <div className="emails-layout">
-          <ul className="email-list">
-            {emails.map((email) => (
-              <li key={email.id}>
-                <button
-                  type="button"
-                  className={`email-row${selectedId === email.id ? " is-active" : ""}`}
-                  onClick={() => setSelectedId(email.id)}
-                >
-                  <span className={`email-dir is-${email.direction}`}>
-                    {emailDirectionLabel[email.direction]}
-                  </span>
-                  <span className="email-row-main">
-                    <strong>{email.subject}</strong>
-                    <span className="muted">
-                      {email.direction === "outbound"
-                        ? `An ${email.toAddress || "–"}`
-                        : `Von ${email.fromAddress || "–"}`}
-                      {(email.attachmentCount ?? 0) > 0
-                        ? ` · ${email.attachmentCount} Anhang`
-                        : ""}
-                    </span>
-                  </span>
-                  <span className="email-row-when">{formatDateOnly(email.sentAt)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+        <div className="emails-shell panel">
+          <aside className="email-list-pane">
+            <div className="email-list-head">
+              <strong>
+                {directionFilter === "inbound"
+                  ? "Eingang"
+                  : directionFilter === "outbound"
+                    ? "Ausgang"
+                    : directionFilter === "internal"
+                      ? "Intern"
+                      : "Mails"}
+              </strong>
+              <span>{emails.length}</span>
+            </div>
+            <ul className="email-list">
+              {emails.map((email) => {
+                const peer =
+                  email.direction === "outbound"
+                    ? email.toAddress || "–"
+                    : email.fromAddress || "–";
+                return (
+                  <li key={email.id}>
+                    <button
+                      type="button"
+                      className={`email-row${selectedId === email.id ? " is-active" : ""}`}
+                      onClick={() => setSelectedId(email.id)}
+                    >
+                      <span className={`email-dir is-${email.direction}`}>
+                        {emailDirectionLabel[email.direction]}
+                      </span>
+                      <span className="email-row-main">
+                        <strong>{email.subject}</strong>
+                        <span className="email-row-peer">{peer}</span>
+                      </span>
+                      <span className="email-row-side">
+                        <time>{formatDateOnly(email.sentAt)}</time>
+                        {(email.attachmentCount ?? 0) > 0 ? (
+                          <span className="email-attach-badge" title="Anhänge">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                              <path
+                                d="M8 12.5l6.5-6.5a3 3 0 114.2 4.2L9.5 19.4a4.5 4.5 0 01-6.4-6.4L13 3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            {email.attachmentCount}
+                          </span>
+                        ) : null}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </aside>
 
-          <aside className="panel email-detail">
+          <div className="email-detail-pane">
             {!detail ? (
-              <p className="empty">E-Mail in der Liste wählen.</p>
+              <div className="email-detail-empty">
+                <p>E-Mail in der Liste wählen.</p>
+              </div>
             ) : (
               <>
                 <div className="email-detail-head">
-                  <div>
+                  <div className="email-detail-title">
                     <span className={`email-dir is-${detail.direction}`}>
                       {emailDirectionLabel[detail.direction]}
                     </span>
                     <h3>{detail.subject}</h3>
-                    <p className="muted">{formatDateOnly(detail.sentAt)}</p>
+                    <time className="muted">{formatDateOnly(detail.sentAt)}</time>
                   </div>
-                  <div className="cta-row">
+                  <div className="email-detail-actions">
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
@@ -306,22 +337,22 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                   </div>
                 </div>
 
-                <dl className="email-meta">
+                <div className="email-meta-chips">
                   <div>
-                    <dt>Von</dt>
-                    <dd>{detail.fromAddress || "–"}</dd>
+                    <span>Von</span>
+                    <strong>{detail.fromAddress || "–"}</strong>
                   </div>
                   <div>
-                    <dt>An</dt>
-                    <dd>{detail.toAddress || "–"}</dd>
+                    <span>An</span>
+                    <strong>{detail.toAddress || "–"}</strong>
                   </div>
                   {detail.ccAddress ? (
                     <div>
-                      <dt>Cc</dt>
-                      <dd>{detail.ccAddress}</dd>
+                      <span>Cc</span>
+                      <strong>{detail.ccAddress}</strong>
                     </div>
                   ) : null}
-                </dl>
+                </div>
 
                 <div className="email-body">
                   {detail.bodyText ? (
@@ -332,15 +363,15 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                 </div>
 
                 {detail.notes ? (
-                  <p className="email-notes muted">
-                    <strong>Notiz: </strong>
-                    {detail.notes}
+                  <p className="email-notes">
+                    <strong>Notiz</strong>
+                    <span>{detail.notes}</span>
                   </p>
                 ) : null}
 
                 <div className="email-attachments">
-                  <div className="row-between">
-                    <h4>Anhänge</h4>
+                  <div className="email-attachments-head">
+                    <h4>Anhänge {files.length ? `(${files.length})` : ""}</h4>
                     <label className="btn btn-ghost btn-sm">
                       {uploadBusy ? "Lädt…" : "+ Datei"}
                       <input
@@ -356,7 +387,7 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                     </label>
                   </div>
                   {files.length === 0 ? (
-                    <p className="muted">Keine Anhänge – z. B. .eml oder PDF hochladen.</p>
+                    <p className="muted email-attachments-empty">Keine Anhänge</p>
                   ) : (
                     <ul className="email-file-list">
                       {files.map((f) => (
@@ -379,7 +410,7 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                 </div>
               </>
             )}
-          </aside>
+          </div>
         </div>
       )}
 

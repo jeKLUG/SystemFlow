@@ -78,9 +78,6 @@ export function SearchPage() {
     <div className="page">
       <div className="section-head">
         <h2>Suche</h2>
-        <p>
-          Tipptolerant über Kontakte, Kunden, Wiki, Dateien, Anlagen und Historie – mit Kontextzeile.
-        </p>
       </div>
 
       <form className="search-bar" onSubmit={onSearch}>

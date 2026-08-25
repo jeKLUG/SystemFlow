@@ -55,7 +55,6 @@ export function QuickNotePage() {
     <div className="page quick-page">
       <div className="section-head">
         <h2>Schnellnotiz</h2>
-        <p>Groß und schnell – ideal unterwegs am Handy.</p>
       </div>
 
       <form className="panel quick-form" onSubmit={onSubmit}>

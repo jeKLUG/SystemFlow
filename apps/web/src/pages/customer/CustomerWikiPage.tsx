@@ -20,6 +20,13 @@ const wikiTypes: DocumentType[] = ["article", "documentation", "note", "workflow
 
 type DocsView = "wiki" | "files" | "emails" | "contracts";
 
+const docsTabs: { id: DocsView; label: string; hint: string }[] = [
+  { id: "wiki", label: "Wiki", hint: "Seiten & Wissen" },
+  { id: "files", label: "Dateien", hint: "Ablage & Ordner" },
+  { id: "emails", label: "E-Mails", hint: "Korrespondenz" },
+  { id: "contracts", label: "Verträge", hint: "SLA & Laufzeiten" },
+];
+
 function parseDocsView(value: string | null): DocsView {
   if (value === "files" || value === "emails" || value === "contracts") return value;
   return "wiki";
@@ -44,6 +51,7 @@ export function CustomerWikiPage() {
   const [filter, setFilter] = useState<"all" | DocumentType>("all");
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [contractCreateKey, setContractCreateKey] = useState(0);
   const [pdfBusy, setPdfBusy] = useState(false);
   const [form, setForm] = useState({
     title: "",
@@ -103,6 +111,13 @@ export function CustomerWikiPage() {
     return map;
   }, [docs]);
 
+  const viewCounts: Record<DocsView, number> = {
+    wiki: docs.length,
+    files: files.length,
+    emails: emailCount,
+    contracts: contracts.length,
+  };
+
   const storageBytes = useMemo(() => files.reduce((s, f) => s + (f.size || 0), 0), [files]);
 
   async function createPage(e: FormEvent) {
@@ -121,13 +136,20 @@ export function CustomerWikiPage() {
     navigate(`/documents/${doc.id}`);
   }
 
+  const activeTab = docsTabs.find((t) => t.id === view);
+
   return (
     <section className="section docs-hub">
       <div className="docs-hero panel">
         <div className="docs-hero-top">
           <div>
-            <p className="eyebrow">Wissen</p>
             <h2>Dokumente</h2>
+            <p className="muted">
+              {activeTab?.hint ?? "Wissen & Unterlagen"}
+              {folderCount || storageBytes
+                ? ` · ${folderCount} Ordner · ${formatBytes(storageBytes)}`
+                : ""}
+            </p>
           </div>
           <div className="docs-hero-actions">
             {view === "wiki" ? (
@@ -152,94 +174,56 @@ export function CustomerWikiPage() {
                   + Wiki-Seite
                 </button>
               </>
-            ) : view === "files" ? (
-              <Link className="btn btn-ghost" to="/search">
-                Globale Suche
-              </Link>
+            ) : view === "contracts" ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => setContractCreateKey((k) => k + 1)}
+              >
+                + Vertrag
+              </button>
             ) : null}
           </div>
         </div>
 
-        <div className="stat-strip docs-stats">
-          <button
-            type="button"
-            className={`stat-chip${view === "wiki" ? " is-active" : ""}`}
-            onClick={() => setView("wiki")}
-          >
-            <strong>{docs.length}</strong>
-            <span>Wiki-Seiten</span>
-          </button>
-          <button
-            type="button"
-            className={`stat-chip${view === "files" ? " is-active" : ""}`}
-            onClick={() => setView("files")}
-          >
-            <strong>{files.length}</strong>
-            <span>Dateien</span>
-          </button>
-          <button
-            type="button"
-            className={`stat-chip${view === "emails" ? " is-active" : ""}`}
-            onClick={() => setView("emails")}
-          >
-            <strong>{emailCount}</strong>
-            <span>E-Mails</span>
-          </button>
-          <button
-            type="button"
-            className={`stat-chip${view === "contracts" ? " is-active" : ""}`}
-            onClick={() => setView("contracts")}
-          >
-            <strong>{contracts.length}</strong>
-            <span>Verträge</span>
-          </button>
-          <button type="button" className="stat-chip" onClick={() => setView("files")}>
-            <strong>{folderCount}</strong>
-            <span>Ordner</span>
-          </button>
-          <div className="stat-chip">
-            <strong>{formatBytes(storageBytes)}</strong>
-            <span>Speicher</span>
-          </div>
-        </div>
-
         <div className="docs-views" role="tablist" aria-label="Dokumentenbereich">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "wiki"}
-            className={`cal-seg${view === "wiki" ? " is-active" : ""}`}
-            onClick={() => setView("wiki")}
-          >
-            Wiki
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "files"}
-            className={`cal-seg${view === "files" ? " is-active" : ""}`}
-            onClick={() => setView("files")}
-          >
-            Dokumente
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "emails"}
-            className={`cal-seg${view === "emails" ? " is-active" : ""}`}
-            onClick={() => setView("emails")}
-          >
-            E-Mails
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={view === "contracts"}
-            className={`cal-seg${view === "contracts" ? " is-active" : ""}`}
-            onClick={() => setView("contracts")}
-          >
-            Verträge
-          </button>
+          {docsTabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={view === tab.id}
+              className={`docs-view${view === tab.id ? " is-active" : ""}`}
+              onClick={() => setView(tab.id)}
+            >
+              <span className="docs-view-icon" aria-hidden>
+                {tab.id === "wiki" ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+                    <path d="M14 3v5h5M9 13h6M9 16h4" strokeLinecap="round" />
+                  </svg>
+                ) : tab.id === "files" ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <path d="M4 7.5A2.5 2.5 0 016.5 5H10l2 2h5.5A2.5 2.5 0 0120 9.5v7A2.5 2.5 0 0117.5 19h-11A2.5 2.5 0 014 16.5v-9z" />
+                  </svg>
+                ) : tab.id === "emails" ? (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+                    <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                    <path d="M7 4h10v16H7z" strokeLinejoin="round" />
+                    <path d="M10 8h4M10 12h4M10 16h2" strokeLinecap="round" />
+                  </svg>
+                )}
+              </span>
+              <span className="docs-view-label">
+                <strong>{tab.label}</strong>
+                <em>{viewCounts[tab.id]}</em>
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -295,51 +279,35 @@ export function CustomerWikiPage() {
           ) : grouped.length === 0 ? (
             <p className="empty panel">Keine Treffer für diesen Filter.</p>
           ) : (
-            <div className="wiki-layout">
-              <aside className="wiki-nav panel">
-                <h3>Inhalte</h3>
-                {grouped.map((g) => (
-                  <div key={g.type} className="wiki-nav-group">
-                    <span className="label">{documentTypeLabel[g.type]}</span>
-                    <ul>
-                      {g.items.map((doc) => (
-                        <li key={doc.id}>
-                          <Link to={`/documents/${doc.id}`}>{doc.title}</Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </aside>
-              <div className="wiki-list">
-                {grouped.map((g) => (
-                  <div key={g.type} className="wiki-group">
-                    <h3 className="docs-group-title">
-                      {documentTypeLabel[g.type]}
-                      <span>{g.items.length}</span>
-                    </h3>
-                    <ul className="docs-page-list">
-                      {g.items.map((doc) => (
-                        <li key={doc.id}>
-                          <Link className="docs-page-card" to={`/documents/${doc.id}`}>
-                            <span className={`docs-type-badge type-${doc.type}`}>
-                              {documentTypeLabel[doc.type]}
-                            </span>
+            <div className="docs-wiki-board">
+              {grouped.map((g) => (
+                <section key={g.type} className="docs-wiki-group">
+                  <h3 className="docs-group-title">
+                    {documentTypeLabel[g.type]}
+                    <span>{g.items.length}</span>
+                  </h3>
+                  <ul className="docs-page-list">
+                    {g.items.map((doc) => (
+                      <li key={doc.id}>
+                        <Link className="docs-page-row" to={`/documents/${doc.id}`}>
+                          <span className={`docs-type-badge type-${doc.type}`}>
+                            {documentTypeLabel[doc.type]}
+                          </span>
+                          <span className="docs-page-main">
                             <strong>{doc.title}</strong>
                             <span className="muted">
                               {doc.projectId
                                 ? projects.find((p) => p.id === doc.projectId)?.name ?? "Projekt"
                                 : "Kein Projekt"}
-                              {" · "}
-                              {formatDate(doc.updatedAt)}
                             </span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
+                          </span>
+                          <time className="muted">{formatDate(doc.updatedAt)}</time>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
             </div>
           )}
         </>
@@ -355,6 +323,7 @@ export function CustomerWikiPage() {
           contracts={contracts}
           onChanged={reload}
           embedded
+          createRequestKey={contractCreateKey}
         />
       )}
 

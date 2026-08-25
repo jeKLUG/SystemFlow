@@ -106,92 +106,111 @@ export function CustomerOverviewPage() {
         </Link>
       </div>
 
-      <section className="section">
-        <div className="section-head row-between">
-          <div>
+      <section className="section stammdaten-section">
+        <div className={`panel stammdaten-panel${editing ? " is-editing" : ""}`}>
+          <div className="stammdaten-panel-head">
             <h2>Stammdaten</h2>
-            <p>{isCustomer ? "Firma, Kontakt und Adresse." : "Person, Organisation und Adresse."}</p>
-          </div>
-          <div className="cta-row">
-            <button type="button" className="btn btn-ghost" onClick={() => setEditing((v) => !v)}>
-              {editing ? "Schließen" : "Bearbeiten"}
-            </button>
-            <button type="button" className="btn btn-danger" onClick={() => void removeCustomer()}>
-              Löschen
-            </button>
-          </div>
-        </div>
-
-        {editing ? (
-          <form className="panel form-grid" onSubmit={saveCustomer}>
-            <CustomerFields form={form} onChange={setForm} showStatus />
-            {error ? <p className="form-error full">{error}</p> : null}
-            <div className="full">
-              <button className="btn btn-primary" type="submit">
-                Speichern
+            <div className="stammdaten-actions">
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setEditing((v) => !v)}
+              >
+                {editing ? "Schließen" : "Bearbeiten"}
               </button>
-            </div>
-          </form>
-        ) : (
-          <div className="detail-grid">
-            <div>
-              <span className="label">Typ</span>
-              <p>{isCustomer ? "Kunde" : "Kontakt"}</p>
-            </div>
-            <div>
-              <span className="label">{isCustomer ? "Firma" : "Firma / Organisation"}</span>
-              <p>{customer.company || "–"}</p>
-            </div>
-            <div>
-              <span className="label">{isCustomer ? "Kurzname" : "Name"}</span>
-              <p>{customer.name || "–"}</p>
-            </div>
-            {isCustomer ? (
-              <div>
-                <span className="label">Ansprechpartner</span>
-                <p>{customer.contactPerson || "–"}</p>
-              </div>
-            ) : null}
-            {isCustomer ? (
-              <div>
-                <span className="label">USt-IdNr.</span>
-                <p>{customer.vatId || "–"}</p>
-              </div>
-            ) : null}
-            <div>
-              <span className="label">E-Mail</span>
-              <p>{customer.email || "–"}</p>
-            </div>
-            <div>
-              <span className="label">Website</span>
-              <p>
-                {customer.website ? (
-                  <a href={customer.website} target="_blank" rel="noreferrer">
-                    {customer.website}
-                  </a>
-                ) : (
-                  "–"
-                )}
-              </p>
-            </div>
-            <div>
-              <span className="label">Telefon</span>
-              <p>{customer.phone || "–"}</p>
-            </div>
-            <div>
-              <span className="label">Mobil</span>
-              <p>{customer.mobile || "–"}</p>
-            </div>
-            <div className="full">
-              <span className="label">Adresse</span>
-              <p>{customerAddressLine(customer)}</p>
-            </div>
-            <div className="full">
-              <span className="label">Kurznotiz</span>
-              <p>{customer.notes || "–"}</p>
+              {!editing ? (
+                <button
+                  type="button"
+                  className="btn btn-danger btn-sm"
+                  onClick={() => void removeCustomer()}
+                >
+                  Löschen
+                </button>
+              ) : null}
             </div>
           </div>
-        )}
+
+          {editing ? (
+            <form className="form-grid" onSubmit={saveCustomer}>
+              <CustomerFields form={form} onChange={setForm} showStatus />
+              {error ? <p className="form-error full">{error}</p> : null}
+              <div className="full stammdaten-form-actions">
+                <button className="btn btn-primary" type="submit">
+                  Speichern
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setEditing(false);
+                    setError("");
+                  }}
+                >
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="detail-grid">
+              <div>
+                <span className="label">Typ</span>
+                <p>{isCustomer ? "Kunde" : "Kontakt"}</p>
+              </div>
+              <div>
+                <span className="label">{isCustomer ? "Firma" : "Firma / Organisation"}</span>
+                <p>{customer.company || "–"}</p>
+              </div>
+              <div>
+                <span className="label">{isCustomer ? "Kurzname" : "Name"}</span>
+                <p>{customer.name || "–"}</p>
+              </div>
+              {isCustomer ? (
+                <div>
+                  <span className="label">Ansprechpartner</span>
+                  <p>{customer.contactPerson || "–"}</p>
+                </div>
+              ) : null}
+              {isCustomer ? (
+                <div>
+                  <span className="label">USt-IdNr.</span>
+                  <p>{customer.vatId || "–"}</p>
+                </div>
+              ) : null}
+              <div>
+                <span className="label">E-Mail</span>
+                <p>{customer.email || "–"}</p>
+              </div>
+              <div>
+                <span className="label">Website</span>
+                <p>
+                  {customer.website ? (
+                    <a href={customer.website} target="_blank" rel="noreferrer">
+                      {customer.website}
+                    </a>
+                  ) : (
+                    "–"
+                  )}
+                </p>
+              </div>
+              <div>
+                <span className="label">Telefon</span>
+                <p>{customer.phone || "–"}</p>
+              </div>
+              <div>
+                <span className="label">Mobil</span>
+                <p>{customer.mobile || "–"}</p>
+              </div>
+              <div className="full">
+                <span className="label">Adresse</span>
+                <p>{customerAddressLine(customer)}</p>
+              </div>
+              <div className="full">
+                <span className="label">Kurznotiz</span>
+                <p>{customer.notes || "–"}</p>
+              </div>
+            </div>
+          )}
+        </div>
       </section>
     </>
   );

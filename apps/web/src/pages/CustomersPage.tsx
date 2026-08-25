@@ -8,10 +8,19 @@ import { formatDate } from "../lib/labels";
 import { emptyCustomerForm, type ContactKind, type Customer } from "../types";
 import { withOfflineFallback } from "../lib/offlineCache";
 
-const PAGE_SIZE = 40;
+const PAGE_SIZE = 60;
+
+function initials(c: Customer, kind: ContactKind): string {
+  const label = customerDisplayName({ ...c, kind }).trim();
+  const parts = label.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]![0] ?? ""}${parts[1]![0] ?? ""}`.toUpperCase();
+  }
+  return (label.slice(0, 2) || "?").toUpperCase();
+}
 
 /**
- * Kontaktverwaltung mit Live-Suche, Filtern und paginiertem Laden.
+ * Kontaktverwaltung mit kompakter Liste, Live-Suche und Filtern.
  * Unterstützt einfache Kontakte und Kunden.
  */
 export function CustomersPage() {
@@ -103,16 +112,15 @@ export function CustomersPage() {
   const hasMore = customers.length < total;
 
   return (
-    <div className="page">
-      <div className="page-header">
+    <div className="page customers-page">
+      <div className="page-header customers-page-header">
         <div>
           <h2>Kontakte</h2>
           <p>
             {total === 1 ? "1 Eintrag" : `${total} Einträge`}
             {kind === "contact" ? " · Kontakte" : kind === "customer" ? " · Kunden" : ""}
-            {status === "active" ? " · aktive" : status === "inactive" ? " · inaktive" : ""}
-            {q.trim() ? ` · Suche „${q.trim()}“` : ""}
-            {fromCache ? " · Offline-Stand" : ""}
+            {status === "active" ? " · aktiv" : status === "inactive" ? " · inaktiv" : ""}
+            {fromCache ? " · Offline" : ""}
           </p>
         </div>
         <div className="page-actions">
@@ -124,7 +132,7 @@ export function CustomersPage() {
               setShowForm(true);
             }}
           >
-            Kunde anlegen
+            Kunde
           </button>
           <button
             type="button"
@@ -139,7 +147,7 @@ export function CustomersPage() {
               }
             }}
           >
-            {showForm ? "Abbrechen" : "Kontakt anlegen"}
+            {showForm ? "Abbrechen" : "Kontakt"}
           </button>
         </div>
       </div>
@@ -159,86 +167,98 @@ export function CustomersPage() {
       <div className="customers-toolbar panel">
         <input
           className="customers-search"
-          placeholder="Name, Firma, Ort, Telefon…"
+          type="search"
+          placeholder="Suchen…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           autoFocus
+          aria-label="Kontakte durchsuchen"
         />
-        <div className="filter-chips" role="group" aria-label="Typ">
-          {(
-            [
-              ["all", "Alle"],
-              ["contact", "Kontakte"],
-              ["customer", "Kunden"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={kind === key ? "chip chip-active" : "chip"}
-              onClick={() => setKind(key)}
+        <div className="customers-filters">
+          <div className="filter-chips customers-seg" role="group" aria-label="Typ">
+            {(
+              [
+                ["all", "Alle"],
+                ["contact", "Kontakte"],
+                ["customer", "Kunden"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={kind === key ? "chip chip-active" : "chip"}
+                onClick={() => setKind(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="filter-chips customers-seg" role="group" aria-label="Status">
+            {(
+              [
+                ["active", "Aktiv"],
+                ["inactive", "Inaktiv"],
+                ["all", "Alle"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={status === key ? "chip chip-active" : "chip"}
+                onClick={() => setStatus(key)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <label className="customers-sort">
+            <span className="sr-only">Sortierung</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as "updated" | "name")}
+              aria-label="Sortierung"
             >
-              {label}
-            </button>
-          ))}
+              <option value="name">A–Z</option>
+              <option value="updated">Zuletzt</option>
+            </select>
+          </label>
         </div>
-        <div className="filter-chips" role="group" aria-label="Status">
-          {(
-            [
-              ["active", "Aktiv"],
-              ["inactive", "Inaktiv"],
-              ["all", "Alle Status"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={status === key ? "chip chip-active" : "chip"}
-              onClick={() => setStatus(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <label className="field customers-sort">
-          <span>Sortierung</span>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as "updated" | "name")}
-          >
-            <option value="name">Name A–Z</option>
-            <option value="updated">Zuletzt aktualisiert</option>
-          </select>
-        </label>
       </div>
 
       {customers.length === 0 && !loading ? (
         <p className="empty">Keine Kontakte gefunden.</p>
       ) : (
-        <ul className="list customer-list">
+        <ul className="customer-list">
           {customers.map((c) => {
             const entryKind = c.kind ?? "customer";
+            const secondary =
+              entryKind === "customer"
+                ? [c.contactPerson, c.email].filter(Boolean).join(" · ")
+                : [c.company, c.email].filter(Boolean).join(" · ");
             return (
               <li key={c.id}>
                 <Link
-                  className="list-row"
+                  className="customer-row"
                   to={`/customers/${c.id}`}
                   onClick={() => pushRecentCustomer(c.id)}
                 >
-                  <div>
+                  <span
+                    className={`customer-row-avatar is-${entryKind}`}
+                    aria-hidden
+                  >
+                    {initials(c, entryKind)}
+                  </span>
+                  <div className="customer-row-main">
                     <strong>{customerDisplayName({ ...c, kind: entryKind })}</strong>
-                    <span className="muted">
-                      {[
-                        entryKind === "customer" ? c.contactPerson : c.company,
-                        c.city,
-                        c.email,
-                        c.phone,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ") || "Keine Kontaktdaten"}
+                    <span className="customer-row-sub">
+                      {secondary || "Keine Kontaktdaten"}
                     </span>
                   </div>
-                  <div className="list-meta">
+                  <div className="customer-row-facts">
+                    {c.city ? <span>{c.city}</span> : null}
+                    {c.phone ? <span>{c.phone}</span> : null}
+                  </div>
+                  <div className="customer-row-meta">
                     <span
                       className={`badge ${
                         entryKind === "customer" ? "badge-kind-customer" : "badge-kind-contact"
@@ -246,10 +266,12 @@ export function CustomersPage() {
                     >
                       {contactKindLabel(entryKind)}
                     </span>
-                    <span className={`badge badge-${c.status}`}>
-                      {c.status === "active" ? "Aktiv" : "Inaktiv"}
-                    </span>
-                    <time className="muted">{formatDate(c.updatedAt)}</time>
+                    {c.status !== "active" ? (
+                      <span className={`badge badge-${c.status}`}>Inaktiv</span>
+                    ) : null}
+                    <time className="customer-row-when" dateTime={c.updatedAt}>
+                      {formatDate(c.updatedAt)}
+                    </time>
                   </div>
                 </Link>
               </li>
@@ -260,9 +282,7 @@ export function CustomersPage() {
 
       <div className="customers-footer">
         <span className="muted">
-          {loading
-            ? "Lade…"
-            : `${customers.length} von ${total} angezeigt`}
+          {loading ? "Lade…" : `${customers.length} von ${total}`}
         </span>
         {hasMore ? (
           <button

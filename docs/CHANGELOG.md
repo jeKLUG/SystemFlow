@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.5.65 – 2026-08-25
+
+- Passworttresor: kompakte Toolbar, dichtere Zugangsliste; Anlegen/Bearbeiten, Generator und Geheimnis-Anzeige als Dialoge
+
+## 1.5.64 – 2026-08-25
+
+- Zeiterfassung: KPI-Karten (Stunden, Abrechenbar, Offen, …) in einer Reihe
+
+## 1.5.63 – 2026-08-25
+
+- Projekte: kompakte Zeilen statt großer Karten, Statusfilter, Budget als gebucht/Rest + Fortschrittsbalken
+
+## 1.5.62 – 2026-08-25
+
+- Dokumente-Hub: eine Ansichts-Navigation mit Zählern (Wiki / Dateien / E-Mails / Verträge), dichtere Wiki-Liste, weniger Doppelungen
+
+## 1.5.61 – 2026-08-25
+
+- E-Mail-Archiv: klarere Master-Detail-Ansicht (Liste + Lesebereich), Richtungs-Segmente, Meta-Chips, Text ohne künstliche Enge
+
+## 1.5.60 – 2026-08-25
+
+- Kalender: Termine bearbeiten (Details → Bearbeiten, Doppelklick); Speichern über `PUT /api/appointments/:id`
+
+## 1.5.59 – 2026-08-25
+
+- Alle Seiten nutzen volle Inhaltsbreite (kein `--max`-Limit mehr)
+- Passworttresor: Freischalt-Ansicht zentriert; überflüssige Hinweistexte entfernt
+
+## 1.5.58 – 2026-08-25
+
+- Aufgaben-Hub klarer: eine Ansichts-Navigation, dichtere Aufgabenzeilen, kompaktere Abläufe
+
+## 1.5.57 – 2026-08-25
+
+- Einsatz-Historie: klarere Timeline, Icons mittig zentriert, kompaktere Karten je Eintrag
+
+## 1.5.56 – 2026-08-25
+
+- Kontakte-Liste kompakter: dichte Zeilen statt Karten, Filter in einer Toolbar, mehr Einträge sichtbar
+
 ## 1.5.55 – 2026-08-17
 
 - Dokumente-Hub: Verträge/SLA als vierte Ansicht (`?view=contracts`)

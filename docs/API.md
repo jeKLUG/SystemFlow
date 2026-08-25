@@ -191,6 +191,17 @@ Mailverkehr manuell ablegen (kein IMAP). Anhänge über `emailId` an `attachment
 
 Body: `subject`, `sentAt` (YYYY-MM-DD), optional `fromAddress`, `toAddress`, `ccAddress`, `direction`, `bodyText`, `notes`.
 
+## Termine / Kalender
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/appointments?from=&to=&customerId=` | Liste im Zeitraum |
+| POST | `/api/appointments` | Anlegen |
+| GET/PUT/DELETE | `/api/appointments/:id` | Detail / aktualisieren / löschen |
+| GET | `/api/customers/:id/appointments` | Termine eines Kunden |
+
+Body: `title`, `kind` (`customer`\|`internal`\|`personal`\|`other`), `startDate`, optional `endDate`, `startTime`/`endTime` (`HH:mm`), `allDay`, `customerId`, `location`, `description`.
+
 ## Erinnerungen & Export
 
 | Methode | Pfad |

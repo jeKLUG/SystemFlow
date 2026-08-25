@@ -13,57 +13,59 @@ import { formatDate } from "../../lib/labels";
 import type { Activity } from "../../types";
 
 function ActivityIcon({ kind }: { kind: ActivityKind }) {
-  const props = {
+  const common = {
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.85,
+    strokeWidth: 1.9,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
     "aria-hidden": true as const,
+    focusable: false as const,
   };
   const icons: Record<ActivityKind, ReactNode> = {
     time: (
-      <svg {...props}>
-        <circle cx="12" cy="12" r="8" />
-        <path d="M12 8v4l2.5 1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg {...common}>
+        <circle cx="12" cy="12" r="7.25" />
+        <path d="M12 8.5v4l2.4 1.4" />
       </svg>
     ),
     wiki: (
-      <svg {...props}>
-        <path d="M6 4h9l3 3v13H6z" strokeLinejoin="round" />
-        <path d="M15 4v3h3M9 12h6M9 16h4" strokeLinecap="round" />
+      <svg {...common}>
+        <path d="M7 4.5h7.5L19 9v10.5H7z" />
+        <path d="M14.5 4.5V9H19M9.5 13h5M9.5 16.5h3.5" />
       </svg>
     ),
     appointment: (
-      <svg {...props}>
-        <rect x="4" y="5" width="16" height="15" rx="2" />
-        <path d="M8 3v4M16 3v4M4 10h16" strokeLinecap="round" />
+      <svg {...common}>
+        <rect x="4.5" y="5.5" width="15" height="14" rx="2" />
+        <path d="M8 3.5v4M16 3.5v4M4.5 10h15" />
       </svg>
     ),
     project: (
-      <svg {...props}>
-        <path d="M4 8h16v11H4zM8 8V6a2 2 0 012-2h4a2 2 0 012 2v2" strokeLinejoin="round" />
+      <svg {...common}>
+        <path d="M4.5 9h15v10.5h-15zM9 9V6.5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2V9" />
       </svg>
     ),
     asset: (
-      <svg {...props}>
-        <rect x="3" y="5" width="18" height="12" rx="2" />
-        <path d="M8 21h8M12 17v4" strokeLinecap="round" />
+      <svg {...common}>
+        <rect x="3.5" y="5.5" width="17" height="11" rx="2" />
+        <path d="M8.5 20.5h7M12 16.5v4" />
       </svg>
     ),
     email: (
-      <svg {...props}>
-        <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
-        <path d="M4 7l8 6 8-6" strokeLinecap="round" strokeLinejoin="round" />
+      <svg {...common}>
+        <rect x="3.75" y="5.75" width="16.5" height="12.5" rx="2" />
+        <path d="M4.5 8l7.5 5.5L19.5 8" />
       </svg>
     ),
     manual: (
-      <svg {...props}>
-        <path d="M12 4v10M8 10l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M5 18h14" strokeLinecap="round" />
+      <svg {...common}>
+        <path d="M12 4.5v9.5M8.5 10.5 12 14l3.5-3.5M5.5 19h13" />
       </svg>
     ),
   };
-  return icons[kind];
+  return <span className="activity-icon">{icons[kind]}</span>;
 }
 
 function activityClock(value: string): string {
@@ -159,10 +161,6 @@ export function CustomerOpsPage() {
             <div>
               <p className="eyebrow">Protokoll</p>
               <h2>Einsatz-Historie</h2>
-              <p className="muted">
-                {activityList.length} Einträg{activityList.length === 1 ? "" : "e"} · automatisch und
-                manuell
-              </p>
             </div>
             <button
               type="button"
@@ -173,7 +171,7 @@ export function CustomerOpsPage() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                 <path d="M12 5v14M5 12h14" strokeLinecap="round" />
               </svg>
-              Eintrag
+              <span>Eintrag</span>
             </button>
           </div>
 
@@ -252,8 +250,10 @@ export function CustomerOpsPage() {
                     const desc = item.description ? polishActivityText(item.description) : "";
                     return (
                       <li key={item.id} className={`timeline-item ${meta.className}`}>
-                        <div className={`timeline-marker ${meta.className}`} aria-hidden>
-                          <ActivityIcon kind={kind} />
+                        <div className="timeline-rail" aria-hidden>
+                          <div className={`timeline-marker ${meta.className}`}>
+                            <ActivityIcon kind={kind} />
+                          </div>
                         </div>
                         <article className={`timeline-body ${meta.className}`}>
                           <div className="timeline-row">

@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../lib/labels";
 import type { ContractItem, ContractStatus } from "../types";
@@ -38,6 +38,8 @@ type Props = {
   onChanged: () => Promise<void> | void;
   /** Ohne eigenen Hero – für Einbettung im Dokumente-Hub. */
   embedded?: boolean;
+  /** Erhöhen öffnet den Anlegen-Dialog (z. B. aus dem Dokumente-Hero). */
+  createRequestKey?: number;
 };
 
 function numOrNull(value: string): number | null {
@@ -121,6 +123,7 @@ export function CustomerSlaPanel({
   contracts,
   onChanged,
   embedded = false,
+  createRequestKey = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -128,6 +131,7 @@ export function CustomerSlaPanel({
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
+  const lastCreateKey = useRef(0);
 
   const sorted = useMemo(() => {
     const rank: Record<ContractStatus, number> = {
@@ -148,6 +152,12 @@ export function CustomerSlaPanel({
     setError("");
     setOpen(true);
   }
+
+  useEffect(() => {
+    if (!createRequestKey || createRequestKey === lastCreateKey.current) return;
+    lastCreateKey.current = createRequestKey;
+    openCreate();
+  }, [createRequestKey]);
 
   function openEdit(c: ContractItem) {
     setEditingId(c.id);
@@ -178,16 +188,7 @@ export function CustomerSlaPanel({
 
   return (
     <section className={`section sla-panel${embedded ? " is-embedded" : ""}`}>
-      {embedded ? (
-        <div className="docs-sla-toolbar panel">
-          <p className="muted">
-            {contracts.length} Vertrag{contracts.length === 1 ? "" : "e"} / SLA
-          </p>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            + Vertrag
-          </button>
-        </div>
-      ) : (
+      {!embedded ? (
         <div className="section-head row-between">
           <div>
             <h2>Verträge / SLA</h2>
@@ -205,10 +206,24 @@ export function CustomerSlaPanel({
             </svg>
           </button>
         </div>
-      )}
+      ) : null}
 
       {sorted.length === 0 ? (
-        <p className="empty">Noch keine SLAs. Lege über das Plus einen Vertrag mit Prioritätszeiten an.</p>
+        <div className="docs-empty panel">
+          <div className="docs-empty-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <path d="M7 4h10v16H7z" strokeLinejoin="round" />
+              <path d="M10 8h4M10 12h4M10 16h2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div>
+            <strong>Noch keine Verträge</strong>
+            <p className="muted">SLA mit Servicezeiten, Prioritäten und Eskalation hinterlegen.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={openCreate}>
+            Ersten Vertrag
+          </button>
+        </div>
       ) : (
         <ul className="sla-list">
           {sorted.map((c) => {

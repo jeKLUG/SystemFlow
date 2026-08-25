@@ -3,6 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
+import { Modal } from "../components/Modal";
 import { formatDate, vaultCategoryLabel } from "../lib/labels";
 import {
   clearGenHistory,
@@ -96,6 +97,7 @@ export function VaultPage() {
   const [generated, setGenerated] = useState("");
   const [genHistory, setGenHistory] = useState<GenHistoryItem[]>(() => loadGenHistory());
   const [copyHint, setCopyHint] = useState("");
+  const [formError, setFormError] = useState("");
 
   async function refreshStatus() {
     setStatus(await api.vaultStatus());
@@ -136,6 +138,15 @@ export function VaultPage() {
     setForm({ ...emptyForm, customerId: filterCustomer });
     setEditingId(null);
     setShowForm(false);
+    setFormError("");
+  }
+
+  function openCreate() {
+    clearReveal();
+    setEditingId(null);
+    setForm({ ...emptyForm, customerId: filterCustomer });
+    setFormError("");
+    setShowForm(true);
   }
 
   async function onSetup(e: FormEvent) {
@@ -171,17 +182,19 @@ export function VaultPage() {
 
   async function onLock() {
     clearReveal();
+    resetForm();
+    setShowGenerator(false);
     await api.vaultLock();
     setStatus({ configured: true, unlocked: false, expiresAt: null });
   }
 
   async function startEdit(entry: VaultEntryMeta) {
     setError("");
+    setFormError("");
     clearReveal();
     try {
       const secret = await api.vaultReveal(entry.id);
       setEditingId(entry.id);
-      setShowForm(true);
       setForm({
         title: secret.title,
         category: (secret.category as VaultCategory) || "other",
@@ -194,7 +207,7 @@ export function VaultPage() {
         favorite: Boolean(secret.favorite ?? entry.favorite),
         tagsText: (secret.tags ?? entry.tags ?? []).join(", "),
       });
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      setShowForm(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Laden fehlgeschlagen");
       void refreshStatus();
@@ -203,7 +216,7 @@ export function VaultPage() {
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
-    setError("");
+    setFormError("");
     const tags = parseTagsText(form.tagsText);
     try {
       if (editingId) {
@@ -240,7 +253,7 @@ export function VaultPage() {
       resetForm();
       await loadEntries();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+      setFormError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     }
   }
 
@@ -287,9 +300,15 @@ export function VaultPage() {
   }
 
   function useGeneratedInForm(password: string) {
-    setForm((f) => ({ ...f, password }));
+    setForm((f) => ({
+      ...f,
+      password,
+      customerId: f.customerId || filterCustomer,
+    }));
+    setEditingId(null);
+    setShowGenerator(false);
     setShowForm(true);
-    setCopyHint("In Formular übernommen");
+    setCopyHint("Passwort übernommen");
     window.setTimeout(() => setCopyHint(""), 1500);
   }
 
@@ -307,18 +326,16 @@ export function VaultPage() {
 
   const stats = useMemo(() => {
     const favorites = entries.filter((e) => e.favorite).length;
-    const withCustomer = entries.filter((e) => e.customerId).length;
     return {
       total: entries.length,
       favorites,
-      withCustomer,
       categories: categoryCounts.size,
     };
   }, [entries, categoryCounts]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    let list = entries.filter((e) => {
+    const list = entries.filter((e) => {
       if (favoritesOnly && !e.favorite) return false;
       if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
       if (tagFilter && !(e.tags ?? []).includes(tagFilter)) return false;
@@ -380,21 +397,27 @@ export function VaultPage() {
 
   if (!status) return <div className="boot">Lade Tresor…</div>;
 
+  const lockedView = !status.configured || !status.unlocked;
+
   return (
-    <div className="page vault-page">
-      <div className="page-header">
+    <div className={`page vault-page${lockedView ? " is-locked" : ""}`}>
+      <div className="page-header vault-page-header">
         <div>
-          <p className="eyebrow">Sicherheit</p>
           <h2>Passworttresor</h2>
-          <p>
-            Zugänge organisieren, kategorisieren und mit Generator erzeugen. Freischaltung nur mit
-            Vault-Passphrase.
-          </p>
+          {status.unlocked ? (
+            <p className="muted">
+              {stats.total} Zugang{stats.total === 1 ? "" : "e"}
+              {stats.favorites > 0 ? ` · ${stats.favorites} Favoriten` : ""}
+              {stats.categories > 0 ? ` · ${stats.categories} Kategorien` : ""}
+            </p>
+          ) : (
+            <p className="muted">Freischaltung nur mit Vault-Passphrase</p>
+          )}
         </div>
         {status.unlocked ? (
           <div className="page-actions">
             <button type="button" className="btn btn-danger" onClick={() => void onLock()}>
-              Tresor sperren
+              Sperren
             </button>
           </div>
         ) : null}
@@ -439,7 +462,6 @@ export function VaultPage() {
       ) : !status.unlocked ? (
         <section className="panel vault-lock-card">
           <h3>Tresor gesperrt</h3>
-          <p className="muted">Zum Anzeigen oder Speichern von Zugängen freischalten.</p>
           <form className="form-stack" onSubmit={onUnlock} autoComplete="off">
             <label className="field">
               <span>Vault-Passphrase</span>
@@ -459,142 +481,372 @@ export function VaultPage() {
         </section>
       ) : (
         <>
-          {stats.total > 0 ? (
-            <div className="stat-strip asset-stat-strip">
-              <div className="stat-chip">
-                <strong>{stats.total}</strong>
-                <span>Zugänge</span>
-              </div>
-              <div className="stat-chip">
-                <strong>{stats.favorites}</strong>
-                <span>Favoriten</span>
-              </div>
-              <div className="stat-chip">
-                <strong>{stats.categories}</strong>
-                <span>Kategorien</span>
-              </div>
-              <div className="stat-chip">
-                <strong>{stats.withCustomer}</strong>
-                <span>Mit Kunde</span>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="vault-toolbar">
-            <label className="field" style={{ margin: 0, minWidth: 220, flex: 1 }}>
-              <span>Kunde filtern</span>
-              <CustomerPicker
-                value={filterCustomer}
-                onChange={setFilterCustomer}
-                allowEmpty
-                emptyLabel="Alle Kunden"
-                placeholder="Kunde suchen…"
-                activeOnly={false}
+          <div className="panel vault-safe-toolbar">
+            <div className="vault-safe-row">
+              <input
+                className="vault-safe-search"
+                type="search"
+                placeholder="Suche Bezeichnung, Kategorie, Tag, Kunde…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Zugänge durchsuchen"
               />
-            </label>
-            <label className="field" style={{ margin: 0, minWidth: 140 }}>
-              <span>Sortierung</span>
-              <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
-                <option value="updated">Zuletzt geändert</option>
-                <option value="title">Name A–Z</option>
-                <option value="category">Kategorie</option>
-                <option value="customer">Kunde</option>
-              </select>
-            </label>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setShowGenerator((v) => !v)}
-            >
-              {showGenerator ? "Generator aus" : "Generator"}
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => {
-                if (showForm && !editingId) resetForm();
-                else {
-                  setEditingId(null);
-                  setForm({ ...emptyForm, customerId: filterCustomer });
-                  setShowForm(true);
-                }
-              }}
-            >
-              {showForm && !editingId ? "Abbrechen" : "+ Zugang"}
-            </button>
-          </div>
-
-          <div className="wiki-toolbar asset-toolbar">
-            <input
-              className="wiki-search"
-              type="search"
-              placeholder="Suche Bezeichnung, Kategorie, Tag, Kunde…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <div className="filter-chips">
+              <label className="field vault-safe-field">
+                <span className="sr-only">Kunde</span>
+                <CustomerPicker
+                  value={filterCustomer}
+                  onChange={setFilterCustomer}
+                  allowEmpty
+                  emptyLabel="Alle Kunden"
+                  placeholder="Kunde…"
+                  activeOnly={false}
+                />
+              </label>
+              <label className="field vault-safe-field vault-safe-sort">
+                <span className="sr-only">Sortierung</span>
+                <select value={sortKey} onChange={(e) => setSortKey(e.target.value as SortKey)}>
+                  <option value="updated">Zuletzt geändert</option>
+                  <option value="title">Name A–Z</option>
+                  <option value="category">Kategorie</option>
+                  <option value="customer">Kunde</option>
+                </select>
+              </label>
               <button
                 type="button"
-                className={`chip ${favoritesOnly ? "chip-active" : ""}`}
+                className="btn btn-ghost"
+                onClick={() => setShowGenerator(true)}
+              >
+                Generator
+              </button>
+              <button type="button" className="btn btn-primary" onClick={openCreate}>
+                + Zugang
+              </button>
+            </div>
+
+            <div className="vault-safe-filters" role="group" aria-label="Filter">
+              <button
+                type="button"
+                className={`vault-safe-chip${favoritesOnly ? " is-active" : ""}`}
                 onClick={() => setFavoritesOnly((v) => !v)}
               >
-                Nur Favoriten
+                Favoriten
               </button>
               <button
                 type="button"
-                className={`chip ${groupByCategory ? "chip-active" : ""}`}
+                className={`vault-safe-chip${groupByCategory ? " is-active" : ""}`}
                 onClick={() => setGroupByCategory((v) => !v)}
               >
                 Nach Kategorie
               </button>
-              <button
-                type="button"
-                className={`chip ${categoryFilter === "all" ? "chip-active" : ""}`}
-                onClick={() => setCategoryFilter("all")}
-              >
-                Alle Kategorien
-              </button>
-              {(Object.keys(vaultCategoryLabel) as VaultCategory[])
-                .filter((k) => (categoryCounts.get(k) ?? 0) > 0 || categoryFilter === k)
-                .map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    className={`chip ${categoryFilter === k ? "chip-active" : ""}`}
-                    onClick={() => setCategoryFilter(k)}
-                  >
-                    {vaultCategoryLabel[k]}
-                    {categoryCounts.get(k) ? ` (${categoryCounts.get(k)})` : ""}
-                  </button>
-                ))}
-            </div>
-            {allTags.length > 0 ? (
-              <div className="filter-chips">
-                <button
-                  type="button"
-                  className={`chip ${!tagFilter ? "chip-active" : ""}`}
-                  onClick={() => setTagFilter("")}
+              <label className="field vault-safe-field vault-safe-category">
+                <span className="sr-only">Kategorie</span>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(
+                      e.target.value === "all" ? "all" : (e.target.value as VaultCategory),
+                    )
+                  }
                 >
-                  Alle Tags
-                </button>
-                {allTags.map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={`chip ${tagFilter === t ? "chip-active" : ""}`}
-                    onClick={() => setTagFilter(t)}
-                  >
-                    #{t}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                  <option value="all">Alle Kategorien</option>
+                  {(Object.keys(vaultCategoryLabel) as VaultCategory[]).map((k) => (
+                    <option key={k} value={k}>
+                      {vaultCategoryLabel[k]}
+                      {categoryCounts.get(k) ? ` (${categoryCounts.get(k)})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {allTags.length > 0 ? (
+                <label className="field vault-safe-field vault-safe-tag">
+                  <span className="sr-only">Tag</span>
+                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+                    <option value="">Alle Tags</option>
+                    {allTags.map((t) => (
+                      <option key={t} value={t}>
+                        #{t}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+            </div>
           </div>
 
-          {showGenerator ? (
-            <section className="panel vault-generator">
-              <div className="row-between">
-                <h3>Passwort-Generator</h3>
+          {error ? <p className="form-error">{error}</p> : null}
+          {copyHint ? <p className="form-success">{copyHint}</p> : null}
+
+          {entries.length === 0 ? (
+            <div className="vault-safe-empty panel">
+              <div className="vault-safe-empty-icon" aria-hidden>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                  <rect x="5" y="10" width="14" height="10" rx="2" />
+                  <path d="M8 10V7a4 4 0 018 0v3" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <strong>Noch keine Zugänge</strong>
+                <p className="muted">VPN, Admin, Hosting oder andere Zugänge verschlüsselt ablegen.</p>
+              </div>
+              <div className="vault-safe-empty-actions">
+                <button type="button" className="btn btn-ghost" onClick={() => setShowGenerator(true)}>
+                  Generator
+                </button>
+                <button type="button" className="btn btn-primary" onClick={openCreate}>
+                  Ersten Zugang
+                </button>
+              </div>
+            </div>
+          ) : filtered.length === 0 ? (
+            <p className="empty panel">Keine Zugänge für diese Filter.</p>
+          ) : (
+            <div className="vault-safe-groups">
+              {groups.map((group) => (
+                <section key={group.key} className="vault-safe-group">
+                  {group.label ? (
+                    <h3 className="vault-safe-group-title">
+                      {group.label}
+                      <span>{group.items.length}</span>
+                    </h3>
+                  ) : null}
+                  <ul className="vault-safe-list">
+                    {group.items.map((entry) => (
+                      <li key={entry.id} className="vault-safe-row">
+                        <button
+                          type="button"
+                          className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
+                          title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
+                          onClick={() => void toggleFavorite(entry)}
+                        >
+                          ★
+                        </button>
+                        <div className="vault-safe-main">
+                          <div className="vault-safe-title">
+                            <strong>{entry.title}</strong>
+                            {!groupByCategory ? (
+                              <span className="badge badge-kind">
+                                {vaultCategoryLabel[entry.category as VaultCategory] ??
+                                  entry.category}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="vault-safe-meta">
+                            <span>
+                              {entry.customerId ? customerLabel(entry) : "Allgemein"}
+                            </span>
+                            <span>{formatDate(entry.updatedAt)}</span>
+                            {(entry.tags ?? []).length > 0 ? (
+                              <span className="vault-safe-tags">
+                                {(entry.tags ?? []).map((t) => `#${t}`).join(" ")}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="vault-safe-flags">
+                            {[
+                              entry.hasUsername && "Benutzer",
+                              entry.hasPassword && "Passwort",
+                              entry.hasTotp && "2FA",
+                              entry.hasUrl && "URL",
+                              entry.hasNotes && "Notizen",
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                        <div className="vault-safe-actions">
+                          {entry.customerId ? (
+                            <Link
+                              className="btn btn-ghost btn-sm"
+                              to={`/customers/${entry.customerId}`}
+                            >
+                              Kunde
+                            </Link>
+                          ) : null}
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => void startEdit(entry)}
+                          >
+                            Bearbeiten
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            onClick={() => void onReveal(entry.id)}
+                          >
+                            Anzeigen
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => {
+                              if (!confirm("Eintrag unwiderruflich löschen?")) return;
+                              void api.vaultDeleteEntry(entry.id).then(() => loadEntries());
+                            }}
+                          >
+                            Löschen
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+
+          <Modal
+            open={showForm}
+            title={editingId ? "Zugang bearbeiten" : "Neuer Zugang"}
+            onClose={resetForm}
+            className="modal-wide"
+          >
+            <form className="form-grid" onSubmit={onSave} autoComplete="off">
+              <label className="field">
+                <span>Bezeichnung *</span>
+                <input
+                  required
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  placeholder="z. B. Firewall admin / VPN"
+                />
+              </label>
+              <label className="field">
+                <span>Kategorie</span>
+                <select
+                  value={form.category}
+                  onChange={(e) =>
+                    setForm({ ...form, category: e.target.value as VaultCategory })
+                  }
+                >
+                  {(Object.keys(vaultCategoryLabel) as VaultCategory[]).map((k) => (
+                    <option key={k} value={k}>
+                      {vaultCategoryLabel[k]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Kunde</span>
+                <CustomerPicker
+                  value={form.customerId}
+                  onChange={(customerId) => setForm({ ...form, customerId })}
+                  allowEmpty
+                  emptyLabel="Kein Kunde / allgemein"
+                  placeholder="Kunde suchen…"
+                />
+              </label>
+              <div className="field vault-form-fav">
+                <Checkbox
+                  label="Als Favorit markieren"
+                  checked={form.favorite}
+                  onChange={(favorite) => setForm({ ...form, favorite })}
+                />
+              </div>
+              <label className="field">
+                <span>Benutzername</span>
+                <input
+                  autoComplete="off"
+                  value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>
+                  Passwort / Secret
+                  {editingId ? " (leer = behalten)" : ""}
+                </span>
+                <div className="vault-password-field">
+                  <input
+                    type="text"
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={(e) => setForm({ ...form, password: e.target.value })}
+                    placeholder={editingId ? "Unverändert lassen…" : ""}
+                    required={!editingId}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      const pw = generatePassword(genOpts);
+                      setGenerated(pw);
+                      setGenHistory(pushGenHistory(pw, genOpts.length));
+                      setForm((f) => ({ ...f, password: pw }));
+                    }}
+                  >
+                    Würfeln
+                  </button>
+                </div>
+                {form.password ? (
+                  <span
+                    className={`vault-strength vault-strength-${passwordStrength(form.password).score}`}
+                  >
+                    {passwordStrength(form.password).label}
+                  </span>
+                ) : null}
+              </label>
+              <label className="field">
+                <span>URL</span>
+                <input
+                  autoComplete="off"
+                  value={form.url}
+                  onChange={(e) => setForm({ ...form, url: e.target.value })}
+                  placeholder="https://…"
+                />
+              </label>
+              <label className="field">
+                <span>Tags</span>
+                <input
+                  value={form.tagsText}
+                  onChange={(e) => setForm({ ...form, tagsText: e.target.value })}
+                  placeholder="z. B. produktiv, backup"
+                />
+              </label>
+              <label className="field full">
+                <span>
+                  2FA / TOTP-Secret
+                  {editingId ? " (leer = behalten, „-“ zum Entfernen)" : ""}
+                </span>
+                <input
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={form.totpSecret}
+                  onChange={(e) => setForm({ ...form, totpSecret: e.target.value })}
+                  placeholder="Base32-Secret oder otpauth://…"
+                />
+              </label>
+              <label className="field full">
+                <span>Notizen (verschlüsselt)</span>
+                <textarea
+                  rows={3}
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                />
+              </label>
+              {formError ? <p className="form-error full">{formError}</p> : null}
+              <div className="full form-actions modal-actions">
+                <button className="btn btn-primary" type="submit">
+                  {editingId ? "Speichern" : "Verschlüsselt speichern"}
+                </button>
+                <button className="btn btn-ghost" type="button" onClick={resetForm}>
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal
+            open={showGenerator}
+            title="Passwort-Generator"
+            onClose={() => setShowGenerator(false)}
+            className="modal-wide"
+          >
+            <div className="vault-generator is-modal">
+              <div className="row-between vault-gen-head">
+                <p className="muted">
+                  Lokal erzeugen und kopieren oder direkt in einen neuen Zugang übernehmen.
+                </p>
                 <span className={`vault-strength vault-strength-${strength.score}`}>
                   {generated ? strength.label : "Bereit"}
                 </span>
@@ -619,7 +871,7 @@ export function VaultPage() {
                         className="btn btn-ghost"
                         onClick={() => useGeneratedInForm(generated)}
                       >
-                        In Formular
+                        In neuen Zugang
                       </button>
                     </>
                   ) : null}
@@ -712,345 +964,111 @@ export function VaultPage() {
                   </ul>
                 </div>
               ) : null}
-            </section>
-          ) : null}
+            </div>
+          </Modal>
 
-          {showForm ? (
-            <form className="panel form-grid" onSubmit={onSave} autoComplete="off">
-              <div className="full asset-form-title">
-                <strong>{editingId ? "Zugang bearbeiten" : "Neuer Zugang"}</strong>
-              </div>
-              <label className="field">
-                <span>Bezeichnung *</span>
-                <input
-                  required
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  placeholder="z. B. Firewall admin / VPN"
-                />
-              </label>
-              <label className="field">
-                <span>Kategorie</span>
-                <select
-                  value={form.category}
-                  onChange={(e) =>
-                    setForm({ ...form, category: e.target.value as VaultCategory })
-                  }
-                >
-                  {(Object.keys(vaultCategoryLabel) as VaultCategory[]).map((k) => (
-                    <option key={k} value={k}>
-                      {vaultCategoryLabel[k]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span>Kunde</span>
-                <CustomerPicker
-                  value={form.customerId}
-                  onChange={(customerId) => setForm({ ...form, customerId })}
-                  allowEmpty
-                  emptyLabel="Kein Kunde / allgemein"
-                  placeholder="Kunde suchen…"
-                />
-              </label>
-              <div style={{ alignSelf: "end" }}>
-                <Checkbox
-                  label="Als Favorit markieren"
-                  checked={form.favorite}
-                  onChange={(favorite) => setForm({ ...form, favorite })}
-                />
-              </div>
-              <label className="field">
-                <span>Benutzername</span>
-                <input
-                  autoComplete="off"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>
-                  Passwort / Secret
-                  {editingId ? " (leer = behalten)" : ""}
-                </span>
-                <div className="vault-password-field">
-                  <input
-                    type="text"
-                    autoComplete="new-password"
-                    value={form.password}
-                    onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder={editingId ? "Unverändert lassen…" : ""}
-                  />
+          <Modal
+            open={Boolean(revealed)}
+            title={revealed?.title ?? "Zugang"}
+            onClose={clearReveal}
+            className="modal-wide"
+          >
+            {revealed ? (
+              <div className="vault-reveal is-modal">
+                <p className="muted vault-reveal-hint">
+                  Wird nach 60 Sekunden automatisch ausgeblendet.
+                </p>
+                <div className="vault-reveal-grid">
+                  <div>
+                    <span className="label">Benutzer</span>
+                    <p className="vault-secret-line">
+                      <span>{revealed.username || "–"}</span>
+                      {revealed.username ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void copyText(revealed.username)}
+                        >
+                          Kopieren
+                        </button>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="label">Passwort</span>
+                    <p className="vault-secret-line">
+                      <span className="vault-mono">
+                        {revealVisible ? revealed.password || "–" : "••••••••••••"}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setRevealVisible((v) => !v)}
+                      >
+                        {revealVisible ? "Verbergen" : "Zeigen"}
+                      </button>
+                      {revealed.password ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void copyText(revealed.password)}
+                        >
+                          Kopieren
+                        </button>
+                      ) : null}
+                    </p>
+                  </div>
+                  <div className="full">
+                    <span className="label">URL</span>
+                    <p className="vault-secret-line">
+                      <span>{revealed.url || "–"}</span>
+                      {revealed.url ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void copyText(revealed.url)}
+                        >
+                          Kopieren
+                        </button>
+                      ) : null}
+                    </p>
+                  </div>
+                  {revealed.totpSecret ? (
+                    <div className="full">
+                      <span className="label">2FA-Code</span>
+                      <TotpLiveCode
+                        secret={revealed.totpSecret}
+                        onCopy={(code) => void copyText(code, "2FA-Code kopiert")}
+                      />
+                    </div>
+                  ) : null}
+                  {revealed.notes ? (
+                    <div className="full">
+                      <span className="label">Notizen</span>
+                      <pre className="vault-notes">{revealed.notes}</pre>
+                    </div>
+                  ) : null}
+                </div>
+                <div className="form-actions modal-actions">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="btn btn-ghost"
                     onClick={() => {
-                      const pw = generatePassword(genOpts);
-                      setGenerated(pw);
-                      setGenHistory(pushGenHistory(pw, genOpts.length));
-                      setForm((f) => ({ ...f, password: pw }));
+                      const id = revealed.id;
+                      const entry = entries.find((e) => e.id === id);
+                      clearReveal();
+                      if (entry) void startEdit(entry);
                     }}
                   >
-                    Würfeln
+                    Bearbeiten
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={clearReveal}>
+                    Schließen
                   </button>
                 </div>
-                {form.password ? (
-                  <span className={`vault-strength vault-strength-${passwordStrength(form.password).score}`}>
-                    {passwordStrength(form.password).label}
-                  </span>
-                ) : null}
-              </label>
-              <label className="field">
-                <span>URL</span>
-                <input
-                  autoComplete="off"
-                  value={form.url}
-                  onChange={(e) => setForm({ ...form, url: e.target.value })}
-                  placeholder="https://…"
-                />
-              </label>
-              <label className="field full">
-                <span>
-                  2FA / TOTP-Secret
-                  {editingId ? " (leer = behalten, „-“ zum Entfernen)" : ""}
-                </span>
-                <input
-                  autoComplete="off"
-                  spellCheck={false}
-                  value={form.totpSecret}
-                  onChange={(e) => setForm({ ...form, totpSecret: e.target.value })}
-                  placeholder="Base32-Secret oder otpauth://…"
-                />
-                <span className="muted field-hint">
-                  Secret aus dem Authenticator oder otpauth-URI einfügen – Codes werden lokal
-                  erzeugt.
-                </span>
-              </label>
-              <label className="field">
-                <span>Tags</span>
-                <input
-                  value={form.tagsText}
-                  onChange={(e) => setForm({ ...form, tagsText: e.target.value })}
-                  placeholder="z. B. produktiv, backup, standby"
-                />
-              </label>
-              <label className="field full">
-                <span>Notizen (verschlüsselt)</span>
-                <textarea
-                  rows={3}
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                />
-              </label>
-              <div className="full form-actions">
-                <button className="btn btn-primary" type="submit">
-                  {editingId ? "Änderungen speichern" : "Verschlüsselt speichern"}
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={resetForm}>
-                  Abbrechen
-                </button>
               </div>
-            </form>
-          ) : null}
-
-          {error ? <p className="form-error">{error}</p> : null}
-          {copyHint ? <p className="form-success">{copyHint}</p> : null}
-
-          {revealed ? (
-            <section className="panel vault-reveal">
-              <div className="row-between">
-                <h3>{revealed.title}</h3>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={clearReveal}>
-                  Schließen
-                </button>
-              </div>
-              <p className="muted">Wird nach 60 Sekunden automatisch ausgeblendet.</p>
-              <div className="vault-reveal-grid">
-                <div>
-                  <span className="label">Benutzer</span>
-                  <p className="vault-secret-line">
-                    <span>{revealed.username || "–"}</span>
-                    {revealed.username ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => void copyText(revealed.username)}
-                      >
-                        Kopieren
-                      </button>
-                    ) : null}
-                  </p>
-                </div>
-                <div>
-                  <span className="label">Passwort</span>
-                  <p className="vault-secret-line">
-                    <span className="vault-mono">
-                      {revealVisible ? revealed.password || "–" : "••••••••••••"}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setRevealVisible((v) => !v)}
-                    >
-                      {revealVisible ? "Verbergen" : "Zeigen"}
-                    </button>
-                    {revealed.password ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => void copyText(revealed.password)}
-                      >
-                        Kopieren
-                      </button>
-                    ) : null}
-                  </p>
-                </div>
-                <div className="full">
-                  <span className="label">URL</span>
-                  <p className="vault-secret-line">
-                    <span>{revealed.url || "–"}</span>
-                    {revealed.url ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => void copyText(revealed.url)}
-                      >
-                        Kopieren
-                      </button>
-                    ) : null}
-                  </p>
-                </div>
-                {revealed.totpSecret ? (
-                  <div className="full">
-                    <span className="label">2FA-Code</span>
-                    <TotpLiveCode
-                      secret={revealed.totpSecret}
-                      onCopy={(code) => void copyText(code, "2FA-Code kopiert")}
-                    />
-                  </div>
-                ) : null}
-                {revealed.notes ? (
-                  <div className="full">
-                    <span className="label">Notizen</span>
-                    <pre className="vault-notes">{revealed.notes}</pre>
-                  </div>
-                ) : null}
-              </div>
-            </section>
-          ) : null}
-
-          {entries.length === 0 ? (
-            <p className="empty">
-              Noch keine Zugänge. Lege VPN-, Admin- oder Hosting-Zugänge an – optional mit Generator.
-            </p>
-          ) : filtered.length === 0 ? (
-            <p className="empty">Keine Zugänge für diese Filter.</p>
-          ) : (
-            <div className="asset-groups">
-              {groups.map((group) => (
-                <div key={group.key} className="asset-group">
-                  {group.label ? (
-                    <h3 className="asset-group-title">
-                      {group.label}
-                      <span className="muted"> · {group.items.length}</span>
-                    </h3>
-                  ) : null}
-                  <ul className="list">
-                    {group.items.map((entry) => (
-                      <li key={entry.id} className="list-row vault-entry-row">
-                        <div className="asset-main">
-                          <div className="asset-title-row">
-                            <button
-                              type="button"
-                              className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
-                              title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
-                              onClick={() => void toggleFavorite(entry)}
-                            >
-                              ★
-                            </button>
-                            <strong>{entry.title}</strong>
-                            {!groupByCategory ? (
-                              <span className="badge badge-kind">
-                                {vaultCategoryLabel[entry.category as VaultCategory] ??
-                                  entry.category}
-                              </span>
-                            ) : null}
-                          </div>
-                          <span className="muted">
-                            {entry.customerId
-                              ? customerLabel(entry)
-                              : "Allgemein"}
-                            {" · "}
-                            {formatDate(entry.updatedAt)}
-                          </span>
-                          {(entry.tags ?? []).length > 0 ? (
-                            <div className="vault-tags">
-                              {entry.tags.map((t) => (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  className="vault-tag"
-                                  onClick={() => setTagFilter(t)}
-                                >
-                                  #{t}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                          <span className="muted vault-flags">
-                            {[
-                              entry.hasUsername && "Benutzer",
-                              entry.hasPassword && "Passwort",
-                              entry.hasTotp && "2FA",
-                              entry.hasUrl && "URL",
-                              entry.hasNotes && "Notizen",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </span>
-                        </div>
-                        <div className="list-actions">
-                          {entry.customerId ? (
-                            <Link
-                              className="btn btn-ghost btn-sm"
-                              to={`/customers/${entry.customerId}`}
-                            >
-                              Kunde
-                            </Link>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => void startEdit(entry)}
-                          >
-                            Bearbeiten
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => void onReveal(entry.id)}
-                          >
-                            Anzeigen
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => {
-                              if (!confirm("Eintrag unwiderruflich löschen?")) return;
-                              void api.vaultDeleteEntry(entry.id).then(() => loadEntries());
-                            }}
-                          >
-                            Löschen
-                          </button>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          )}
+            ) : null}
+          </Modal>
         </>
       )}
     </div>

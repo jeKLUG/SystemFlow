@@ -41,7 +41,6 @@ export function LoginPage() {
         </section>
 
         <form className="login-panel panel" onSubmit={onSubmit}>
-          <p className="eyebrow">Anmelden</p>
           <h2>Willkommen zurück</h2>
 
           <label className="field">

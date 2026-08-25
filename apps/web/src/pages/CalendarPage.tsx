@@ -63,6 +63,7 @@ export function CalendarPage() {
   const [selected, setSelected] = useState(toIsoDate(new Date()));
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm, customerId: presetCustomer });
   const [error, setError] = useState("");
   const [filterKind, setFilterKind] = useState<"" | AppointmentKind>("");
@@ -161,8 +162,10 @@ export function CalendarPage() {
 
   function openNew(iso = selected, time?: string) {
     setSelected(iso);
+    setEditingId(null);
     setShowForm(true);
     setActiveId(null);
+    setError("");
     setForm({
       ...emptyForm,
       startDate: iso,
@@ -175,7 +178,33 @@ export function CalendarPage() {
     });
   }
 
-  async function createAppointment(e: FormEvent) {
+  function openEdit(item: AppointmentItem) {
+    setEditingId(item.id);
+    setActiveId(item.id);
+    setSelected(item.startDate);
+    setShowForm(true);
+    setError("");
+    setForm({
+      title: item.title,
+      kind: item.kind,
+      customerId: item.customerId ?? "",
+      startDate: item.startDate,
+      startTime: item.startTime || "09:00",
+      endDate: item.endDate || item.startDate,
+      endTime: item.endTime || "10:00",
+      allDay: Boolean(item.allDay || !item.startTime),
+      location: item.location ?? "",
+      description: item.description ?? "",
+    });
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    setEditingId(null);
+    setError("");
+  }
+
+  async function saveAppointment(e: FormEvent) {
     e.preventDefault();
     setError("");
     try {
@@ -184,7 +213,7 @@ export function CalendarPage() {
         setError("Kundentermin braucht einen Kunden.");
         return;
       }
-      await api.createAppointment({
+      const body = {
         title: form.title,
         kind,
         customerId: form.customerId || null,
@@ -195,8 +224,15 @@ export function CalendarPage() {
         allDay: form.allDay,
         location: form.location,
         description: form.description,
-      });
-      setShowForm(false);
+      };
+      if (editingId) {
+        await api.updateAppointment(editingId, body);
+        setActiveId(editingId);
+      } else {
+        const created = await api.createAppointment(body);
+        setActiveId(created.id);
+      }
+      closeForm();
       selectDay(form.startDate);
       setForm({ ...emptyForm, startDate: form.startDate, customerId: presetCustomer });
       await reload();
@@ -217,6 +253,10 @@ export function CalendarPage() {
           e.stopPropagation();
           setActiveId(a.id);
           selectDay(a.startDate);
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          openEdit(a);
         }}
         title={`${a.title} · ${formatAppointmentTime(a)}`}
       >
@@ -269,6 +309,10 @@ export function CalendarPage() {
                   e.stopPropagation();
                   setActiveId(a.id);
                   selectDay(iso);
+                }}
+                onDoubleClick={(e) => {
+                  e.stopPropagation();
+                  openEdit(a);
                 }}
               >
                 <strong>{a.title}</strong>
@@ -379,11 +423,11 @@ export function CalendarPage() {
 
       <Modal
         open={showForm}
-        title="Neuer Termin"
-        onClose={() => setShowForm(false)}
+        title={editingId ? "Termin bearbeiten" : "Neuer Termin"}
+        onClose={closeForm}
         className="modal-wide"
       >
-        <form className="form-grid calendar-form" onSubmit={createAppointment}>
+        <form className="form-grid calendar-form" onSubmit={saveAppointment}>
           <label className="field">
             <span>Titel *</span>
             <input
@@ -497,9 +541,9 @@ export function CalendarPage() {
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full form-actions">
             <button className="btn btn-primary" type="submit">
-              Termin speichern
+              {editingId ? "Änderungen speichern" : "Termin speichern"}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setShowForm(false)}>
+            <button type="button" className="btn btn-ghost" onClick={closeForm}>
               Abbrechen
             </button>
           </div>
@@ -542,6 +586,13 @@ export function CalendarPage() {
               </span>
               {active.description ? <p className="agenda-note">{active.description}</p> : null}
               <div className="agenda-actions">
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => openEdit(active)}
+                >
+                  Bearbeiten
+                </button>
                 {active.customerId ? (
                   <Link className="btn btn-ghost btn-sm" to={`/customers/${active.customerId}`}>
                     Zum Kunden
@@ -550,12 +601,13 @@ export function CalendarPage() {
                 <button
                   type="button"
                   className="btn btn-danger btn-sm"
-                  onClick={() =>
+                  onClick={() => {
+                    if (!confirm(`Termin „${active.title}“ löschen?`)) return;
                     void api.deleteAppointment(active.id).then(() => {
                       setActiveId(null);
                       void reload();
-                    })
-                  }
+                    });
+                  }}
                 >
                   Löschen
                 </button>
@@ -585,6 +637,7 @@ export function CalendarPage() {
                   type="button"
                   className={`agenda-item kind-${a.kind}${activeId === a.id ? " is-active" : ""}`}
                   onClick={() => setActiveId(a.id)}
+                  onDoubleClick={() => openEdit(a)}
                 >
                   <div className="agenda-time">{formatAppointmentTime(a)}</div>
                   <div className="agenda-body">
@@ -757,10 +810,10 @@ export function CalendarPage() {
 
           <p className="calendar-hint muted">
             <span className="calendar-hint-desktop">
-              Doppelklick oder „+ Termin“ → neuer Termin · Klick auf Termin für Details
+              Doppelklick oder „+ Termin“ → neuer Termin · Termin doppelklicken zum Bearbeiten
             </span>
             <span className="calendar-hint-mobile">
-              Tag tippen · nochmal tippen für Tagesansicht · Termin öffnet Details
+              Tag tippen · Termin öffnen · Bearbeiten in den Details
             </span>
           </p>
         </div>

@@ -67,6 +67,8 @@ export function RemindersPage() {
     return sortTasks(filterTasksByView(tasks, view), "due");
   }, [tasks, view]);
 
+  const activeTab = taskViewTabs.find((t) => t.id === view);
+
   function openCreate(defaults?: Partial<typeof form>) {
     setForm({
       title: "",
@@ -126,46 +128,53 @@ export function RemindersPage() {
 
   return (
     <div className="page tasks-hub-page">
-      <div className="page-header">
-        <div>
-          <h2>Aufgaben</h2>
-          <p>
-            {stats.open} offen
-            {stats.overdue ? ` · ${stats.overdue} überfällig` : ""}
-            {expiryCount ? ` · ${expiryCount} Abläufe` : ""}
-          </p>
-        </div>
-        <div className="page-actions">
+      <div className="tasks-hub-hero panel">
+        <div className="tasks-hub-hero-top">
+          <div>
+            <h2>Aufgaben</h2>
+            <p className="muted">
+              {stats.open} offen
+              {stats.overdue ? ` · ${stats.overdue} überfällig` : ""}
+            </p>
+          </div>
           <button type="button" className="btn btn-primary" onClick={() => openCreate()}>
-            Aufgabe anlegen
+            + Aufgabe
           </button>
         </div>
+
+        <div className="tasks-hub-views" role="tablist" aria-label="Ansicht">
+          {taskViewTabs.map((tab) => {
+            const count = viewCounts[tab.id] ?? 0;
+            const warn = tab.id === "today" && stats.overdue > 0;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={view === tab.id}
+                className={`tasks-hub-view${view === tab.id ? " is-active" : ""}${
+                  warn ? " is-warn" : ""
+                }`}
+                onClick={() => setView(tab.id)}
+              >
+                <strong>{count}</strong>
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="stat-strip tasks-hub-stats">
-        <button type="button" className="stat-chip" onClick={() => setView("today")}>
-          <strong>{viewCounts.today}</strong>
-          <span>Heute</span>
-        </button>
-        <button type="button" className="stat-chip" onClick={() => setView("upcoming")}>
-          <strong>{viewCounts.upcoming}</strong>
-          <span>Geplant</span>
-        </button>
-        <button type="button" className="stat-chip" onClick={() => setView("inbox")}>
-          <strong>{viewCounts.inbox}</strong>
-          <span>Inbox</span>
-        </button>
-        <button type="button" className="stat-chip" onClick={() => setView("open")}>
-          <strong>{stats.open}</strong>
-          <span>Offen</span>
-        </button>
-      </div>
-
-      <form className="panel tasks-hub-quick" onSubmit={onQuickAdd}>
+      <form className="tasks-hub-quick panel" onSubmit={onQuickAdd}>
+        <span className="tasks-hub-quick-icon" aria-hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+          </svg>
+        </span>
         <input
           value={quickTitle}
           onChange={(e) => setQuickTitle(e.target.value)}
-          placeholder="Schnelle Aufgabe… (Enter zum Anlegen)"
+          placeholder="Schnelle Aufgabe… Enter zum Anlegen"
           aria-label="Schnelle Aufgabe"
         />
         <button className="btn btn-primary" type="submit" disabled={!quickTitle.trim()}>
@@ -173,90 +182,95 @@ export function RemindersPage() {
         </button>
       </form>
 
-      <div className="tasks-hub-toolbar panel">
-        <div className="filter-chips" role="tablist" aria-label="Ansicht">
-          {taskViewTabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={view === tab.id}
-              className={view === tab.id ? "chip chip-active" : "chip"}
-              onClick={() => setView(tab.id)}
-            >
-              {tab.label}
-              <em className="tasks-hub-count">{viewCounts[tab.id] ?? 0}</em>
-            </button>
-          ))}
-        </div>
-        <div className="filter-chips" role="group" aria-label="Bereich">
-          {(
-            [
-              ["all", "Alle"],
-              ["customer", "Mit Kunde"],
-              ["internal", "Intern"],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              className={scope === key ? "chip chip-active" : "chip"}
-              onClick={() => setScope(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      <div className="tasks-hub-scope" role="group" aria-label="Bereich">
+        {(
+          [
+            ["all", "Alle"],
+            ["customer", "Mit Kunde"],
+            ["internal", "Intern"],
+          ] as const
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`tasks-hub-scope-btn${scope === key ? " is-active" : ""}`}
+            onClick={() => setScope(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <section className="section tasks-hub-list">
-        <div className="section-head">
-          <h2>{taskViewTabs.find((t) => t.id === view)?.label ?? "Aufgaben"}</h2>
-          <p>{taskViewTabs.find((t) => t.id === view)?.hint}</p>
+      <section className="tasks-hub-board">
+        <div className="tasks-hub-board-head">
+          <h3>{activeTab?.label ?? "Aufgaben"}</h3>
+          <span className="muted">{filtered.length}</span>
         </div>
 
         {loading ? (
-          <p className="empty">Lade…</p>
+          <p className="empty panel">Lade…</p>
         ) : filtered.length === 0 ? (
-          <p className="empty">Keine Aufgaben in dieser Ansicht.</p>
+          <div className="tasks-hub-empty panel">
+            <strong>Keine Aufgaben</strong>
+            <p className="muted">
+              {view === "done"
+                ? "Noch nichts erledigt."
+                : "Lege eine Aufgabe an oder wechsle die Ansicht."}
+            </p>
+            {view !== "done" ? (
+              <button type="button" className="btn btn-primary" onClick={() => openCreate()}>
+                Aufgabe anlegen
+              </button>
+            ) : null}
+          </div>
         ) : (
-          <ul className="list task-hub-list">
+          <ul className="tasks-hub-list">
             {filtered.map((task) => {
               const due = dueLabel(task.dueDate, task.done);
               const prio = Number(task.priority || 4) as TaskPriority;
+              const customerLabel = task.customerId
+                ? customerDisplayName({
+                    name: task.customerName ?? "",
+                    company: task.customerCompany ?? null,
+                  })
+                : null;
               return (
                 <li key={task.id}>
-                  <div className={`list-row task-hub-row${task.done ? " is-done" : ""}`}>
+                  <div
+                    className={`tasks-hub-row prio-${prio}${task.done ? " is-done" : ""}${
+                      busyId === task.id ? " is-busy" : ""
+                    }`}
+                  >
                     <Checkbox
                       checked={task.done}
                       disabled={busyId === task.id}
                       onChange={() => void toggleDone(task)}
-                      aria-label="Erledigt"
+                      aria-label={`${task.title} erledigt`}
                     />
-                    <div className="task-hub-main">
+                    <div className="tasks-hub-row-main">
                       <strong>{task.title}</strong>
-                      <span className="muted">
-                        {task.customerId
-                          ? customerDisplayName({
-                              name: task.customerName ?? "",
-                              company: task.customerCompany ?? null,
-                            })
-                          : "Intern"}
-                        {task.projectName ? ` · ${task.projectName}` : ""}
-                        {` · ${priorityLabel[prio]}`}
-                      </span>
+                      <div className="tasks-hub-row-meta">
+                        {customerLabel ? (
+                          <Link
+                            className="tasks-hub-chip is-customer"
+                            to={`/customers/${task.customerId}/tasks`}
+                          >
+                            {customerLabel}
+                          </Link>
+                        ) : (
+                          <span className="tasks-hub-chip">Intern</span>
+                        )}
+                        {task.projectName ? (
+                          <span className="tasks-hub-chip">{task.projectName}</span>
+                        ) : null}
+                        {prio <= 2 ? (
+                          <span className={`tasks-hub-chip is-prio-${prio}`}>
+                            {priorityLabel[prio]}
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="list-meta">
-                      <span className={`badge badge-due-${due.tone}`}>{due.text}</span>
-                      {task.customerId ? (
-                        <Link
-                          className="btn btn-ghost btn-sm"
-                          to={`/customers/${task.customerId}/tasks`}
-                        >
-                          Kunde
-                        </Link>
-                      ) : null}
-                    </div>
+                    <span className={`tasks-hub-due is-${due.tone}`}>{due.text}</span>
                   </div>
                 </li>
               );
@@ -265,11 +279,15 @@ export function RemindersPage() {
         )}
       </section>
 
-      <section className="section tasks-hub-expiry">
-        <div className="section-head row-between">
+      <section className="tasks-hub-expiry panel">
+        <div className="tasks-hub-expiry-head">
           <div>
-            <h2>Abläufe</h2>
-            <p>Garantien und Verträge, die bald fällig werden.</p>
+            <h3>Abläufe</h3>
+            <p className="muted">
+              {expiryCount
+                ? `${expiryCount} in den nächsten ${days} Tagen`
+                : `Keine in den nächsten ${days} Tagen`}
+            </p>
           </div>
           <select
             value={days}
@@ -283,26 +301,24 @@ export function RemindersPage() {
         </div>
 
         <div className="tasks-hub-expiry-grid">
-          <div className="panel">
-            <h3>Garantien</h3>
+          <div>
+            <h4>Garantien</h4>
             {!reminders?.warranties.length ? (
               <p className="empty">Keine ablaufenden Garantien.</p>
             ) : (
-              <ul className="list">
+              <ul className="tasks-hub-expiry-list">
                 {reminders.warranties.map((w) => (
                   <li key={w.id}>
-                    <Link className="list-row" to={`/customers/${w.customerId}/assets`}>
-                      <div>
-                        <strong>{w.name}</strong>
-                        <span className="muted">
-                          {customerDisplayName({
-                            name: w.customerName,
-                            company: w.customerCompany,
-                          })}{" "}
-                          · {assetKindLabel[w.kind]}
-                        </span>
-                      </div>
-                      <span className="badge badge-warn">{formatDateOnly(w.warrantyUntil)}</span>
+                    <Link to={`/customers/${w.customerId}/assets`}>
+                      <span className="tasks-hub-expiry-title">{w.name}</span>
+                      <span className="muted">
+                        {customerDisplayName({
+                          name: w.customerName,
+                          company: w.customerCompany,
+                        })}{" "}
+                        · {assetKindLabel[w.kind]}
+                      </span>
+                      <em>{formatDateOnly(w.warrantyUntil)}</em>
                     </Link>
                   </li>
                 ))}
@@ -310,26 +326,24 @@ export function RemindersPage() {
             )}
           </div>
 
-          <div className="panel">
-            <h3>Verträge</h3>
+          <div>
+            <h4>Verträge</h4>
             {!reminders?.contracts.length ? (
               <p className="empty">Keine auslaufenden Verträge.</p>
             ) : (
-              <ul className="list">
+              <ul className="tasks-hub-expiry-list">
                 {reminders.contracts.map((c) => (
                   <li key={c.id}>
-                    <Link className="list-row" to={`/customers/${c.customerId}/wiki?view=contracts`}>
-                      <div>
-                        <strong>{c.title}</strong>
-                        <span className="muted">
-                          {customerDisplayName({
-                            name: c.customerName,
-                            company: c.customerCompany,
-                          })}
-                          {c.slaResponseHours ? ` · SLA ${c.slaResponseHours}h` : ""}
-                        </span>
-                      </div>
-                      <span className="badge badge-warn">{formatDateOnly(c.endDate)}</span>
+                    <Link to={`/customers/${c.customerId}/wiki?view=contracts`}>
+                      <span className="tasks-hub-expiry-title">{c.title}</span>
+                      <span className="muted">
+                        {customerDisplayName({
+                          name: c.customerName,
+                          company: c.customerCompany,
+                        })}
+                        {c.slaResponseHours ? ` · SLA ${c.slaResponseHours}h` : ""}
+                      </span>
+                      <em>{formatDateOnly(c.endDate)}</em>
                     </Link>
                   </li>
                 ))}

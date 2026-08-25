@@ -46,7 +46,7 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 ## Kontakte-UI
 
-Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateiablage / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Protokoll (Einsatz-Historie).
+Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateien / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Protokoll (Einsatz-Historie).
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
@@ -55,7 +55,7 @@ Mobil (≤860px): Sticky Topbar/Tabbar mit Safe-Area, Bottom-Sheets, sticky Kont
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
-Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, festen Tageszellen, Termin-Anlage per Modal/FAB, animierter Detailseiteleiste.
+Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
 
 ## Zeitzone
 

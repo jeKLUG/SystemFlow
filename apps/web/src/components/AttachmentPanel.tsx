@@ -362,18 +362,23 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
       ) : null}
 
       {embedded && !scoped ? (
-        <div className="vault-embedded-actions">
-          <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
-            Ordner anlegen
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={busy}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {busy ? "Lädt…" : "Hochladen"}
-          </button>
+        <div className="vault-embedded-bar">
+          <p className="muted vault-embedded-meta">
+            Ordner, Uploads und Kundenunterlagen
+          </p>
+          <div className="vault-embedded-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
+              Ordner
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {busy ? "Lädt…" : "Hochladen"}
+            </button>
+          </div>
         </div>
       ) : null}
 

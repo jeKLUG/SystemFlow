@@ -153,11 +153,9 @@ export function Layout() {
             <div className="user-card-main">
               <span className="avatar" aria-hidden="true">
                 {(user?.username ?? "?").slice(0, 1).toUpperCase()}
-                <i className="avatar-status" title="Angemeldet" />
               </span>
               <div className="user-card-meta">
                 <strong title={user?.username ?? undefined}>{user?.username}</strong>
-                <span>Administrator</span>
               </div>
             </div>
             <div className="user-card-actions">
