@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.73 – 2026-08-29
+
+- Passworttresor: kompaktere Zugangskarten; Benutzer/Passwort per Klick kopieren (mit Rahmen-Animation)
+- Zwischenablage mit HTTP-Fallback; Löschen nur im Bearbeiten-Dialog inkl. Bestätigung
+
 ## 1.5.72 – 2026-08-29
 
 - Modals: korrekt zentriert im Viewport (Portal auf `body`); Tresor-Zugangsanlage nicht mehr abgeschnitten

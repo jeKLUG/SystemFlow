@@ -4,6 +4,7 @@ import { api } from "../api";
 import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
+import { copyToClipboard } from "../lib/clipboard";
 import { formatDate, vaultCategoryLabel } from "../lib/labels";
 import {
   clearGenHistory,
@@ -98,6 +99,12 @@ export function VaultPage() {
   const [genHistory, setGenHistory] = useState<GenHistoryItem[]>(() => loadGenHistory());
   const [copyHint, setCopyHint] = useState("");
   const [formError, setFormError] = useState("");
+  const [copiedEntryId, setCopiedEntryId] = useState<string | null>(null);
+  const [copyBusyId, setCopyBusyId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const secretCache = useRef(new Map<string, { secret: VaultEntrySecret; at: number }>());
+  const copyAnimTimer = useRef<number | null>(null);
 
   async function refreshStatus() {
     setStatus(await api.vaultStatus());
@@ -125,6 +132,7 @@ export function VaultPage() {
   useEffect(() => {
     return () => {
       if (revealTimer.current) window.clearTimeout(revealTimer.current);
+      if (copyAnimTimer.current) window.clearTimeout(copyAnimTimer.current);
     };
   }, []);
 
@@ -139,6 +147,7 @@ export function VaultPage() {
     setEditingId(null);
     setShowForm(false);
     setFormError("");
+    setConfirmDelete(false);
   }
 
   function openCreate() {
@@ -271,6 +280,7 @@ export function VaultPage() {
     clearReveal();
     try {
       const secret = await api.vaultReveal(id);
+      secretCache.current.set(id, { secret, at: Date.now() });
       setRevealed(secret);
       setRevealVisible(false);
       revealTimer.current = window.setTimeout(() => {
@@ -282,14 +292,77 @@ export function VaultPage() {
     }
   }
 
+  /**
+   * Holt Geheimnis (kurz gecacht) für Ein-Klick-Kopieren aus der Liste.
+   */
+  async function getSecret(id: string): Promise<VaultEntrySecret> {
+    const cached = secretCache.current.get(id);
+    if (cached && Date.now() - cached.at < 45_000) return cached.secret;
+    const secret = await api.vaultReveal(id);
+    secretCache.current.set(id, { secret, at: Date.now() });
+    return secret;
+  }
+
   async function copyText(value: string | null | undefined, label = "Kopiert") {
     if (!value) return;
+    const ok = await copyToClipboard(value);
+    if (!ok) {
+      setError("Zwischenablage nicht verfügbar (HTTPS oder Browser-Freigabe nötig)");
+      return;
+    }
+    setCopyHint(label);
+    window.setTimeout(() => setCopyHint(""), 1600);
+  }
+
+  /**
+   * Benutzername oder Passwort eines Eintrags entschlüsseln und kopieren (mit Karten-Animation).
+   */
+  async function copyEntryField(entry: VaultEntryMeta, field: "username" | "password") {
+    if (field === "username" && !entry.hasUsername) return;
+    if (field === "password" && !entry.hasPassword) return;
+    setError("");
+    setCopyBusyId(`${entry.id}:${field}`);
     try {
-      await navigator.clipboard.writeText(value);
-      setCopyHint(label);
-      window.setTimeout(() => setCopyHint(""), 1500);
-    } catch {
-      setError("Zwischenablage nicht verfügbar");
+      const secret = await getSecret(entry.id);
+      const value = field === "username" ? secret.username : secret.password;
+      if (!value) {
+        setError(field === "username" ? "Kein Benutzername hinterlegt" : "Kein Passwort hinterlegt");
+        return;
+      }
+      const ok = await copyToClipboard(value);
+      if (!ok) {
+        setError("Zwischenablage nicht verfügbar (HTTPS oder Browser-Freigabe nötig)");
+        return;
+      }
+      if (copyAnimTimer.current) window.clearTimeout(copyAnimTimer.current);
+      setCopiedEntryId(entry.id);
+      setCopyHint(field === "username" ? "Benutzername kopiert" : "Passwort kopiert");
+      copyAnimTimer.current = window.setTimeout(() => {
+        setCopiedEntryId(null);
+        setCopyHint("");
+      }, 1300);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Kopieren fehlgeschlagen");
+      void refreshStatus();
+    } finally {
+      setCopyBusyId(null);
+    }
+  }
+
+  async function onDeleteEntry() {
+    if (!editingId) return;
+    setDeleteBusy(true);
+    setFormError("");
+    try {
+      await api.vaultDeleteEntry(editingId);
+      secretCache.current.delete(editingId);
+      setConfirmDelete(false);
+      resetForm();
+      await loadEntries();
+    } catch (err) {
+      setFormError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -610,85 +683,115 @@ export function VaultPage() {
                     </h3>
                   ) : null}
                   <ul className="vault-safe-list">
-                    {group.items.map((entry) => (
-                      <li key={entry.id} className="vault-safe-row">
-                        <button
-                          type="button"
-                          className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
-                          title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
-                          onClick={() => void toggleFavorite(entry)}
+                    {group.items.map((entry) => {
+                      const copying = copiedEntryId === entry.id;
+                      const userBusy = copyBusyId === `${entry.id}:username`;
+                      const passBusy = copyBusyId === `${entry.id}:password`;
+                      return (
+                        <li
+                          key={entry.id}
+                          className={`vault-entry-card${copying ? " is-copying" : ""}${entry.favorite ? " is-favorite" : ""}`}
                         >
-                          ★
-                        </button>
-                        <div className="vault-safe-main">
-                          <div className="vault-safe-title">
-                            <strong>{entry.title}</strong>
-                            {!groupByCategory ? (
-                              <span className="badge badge-kind">
-                                {vaultCategoryLabel[entry.category as VaultCategory] ??
-                                  entry.category}
+                          <svg
+                            className="vault-entry-trace"
+                            viewBox="0 0 100 100"
+                            preserveAspectRatio="none"
+                            aria-hidden
+                          >
+                            <rect
+                              x="1"
+                              y="1"
+                              width="98"
+                              height="98"
+                              rx="4.5"
+                              ry="4.5"
+                              pathLength="100"
+                            />
+                          </svg>
+                          <button
+                            type="button"
+                            className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
+                            title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
+                            onClick={() => void toggleFavorite(entry)}
+                          >
+                            ★
+                          </button>
+                          <div className="vault-entry-body">
+                            <div className="vault-entry-top">
+                              <strong className="vault-entry-title">{entry.title}</strong>
+                              {!groupByCategory ? (
+                                <span className="badge badge-kind vault-entry-cat">
+                                  {vaultCategoryLabel[entry.category as VaultCategory] ??
+                                    entry.category}
+                                </span>
+                              ) : null}
+                            </div>
+                            <div className="vault-entry-meta">
+                              <span>
+                                {entry.customerId ? customerLabel(entry) : "Allgemein"}
                               </span>
-                            ) : null}
-                          </div>
-                          <div className="vault-safe-meta">
-                            <span>
-                              {entry.customerId ? customerLabel(entry) : "Allgemein"}
-                            </span>
-                            <span>{formatDate(entry.updatedAt)}</span>
-                            {(entry.tags ?? []).length > 0 ? (
-                              <span className="vault-safe-tags">
-                                {(entry.tags ?? []).map((t) => `#${t}`).join(" ")}
+                              <span className="vault-entry-dot" aria-hidden>
+                                ·
                               </span>
-                            ) : null}
+                              <span>{formatDate(entry.updatedAt)}</span>
+                              {(entry.tags ?? []).length > 0 ? (
+                                <>
+                                  <span className="vault-entry-dot" aria-hidden>
+                                    ·
+                                  </span>
+                                  <span className="vault-safe-tags">
+                                    {(entry.tags ?? []).map((t) => `#${t}`).join(" ")}
+                                  </span>
+                                </>
+                              ) : null}
+                            </div>
                           </div>
-                          <div className="vault-safe-flags">
-                            {[
-                              entry.hasUsername && "Benutzer",
-                              entry.hasPassword && "Passwort",
-                              entry.hasTotp && "2FA",
-                              entry.hasUrl && "URL",
-                              entry.hasNotes && "Notizen",
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </div>
-                        </div>
-                        <div className="vault-safe-actions">
-                          {entry.customerId ? (
-                            <Link
-                              className="btn btn-ghost btn-sm"
-                              to={`/customers/${entry.customerId}`}
+                          <div className="vault-entry-actions">
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm vault-copy-btn"
+                              disabled={!entry.hasUsername || userBusy}
+                              title="Benutzername kopieren"
+                              onClick={() => void copyEntryField(entry, "username")}
                             >
-                              Kunde
-                            </Link>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            onClick={() => void startEdit(entry)}
-                          >
-                            Bearbeiten
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => void onReveal(entry.id)}
-                          >
-                            Anzeigen
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => {
-                              if (!confirm("Eintrag unwiderruflich löschen?")) return;
-                              void api.vaultDeleteEntry(entry.id).then(() => loadEntries());
-                            }}
-                          >
-                            Löschen
-                          </button>
-                        </div>
-                      </li>
-                    ))}
+                              {userBusy ? "…" : "Benutzer"}
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm vault-copy-btn"
+                              disabled={!entry.hasPassword || passBusy}
+                              title="Passwort kopieren"
+                              onClick={() => void copyEntryField(entry, "password")}
+                            >
+                              {passBusy ? "…" : "Passwort"}
+                            </button>
+                            {entry.customerId ? (
+                              <Link
+                                className="btn btn-ghost btn-sm"
+                                to={`/customers/${entry.customerId}`}
+                                title="Kunde öffnen"
+                              >
+                                Kunde
+                              </Link>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => void startEdit(entry)}
+                            >
+                              Bearbeiten
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-sm"
+                              onClick={() => void onReveal(entry.id)}
+                            >
+                              Anzeigen
+                            </button>
+                          </div>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </section>
               ))}
@@ -825,15 +928,54 @@ export function VaultPage() {
                 />
               </label>
               {formError ? <p className="form-error full">{formError}</p> : null}
-              <div className="full form-actions modal-actions">
-                <button className="btn btn-primary" type="submit">
-                  {editingId ? "Speichern" : "Verschlüsselt speichern"}
-                </button>
-                <button className="btn btn-ghost" type="button" onClick={resetForm}>
-                  Abbrechen
-                </button>
+              <div className="full form-actions modal-actions vault-form-actions">
+                {editingId ? (
+                  <button
+                    className="btn btn-danger"
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    Löschen
+                  </button>
+                ) : null}
+                <div className="vault-form-actions-end">
+                  <button className="btn btn-ghost" type="button" onClick={resetForm}>
+                    Abbrechen
+                  </button>
+                  <button className="btn btn-primary" type="submit">
+                    {editingId ? "Speichern" : "Verschlüsselt speichern"}
+                  </button>
+                </div>
               </div>
             </form>
+          </Modal>
+
+          <Modal
+            open={confirmDelete}
+            title="Zugang löschen?"
+            onClose={() => !deleteBusy && setConfirmDelete(false)}
+          >
+            <p className="muted">
+              „{form.title || "Dieser Zugang"}“ wird unwiderruflich gelöscht. Fortfahren?
+            </p>
+            <div className="form-actions modal-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={deleteBusy}
+                onClick={() => setConfirmDelete(false)}
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                disabled={deleteBusy}
+                onClick={() => void onDeleteEntry()}
+              >
+                {deleteBusy ? "Löscht…" : "Endgültig löschen"}
+              </button>
+            </div>
           </Modal>
 
           <Modal
