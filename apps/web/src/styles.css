@@ -4816,10 +4816,11 @@ input[type="checkbox"]:not(.check-input):checked {
   }
 
   .modal-root {
-    z-index: 90;
+    z-index: 200;
     align-items: flex-end;
     justify-content: stretch;
     padding: 0;
+    overflow: hidden;
     overscroll-behavior: contain;
   }
 
@@ -7561,26 +7562,27 @@ a.stat-chip:hover {
   height: 1.3rem;
 }
 
-/* Modal – viewport-sicher: Panel begrenzt, Body scrollt, Aktionen erreichbar */
+/* Modal – viewport-sicher (Portal auf body): zentriert ohne Abschneiden */
 .modal-root {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 200;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: flex-start;
   padding:
-    max(0.75rem, env(safe-area-inset-top, 0px))
-    max(0.75rem, env(safe-area-inset-right, 0px))
-    max(0.75rem, env(safe-area-inset-bottom, 0px))
-    max(0.75rem, env(safe-area-inset-left, 0px));
-  overflow: hidden;
+    max(0.85rem, env(safe-area-inset-top, 0px))
+    max(0.85rem, env(safe-area-inset-right, 0px))
+    max(0.85rem, env(safe-area-inset-bottom, 0px))
+    max(0.85rem, env(safe-area-inset-left, 0px));
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   animation: fade-in 0.2s ease both;
 }
 
 .modal-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
   border: 0;
   padding: 0;
@@ -7598,8 +7600,10 @@ a.stat-chip:hover {
   flex-direction: column;
   width: min(100%, 520px);
   max-width: 100%;
-  max-height: min(90vh, 90dvh, 860px);
+  /* Padding des Overlays einrechnen, damit nichts oben/unten abgeschnitten wird */
+  max-height: min(calc(100vh - 1.7rem), calc(100dvh - 1.7rem), 860px);
   min-height: 0;
+  margin-block: auto;
   overflow: hidden;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
@@ -8962,12 +8966,14 @@ button.agenda-item {
     padding: 0;
     align-items: flex-end;
     justify-content: stretch;
+    overflow: hidden;
   }
 
   .modal-panel,
   .modal-panel.modal-wide {
     width: 100%;
     max-height: min(92vh, 92dvh);
+    margin: 0;
     border-radius: 18px 18px 0 0;
     padding: 1rem 1rem 0;
     animation: modal-sheet 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;

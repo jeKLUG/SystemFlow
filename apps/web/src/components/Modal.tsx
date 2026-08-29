@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -10,8 +11,8 @@ type Props = {
 };
 
 /**
- * Modal-Overlay mit Escape, Backdrop-Klick und Fokusfang.
- * Panel ist viewport-begrenzt; der Body scrollt – Aktionsleisten bleiben erreichbar.
+ * Modal-Overlay (Portal auf `document.body`) mit Escape, Backdrop-Klick und Fokusfang.
+ * Panel bleibt im Viewport; bei viel Inhalt scrollt der Body – Aktionsleisten bleiben erreichbar.
  */
 export function Modal({ open, title, onClose, children, className = "" }: Props) {
   const titleId = useId();
@@ -43,7 +44,7 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="modal-root" role="presentation">
       <button type="button" className="modal-backdrop" aria-label="Schließen" onClick={onClose} />
       <div
@@ -66,6 +67,7 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.72 – 2026-08-29
+
+- Modals: korrekt zentriert im Viewport (Portal auf `body`); Tresor-Zugangsanlage nicht mehr abgeschnitten
+
 ## 1.5.71 – 2026-08-25
 
 - Schnellnotiz: Speichern ohne Kundenwahl (Anruf-Inbox); später im Editor zuordenbar
