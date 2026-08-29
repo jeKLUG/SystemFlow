@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.74 – 2026-08-29
+
+- Passworttresor: Zugangskarten im Passwordmanager-Stil (Benutzer/Passwort, Stärke, Menü)
+- Kopier-Animation: Strich läuft einmal den gesamten Kartenrahmen ab
+
 ## 1.5.73 – 2026-08-29
 
 - Passworttresor: kompaktere Zugangskarten; Benutzer/Passwort per Klick kopieren (mit Rahmen-Animation)

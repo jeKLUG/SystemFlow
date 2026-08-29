@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
 import { copyToClipboard } from "../lib/clipboard";
-import { formatDate, vaultCategoryLabel } from "../lib/labels";
+import { vaultCategoryLabel } from "../lib/labels";
 import {
   clearGenHistory,
   generatePassword,
@@ -295,13 +295,13 @@ export function VaultPage() {
   /**
    * Holt Geheimnis (kurz gecacht) für Ein-Klick-Kopieren aus der Liste.
    */
-  async function getSecret(id: string): Promise<VaultEntrySecret> {
+  const getSecret = useCallback(async (id: string): Promise<VaultEntrySecret> => {
     const cached = secretCache.current.get(id);
     if (cached && Date.now() - cached.at < 45_000) return cached.secret;
     const secret = await api.vaultReveal(id);
     secretCache.current.set(id, { secret, at: Date.now() });
     return secret;
-  }
+  }, []);
 
   async function copyText(value: string | null | undefined, label = "Kopiert") {
     if (!value) return;
@@ -683,115 +683,26 @@ export function VaultPage() {
                     </h3>
                   ) : null}
                   <ul className="vault-safe-list">
-                    {group.items.map((entry) => {
-                      const copying = copiedEntryId === entry.id;
-                      const userBusy = copyBusyId === `${entry.id}:username`;
-                      const passBusy = copyBusyId === `${entry.id}:password`;
-                      return (
-                        <li
-                          key={entry.id}
-                          className={`vault-entry-card${copying ? " is-copying" : ""}${entry.favorite ? " is-favorite" : ""}`}
-                        >
-                          <svg
-                            className="vault-entry-trace"
-                            viewBox="0 0 100 100"
-                            preserveAspectRatio="none"
-                            aria-hidden
-                          >
-                            <rect
-                              x="1"
-                              y="1"
-                              width="98"
-                              height="98"
-                              rx="4.5"
-                              ry="4.5"
-                              pathLength="100"
-                            />
-                          </svg>
-                          <button
-                            type="button"
-                            className={`vault-fav ${entry.favorite ? "is-on" : ""}`}
-                            title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
-                            onClick={() => void toggleFavorite(entry)}
-                          >
-                            ★
-                          </button>
-                          <div className="vault-entry-body">
-                            <div className="vault-entry-top">
-                              <strong className="vault-entry-title">{entry.title}</strong>
-                              {!groupByCategory ? (
-                                <span className="badge badge-kind vault-entry-cat">
-                                  {vaultCategoryLabel[entry.category as VaultCategory] ??
-                                    entry.category}
-                                </span>
-                              ) : null}
-                            </div>
-                            <div className="vault-entry-meta">
-                              <span>
-                                {entry.customerId ? customerLabel(entry) : "Allgemein"}
-                              </span>
-                              <span className="vault-entry-dot" aria-hidden>
-                                ·
-                              </span>
-                              <span>{formatDate(entry.updatedAt)}</span>
-                              {(entry.tags ?? []).length > 0 ? (
-                                <>
-                                  <span className="vault-entry-dot" aria-hidden>
-                                    ·
-                                  </span>
-                                  <span className="vault-safe-tags">
-                                    {(entry.tags ?? []).map((t) => `#${t}`).join(" ")}
-                                  </span>
-                                </>
-                              ) : null}
-                            </div>
-                          </div>
-                          <div className="vault-entry-actions">
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm vault-copy-btn"
-                              disabled={!entry.hasUsername || userBusy}
-                              title="Benutzername kopieren"
-                              onClick={() => void copyEntryField(entry, "username")}
-                            >
-                              {userBusy ? "…" : "Benutzer"}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm vault-copy-btn"
-                              disabled={!entry.hasPassword || passBusy}
-                              title="Passwort kopieren"
-                              onClick={() => void copyEntryField(entry, "password")}
-                            >
-                              {passBusy ? "…" : "Passwort"}
-                            </button>
-                            {entry.customerId ? (
-                              <Link
-                                className="btn btn-ghost btn-sm"
-                                to={`/customers/${entry.customerId}`}
-                                title="Kunde öffnen"
-                              >
-                                Kunde
-                              </Link>
-                            ) : null}
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-sm"
-                              onClick={() => void startEdit(entry)}
-                            >
-                              Bearbeiten
-                            </button>
-                            <button
-                              type="button"
-                              className="btn btn-primary btn-sm"
-                              onClick={() => void onReveal(entry.id)}
-                            >
-                              Anzeigen
-                            </button>
-                          </div>
-                        </li>
-                      );
-                    })}
+                    {group.items.map((entry) => (
+                      <VaultEntryCard
+                        key={entry.id}
+                        entry={entry}
+                        showCategory={!groupByCategory}
+                        copying={copiedEntryId === entry.id}
+                        copyBusyField={
+                          copyBusyId === `${entry.id}:username`
+                            ? "username"
+                            : copyBusyId === `${entry.id}:password`
+                              ? "password"
+                              : null
+                        }
+                        getSecret={getSecret}
+                        onCopyField={copyEntryField}
+                        onToggleFavorite={toggleFavorite}
+                        onEdit={startEdit}
+                        onReveal={onReveal}
+                      />
+                    ))}
                   </ul>
                 </section>
               ))}
@@ -1214,6 +1125,250 @@ export function VaultPage() {
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Zugangskarte im Passwordmanager-Stil: Benutzer/Passwort mit Kopieren und Rahmen-Animation.
+ */
+function VaultEntryCard({
+  entry,
+  showCategory,
+  copying,
+  copyBusyField,
+  getSecret,
+  onCopyField,
+  onToggleFavorite,
+  onEdit,
+  onReveal,
+}: {
+  entry: VaultEntryMeta;
+  showCategory: boolean;
+  copying: boolean;
+  copyBusyField: "username" | "password" | null;
+  getSecret: (id: string) => Promise<VaultEntrySecret>;
+  onCopyField: (entry: VaultEntryMeta, field: "username" | "password") => void | Promise<void>;
+  onToggleFavorite: (entry: VaultEntryMeta) => void | Promise<void>;
+  onEdit: (entry: VaultEntryMeta) => void | Promise<void>;
+  onReveal: (id: string) => void | Promise<void>;
+}) {
+  const rootRef = useRef<HTMLLIElement>(null);
+  const [secret, setSecret] = useState<VaultEntrySecret | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showPassword, setShowPassword] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void getSecret(entry.id)
+      .then((s) => {
+        if (!cancelled) setSecret(s);
+      })
+      .catch(() => {
+        if (!cancelled) setSecret(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.id, getSecret]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [menuOpen]);
+
+  const username = secret?.username ?? "";
+  const password = secret?.password ?? "";
+  const strength = password
+    ? passwordStrength(password)
+    : { score: 0, label: "–" };
+  const strengthShort =
+    strength.label === "–"
+      ? "–"
+      : strength.score >= 3
+        ? "STARK"
+        : strength.score === 2
+          ? "MITTEL"
+          : "SCHWACH";
+
+  return (
+    <li
+      ref={rootRef}
+      className={`vault-entry-card${copying ? " is-copying" : ""}${entry.favorite ? " is-favorite" : ""}`}
+    >
+      <svg className="vault-entry-trace" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+        <rect x="1.2" y="1.2" width="97.6" height="97.6" rx="5" ry="5" pathLength="100" />
+      </svg>
+
+      <div className="vault-entry-head">
+        <button
+          type="button"
+          className={`vault-entry-icon-btn vault-entry-fav${entry.favorite ? " is-on" : ""}`}
+          title={entry.favorite ? "Favorit entfernen" : "Als Favorit"}
+          onClick={() => void onToggleFavorite(entry)}
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+            <path d="M7 4.5h10v15l-5-3.2L7 19.5v-15Z" strokeLinejoin="round" />
+            {!entry.favorite ? <path d="M12 8v5M9.5 10.5h5" strokeLinecap="round" /> : null}
+          </svg>
+        </button>
+        <div className="vault-entry-heading">
+          <strong className="vault-entry-title">{entry.title}</strong>
+          {showCategory ? (
+            <span className="vault-entry-sub">
+              {vaultCategoryLabel[entry.category as VaultCategory] ?? entry.category}
+              {entry.customerId ? ` · ${customerLabel(entry)}` : ""}
+            </span>
+          ) : entry.customerId ? (
+            <span className="vault-entry-sub">{customerLabel(entry)}</span>
+          ) : null}
+        </div>
+        <div className="vault-entry-menu">
+          <button
+            type="button"
+            className="vault-entry-icon-btn"
+            aria-label="Aktionen"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <circle cx="12" cy="6" r="1.6" />
+              <circle cx="12" cy="12" r="1.6" />
+              <circle cx="12" cy="18" r="1.6" />
+            </svg>
+          </button>
+          {menuOpen ? (
+            <div className="vault-entry-menu-pop" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void onEdit(entry);
+                }}
+              >
+                Bearbeiten
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  void onReveal(entry.id);
+                }}
+              >
+                Details anzeigen
+              </button>
+              {entry.customerId ? (
+                <Link
+                  role="menuitem"
+                  to={`/customers/${entry.customerId}`}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Kunde öffnen
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className={`vault-entry-strength is-score-${strength.score}`} aria-label={`Stärke: ${strength.label}`}>
+        <span className="vault-entry-strength-dashes" aria-hidden>
+          {Array.from({ length: 5 }, (_, i) => (
+            <i key={i} className={i < Math.max(strength.score, password ? 1 : 0) ? "is-on" : ""} />
+          ))}
+        </span>
+        <span className="vault-entry-strength-label">{loading ? "…" : strengthShort}</span>
+      </div>
+
+      <div className="vault-entry-creds">
+        <div className="vault-entry-cred-row">
+          <span className="vault-entry-cred-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <circle cx="12" cy="9" r="3.2" />
+              <path d="M6.5 18.5c1.4-2.4 3.3-3.5 5.5-3.5s4.1 1.1 5.5 3.5" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className="vault-entry-cred-value">
+            {loading ? "…" : username || (entry.hasUsername ? "–" : "Kein Benutzer")}
+          </span>
+          <button
+            type="button"
+            className="vault-entry-icon-btn"
+            title="Benutzername kopieren"
+            disabled={!entry.hasUsername || copyBusyField === "username" || loading}
+            onClick={() => void onCopyField(entry, "username")}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <rect x="8.5" y="8.5" width="10" height="10" rx="2" />
+              <path d="M6.5 15.5V7A1.5 1.5 0 0 1 8 5.5h8.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+        <div className="vault-entry-cred-row">
+          <span className="vault-entry-cred-icon" aria-hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+              <circle cx="8.5" cy="12" r="3" />
+              <path d="M11.5 12h8.5M16.5 12v3.5M19.5 12v2.2" strokeLinecap="round" />
+            </svg>
+          </span>
+          <span className={`vault-entry-cred-value${showPassword ? " is-mono" : ""}`}>
+            {loading
+              ? "…"
+              : password
+                ? showPassword
+                  ? password
+                  : "••••••••••••"
+                : entry.hasPassword
+                  ? "••••••••••••"
+                  : "Kein Passwort"}
+          </span>
+          <button
+            type="button"
+            className="vault-entry-icon-btn"
+            title={showPassword ? "Passwort verbergen" : "Passwort zeigen"}
+            disabled={!entry.hasPassword || loading || !password}
+            onClick={() => setShowPassword((v) => !v)}
+          >
+            {showPassword ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <path d="M4 4l16 16M10.5 10.7A3 3 0 0 0 13.3 13.5" strokeLinecap="round" />
+                <path
+                  d="M9.2 5.6A10.5 10.5 0 0 1 12 5c5.2 0 8.8 3.8 10 7-0.5 1.3-1.4 2.8-2.8 4.1M6.2 6.8C4.5 8.1 3.4 9.8 2.9 12c1.2 3.2 4.8 7 9.1 7 1.3 0 2.5-.3 3.6-.7"
+                  strokeLinecap="round"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                <path d="M2.9 12C4.1 8.8 7.7 5 12 5s7.9 3.8 9.1 7c-1.2 3.2-4.8 7-9.1 7s-7.9-3.8-9.1-7Z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            className="vault-entry-icon-btn"
+            title="Passwort kopieren"
+            disabled={!entry.hasPassword || copyBusyField === "password" || loading}
+            onClick={() => void onCopyField(entry, "password")}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <rect x="8.5" y="8.5" width="10" height="10" rx="2" />
+              <path d="M6.5 15.5V7A1.5 1.5 0 0 1 8 5.5h8.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </li>
   );
 }
 
