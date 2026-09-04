@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.75 – 2026-08-29
+
+- Passworttresor: Drei-Punkte-Menü deckend und klickbar (nicht mehr hinter Karteninhalt)
+
 ## 1.5.74 – 2026-08-29
 
 - Passworttresor: Zugangskarten im Passwordmanager-Stil (Benutzer/Passwort, Stärke, Menü)

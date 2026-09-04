@@ -1202,7 +1202,7 @@ function VaultEntryCard({
   return (
     <li
       ref={rootRef}
-      className={`vault-entry-card${copying ? " is-copying" : ""}${entry.favorite ? " is-favorite" : ""}`}
+      className={`vault-entry-card${copying ? " is-copying" : ""}${entry.favorite ? " is-favorite" : ""}${menuOpen ? " is-menu-open" : ""}`}
     >
       <svg className="vault-entry-trace" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
         <rect x="1.2" y="1.2" width="97.6" height="97.6" rx="5" ry="5" pathLength="100" />

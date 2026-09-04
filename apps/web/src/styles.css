@@ -6744,6 +6744,11 @@ a.stat-chip:hover {
   overflow: hidden;
 }
 
+.vault-entry-card.is-menu-open {
+  overflow: visible;
+  z-index: 20;
+}
+
 .vault-entry-card:hover {
   border-color: rgba(148, 163, 184, 0.28);
 }
@@ -6886,36 +6891,46 @@ a.stat-chip:hover {
 
 .vault-entry-menu {
   position: relative;
+  z-index: 6;
+}
+
+.vault-entry-card.is-menu-open .vault-entry-head {
+  z-index: 6;
 }
 
 .vault-entry-menu-pop {
   position: absolute;
   top: calc(100% + 0.3rem);
   right: 0;
-  z-index: 5;
-  min-width: 10.5rem;
-  padding: 0.3rem;
+  z-index: 30;
+  min-width: 11rem;
+  padding: 0.35rem;
   border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  background: #0f1520;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: #0b1220;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 18px 42px rgba(0, 0, 0, 0.55);
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  isolation: isolate;
 }
 
 .vault-entry-menu-pop button,
 .vault-entry-menu-pop a {
   appearance: none;
+  position: relative;
+  z-index: 1;
   display: block;
   width: 100%;
   text-align: left;
   border: 0;
-  background: transparent;
+  background: #0b1220;
   color: var(--text);
   font: inherit;
   font-size: 0.86rem;
-  padding: 0.5rem 0.65rem;
+  padding: 0.55rem 0.7rem;
   border-radius: 8px;
   cursor: pointer;
   text-decoration: none;
@@ -6923,7 +6938,7 @@ a.stat-chip:hover {
 
 .vault-entry-menu-pop button:hover,
 .vault-entry-menu-pop a:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(59, 130, 246, 0.16);
 }
 
 .vault-entry-strength {
