@@ -227,18 +227,42 @@ compose_up() {
   fi
   docker rm -f systemhaus-ess >/dev/null 2>&1 || true
 
-  free_port "${PORT}"
-
-  if ss -lnt "sport = :${PORT}" 2>/dev/null | grep -q ":${PORT}"; then
-    warn "Port ${PORT} ist noch belegt:"
-    ss -lntp "sport = :${PORT}" 2>/dev/null || true
-    die "Port ${PORT} freigeben oder mit SYSTEMHAUS_PORT=<frei> neu deployen"
+  # Zuerst nur bauen – Port erst direkt vor dem Start freigeben
+  # (sonst kann waehrend langer Builds wieder ein alter node-Prozess den Port belegen)
+  log "Baue Image…"
+  if [[ "${mode}" == "compose" ]]; then
+    docker compose --env-file .env build
+  else
+    docker-compose --env-file .env build
   fi
 
+  free_port "${PORT}"
+  ensure_port_free "${PORT}"
+
+  log "Starte Container…"
   if [[ "${mode}" == "compose" ]]; then
-    docker compose --env-file .env up -d --build --remove-orphans --force-recreate
+    if ! docker compose --env-file .env up -d --remove-orphans --force-recreate; then
+      warn "Start fehlgeschlagen – Port erneut freigeben und einmal retry…"
+      free_port "${PORT}"
+      ensure_port_free "${PORT}"
+      docker compose --env-file .env up -d --remove-orphans --force-recreate
+    fi
   else
-    docker-compose --env-file .env up -d --build --remove-orphans --force-recreate
+    if ! docker-compose --env-file .env up -d --remove-orphans --force-recreate; then
+      warn "Start fehlgeschlagen – Port erneut freigeben und einmal retry…"
+      free_port "${PORT}"
+      ensure_port_free "${PORT}"
+      docker-compose --env-file .env up -d --remove-orphans --force-recreate
+    fi
+  fi
+}
+
+ensure_port_free() {
+  local port="$1"
+  if ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port}"; then
+    warn "Port ${port} ist noch belegt:"
+    ss -lntp "sport = :${port}" 2>/dev/null || true
+    die "Port ${port} freigeben (z. B. kill des node-Prozesses) oder SYSTEMHAUS_PORT=<frei> nutzen"
   fi
 }
 

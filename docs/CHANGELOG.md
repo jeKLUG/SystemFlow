@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.77 – 2026-09-04
+
+- Deploy: Port erst nach dem Image-Build freigeben (verhindert „address already in use“ durch alten `node`-Prozess)
+
 ## 1.5.76 – 2026-09-04
 
 - Docker-Build: mehr Heap für `tsc`/`vite` auf kleinen VPS; klarere Build-Fortschrittsmeldungen
