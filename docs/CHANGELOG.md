@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.76 – 2026-09-04
+
+- Docker-Build: mehr Heap für `tsc`/`vite` auf kleinen VPS; klarere Build-Fortschrittsmeldungen
+
 ## 1.5.75 – 2026-08-29
 
 - Passworttresor: Drei-Punkte-Menü deckend und klickbar (nicht mehr hinter Karteninhalt)

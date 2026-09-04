@@ -2,6 +2,9 @@
 FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
+# Kleine VPS: TypeScript/Vite brauchen ausreichend Heap (sonst „hängt“ tsc im Swap)
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 COPY package.json package-lock.json* ./
 COPY apps/api/package.json ./apps/api/package.json
 COPY apps/web/package.json ./apps/web/package.json
@@ -11,9 +14,13 @@ RUN npm install
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
 
-RUN npm run build -w @systemhaus/web \
+RUN echo "==> Web bauen…" \
+  && npm run build -w @systemhaus/web \
+  && echo "==> API bauen (tsc)…" \
   && npm run build -w @systemhaus/api \
-  && npm prune --omit=dev
+  && echo "==> DevDependencies entfernen…" \
+  && npm prune --omit=dev \
+  && echo "==> Build fertig"
 
 FROM node:22-bookworm-slim AS runtime
 
