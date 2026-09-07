@@ -212,7 +212,7 @@ export function DashboardPage() {
                     ? statusSlices
                     : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
                 }
-                size={104}
+                size={96}
                 thickness={7}
                 centerValue={summary.open}
                 centerLabel="offen"
