@@ -307,6 +307,7 @@ export function CustomerProjectsPage() {
         title={editingId ? "Projekt bearbeiten" : "Neues Projekt"}
         onClose={closeModal}
         className="modal-wide"
+        showCloseButton={false}
       >
         <form className="form-grid" onSubmit={save}>
           <label className="field">

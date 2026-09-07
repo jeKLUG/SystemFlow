@@ -8,13 +8,22 @@ type Props = {
   children: ReactNode;
   /** Zusätzliche Klasse auf dem Dialog-Panel */
   className?: string;
+  /** X-Button oben rechts (Standard: an). Abbrechen bleibt über Backdrop/Escape. */
+  showCloseButton?: boolean;
 };
 
 /**
  * Modal-Overlay (Portal auf `document.body`) mit Escape, Backdrop-Klick und Fokusfang.
  * Panel bleibt im Viewport; bei viel Inhalt scrollt der Body – Aktionsleisten bleiben erreichbar.
  */
-export function Modal({ open, title, onClose, children, className = "" }: Props) {
+export function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  className = "",
+  showCloseButton = true,
+}: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -55,13 +64,15 @@ export function Modal({ open, title, onClose, children, className = "" }: Props)
         aria-labelledby={titleId}
         tabIndex={-1}
       >
-        <div className="modal-head">
+        <div className={`modal-head${!showCloseButton ? " is-title-only" : ""}`}>
           <h3 id={titleId}>{title}</h3>
-          <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Schließen">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
-            </svg>
-          </button>
+          {showCloseButton ? (
+            <button type="button" className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Schließen">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
+            </button>
+          ) : null}
         </div>
         <div ref={bodyRef} className="modal-body">
           {children}

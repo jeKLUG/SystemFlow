@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import { Checkbox } from "../../components/Checkbox";
+import { DeleteIcon, EditIcon } from "../../components/Icons";
 import { Modal } from "../../components/Modal";
 import { addMinutesToTime, localNowTime, localTodayIso, parseDateOnly } from "../../lib/dates";
 import { formatDateOnly } from "../../lib/labels";
@@ -190,6 +191,37 @@ export function CustomerTimePage() {
         items,
       }));
   }, [finishedEntries]);
+
+  const monthGroups = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        hours: number;
+        days: typeof groups;
+      }
+    >();
+    for (const day of groups) {
+      const key = day.date.slice(0, 7);
+      const bucket = map.get(key);
+      if (bucket) {
+        bucket.days.push(day);
+        bucket.hours += day.hours;
+      } else {
+        map.set(key, {
+          key,
+          label: monthLabel(key),
+          hours: day.hours,
+          days: [day],
+        });
+      }
+    }
+    return [...map.values()].map((m) => ({
+      ...m,
+      hours: Math.round(m.hours * 100) / 100,
+    }));
+  }, [groups]);
 
   function openCreate() {
     setError("");
@@ -510,115 +542,125 @@ export function CustomerTimePage() {
         </div>
       ) : (
         <div className="time-history">
-          {groups.map((group) => (
-            <section key={group.date} className="time-day">
-              <div className="time-day-head">
-                <h3>{group.label}</h3>
-                <span>{formatHours(group.hours)}</span>
-              </div>
-              <ul className="time-entry-list">
-                {group.items.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className={`time-entry${entry.billable ? "" : " is-nonbillable"}${entry.billed ? " is-billed" : ""}`}
-                  >
-                    <div className="time-entry-range">
-                      <strong>
-                        {entry.startTime && entry.endTime
-                          ? `${entry.startTime}–${entry.endTime}`
-                          : formatHours(Number(entry.hours))}
-                      </strong>
-                      <span>{formatHours(Number(entry.hours))}</span>
-                    </div>
-                    <div className="time-entry-body">
-                      <strong>{entry.description || "Ohne Beschreibung"}</strong>
-                      <span className="time-entry-meta">
-                        <span className="time-chip">{entry.projectName || "Ohne Projekt"}</span>
-                        <span className="time-chip">
-                          {entry.priceItemName || "Standard-Satz"}
-                          {entry.rateSnapshot != null
-                            ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
-                            : ""}
-                        </span>
-                        {entry.amountSnapshot != null ? (
-                          <span className="time-chip is-amount">
-                            {entry.amountSnapshot.toLocaleString("de-DE", {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 2,
-                            })}{" "}
-                            {currency}
-                          </span>
-                        ) : null}
-                        <span className={`time-chip ${entry.billable ? "is-ok" : "is-muted"}`}>
-                          {entry.billable ? "Abrechenbar" : "Nicht abrechenbar"}
-                        </span>
-                        {entry.billable ? (
+          <p className="time-history-count muted">
+            {finishedEntries.length}{" "}
+            {finishedEntries.length === 1 ? "Eintrag" : "Einträge"}
+            {filterProject ? " im Filter" : ""}
+          </p>
+          {monthGroups.map((month) => (
+            <section key={month.key} className="time-month">
+              <header className="time-month-head">
+                <h3>{month.label}</h3>
+                <span>
+                  {formatHours(month.hours)}
+                  <em>
+                    · {month.days.reduce((n, d) => n + d.items.length, 0)}{" "}
+                    {month.days.reduce((n, d) => n + d.items.length, 0) === 1
+                      ? "Buchung"
+                      : "Buchungen"}
+                  </em>
+                </span>
+              </header>
+              {month.days.map((group) => (
+                <section key={group.date} className="time-day">
+                  <div className="time-day-head">
+                    <h4>{group.label}</h4>
+                    <span>{formatHours(group.hours)}</span>
+                  </div>
+                  <ul className="time-entry-list">
+                    {group.items.map((entry) => (
+                      <li
+                        key={entry.id}
+                        className={`time-entry${entry.billable ? "" : " is-nonbillable"}${entry.billed ? " is-billed" : ""}`}
+                      >
+                        <div className="time-entry-range">
+                          <strong>
+                            {entry.startTime && entry.endTime
+                              ? `${entry.startTime}–${entry.endTime}`
+                              : formatHours(Number(entry.hours))}
+                          </strong>
+                          <span>{formatHours(Number(entry.hours))}</span>
+                        </div>
+                        <div className="time-entry-body">
+                          <div className="time-entry-top">
+                            <strong className="time-entry-title">
+                              {entry.description || "Ohne Beschreibung"}
+                            </strong>
+                            {entry.amountSnapshot != null ? (
+                              <span className="time-entry-amount">
+                                {entry.amountSnapshot.toLocaleString("de-DE", {
+                                  minimumFractionDigits: 0,
+                                  maximumFractionDigits: 2,
+                                })}{" "}
+                                {currency}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="time-entry-meta">
+                            <span className="time-meta-text">
+                              {[
+                                entry.projectName || "Ohne Projekt",
+                                entry.priceItemName
+                                  ? `${entry.priceItemName}${
+                                      entry.rateSnapshot != null
+                                        ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                                        : ""
+                                    }`
+                                  : entry.rateSnapshot != null
+                                    ? `Standard · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                                    : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </span>
+                            {!entry.billable ? (
+                              <span className="time-status is-muted">Nicht abrechenbar</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className={`time-status time-billed-toggle ${entry.billed ? "is-billed" : "is-open"}`}
+                                disabled={busyId === entry.id}
+                                title={
+                                  entry.billed
+                                    ? "Als noch nicht abgerechnet markieren"
+                                    : "Als abgerechnet markieren"
+                                }
+                                onClick={() => void toggleBilled(entry)}
+                              >
+                                {entry.billed ? "Abgerechnet" : "Offen"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="time-entry-actions">
                           <button
                             type="button"
-                            className={`time-chip time-billed-toggle ${entry.billed ? "is-billed" : "is-open"}`}
-                            disabled={busyId === entry.id}
-                            title={
-                              entry.billed
-                                ? "Als noch nicht abgerechnet markieren"
-                                : "Als abgerechnet markieren"
-                            }
-                            onClick={() => void toggleBilled(entry)}
+                            className="btn btn-ghost btn-icon"
+                            aria-label="Eintrag bearbeiten"
+                            title="Bearbeiten"
+                            onClick={() => openEdit(entry)}
                           >
-                            {entry.billed ? "Abgerechnet" : "Nicht abgerechnet"}
+                            <EditIcon />
                           </button>
-                        ) : null}
-                      </span>
-                    </div>
-                    <div className="time-entry-actions">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon"
-                        aria-label="Eintrag bearbeiten"
-                        title="Bearbeiten"
-                        onClick={() => openEdit(entry)}
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          aria-hidden
-                        >
-                          <path
-                            d="M4 20h4l10-10-4-4L4 16v4zM14 6l4 4"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon"
-                        aria-label="Eintrag löschen"
-                        onClick={() => {
-                          if (confirm("Zeiteintrag löschen?")) {
-                            void api.deleteTimeEntry(entry.id).then(() => reload());
-                          }
-                        }}
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          aria-hidden
-                        >
-                          <path
-                            d="M5 7h14M10 7V5h4v2M8 7l.8 12h6.4L16 7"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon"
+                            aria-label="Eintrag löschen"
+                            title="Löschen"
+                            onClick={() => {
+                              if (confirm("Zeiteintrag löschen?")) {
+                                void api.deleteTimeEntry(entry.id).then(() => reload());
+                              }
+                            }}
+                          >
+                            <DeleteIcon />
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
             </section>
           ))}
         </div>

@@ -3,14 +3,16 @@ import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import {
   assetKindLabel,
+  assetOwnershipLabel,
   assetStatusLabel,
   formatDateOnly,
 } from "../../lib/labels";
-import type { Asset, AssetKind, AssetStatus } from "../../types";
+import type { Asset, AssetKind, AssetOwnership, AssetStatus } from "../../types";
 
 type AssetForm = {
   name: string;
   kind: AssetKind;
+  ownership: AssetOwnership;
   status: AssetStatus;
   manufacturer: string;
   model: string;
@@ -29,6 +31,7 @@ type AssetForm = {
 const emptyAsset: AssetForm = {
   name: "",
   kind: "pc",
+  ownership: "customer",
   status: "active",
   manufacturer: "",
   model: "",
@@ -48,6 +51,7 @@ function assetToForm(asset: Asset): AssetForm {
   return {
     name: asset.name,
     kind: asset.kind,
+    ownership: asset.ownership ?? "customer",
     status: asset.status ?? "active",
     manufacturer: asset.manufacturer ?? "",
     model: asset.model ?? "",
@@ -66,10 +70,13 @@ function assetToForm(asset: Asset): AssetForm {
 
 function matchesQuery(asset: Asset, q: string) {
   if (!q) return true;
+  const ownership = asset.ownership ?? "customer";
   const hay = [
     asset.name,
     asset.kind,
     assetKindLabel[asset.kind],
+    ownership,
+    assetOwnershipLabel[ownership],
     asset.status,
     assetStatusLabel[asset.status ?? "active"],
     asset.manufacturer,
@@ -90,7 +97,7 @@ function matchesQuery(asset: Asset, q: string) {
 }
 
 /**
- * Anlagen-Inventar eines Kunden: Geräte, Netzwerk, Lizenzen.
+ * Inventar eines Kunden: Geräte, Lizenzen, Software, Leihgaben und verwahrte Kundengeräte.
  */
 export function CustomerAssetsPage() {
   const { id = "" } = useParams();
@@ -100,6 +107,7 @@ export function CustomerAssetsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | AssetKind>("all");
+  const [ownershipFilter, setOwnershipFilter] = useState<"all" | AssetOwnership>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | AssetStatus>("all");
   const [groupByKind, setGroupByKind] = useState(true);
   const [error, setError] = useState("");
@@ -150,7 +158,7 @@ export function CustomerAssetsPage() {
   }
 
   async function removeAsset(asset: Asset) {
-    if (!window.confirm(`Anlage „${asset.name}“ wirklich löschen?`)) return;
+    if (!window.confirm(`Inventar-Eintrag „${asset.name}“ wirklich löschen?`)) return;
     await api.deleteAsset(asset.id);
     if (editingId === asset.id) resetForm();
     await reload();
@@ -158,10 +166,10 @@ export function CustomerAssetsPage() {
 
   const stats = useMemo(() => {
     const active = assetList.filter((a) => (a.status ?? "active") === "active").length;
-    const spare = assetList.filter((a) => a.status === "spare").length;
-    const retired = assetList.filter((a) => a.status === "retired").length;
-    const withIp = assetList.filter((a) => a.ipAddress).length;
-    return { total: assetList.length, active, spare, retired, withIp };
+    const loaned = assetList.filter((a) => (a.ownership ?? "customer") === "loaned").length;
+    const held = assetList.filter((a) => (a.ownership ?? "customer") === "held").length;
+    const licenses = assetList.filter((a) => a.kind === "license" || a.kind === "software").length;
+    return { total: assetList.length, active, loaned, held, licenses };
   }, [assetList]);
 
   const kindCounts = useMemo(() => {
@@ -176,10 +184,11 @@ export function CustomerAssetsPage() {
     const query = q.trim().toLowerCase();
     return assetList.filter((a) => {
       if (kindFilter !== "all" && a.kind !== kindFilter) return false;
+      if (ownershipFilter !== "all" && (a.ownership ?? "customer") !== ownershipFilter) return false;
       if (statusFilter !== "all" && (a.status ?? "active") !== statusFilter) return false;
       return matchesQuery(a, query);
     });
-  }, [assetList, q, kindFilter, statusFilter]);
+  }, [assetList, q, kindFilter, ownershipFilter, statusFilter]);
 
   const groups = useMemo(() => {
     if (!groupByKind) return [{ kind: null as AssetKind | null, items: filtered }];
@@ -199,8 +208,11 @@ export function CustomerAssetsPage() {
     <section className="section">
       <div className="section-head row-between">
         <div>
-          <h2>Anlagen</h2>
-          <p>Geräte, Netzwerk und Lizenzen – inkl. IP, Hostname und Standort.</p>
+          <h2>Inventar</h2>
+          <p>
+            Geräte, Lizenzen und Software – Kundeneigentum, von dir verliehen oder Kundengeräte bei
+            dir.
+          </p>
         </div>
         <button
           type="button"
@@ -210,7 +222,7 @@ export function CustomerAssetsPage() {
             else startCreate();
           }}
         >
-          {showForm && !editingId ? "Abbrechen" : "+ Anlage"}
+          {showForm && !editingId ? "Abbrechen" : "+ Eintrag"}
         </button>
       </div>
 
@@ -225,12 +237,16 @@ export function CustomerAssetsPage() {
             <span>Aktiv</span>
           </div>
           <div className="stat-chip">
-            <strong>{stats.spare}</strong>
-            <span>Ersatz / Lager</span>
+            <strong>{stats.loaned}</strong>
+            <span>Verliehen</span>
           </div>
           <div className="stat-chip">
-            <strong>{stats.withIp}</strong>
-            <span>Mit IP</span>
+            <strong>{stats.held}</strong>
+            <span>Bei uns</span>
+          </div>
+          <div className="stat-chip">
+            <strong>{stats.licenses}</strong>
+            <span>Lizenz / Software</span>
           </div>
         </div>
       ) : null}
@@ -239,10 +255,31 @@ export function CustomerAssetsPage() {
         <input
           className="wiki-search"
           type="search"
-          placeholder="Suche Name, IP, Hostname, S/N, Standort…"
+          placeholder="Suche Name, IP, Hostname, S/N, Lizenz, Standort…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
+        <div className="filter-chips" role="group" aria-label="Zuordnung">
+          <button
+            type="button"
+            className={`chip ${ownershipFilter === "all" ? "chip-active" : ""}`}
+            onClick={() => setOwnershipFilter("all")}
+          >
+            Alle Zuordnungen
+          </button>
+          {(Object.keys(assetOwnershipLabel) as AssetOwnership[]).map((o) => (
+            <button
+              key={o}
+              type="button"
+              className={`chip ${ownershipFilter === o ? "chip-active" : ""}`}
+              onClick={() => setOwnershipFilter(o)}
+            >
+              {assetOwnershipLabel[o]}
+              {o === "loaned" && stats.loaned ? ` (${stats.loaned})` : ""}
+              {o === "held" && stats.held ? ` (${stats.held})` : ""}
+            </button>
+          ))}
+        </div>
         <div className="filter-chips">
           <button
             type="button"
@@ -259,9 +296,6 @@ export function CustomerAssetsPage() {
               onClick={() => setStatusFilter(s)}
             >
               {assetStatusLabel[s]}
-              {s === "active" && stats.active ? ` (${stats.active})` : ""}
-              {s === "spare" && stats.spare ? ` (${stats.spare})` : ""}
-              {s === "retired" && stats.retired ? ` (${stats.retired})` : ""}
             </button>
           ))}
           <button
@@ -299,15 +333,19 @@ export function CustomerAssetsPage() {
       {showForm ? (
         <form className="panel form-grid asset-form" onSubmit={saveAsset}>
           <div className="full asset-form-title">
-            <strong>{editingId ? "Anlage bearbeiten" : "Neue Anlage"}</strong>
+            <strong>{editingId ? "Eintrag bearbeiten" : "Neuer Inventar-Eintrag"}</strong>
+            <p className="muted">
+              z. B. Notebook des Kunden, verliehener Adapter, Software-Lizenz oder Gerät in
+              deiner Werkstatt.
+            </p>
           </div>
           <label className="field">
-            <span>Name *</span>
+            <span>Bezeichnung *</span>
             <input
               required
               value={assetForm.name}
               onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-              placeholder="z. B. FW-Hauptsitz / NB-Müller"
+              placeholder="z. B. NB-Müller / Office 365 / Leih-USV"
             />
           </label>
           <label className="field">
@@ -319,6 +357,21 @@ export function CustomerAssetsPage() {
               }
             >
               {Object.entries(assetKindLabel).map(([k, label]) => (
+                <option key={k} value={k}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Zuordnung</span>
+            <select
+              value={assetForm.ownership}
+              onChange={(e) =>
+                setAssetForm({ ...assetForm, ownership: e.target.value as AssetOwnership })
+              }
+            >
+              {Object.entries(assetOwnershipLabel).map(([k, label]) => (
                 <option key={k} value={k}>
                   {label}
                 </option>
@@ -345,7 +398,7 @@ export function CustomerAssetsPage() {
             <input
               value={assetForm.location}
               onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
-              placeholder="Serverraum / EG / Homeoffice"
+              placeholder="Kunde / Werkstatt / Lager"
             />
           </label>
           <label className="field">
@@ -356,14 +409,14 @@ export function CustomerAssetsPage() {
             />
           </label>
           <label className="field">
-            <span>Modell</span>
+            <span>Modell / Produkt</span>
             <input
               value={assetForm.model}
               onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
             />
           </label>
           <label className="field">
-            <span>Seriennummer</span>
+            <span>Serien- / Lizenznummer</span>
             <input
               value={assetForm.serialNumber}
               onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
@@ -374,7 +427,7 @@ export function CustomerAssetsPage() {
             <input
               value={assetForm.hostname}
               onChange={(e) => setAssetForm({ ...assetForm, hostname: e.target.value })}
-              placeholder="srv-file-01"
+              placeholder="optional"
             />
           </label>
           <label className="field">
@@ -382,7 +435,7 @@ export function CustomerAssetsPage() {
             <input
               value={assetForm.ipAddress}
               onChange={(e) => setAssetForm({ ...assetForm, ipAddress: e.target.value })}
-              placeholder="192.168.10.1"
+              placeholder="optional"
             />
           </label>
           <label className="field">
@@ -390,7 +443,6 @@ export function CustomerAssetsPage() {
             <input
               value={assetForm.macAddress}
               onChange={(e) => setAssetForm({ ...assetForm, macAddress: e.target.value })}
-              placeholder="AA:BB:CC:DD:EE:FF"
             />
           </label>
           <label className="field">
@@ -398,19 +450,18 @@ export function CustomerAssetsPage() {
             <input
               value={assetForm.vlan}
               onChange={(e) => setAssetForm({ ...assetForm, vlan: e.target.value })}
-              placeholder="10 / Clients"
             />
           </label>
           <label className="field">
-            <span>Betriebssystem</span>
+            <span>OS / Version</span>
             <input
               value={assetForm.os}
               onChange={(e) => setAssetForm({ ...assetForm, os: e.target.value })}
-              placeholder="Windows 11 / pfSense"
+              placeholder="Windows 11 / v3.2"
             />
           </label>
           <label className="field">
-            <span>Management-URL</span>
+            <span>Portal- / Management-URL</span>
             <input
               value={assetForm.managementUrl}
               onChange={(e) => setAssetForm({ ...assetForm, managementUrl: e.target.value })}
@@ -418,7 +469,7 @@ export function CustomerAssetsPage() {
             />
           </label>
           <label className="field">
-            <span>Garantie bis</span>
+            <span>Garantie / Laufzeit bis</span>
             <input
               type="date"
               value={assetForm.warrantyUntil}
@@ -431,12 +482,13 @@ export function CustomerAssetsPage() {
               rows={2}
               value={assetForm.notes}
               onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
+              placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full form-actions">
             <button className="btn btn-primary" type="submit">
-              {editingId ? "Änderungen speichern" : "Anlage anlegen"}
+              {editingId ? "Änderungen speichern" : "Eintrag anlegen"}
             </button>
             <button className="btn btn-ghost" type="button" onClick={resetForm}>
               Abbrechen
@@ -446,9 +498,11 @@ export function CustomerAssetsPage() {
       ) : null}
 
       {assetList.length === 0 ? (
-        <p className="empty">Noch keine Anlagen. Lege Server, Clients, Switches oder Lizenzen an.</p>
+        <p className="empty">
+          Noch kein Inventar. Lege Kundengeräte, verliehene Hardware/Software oder Lizenzen an.
+        </p>
       ) : filtered.length === 0 ? (
-        <p className="empty">Keine Anlagen für diese Filter.</p>
+        <p className="empty">Keine Einträge für diese Filter.</p>
       ) : (
         <div className="asset-groups">
           {groups.map((group) => (
@@ -462,12 +516,16 @@ export function CustomerAssetsPage() {
               <ul className="list">
                 {group.items.map((asset) => {
                   const status = asset.status ?? "active";
+                  const ownership = asset.ownership ?? "customer";
                   const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
                   return (
                     <li key={asset.id} className="list-row asset-row">
                       <div className="asset-main">
                         <div className="asset-title-row">
                           <strong>{asset.name}</strong>
+                          <span className={`badge badge-ownership-${ownership}`}>
+                            {assetOwnershipLabel[ownership]}
+                          </span>
                           <span className={`badge badge-asset-${status}`}>
                             {assetStatusLabel[status]}
                           </span>
@@ -514,7 +572,7 @@ export function CustomerAssetsPage() {
                           ) : null}
                           {asset.warrantyUntil ? (
                             <span>
-                              <em>Garantie</em> {formatDateOnly(asset.warrantyUntil)}
+                              <em>Bis</em> {formatDateOnly(asset.warrantyUntil)}
                             </span>
                           ) : null}
                         </div>
@@ -525,7 +583,7 @@ export function CustomerAssetsPage() {
                             target="_blank"
                             rel="noreferrer"
                           >
-                            Management öffnen
+                            Portal öffnen
                           </a>
                         ) : null}
                         {asset.notes ? <p className="asset-notes muted">{asset.notes}</p> : null}

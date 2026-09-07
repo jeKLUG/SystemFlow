@@ -7,7 +7,7 @@ Interne Organisations-App für **Systemhaus-Ess**: Kunden verwalten und Dokument
 - Moderne Dark-UI mit blauer Akzentfarbe (Handy + Desktop)
 - Admin-Login
 - Kunden anlegen, suchen, bearbeiten
-- Anlagen/Geräte inkl. Seriennummer und Garantie
+- Inventar (Geräte, Lizenzen, Software, Leihgaben) inkl. Seriennummer und Garantie
 - Einsatz-Historie (Timeline)
 - Aufgaben, Verträge/SLA, Ablauf-Erinnerungen
 - Dateianhänge und Kunden-Export (ZIP)

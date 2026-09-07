@@ -112,7 +112,7 @@ export const networkSegments = sqliteTable("network_segments", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Geräte & Netzwerkkomponenten pro Kunde. */
+/** Inventar pro Kunde: Geräte, Lizenzen, Software, Leihgaben. */
 export const assets = sqliteTable("assets", {
   id: text("id").primaryKey(),
   customerId: text("customer_id")
@@ -124,6 +124,7 @@ export const assets = sqliteTable("assets", {
     enum: [
       "pc",
       "laptop",
+      "tablet",
       "server",
       "firewall",
       "switch",
@@ -133,6 +134,9 @@ export const assets = sqliteTable("assets", {
       "nas",
       "ups",
       "phone",
+      "monitor",
+      "accessory",
+      "software",
       "license",
       "network",
       "other",
@@ -140,6 +144,12 @@ export const assets = sqliteTable("assets", {
   })
     .notNull()
     .default("other"),
+  /** Kundeneigentum · von uns verliehen · Kundengerät bei uns. */
+  ownership: text("ownership", {
+    enum: ["customer", "loaned", "held"],
+  })
+    .notNull()
+    .default("customer"),
   status: text("status", {
     enum: ["active", "spare", "retired"],
   })

@@ -16,7 +16,6 @@ import { DocumentPage } from "./pages/DocumentPage";
 import { LoginPage } from "./pages/LoginPage";
 import { QuickNotePage } from "./pages/QuickNotePage";
 import { RemindersPage } from "./pages/RemindersPage";
-import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
 
@@ -55,7 +54,7 @@ export default function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="search" element={<SearchPage />} />
+        <Route path="search" element={<Navigate to="/" replace />} />
         <Route path="tasks" element={<RemindersPage />} />
         <Route path="reminders" element={<Navigate to="/tasks" replace />} />
         <Route path="quick-note" element={<QuickNotePage />} />

@@ -7,6 +7,7 @@ export type AppointmentKind = "customer" | "internal" | "personal" | "other";
 export type AssetKind =
   | "pc"
   | "laptop"
+  | "tablet"
   | "server"
   | "firewall"
   | "switch"
@@ -16,9 +17,15 @@ export type AssetKind =
   | "nas"
   | "ups"
   | "phone"
+  | "monitor"
+  | "accessory"
+  | "software"
   | "license"
   | "network"
   | "other";
+
+/** Wer besitzt / wo liegt der Inventar-Eintrag. */
+export type AssetOwnership = "customer" | "loaned" | "held";
 
 export type AssetStatus = "active" | "spare" | "retired";
 export type VaultCategory =
@@ -210,6 +217,7 @@ export interface Asset {
   segmentId: string | null;
   name: string;
   kind: AssetKind;
+  ownership: AssetOwnership;
   status: AssetStatus;
   role: string | null;
   manufacturer: string | null;

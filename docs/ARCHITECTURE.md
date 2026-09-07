@@ -31,7 +31,7 @@ Browser (React SPA)
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
-- **assets** – Anlagen/Inventar je Kunde (Typ, Status, Host/IP/MAC, Standort, Garantie)
+- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie)
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)
@@ -46,11 +46,13 @@ Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Sna
 
 ## Kontakte-UI
 
-Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateien / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Geräte & Netzwerk · Protokoll (Einsatz-Historie).
+Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateien / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Inventar · Protokoll (Einsatz-Historie).
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
-Mobil (≤860px): Sticky Topbar (Menü / Suche / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+Mobil (≤860px): Sticky Topbar (Menü / globale Suchleiste / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+
+Desktop: Sticky Topbar über dem Inhalt mit globaler Suche (Kontakte, Wiki, Dateien, Ordner, Inventar, Historie); Sidebar ohne eigenen Suche-Eintrag. Alte Route `/search` leitet auf `/` um.
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 

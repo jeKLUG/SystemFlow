@@ -10,6 +10,7 @@ import { addActivity } from "./activities.js";
 const kindEnum = z.enum([
   "pc",
   "laptop",
+  "tablet",
   "server",
   "firewall",
   "switch",
@@ -19,16 +20,21 @@ const kindEnum = z.enum([
   "nas",
   "ups",
   "phone",
+  "monitor",
+  "accessory",
+  "software",
   "license",
   "network",
   "other",
 ]);
 
+const ownershipEnum = z.enum(["customer", "loaned", "held"]);
 const statusEnum = z.enum(["active", "spare", "retired"]);
 
 const assetBody = z.object({
   name: z.string().min(1).max(200),
   kind: kindEnum.optional(),
+  ownership: ownershipEnum.optional(),
   status: statusEnum.optional(),
   segmentId: z.string().optional().nullable().or(z.literal("")),
   role: z.string().max(200).optional().or(z.literal("")),
@@ -69,11 +75,15 @@ function toNumberOrNull(value: number | string | null | undefined) {
 
 function mapAssetFields(
   data: z.infer<typeof assetBody>,
-  existing?: { kind: string; status: string; segmentId: string | null },
+  existing?: { kind: string; status: string; ownership: string; segmentId: string | null },
 ) {
   return {
     name: data.name.trim(),
     kind: data.kind ?? (existing?.kind as z.infer<typeof kindEnum> | undefined) ?? ("other" as const),
+    ownership:
+      data.ownership ??
+      (existing?.ownership as z.infer<typeof ownershipEnum> | undefined) ??
+      ("customer" as const),
     status:
       data.status ??
       (existing?.status as z.infer<typeof statusEnum> | undefined) ??
@@ -107,7 +117,7 @@ function mapAssetFields(
 }
 
 /**
- * Geräte- & Netzwerk-Inventar pro Kunde.
+ * Inventar pro Kunde: Geräte, Lizenzen, Software, Leihgaben und verwahrte Kundengeräte.
  */
 export async function assetRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
@@ -128,7 +138,7 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
   app.get("/api/assets/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const row = await db.select().from(assets).where(eq(assets.id, id)).get();
-    if (!row) return reply.code(404).send({ error: "Gerät nicht gefunden" });
+    if (!row) return reply.code(404).send({ error: "Inventar-Eintrag nicht gefunden" });
     return row;
   });
 
@@ -167,8 +177,8 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
     await addActivity(
       db,
       customerId,
-      `Gerät hinzugefügt: ${row.name}`,
-      [row.kind, row.ipAddress, row.hostname].filter(Boolean).join(" · ") || null,
+      `Inventar: ${row.name}`,
+      [row.kind, row.ownership, row.ipAddress, row.hostname].filter(Boolean).join(" · ") || null,
     );
     return reply.code(201).send(row);
   });
@@ -176,14 +186,19 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
   app.put("/api/assets/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(assets).where(eq(assets.id, id)).get();
-    if (!existing) return reply.code(404).send({ error: "Gerät nicht gefunden" });
+    if (!existing) return reply.code(404).send({ error: "Inventar-Eintrag nicht gefunden" });
 
     const parsed = assetBody.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
-    const fields = mapAssetFields(parsed.data, existing);
+    const fields = mapAssetFields(parsed.data, {
+      kind: existing.kind,
+      status: existing.status,
+      ownership: existing.ownership ?? "customer",
+      segmentId: existing.segmentId,
+    });
     if (fields.segmentId) {
       const seg = await db
         .select()
@@ -203,7 +218,7 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
   app.delete("/api/assets/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(assets).where(eq(assets.id, id)).get();
-    if (!existing) return reply.code(404).send({ error: "Gerät nicht gefunden" });
+    if (!existing) return reply.code(404).send({ error: "Inventar-Eintrag nicht gefunden" });
     await db.delete(assets).where(eq(assets.id, id));
     return { ok: true };
   });

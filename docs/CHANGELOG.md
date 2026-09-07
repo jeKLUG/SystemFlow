@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.89 – 2026-09-07
+
+- Reiter „Geräte & Netzwerk“ → „Inventar“; Zuordnung Kundeneigentum / von uns verliehen / bei uns; Typen u. a. Software, Tablet, Monitor, Zubehör
+
+## 1.5.88 – 2026-09-07
+
+- Zeiterfassung: Buchungen nach Monat gruppiert, kompaktere Listenzeilen, weniger Chip-Lärm; Bearbeiten-/Löschen-Icons vereinheitlicht
+
+## 1.5.87 – 2026-09-07
+
+- Projekte: Modal beim Anlegen/Bearbeiten ohne X-Button (Schließen über Abbrechen / Escape / Backdrop)
+
+## 1.5.86 – 2026-09-07
+
+- Dokument-Typ-Badges (Notiz, Workflow, …): Text vertikal zentriert
+
+## 1.5.85 – 2026-09-07
+
+- Kundenübersicht: Stammdaten gruppiert (Profil, Erreichbarkeit, Adresse), leere Felder ausgeblendet, klickbare Kontakte
+
+## 1.5.84 – 2026-09-07
+
+- Globale Suche: Suchseite entfernt; Suchleiste oben in der Topbar (Live-Treffer für Kontakte, Wiki, Dateien, Anlagen, Historie)
+
 ## 1.5.83 – 2026-09-07
 
 - Einstellungen: einheitliche Karten (Profil, Preise, Katalog, Sicherung), kompakte Satzfelder, klarere Leads und Empty-State

@@ -86,22 +86,24 @@ Body (Clock-out): optional `endTime`, `description`, `entryId`. Gleiche Minute w
 
 `summary` enthält u. a. `unbilledHours` und `unbilledAmount` (abrechenbar, noch nicht abgerechnet).
 
-## Anlagen
+## Inventar
 
-Inventar pro Kunde: Geräte, Netzwerkkomponenten, Lizenzen.
+Inventar pro Kunde: Geräte, Netzwerkkomponenten, Lizenzen, Software – inkl. Zuordnung (Kundeneigentum, von euch verliehen, Kundengerät bei euch).
 
-Typen (`kind`): `pc` · `laptop` · `server` · `firewall` · `switch` · `router` · `access_point` · `printer` · `nas` · `ups` · `phone` · `license` · `network` · `other`.
+Typen (`kind`): `pc` · `laptop` · `tablet` · `server` · `firewall` · `switch` · `router` · `access_point` · `printer` · `nas` · `ups` · `phone` · `monitor` · `accessory` · `software` · `license` · `network` · `other`.
+
+Zuordnung (`ownership`): `customer` · `loaned` · `held` (Standard: `customer`).
 
 Status: `active` · `spare` · `retired`.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/customers/:id/assets` | Anlagenliste |
-| POST | `/api/customers/:id/assets` | Anlage anlegen |
+| GET | `/api/customers/:id/assets` | Inventarliste |
+| POST | `/api/customers/:id/assets` | Eintrag anlegen |
 | PUT | `/api/assets/:id` | Aktualisieren |
 | DELETE | `/api/assets/:id` | Löschen |
 
-Body: `name`, optional `kind`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`.
+Body: `name`, optional `kind`, `ownership`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`.
 
 Suche findet auch Hostname, IP, MAC und Standort.
 

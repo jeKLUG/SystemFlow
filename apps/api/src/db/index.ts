@@ -161,6 +161,7 @@ export async function createDb(databasePath: string) {
       segment_id TEXT,
       name TEXT NOT NULL,
       kind TEXT NOT NULL DEFAULT 'other',
+      ownership TEXT NOT NULL DEFAULT 'customer',
       status TEXT NOT NULL DEFAULT 'active',
       role TEXT,
       manufacturer TEXT,
@@ -388,6 +389,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "purchase_date", "TEXT");
   await ensureColumn(client, "assets", "installed_at", "TEXT");
   await ensureColumn(client, "assets", "responsible_person", "TEXT");
+  await ensureColumn(client, "assets", "ownership", "TEXT NOT NULL DEFAULT 'customer'");
   await ensureColumn(client, "vault_entries", "favorite", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "vault_entries", "tags_json", "TEXT NOT NULL DEFAULT '[]'");
   await ensureColumn(client, "vault_entries", "totp_secret_enc", "TEXT");

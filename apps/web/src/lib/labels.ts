@@ -1,6 +1,7 @@
 import type {
   AppointmentKind,
   AssetKind,
+  AssetOwnership,
   AssetStatus,
   ContractStatus,
   DocumentType,
@@ -76,6 +77,7 @@ export const vaultCategoryLabel: Record<VaultCategory, string> = {
 export const assetKindLabel: Record<AssetKind, string> = {
   pc: "PC / Client",
   laptop: "Notebook",
+  tablet: "Tablet",
   server: "Server",
   firewall: "Firewall",
   switch: "Switch",
@@ -85,9 +87,19 @@ export const assetKindLabel: Record<AssetKind, string> = {
   nas: "NAS / Storage",
   ups: "USV",
   phone: "Telefon / Softphone",
+  monitor: "Monitor",
+  accessory: "Zubehör",
+  software: "Software",
   license: "Lizenz",
   network: "Netzwerk allgemein",
-  other: "Sonstig",
+  other: "Sonstiges",
+};
+
+/** Zuordnung: Kundeneigentum, von uns verliehen, oder Kundengerät bei uns. */
+export const assetOwnershipLabel: Record<AssetOwnership, string> = {
+  customer: "Kundeneigentum",
+  loaned: "Von uns verliehen",
+  held: "Bei uns (Kundengerät)",
 };
 
 export const assetStatusLabel: Record<AssetStatus, string> = {

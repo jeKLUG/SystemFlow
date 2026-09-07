@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth";
+import { GlobalSearch } from "./GlobalSearch";
 import { OfflineBanner } from "./OfflineBanner";
 
 type NavItem = { to: string; label: string; end?: boolean; icon: ReactNode };
@@ -38,12 +39,6 @@ const icon = {
       <path d="M18 16V11a6 6 0 1 0-12 0v5l-1.5 2h15L18 16Z" />
     </svg>
   ),
-  search: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-      <circle cx="11" cy="11" r="6.5" />
-      <path d="M16.2 16.2 21 21" />
-    </svg>
-  ),
   note: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
       <path d="M7 3.5h7l4.5 4.5V20a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 20V5A1.5 1.5 0 0 1 7 3.5Z" />
@@ -77,7 +72,6 @@ const primaryNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
-  { to: "/search", label: "Suche", icon: icon.search },
   { to: "/quick-note", label: "Schnellnotiz", icon: icon.note },
   { to: "/settings", label: "Konto", icon: icon.settings },
 ];
@@ -112,7 +106,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
 }
 
 /**
- * App-Shell mit Sidebar, Topbar und mobiler Navigation.
+ * App-Shell mit Sidebar, Topbar (globale Suche) und mobiler Navigation.
  */
 export function Layout() {
   const { user, logout } = useAuth();
@@ -216,12 +210,10 @@ export function Layout() {
             <img className="brand-mark" src="/logo.png" alt="" width={28} height={28} />
             <strong>Systemhaus-Ess</strong>
           </div>
+          <GlobalSearch />
           <div className="app-topbar-actions">
             <NavLink to="/tasks" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Aufgaben">
               {icon.reminders}
-            </NavLink>
-            <NavLink to="/search" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Suche">
-              {icon.search}
             </NavLink>
           </div>
         </header>

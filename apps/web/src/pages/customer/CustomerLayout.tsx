@@ -68,7 +68,7 @@ const tabs: Tab[] = [
   { to: "projects", label: "Projekte", short: "Projekte", icon: tabIcon.projects },
   { to: "tasks", label: "Aufgaben", short: "Tasks", icon: tabIcon.tasks },
   { to: "time", label: "Zeiten", short: "Zeit", icon: tabIcon.time },
-  { to: "assets", label: "Geräte & Netzwerk", short: "Geräte", icon: tabIcon.assets },
+  { to: "assets", label: "Inventar", short: "Inventar", icon: tabIcon.assets },
   { to: "ops", label: "Protokoll", short: "Protokoll", icon: tabIcon.ops },
 ];
 

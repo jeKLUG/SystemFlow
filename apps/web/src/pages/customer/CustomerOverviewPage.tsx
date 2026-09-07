@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerFields } from "../../components/CustomerFields";
@@ -84,6 +84,10 @@ export function CustomerOverviewPage() {
 
   const kind = customer.kind ?? "customer";
   const isCustomer = kind === "customer";
+  const address = customerAddressLine(customer);
+  const hasAddress = address !== "–";
+  const websiteHref = normalizeWebsite(customer.website);
+  const statusLabel = customer.status === "inactive" ? "Inaktiv" : "Aktiv";
 
   return (
     <>
@@ -109,7 +113,10 @@ export function CustomerOverviewPage() {
       <section className="section stammdaten-section">
         <div className={`panel stammdaten-panel${editing ? " is-editing" : ""}`}>
           <div className="stammdaten-panel-head">
-            <h2>Stammdaten</h2>
+            <div className="stammdaten-panel-title">
+              <p className="eyebrow">Profil</p>
+              <h2>Stammdaten</h2>
+            </div>
             <div className="stammdaten-actions">
               <button
                 type="button"
@@ -151,63 +158,99 @@ export function CustomerOverviewPage() {
               </div>
             </form>
           ) : (
-            <div className="detail-grid">
-              <div>
-                <span className="label">Typ</span>
-                <p>{isCustomer ? "Kunde" : "Kontakt"}</p>
-              </div>
-              <div>
-                <span className="label">{isCustomer ? "Firma" : "Firma / Organisation"}</span>
-                <p>{customer.company || "–"}</p>
-              </div>
-              <div>
-                <span className="label">{isCustomer ? "Kurzname" : "Name"}</span>
-                <p>{customer.name || "–"}</p>
-              </div>
-              {isCustomer ? (
-                <div>
-                  <span className="label">Ansprechpartner</span>
-                  <p>{customer.contactPerson || "–"}</p>
+            <div className="stammdaten-view">
+              <div className="stammdaten-hero">
+                <div className="stammdaten-hero-main">
+                  <div className="stammdaten-badges">
+                    <span className={`stammdaten-badge${isCustomer ? " is-customer" : ""}`}>
+                      {isCustomer ? "Kunde" : "Kontakt"}
+                    </span>
+                    <span
+                      className={`stammdaten-badge is-status${
+                        customer.status === "inactive" ? " is-inactive" : ""
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </div>
+                  <h3 className="stammdaten-display-name">
+                    {isCustomer
+                      ? customer.company?.trim() || customer.name
+                      : customer.name || customer.company || "Ohne Namen"}
+                  </h3>
+                  {isCustomer && customer.name && customer.company ? (
+                    <p className="stammdaten-subtitle muted">Kurzname · {customer.name}</p>
+                  ) : null}
+                  {isCustomer && customer.contactPerson?.trim() ? (
+                    <p className="stammdaten-subtitle">
+                      Ansprechpartner · <strong>{customer.contactPerson}</strong>
+                    </p>
+                  ) : null}
                 </div>
-              ) : null}
-              {isCustomer ? (
-                <div>
-                  <span className="label">USt-IdNr.</span>
-                  <p>{customer.vatId || "–"}</p>
-                </div>
-              ) : null}
-              <div>
-                <span className="label">E-Mail</span>
-                <p>{customer.email || "–"}</p>
+                {isCustomer && customer.vatId?.trim() ? (
+                  <div className="stammdaten-vat">
+                    <span className="label">USt-IdNr.</span>
+                    <strong>{customer.vatId}</strong>
+                  </div>
+                ) : null}
               </div>
-              <div>
-                <span className="label">Website</span>
-                <p>
-                  {customer.website ? (
-                    <a href={customer.website} target="_blank" rel="noreferrer">
-                      {customer.website}
-                    </a>
+
+              <div className="stammdaten-blocks">
+                <div className="stammdaten-block">
+                  <h4 className="stammdaten-block-title">Erreichbarkeit</h4>
+                  <ul className="stammdaten-contact-list">
+                    {customer.email?.trim() ? (
+                      <ContactItem label="E-Mail" icon={icon.mail}>
+                        <a href={`mailto:${customer.email}`}>{customer.email}</a>
+                      </ContactItem>
+                    ) : null}
+                    {customer.phone?.trim() ? (
+                      <ContactItem label="Telefon" icon={icon.phone}>
+                        <a href={`tel:${customer.phone}`}>{customer.phone}</a>
+                      </ContactItem>
+                    ) : null}
+                    {customer.mobile?.trim() ? (
+                      <ContactItem label="Mobil" icon={icon.mobile}>
+                        <a href={`tel:${customer.mobile}`}>{customer.mobile}</a>
+                      </ContactItem>
+                    ) : null}
+                    {websiteHref ? (
+                      <ContactItem label="Website" icon={icon.web}>
+                        <a href={websiteHref} target="_blank" rel="noreferrer">
+                          {displayWebsite(customer.website!)}
+                        </a>
+                      </ContactItem>
+                    ) : null}
+                    {!customer.email?.trim() &&
+                    !customer.phone?.trim() &&
+                    !customer.mobile?.trim() &&
+                    !websiteHref ? (
+                      <li className="stammdaten-empty muted">Noch keine Kontaktdaten hinterlegt.</li>
+                    ) : null}
+                  </ul>
+                </div>
+
+                <div className="stammdaten-block">
+                  <h4 className="stammdaten-block-title">Adresse</h4>
+                  {hasAddress ? (
+                    <p className="stammdaten-address">
+                      <span className="stammdaten-address-icon" aria-hidden>
+                        {icon.map}
+                      </span>
+                      <span>{address}</span>
+                    </p>
                   ) : (
-                    "–"
+                    <p className="stammdaten-empty muted">Keine Adresse hinterlegt.</p>
                   )}
-                </p>
+                </div>
               </div>
-              <div>
-                <span className="label">Telefon</span>
-                <p>{customer.phone || "–"}</p>
-              </div>
-              <div>
-                <span className="label">Mobil</span>
-                <p>{customer.mobile || "–"}</p>
-              </div>
-              <div className="full">
-                <span className="label">Adresse</span>
-                <p>{customerAddressLine(customer)}</p>
-              </div>
-              <div className="full">
-                <span className="label">Kurznotiz</span>
-                <p>{customer.notes || "–"}</p>
-              </div>
+
+              {customer.notes?.trim() ? (
+                <div className="stammdaten-notes">
+                  <h4 className="stammdaten-block-title">Kurznotiz</h4>
+                  <p>{customer.notes}</p>
+                </div>
+              ) : null}
             </div>
           )}
         </div>
@@ -216,3 +259,67 @@ export function CustomerOverviewPage() {
   );
 }
 
+function ContactItem({
+  label,
+  icon,
+  children,
+}: {
+  label: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <li className="stammdaten-contact-item">
+      <span className="stammdaten-contact-icon" aria-hidden>
+        {icon}
+      </span>
+      <div>
+        <span className="label">{label}</span>
+        <div className="stammdaten-contact-value">{children}</div>
+      </div>
+    </li>
+  );
+}
+
+function normalizeWebsite(raw?: string | null): string | null {
+  const value = raw?.trim();
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
+function displayWebsite(raw: string): string {
+  return raw.replace(/^https?:\/\//i, "").replace(/\/$/, "");
+}
+
+const icon = {
+  mail: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+      <path d="m4.5 7.5 7.5 5.5 7.5-5.5" />
+    </svg>
+  ),
+  phone: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M7.5 4.5h3l1.2 3.2-1.8 1.3a11 11 0 0 0 5.1 5.1l1.3-1.8 3.2 1.2v3a2 2 0 0 1-2.2 2A14.5 14.5 0 0 1 5.5 6.7a2 2 0 0 1 2-2.2Z" />
+    </svg>
+  ),
+  mobile: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="7.5" y="3.5" width="9" height="17" rx="2" />
+      <path d="M11 17.5h2" strokeLinecap="round" />
+    </svg>
+  ),
+  web: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <circle cx="12" cy="12" r="8" />
+      <path d="M4.5 12h15M12 4.5c2.2 2.4 3.3 5 3.3 7.5s-1.1 5.1-3.3 7.5c-2.2-2.4-3.3-5-3.3-7.5s1.1-5.1 3.3-7.5Z" />
+    </svg>
+  ),
+  map: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path d="M12 21s6-5.2 6-10.2A6 6 0 0 0 6 10.8C6 15.8 12 21 12 21Z" />
+      <circle cx="12" cy="10.5" r="2.2" />
+    </svg>
+  ),
+};
