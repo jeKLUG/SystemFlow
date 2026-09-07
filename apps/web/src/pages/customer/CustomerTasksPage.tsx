@@ -105,7 +105,6 @@ export function CustomerTasksPage() {
   );
 
   const activeHint = taskViewTabs.find((t) => t.id === view)?.hint ?? "";
-  const doneCount = viewCounts.done;
 
   function openCreate(defaults?: Partial<typeof emptyForm>) {
     setEditingId(null);
@@ -237,16 +236,6 @@ export function CustomerTasksPage() {
       done: false,
     });
     if (view === "done") setView("open");
-    await reload();
-  }
-
-  async function clearDone() {
-    const done = tasks.filter((t) => t.done);
-    if (done.length === 0) return;
-    if (!confirm(`${done.length} erledigte Aufgabe${done.length === 1 ? "" : "n"} endgültig löschen?`)) {
-      return;
-    }
-    await Promise.all(done.map((t) => api.deleteTask(t.id)));
     await reload();
   }
 
@@ -400,16 +389,6 @@ export function CustomerTasksPage() {
             </p>
           </div>
           <div className="tasks-hero-actions">
-            {doneCount > 0 ? (
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => void clearDone()}
-                title="Alle erledigten Aufgaben löschen"
-              >
-                Erledigte löschen
-              </button>
-            ) : null}
             <button
               type="button"
               className="btn btn-primary btn-icon-lg"

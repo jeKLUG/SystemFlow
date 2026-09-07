@@ -127,12 +127,12 @@ export function SettingsPage() {
     setBusy(true);
     try {
       await changePassword(currentPassword, newPassword);
+      setSuccess("Passwort gespeichert");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      setSuccess("Passwort wurde geändert. Du bleibst angemeldet.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Änderung fehlgeschlagen");
+      setError(err instanceof Error ? err.message : "Ändern fehlgeschlagen");
     } finally {
       setBusy(false);
     }
@@ -146,14 +146,15 @@ export function SettingsPage() {
         defaultHourlyRate: orgForm.defaultHourlyRate
           ? Number(orgForm.defaultHourlyRate)
           : null,
-        currency: orgForm.currency,
+        currency: orgForm.currency.trim() || "EUR",
         defaultVatPercent: orgForm.defaultVatPercent
           ? Number(orgForm.defaultVatPercent)
           : null,
         invoiceNote: orgForm.invoiceNote,
       });
       setOrg(updated);
-      setOrgMsg("Preiseinstellungen gespeichert.");
+      setOrgMsg("Gespeichert");
+      window.setTimeout(() => setOrgMsg(""), 2000);
     } catch (err) {
       setOrgMsg(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     }
@@ -205,24 +206,82 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="page">
+    <div className="page settings-page">
       <div className="page-header">
         <div>
-          <p className="eyebrow">Konto</p>
           <h2>Einstellungen</h2>
-          <p>Profil, Sicherung, Stundensätze und Preiskatalog für {user?.username}</p>
+          <p className="muted">Konto und Abrechnung · {user?.username}</p>
         </div>
       </div>
 
       <section className="panel settings-card">
-        <h3>Standardpreise (Rechnungsvorbereitung)</h3>
-        <p className="muted">
-          Diese Werte werden bei Zeitbuchungen als Satz übernommen (Snapshot). Rechnungen schreibst du
-          weiter in Lexware – hier sammelst du die Beträge aus der Kundenhistorie.
+        <header className="settings-card-head">
+          <div>
+            <p className="eyebrow">Profil</p>
+            <h3>Passwort ändern</h3>
+          </div>
+        </header>
+        <p className="settings-card-lead muted">
+          Nach dem Ändern bleibst du angemeldet. Das Passwort wird nicht durch Deployments
+          zurückgesetzt.
         </p>
-        <form className="form-grid" onSubmit={saveOrg}>
+        <form className="settings-password-form" onSubmit={onSubmit}>
           <label className="field">
-            <span>Standard-Stundensatz ({orgForm.currency || "EUR"})</span>
+            <span>Aktuelles Passwort</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </label>
+          <label className="field">
+            <span>Neues Passwort</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+          </label>
+          <label className="field">
+            <span>Bestätigen</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+            />
+          </label>
+          {error ? <p className="form-error settings-span-all">{error}</p> : null}
+          {success ? <p className="form-success settings-span-all">{success}</p> : null}
+          <div className="settings-span-all">
+            <button className="btn btn-primary" type="submit" disabled={busy}>
+              {busy ? "Speichert…" : "Passwort speichern"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel settings-card">
+        <header className="settings-card-head">
+          <div>
+            <p className="eyebrow">Abrechnung</p>
+            <h3>Standardpreise</h3>
+          </div>
+        </header>
+        <p className="settings-card-lead muted">
+          Satz für neue Zeitbuchungen (Snapshot). Rechnungen schreibst du weiter in Lexware – hier
+          sammelst du die Beträge aus der Kundenhistorie.
+        </p>
+        <form className="settings-org-form" onSubmit={saveOrg}>
+          <label className="field">
+            <span>Stundensatz</span>
             <input
               type="number"
               min={0}
@@ -241,7 +300,7 @@ export function SettingsPage() {
             />
           </label>
           <label className="field">
-            <span>MwSt. % (Hinweis)</span>
+            <span>MwSt. %</span>
             <input
               type="number"
               min={0}
@@ -251,7 +310,7 @@ export function SettingsPage() {
               onChange={(e) => setOrgForm({ ...orgForm, defaultVatPercent: e.target.value })}
             />
           </label>
-          <label className="field full">
+          <label className="field settings-span-all">
             <span>Hinweistext für Abrechnung</span>
             <textarea
               rows={2}
@@ -260,20 +319,21 @@ export function SettingsPage() {
               placeholder="z. B. Zahlung innerhalb 14 Tagen …"
             />
           </label>
-          {orgMsg ? <p className="form-success full">{orgMsg}</p> : null}
-          <div className="full">
+          {orgMsg ? <p className="form-success settings-span-all">{orgMsg}</p> : null}
+          <div className="settings-span-all">
             <button className="btn btn-primary" type="submit">
-              Standardpreise speichern
+              Speichern
             </button>
           </div>
         </form>
       </section>
 
-      <section className="section">
-        <div className="section-head row-between">
+      <section className="panel settings-card">
+        <header className="settings-card-head">
           <div>
-            <h2>Preiskatalog</h2>
-            <p>Stundensätze für Aufgaben, Pauschalen und Stückpreise.</p>
+            <p className="eyebrow">Katalog</p>
+            <h3>Preispositionen</h3>
+            <p className="muted">Stundensätze, Pauschalen und Stückpreise</p>
           </div>
           <button
             type="button"
@@ -289,17 +349,17 @@ export function SettingsPage() {
           >
             {showPriceForm && !editingPriceId ? "Abbrechen" : "+ Position"}
           </button>
-        </div>
+        </header>
 
         {showPriceForm ? (
-          <form className="panel form-grid" onSubmit={savePrice}>
+          <form className="settings-price-form form-grid" onSubmit={savePrice}>
             <label className="field">
               <span>Bezeichnung *</span>
               <input
                 required
                 value={priceForm.name}
                 onChange={(e) => setPriceForm({ ...priceForm, name: e.target.value })}
-                placeholder="z. B. Vor-Ort-Einsatz / Remote Support"
+                placeholder="z. B. Remote Support"
               />
             </label>
             <label className="field">
@@ -337,10 +397,11 @@ export function SettingsPage() {
               />
             </label>
             <label className="field">
-              <span>Artikel-Nr. (optional)</span>
+              <span>Artikel-Nr.</span>
               <input
                 value={priceForm.sku}
                 onChange={(e) => setPriceForm({ ...priceForm, sku: e.target.value })}
+                placeholder="optional"
               />
             </label>
             <label className="field full">
@@ -354,35 +415,36 @@ export function SettingsPage() {
             {priceError ? <p className="form-error full">{priceError}</p> : null}
             <div className="full form-actions">
               <button className="btn btn-primary" type="submit">
-                {editingPriceId ? "Aktualisieren" : "Position anlegen"}
+                {editingPriceId ? "Aktualisieren" : "Anlegen"}
               </button>
-              {editingPriceId ? (
-                <button type="button" className="btn btn-ghost" onClick={resetPriceForm}>
-                  Abbrechen
-                </button>
-              ) : null}
+              <button type="button" className="btn btn-ghost" onClick={resetPriceForm}>
+                Abbrechen
+              </button>
             </div>
           </form>
         ) : null}
 
         {prices.length === 0 ? (
-          <p className="empty">Noch keine Preispositionen. Lege z. B. „Remote Support“ an.</p>
+          <div className="settings-empty">
+            <strong>Noch keine Positionen</strong>
+            <p className="muted">Lege z. B. „Remote Support“ oder „Vor-Ort-Einsatz“ an.</p>
+          </div>
         ) : (
-          <ul className="list">
+          <ul className="settings-price-list">
             {prices.map((item) => (
-              <li key={item.id} className="list-row">
-                <div>
-                  <strong className={!item.active ? "done" : undefined}>{item.name}</strong>
+              <li key={item.id} className={`settings-price-row${!item.active ? " is-inactive" : ""}`}>
+                <div className="settings-price-main">
+                  <strong>{item.name}</strong>
                   <span className="muted">
                     {kindLabel[item.kind]} · {item.unitPrice.toLocaleString("de-DE")}{" "}
                     {org?.currency ?? "EUR"}
                     {item.unitLabel ? ` / ${item.unitLabel}` : ""}
-                    {item.sku ? ` · Art.-Nr. ${item.sku}` : ""}
+                    {item.sku ? ` · ${item.sku}` : ""}
                     {!item.active ? " · inaktiv" : ""}
                   </span>
                   {item.description ? <span className="muted">{item.description}</span> : null}
                 </div>
-                <div className="list-actions">
+                <div className="settings-price-actions">
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
@@ -395,7 +457,11 @@ export function SettingsPage() {
                     className="btn btn-ghost btn-sm"
                     onClick={() =>
                       void api
-                        .updatePriceItem(item.id, { active: !item.active, name: item.name, unitPrice: item.unitPrice })
+                        .updatePriceItem(item.id, {
+                          active: !item.active,
+                          name: item.name,
+                          unitPrice: item.unitPrice,
+                        })
                         .then(() => loadPricing())
                     }
                   >
@@ -419,20 +485,29 @@ export function SettingsPage() {
       </section>
 
       <section className="panel settings-card">
-        <h3>Sicherung</h3>
-        <p className="muted">
-          Vollbackup der Datenbank und Uploads als ZIP. Zum Wiederherstellen dieselbe Datei hier
-          hochladen – bestehende Daten werden ersetzt, der Dienst startet neu. Vor dem Import empfiehlt
-          sich ein frischer Download der aktuellen Instanz.
+        <header className="settings-card-head">
+          <div>
+            <p className="eyebrow">Daten</p>
+            <h3>Sicherung</h3>
+          </div>
+        </header>
+        <p className="settings-card-lead muted">
+          Vollbackup (Datenbank + Uploads) als ZIP. Beim Import werden bestehende Daten ersetzt und
+          der Dienst startet neu.
         </p>
         {backupInfo ? (
-          <p className="muted">
-            Aktuell ca. {(backupInfo.databaseBytes / (1024 * 1024)).toFixed(2)} MB Datenbank ·{" "}
-            {backupInfo.uploadFiles} Upload-Datei
-            {backupInfo.uploadFiles === 1 ? "" : "en"}
-          </p>
+          <div className="settings-backup-stats">
+            <span>
+              <strong>{(backupInfo.databaseBytes / (1024 * 1024)).toFixed(2)} MB</strong>
+              <em>Datenbank</em>
+            </span>
+            <span>
+              <strong>{backupInfo.uploadFiles}</strong>
+              <em>Uploads</em>
+            </span>
+          </div>
         ) : null}
-        <div className="cta-row" style={{ marginTop: "0.85rem" }}>
+        <div className="settings-backup-actions">
           <button
             type="button"
             className="btn btn-primary"
@@ -441,7 +516,7 @@ export function SettingsPage() {
           >
             {backupBusy ? "Bitte warten…" : "Backup herunterladen"}
           </button>
-          <label className="btn btn-ghost" style={{ cursor: backupBusy ? "wait" : "pointer" }}>
+          <label className={`btn btn-ghost${backupBusy ? " is-busy" : ""}`}>
             Backup importieren…
             <input
               type="file"
@@ -459,57 +534,10 @@ export function SettingsPage() {
         {backupMsg ? (
           <p className={backupMsg.includes("fehl") ? "form-error" : "form-success"}>{backupMsg}</p>
         ) : null}
-        <p className="muted" style={{ marginTop: "0.85rem", fontSize: "0.86rem" }}>
-          Tresor-Einträge stecken in der Datenbank – die Tresor-Passphrase musst du weiterhin kennen.
-          Manuelle Server-Wiederherstellung: siehe RESTORE.md in der ZIP bzw. docs/BACKUP.md.
+        <p className="settings-card-note muted">
+          Tresor-Einträge liegen in der Datenbank – die Tresor-Passphrase musst du weiterhin kennen.
+          Manuell: RESTORE.md in der ZIP bzw. docs/BACKUP.md.
         </p>
-      </section>
-
-      <section className="panel settings-card">
-        <h3>Passwort ändern</h3>
-        <p className="muted">
-          Nach dem Ändern bleibst du angemeldet. Das Passwort wird nicht mehr durch Deployments
-          zurückgesetzt.
-        </p>
-        <form className="form-stack" onSubmit={onSubmit}>
-          <label className="field">
-            <span>Aktuelles Passwort</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-            />
-          </label>
-          <label className="field">
-            <span>Neues Passwort</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </label>
-          <label className="field">
-            <span>Neues Passwort bestätigen</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          {success ? <p className="form-success">{success}</p> : null}
-          <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? "Speichert…" : "Passwort speichern"}
-          </button>
-        </form>
       </section>
     </div>
   );

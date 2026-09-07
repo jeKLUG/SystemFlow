@@ -326,22 +326,7 @@ export function CustomerTimePage() {
     <section className="section time-page">
       <div className="time-hero panel">
         <div className="time-hero-top">
-          <div>
-            <p className="eyebrow">Abrechnung</p>
-            <h2>Zeiterfassung</h2>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-icon-lg"
-            onClick={openCreate}
-            aria-label="Zeit manuell buchen"
-            title="Zeit manuell buchen"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <circle cx="12" cy="12" r="8" />
-              <path d="M12 8v4l2.5 1.5M12 5v1" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
+          <h2>Zeiterfassung</h2>
         </div>
 
         <div className={`time-clock${running ? " is-running" : ""}`}>
@@ -386,14 +371,28 @@ export function CustomerTimePage() {
                     placeholder="z. B. Vor-Ort-Termin"
                   />
                 </label>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={clockBusy}
-                  onClick={() => void clockIn()}
-                >
-                  Einstempeln
-                </button>
+                <div className="time-clock-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={clockBusy}
+                    onClick={() => void clockIn()}
+                  >
+                    Einstempeln
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-lg"
+                    onClick={openCreate}
+                    aria-label="Zeit manuell buchen"
+                    title="Zeit manuell buchen"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <circle cx="12" cy="12" r="8" />
+                      <path d="M12 8v4l2.5 1.5M12 5v1" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </>
             ) : (
               <>
@@ -405,14 +404,28 @@ export function CustomerTimePage() {
                     placeholder={running.description || "Was wurde gemacht?"}
                   />
                 </label>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={clockBusy}
-                  onClick={() => void clockOut()}
-                >
-                  Ausstempeln
-                </button>
+                <div className="time-clock-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={clockBusy}
+                    onClick={() => void clockOut()}
+                  >
+                    Ausstempeln
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon-lg"
+                    onClick={openCreate}
+                    aria-label="Zeit manuell buchen"
+                    title="Zeit manuell buchen"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <circle cx="12" cy="12" r="8" />
+                      <path d="M12 8v4l2.5 1.5M12 5v1" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -488,7 +501,7 @@ export function CustomerTimePage() {
           <div>
             <strong>Noch keine Stunden</strong>
             <p className="muted">
-              Stempel oben starten oder die erste Zeit manuell über das Uhr-Icon buchen.
+              Stempeluhr starten oder die erste Zeit manuell über das Uhr-Icon buchen.
             </p>
           </div>
           <button type="button" className="btn btn-primary" onClick={openCreate}>

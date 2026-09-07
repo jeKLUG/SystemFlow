@@ -807,15 +807,6 @@ export function CalendarPage() {
               </div>
             </div>
           ) : null}
-
-          <p className="calendar-hint muted">
-            <span className="calendar-hint-desktop">
-              Doppelklick oder „+ Termin“ → neuer Termin · Termin doppelklicken zum Bearbeiten
-            </span>
-            <span className="calendar-hint-mobile">
-              Tag tippen · Termin öffnen · Bearbeiten in den Details
-            </span>
-          </p>
         </div>
       </div>
     </div>

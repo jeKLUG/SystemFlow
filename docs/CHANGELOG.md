@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.83 – 2026-09-07
+
+- Einstellungen: einheitliche Karten (Profil, Preise, Katalog, Sicherung), kompakte Satzfelder, klarere Leads und Empty-State
+
+## 1.5.82 – 2026-09-07
+
+- Kontakte anlegen: Formular in Abschnitte (Stammdaten, Erreichbarkeit, Adresse, Notiz); klarere Aktionen
+
+## 1.5.81 – 2026-09-07
+
+- Aufgaben-Hub: Aufgaben und Abläufe visuell getrennt (eigene Panels, Trennlinie, Eyebrows)
+
+## 1.5.80 – 2026-09-07
+
+- Zeiterfassung: Eyebrow „Abrechnung“ entfernt; Uhr-Icon neben Einstempeln/Ausstempeln
+
+## 1.5.79 – 2026-09-07
+
+- Kalender: Hinweistext unter der Ansicht entfernt
+
+## 1.5.78 – 2026-09-07
+
+- Aufgaben anlegen: Modal aufgeräumt – Datums-Schnellwahl horizontal, Priorität als Auswahlchips
+
 ## 1.5.77 – 2026-09-04
 
 - Deploy: Port erst nach dem Image-Build freigeben (verhindert „address already in use“ durch alten `node`-Prozess)

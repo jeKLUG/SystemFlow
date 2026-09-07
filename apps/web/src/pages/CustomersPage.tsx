@@ -132,33 +132,63 @@ export function CustomersPage() {
               setShowForm(true);
             }}
           >
-            Kunde
+            + Kunde
           </button>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => {
-              if (showForm) {
-                setShowForm(false);
-                setForm(emptyCustomerForm);
-              } else {
-                setForm({ ...emptyCustomerForm, kind: "contact" });
-                setShowForm(true);
-              }
+              setForm({ ...emptyCustomerForm, kind: "contact" });
+              setShowForm(true);
             }}
           >
-            {showForm ? "Abbrechen" : "Kontakt"}
+            + Kontakt
           </button>
         </div>
       </div>
 
       {showForm ? (
-        <form className="panel form-grid" onSubmit={onCreate}>
-          <CustomerFields form={form} onChange={setForm} />
-          {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full">
+        <form className="panel customer-create" onSubmit={onCreate}>
+          <div className="customer-create-head">
+            <div>
+              <p className="eyebrow">{form.kind === "customer" ? "Kunde" : "Kontakt"}</p>
+              <h3>{form.kind === "customer" ? "Neuen Kunden anlegen" : "Neuen Kontakt anlegen"}</h3>
+            </div>
+            <div className="customer-create-kind" role="group" aria-label="Typ">
+              <button
+                type="button"
+                className={`chip${form.kind === "contact" ? " chip-active" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, kind: "contact" }))}
+              >
+                Kontakt
+              </button>
+              <button
+                type="button"
+                className={`chip${form.kind === "customer" ? " chip-active" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, kind: "customer" }))}
+              >
+                Kunde
+              </button>
+            </div>
+          </div>
+
+          <CustomerFields form={form} onChange={setForm} showKind={false} />
+
+          {error ? <p className="form-error">{error}</p> : null}
+          <div className="customer-create-actions">
             <button className="btn btn-primary" type="submit">
               Speichern
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => {
+                setShowForm(false);
+                setForm(emptyCustomerForm);
+                setError("");
+              }}
+            >
+              Abbrechen
             </button>
           </div>
         </form>

@@ -131,10 +131,10 @@ export function CustomerOverviewPage() {
           </div>
 
           {editing ? (
-            <form className="form-grid" onSubmit={saveCustomer}>
+            <form className="customer-edit-form" onSubmit={saveCustomer}>
               <CustomerFields form={form} onChange={setForm} showStatus />
-              {error ? <p className="form-error full">{error}</p> : null}
-              <div className="full stammdaten-form-actions">
+              {error ? <p className="form-error">{error}</p> : null}
+              <div className="stammdaten-form-actions">
                 <button className="btn btn-primary" type="submit">
                   Speichern
                 </button>

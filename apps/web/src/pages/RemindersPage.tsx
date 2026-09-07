@@ -201,16 +201,19 @@ export function RemindersPage() {
         ))}
       </div>
 
-      <section className="tasks-hub-board">
+      <section className="tasks-hub-board panel" aria-labelledby="tasks-hub-board-title">
         <div className="tasks-hub-board-head">
-          <h3>{activeTab?.label ?? "Aufgaben"}</h3>
+          <div>
+            <p className="eyebrow">To-dos</p>
+            <h3 id="tasks-hub-board-title">{activeTab?.label ?? "Aufgaben"}</h3>
+          </div>
           <span className="muted">{filtered.length}</span>
         </div>
 
         {loading ? (
-          <p className="empty panel">Lade…</p>
+          <p className="empty">Lade…</p>
         ) : filtered.length === 0 ? (
-          <div className="tasks-hub-empty panel">
+          <div className="tasks-hub-empty">
             <strong>Keine Aufgaben</strong>
             <p className="muted">
               {view === "done"
@@ -279,10 +282,13 @@ export function RemindersPage() {
         )}
       </section>
 
-      <section className="tasks-hub-expiry panel">
+      <div className="tasks-hub-split" role="separator" aria-hidden />
+
+      <section className="tasks-hub-expiry panel" aria-labelledby="tasks-hub-expiry-title">
         <div className="tasks-hub-expiry-head">
           <div>
-            <h3>Abläufe</h3>
+            <p className="eyebrow">Fristen</p>
+            <h3 id="tasks-hub-expiry-title">Abläufe</h3>
             <p className="muted">
               {expiryCount
                 ? `${expiryCount} in den nächsten ${days} Tagen`
@@ -353,8 +359,13 @@ export function RemindersPage() {
         </div>
       </section>
 
-      <Modal open={open} title="Aufgabe anlegen" onClose={() => setOpen(false)}>
-        <form className="form-grid" onSubmit={onSave}>
+      <Modal
+        open={open}
+        title="Aufgabe anlegen"
+        onClose={() => setOpen(false)}
+        className="modal-task"
+      >
+        <form className="form-grid task-form" onSubmit={onSave}>
           <label className="field full">
             <span>Titel *</span>
             <input
@@ -362,8 +373,10 @@ export function RemindersPage() {
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
               autoFocus
+              placeholder="Was ist zu tun?"
             />
           </label>
+
           <label className="field full">
             <span>Kunde / Kontakt</span>
             <CustomerPicker
@@ -371,61 +384,84 @@ export function RemindersPage() {
               onChange={(id) => setForm((f) => ({ ...f, customerId: id }))}
               allowEmpty
               emptyLabel="Intern (ohne Kunde)"
+              placeholder="Optional suchen…"
             />
           </label>
-          <label className="field">
-            <span>Fällig am</span>
-            <input
-              type="date"
-              value={form.dueDate}
-              onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>Priorität</span>
-            <select
-              value={form.priority}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, priority: e.target.value as `${TaskPriority}` }))
-              }
-            >
-              <option value="1">Dringend</option>
-              <option value="2">Hoch</option>
-              <option value="3">Mittel</option>
-              <option value="4">Normal</option>
-            </select>
-          </label>
-          <div className="field full filter-chips">
-            <button
-              type="button"
-              className="chip"
-              onClick={() => setForm((f) => ({ ...f, dueDate: localTodayIso() }))}
-            >
-              Heute
-            </button>
-            <button
-              type="button"
-              className="chip"
-              onClick={() => setForm((f) => ({ ...f, dueDate: tomorrowIso() }))}
-            >
-              Morgen
-            </button>
-            <button
-              type="button"
-              className="chip"
-              onClick={() => setForm((f) => ({ ...f, dueDate: addDaysIso(localTodayIso(), 7) }))}
-            >
-              +7 Tage
-            </button>
+
+          <div className="full task-due-block">
+            <label className="field task-due-date">
+              <span>Fällig am</span>
+              <input
+                type="date"
+                value={form.dueDate}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
+              />
+            </label>
+            <div className="task-due-presets" role="group" aria-label="Fälligkeit schnell setzen">
+              <button
+                type="button"
+                className={`chip${form.dueDate === localTodayIso() ? " chip-active" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, dueDate: localTodayIso() }))}
+              >
+                Heute
+              </button>
+              <button
+                type="button"
+                className={`chip${form.dueDate === tomorrowIso() ? " chip-active" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, dueDate: tomorrowIso() }))}
+              >
+                Morgen
+              </button>
+              <button
+                type="button"
+                className={`chip${form.dueDate === addDaysIso(localTodayIso(), 7) ? " chip-active" : ""}`}
+                onClick={() =>
+                  setForm((f) => ({ ...f, dueDate: addDaysIso(localTodayIso(), 7) }))
+                }
+              >
+                +7 Tage
+              </button>
+              <button
+                type="button"
+                className={`chip${form.dueDate === "" ? " chip-active" : ""}`}
+                onClick={() => setForm((f) => ({ ...f, dueDate: "" }))}
+              >
+                Kein Datum
+              </button>
+            </div>
           </div>
+
+          <div className="full">
+            <span className="field-label">Priorität</span>
+            <div className="task-prio-picker" role="radiogroup" aria-label="Priorität">
+              {([1, 2, 3, 4] as TaskPriority[]).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  role="radio"
+                  aria-checked={form.priority === String(p)}
+                  className={`task-prio-option prio-${p}${form.priority === String(p) ? " is-active" : ""}`}
+                  onClick={() =>
+                    setForm((f) => ({ ...f, priority: String(p) as `${TaskPriority}` }))
+                  }
+                >
+                  <i />
+                  <span>{priorityLabel[p]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <label className="field full">
             <span>Beschreibung</span>
             <textarea
               rows={3}
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+              placeholder="Details, Notizen…"
             />
           </label>
+
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
