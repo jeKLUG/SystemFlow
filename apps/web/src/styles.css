@@ -10706,9 +10706,6 @@ button.agenda-item {
     overflow: hidden;
     text-overflow: ellipsis;
   }
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
 
   .calendar-legend {
     width: 100%;
