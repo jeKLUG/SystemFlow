@@ -50,7 +50,7 @@ Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail 
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
-Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; sticky Kontakt-Tabs als kompakte Einzeilen-Leiste (Kurzlabels, horizontal scroll, ohne Icons); größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; Kontakt-Reiter fest unter der Topbar (scrollen nicht weg, Kurzlabels); größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 
 Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, Ordner, Inventar, Historie). Alte Route `/search` leitet auf `/` um.
 

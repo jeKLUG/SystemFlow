@@ -12,6 +12,10 @@
 - Kontakte: Sortierfilter A–Z / Zuletzt entfernt (Liste fest nach Name)
 - Inventar: Statistik-Karten auf Desktop in einer Zeile (5 Spalten)
 - Inventar: kompakte Liste; Klick öffnet Detail-Vorschau; Anlegen/Bearbeiten im Modal (kein Aufklappen)
+- Kontakt-Reiter (mobil): fest unter der Topbar, scrollen nicht mehr mit
+- Inventar (mobil): Suchfeld kompakt (feste Höhe)
+- Tresor: Copy-Rahmen läuft als einzelner blauer Strich um die Karte (ohne Glow)
+- Tresor: Favorit-Lesezeichen statt Checkbox; Zugangs-Formular klarer strukturiert
 
 ## 1.5.95 – 2026-09-07
 

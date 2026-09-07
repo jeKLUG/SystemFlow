@@ -197,6 +197,7 @@ export function CustomerLayout() {
           </NavLink>
         ))}
       </nav>
+      <div className="customer-tabs-spacer" aria-hidden="true" />
 
       <Outlet context={{ customer, setCustomer }} />
     </div>

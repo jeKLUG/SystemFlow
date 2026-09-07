@@ -4486,17 +4486,37 @@ input[type="checkbox"]:not(.check-input):checked {
 
 @media (max-width: 720px) {
   .asset-filters {
-    padding: 0.75rem 0.8rem;
+    gap: 0.65rem;
+    padding: 0.65rem 0.7rem;
+    margin: 0.25rem 0 0.85rem;
   }
 
   .asset-filters-top {
     flex-direction: column;
     align-items: stretch;
+    gap: 0.4rem;
+  }
+
+  .asset-filters-search.wiki-search,
+  .wiki-search.asset-filters-search {
+    flex: 0 0 auto;
+    width: 100%;
+    min-height: 2.35rem !important;
+    max-height: 2.35rem;
+    height: 2.35rem;
+    padding: 0 0.75rem !important;
+    border-radius: 10px;
+    font-size: 16px !important;
+    line-height: 1.2;
+    box-sizing: border-box;
   }
 
   .asset-view-toggle {
     width: 100%;
     justify-content: center;
+    min-height: 2.15rem;
+    padding: 0 0.75rem;
+    font-size: 0.8rem;
   }
 
   .asset-filter-row {
@@ -4997,7 +5017,8 @@ input[type="checkbox"]:not(.check-input):checked {
   .app-content {
     padding: 0;
     min-width: 0;
-    overflow-x: clip;
+    /* visible: sonst bricht position:sticky/fixed-Kontext für Kontakt-Reiter */
+    overflow-x: visible;
   }
 
   .app-content > .page,
@@ -5173,20 +5194,38 @@ input[type="checkbox"]:not(.check-input):checked {
     margin-top: 0.45rem;
   }
 
+  .customer-hub {
+    --customer-tabs-h: 2.65rem;
+    display: flex;
+    flex-direction: column;
+    /* Kein page-enter-Transform: sonst wäre position:fixed an .page gebunden */
+    animation: none;
+  }
+
+  .customer-tabs-spacer {
+    display: block;
+    order: -1;
+    height: var(--customer-tabs-h);
+    margin: 0 0 0.5rem;
+    flex-shrink: 0;
+  }
+
   .customer-tabs {
-    position: sticky;
+    position: fixed;
     top: var(--mobile-topbar-h);
-    z-index: 20;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 24;
     overflow-x: auto;
     flex-wrap: nowrap;
     gap: 0.25rem;
-    margin: 0.05rem calc(var(--mobile-page-pad-x) * -1) 0.5rem;
+    margin: 0;
     padding: 0.3rem var(--mobile-page-pad-x);
     border-radius: 0;
-    border-left: 0;
-    border-right: 0;
-    border-top: 0;
-    background: color-mix(in srgb, var(--glass) 94%, #070c14);
+    border: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    background: color-mix(in srgb, var(--glass) 96%, #070c14);
     backdrop-filter: blur(16px) saturate(1.2);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
     -webkit-overflow-scrolling: touch;
@@ -6083,6 +6122,16 @@ input[type="checkbox"]:not(.check-input):checked {
     font-size: 16px !important;
   }
 
+  .asset-filters-search.wiki-search,
+  .wiki-search.asset-filters-search {
+    min-height: 2.35rem !important;
+    max-height: 2.35rem;
+    height: 2.35rem;
+    padding: 0 0.75rem !important;
+    line-height: 1.2;
+    box-sizing: border-box;
+  }
+
   .vault-safe-row {
     gap: 0.55rem;
   }
@@ -6210,6 +6259,10 @@ input[type="checkbox"]:not(.check-input):checked {
   overflow-x: auto;
   scrollbar-width: thin;
   -webkit-overflow-scrolling: touch;
+}
+
+.customer-tabs-spacer {
+  display: none;
 }
 
 .customer-tab {
@@ -7988,6 +8041,7 @@ a.stat-chip:hover {
 
 .vault-entry-card.is-copying {
   border-color: transparent;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
 }
 
 .vault-entry-trace {
@@ -8000,40 +8054,40 @@ a.stat-chip:hover {
   overflow: visible;
 }
 
-.vault-entry-trace rect {
+.vault-entry-trace path {
   fill: none;
-  stroke: #60a5fa;
-  stroke-width: 2.25;
+  stroke: #3b82f6;
+  stroke-width: 2;
   vector-effect: non-scaling-stroke;
-  stroke-linecap: round;
+  stroke-linecap: butt;
   stroke-linejoin: round;
-  /* gesamter Umfang (pathLength=100) einmal zeichnen */
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
+  /* pathLength=1: ein Segment deckt den ganzen Umfang ab → ein Strich von Startpunkt */
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
   opacity: 0;
-  filter: drop-shadow(0 0 5px rgba(96, 165, 250, 0.75));
+  filter: none;
 }
 
-.vault-entry-card.is-copying .vault-entry-trace rect {
+.vault-entry-card.is-copying .vault-entry-trace path {
   opacity: 1;
-  animation: vault-border-run 1.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: vault-border-run 1.2s linear forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vault-entry-card.is-copying .vault-entry-trace rect {
+  .vault-entry-card.is-copying .vault-entry-trace path {
     animation: none;
     stroke-dasharray: none;
     stroke-dashoffset: 0;
-    opacity: 0.9;
+    opacity: 0.95;
   }
 }
 
 @keyframes vault-border-run {
   0% {
-    stroke-dashoffset: 100;
+    stroke-dashoffset: 1;
     opacity: 1;
   }
-  82% {
+  88% {
     stroke-dashoffset: 0;
     opacity: 1;
   }
@@ -8302,10 +8356,113 @@ a.stat-chip:hover {
   color: var(--accent-bright);
 }
 
-.vault-form-fav {
-  display: flex;
+.vault-access-form {
+  gap: 0.85rem 1rem;
+}
+
+.vault-access-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 0.85rem;
+  align-items: end;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.15rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.vault-access-title-field {
+  min-width: 0;
+}
+
+.vault-fav-toggle {
+  appearance: none;
+  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  min-height: 2.55rem;
+  justify-content: center;
+  gap: 0.2rem;
+  min-width: 4.25rem;
+  min-height: 3.65rem;
+  margin: 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+.vault-fav-toggle:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.vault-fav-toggle.is-on {
+  color: #f0c878;
+  border-color: rgba(212, 175, 95, 0.45);
+  background: rgba(212, 175, 95, 0.1);
+}
+
+.vault-fav-toggle-icon {
+  display: block;
+  width: 1.55rem;
+  height: 1.55rem;
+}
+
+.vault-fav-toggle-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.vault-fav-toggle-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.vault-access-section {
+  margin: 0.45rem 0 0;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.vault-access-section:first-of-type {
+  border-top: 0;
+  padding-top: 0.15rem;
+}
+
+.vault-access-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.modal-panel.modal-vault-access .modal-body {
+  padding-top: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .vault-access-hero {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .vault-fav-toggle {
+    min-width: 3.75rem;
+    min-height: 3.4rem;
+  }
 }
 
 .vault-generator.is-modal {
