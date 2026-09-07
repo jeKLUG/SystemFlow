@@ -327,16 +327,40 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
               <p className="muted">Ordner, Uploads und Kundenunterlagen an einem Ort.</p>
             </div>
             <div className="vault-hero-actions">
-              <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
-                Ordner
+              <button
+                type="button"
+                className="btn btn-ghost btn-icon"
+                onClick={() => setFolderOpen(true)}
+                title="Ordner anlegen"
+                aria-label="Ordner anlegen"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M13 7L11.8845 4.76892C11.5634 4.1268 11.4029 3.80573 11.1634 3.57116C10.9516 3.36373 10.6963 3.20597 10.4161 3.10931C10.0992 3 9.74021 3 9.02229 3H5.2C4.0799 3 3.51984 3 3.09202 3.21799C2.71569 3.40973 2.40973 3.71569 2.21799 4.09202C2 4.51984 2 5.0799 2 6.2V7M2 7H17.2C18.8802 7 19.7202 7 20.362 7.32698C20.9265 7.6146 21.3854 8.07354 21.673 8.63803C22 9.27976 22 10.1198 22 11.8V16.2C22 17.8802 22 18.7202 21.673 19.362C21.3854 19.9265 20.9265 20.3854 20.362 20.673C19.7202 21 18.8802 21 17.2 21H6.8C5.11984 21 4.27976 21 3.63803 20.673C3.07354 20.3854 2.6146 19.9265 2.32698 19.362C2 18.7202 2 17.8802 2 16.2V7ZM12 17V11M9 14H15"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-icon"
                 disabled={busy}
                 onClick={() => fileInputRef.current?.click()}
+                title={busy ? "Lädt…" : "Hochladen"}
+                aria-label={busy ? "Lädt…" : "Hochladen"}
               >
-                {busy ? "Lädt…" : "Hochladen"}
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M21 15V16.2C21 17.8802 21 18.7202 20.673 19.362C20.3854 19.9265 19.9265 20.3854 19.362 20.673C18.7202 21 17.8802 21 16.2 21H7.8C6.11984 21 5.27976 21 4.63803 20.673C4.07354 20.3854 3.6146 19.9265 3.32698 19.362C3 18.7202 3 17.8802 3 16.2V15M17 8L12 3M12 3L7 8M12 3V15"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
             </div>
           </div>
@@ -367,16 +391,40 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
             Ordner, Uploads und Kundenunterlagen
           </p>
           <div className="vault-embedded-actions">
-            <button type="button" className="btn btn-ghost" onClick={() => setFolderOpen(true)}>
-              Ordner
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              onClick={() => setFolderOpen(true)}
+              title="Ordner anlegen"
+              aria-label="Ordner anlegen"
+            >
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M13 7L11.8845 4.76892C11.5634 4.1268 11.4029 3.80573 11.1634 3.57116C10.9516 3.36373 10.6963 3.20597 10.4161 3.10931C10.0992 3 9.74021 3 9.02229 3H5.2C4.0799 3 3.51984 3 3.09202 3.21799C2.71569 3.40973 2.40973 3.71569 2.21799 4.09202C2 4.51984 2 5.0799 2 6.2V7M2 7H17.2C18.8802 7 19.7202 7 20.362 7.32698C20.9265 7.6146 21.3854 8.07354 21.673 8.63803C22 9.27976 22 10.1198 22 11.8V16.2C22 17.8802 22 18.7202 21.673 19.362C21.3854 19.9265 20.9265 20.3854 20.362 20.673C19.7202 21 18.8802 21 17.2 21H6.8C5.11984 21 4.27976 21 3.63803 20.673C3.07354 20.3854 2.6146 19.9265 2.32698 19.362C2 18.7202 2 17.8802 2 16.2V7ZM12 17V11M9 14H15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
             <button
               type="button"
-              className="btn btn-primary"
+              className="btn btn-primary btn-icon"
               disabled={busy}
               onClick={() => fileInputRef.current?.click()}
+              title={busy ? "Lädt…" : "Hochladen"}
+              aria-label={busy ? "Lädt…" : "Hochladen"}
             >
-              {busy ? "Lädt…" : "Hochladen"}
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                <path
+                  d="M21 15V16.2C21 17.8802 21 18.7202 20.673 19.362C20.3854 19.9265 19.9265 20.3854 19.362 20.673C18.7202 21 17.8802 21 16.2 21H7.8C6.11984 21 5.27976 21 4.63803 20.673C4.07354 20.3854 3.6146 19.9265 3.32698 19.362C3 18.7202 3 17.8802 3 16.2V15M17 8L12 3M12 3L7 8M12 3V15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </div>
         </div>
@@ -750,7 +798,12 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
         </p>
       </div>
 
-      <Modal open={folderOpen} title="Ordner anlegen" onClose={() => setFolderOpen(false)}>
+      <Modal
+        open={folderOpen}
+        title="Ordner anlegen"
+        onClose={() => setFolderOpen(false)}
+        showCloseButton={false}
+      >
         <form className="form-grid" onSubmit={createFolder}>
           <label className="field full">
             <span>Name *</span>

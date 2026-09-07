@@ -402,6 +402,7 @@ export function CustomerSlaPanel({
         open={open}
         title={editingId ? "SLA bearbeiten" : "Neuen SLA anlegen"}
         onClose={closeModal}
+        showCloseButton={false}
         className="modal-wide"
       >
         <form className="form-grid sla-form" onSubmit={save}>

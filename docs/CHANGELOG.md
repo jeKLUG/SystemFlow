@@ -16,6 +16,17 @@
 - Inventar (mobil): Suchfeld kompakt (feste Höhe)
 - Tresor: Copy-Rahmen läuft als einzelner blauer Strich um die Karte (ohne Glow)
 - Tresor: Favorit-Lesezeichen statt Checkbox; Zugangs-Formular klarer strukturiert
+- Tresor: Toggle „Nach Kategorie“ entfernt (Gruppierung bleibt Standard)
+- Tresor: Kundenfilter einzeilig (ohne Meta-Zeile unter dem Feld)
+- Tresor: Passwort-Generator neu gestaltet (Stärke-Balken, Chip-Optionen, klarerer Verlauf)
+- Tresor: Tags entfernt; beim Bearbeiten Passwort und 2FA vorausgefüllt; Formular aufgeräumt
+- Kalender: Navigationspfeile mit fester Position (unabhängig vom Monatsnamen)
+- Kundenübersicht: Stammdaten als festes Raster (leere Felder behalten den Platz)
+- Dokumentenablage: „Ordner“ und „Hochladen“ als Icon-Buttons
+- SLA-Modal: Schließen-X entfernt (Abbrechen bleibt)
+- Dokumente/Wiki: „Alle als PDF“ entfernt; Wiki-Seite anlegen als Icon-Button
+- Aufgaben: aktiver KPI-Reiter und Schnelleingabe ohne Glow, dezenterer Fokus
+- Aufgaben: Fälligkeit, Priorität und Menü als einheitliche Meta-Chips; neues Kalender-Icon
 
 ## 1.5.95 – 2026-09-07
 

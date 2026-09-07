@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
-import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
 import { copyToClipboard } from "../lib/clipboard";
@@ -30,7 +29,6 @@ type EntryForm = {
   notes: string;
   totpSecret: string;
   favorite: boolean;
-  tagsText: string;
 };
 
 const emptyForm: EntryForm = {
@@ -43,7 +41,6 @@ const emptyForm: EntryForm = {
   notes: "",
   totpSecret: "",
   favorite: false,
-  tagsText: "",
 };
 
 const defaultGen: GeneratorOptions = {
@@ -54,14 +51,6 @@ const defaultGen: GeneratorOptions = {
   symbols: true,
   excludeAmbiguous: true,
 };
-
-function parseTagsText(value: string): string[] {
-  return value
-    .split(/[,;\s]+/)
-    .map((t) => t.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 12);
-}
 
 function customerLabel(entry: VaultEntryMeta) {
   return entry.customerCompany || entry.customerName || "Kunde";
@@ -89,10 +78,8 @@ export function VaultPage() {
 
   const [q, setQ] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | VaultCategory>("all");
-  const [tagFilter, setTagFilter] = useState("");
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("updated");
-  const [groupByCategory, setGroupByCategory] = useState(true);
   const [showGenerator, setShowGenerator] = useState(false);
   const [genOpts, setGenOpts] = useState<GeneratorOptions>(defaultGen);
   const [generated, setGenerated] = useState("");
@@ -209,12 +196,11 @@ export function VaultPage() {
         category: (secret.category as VaultCategory) || "other",
         customerId: secret.customerId ?? "",
         username: secret.username ?? "",
-        password: "",
+        password: secret.password ?? "",
         url: secret.url ?? "",
         notes: secret.notes ?? "",
-        totpSecret: "",
+        totpSecret: secret.totpSecret ?? "",
         favorite: Boolean(secret.favorite ?? entry.favorite),
-        tagsText: (secret.tags ?? entry.tags ?? []).join(", "),
       });
       setShowForm(true);
     } catch (err) {
@@ -226,23 +212,21 @@ export function VaultPage() {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     setFormError("");
-    const tags = parseTagsText(form.tagsText);
     try {
       if (editingId) {
-        const body: Record<string, unknown> = {
+        await api.vaultUpdateEntry(editingId, {
           title: form.title,
           category: form.category,
           customerId: form.customerId || null,
           username: form.username,
+          password: form.password,
           url: form.url,
           notes: form.notes,
           favorite: form.favorite,
-          tags,
-        };
-        if (form.password.trim()) body.password = form.password;
-        if (form.totpSecret.trim() === "-") body.totpSecret = null;
-        else if (form.totpSecret.trim()) body.totpSecret = normalizeTotpSecret(form.totpSecret);
-        await api.vaultUpdateEntry(editingId, body);
+          totpSecret: form.totpSecret.trim()
+            ? normalizeTotpSecret(form.totpSecret)
+            : null,
+        });
       } else {
         await api.vaultCreateEntry({
           title: form.title,
@@ -256,7 +240,7 @@ export function VaultPage() {
             ? normalizeTotpSecret(form.totpSecret)
             : undefined,
           favorite: form.favorite,
-          tags,
+          tags: [],
         });
       }
       resetForm();
@@ -385,12 +369,6 @@ export function VaultPage() {
     window.setTimeout(() => setCopyHint(""), 1500);
   }
 
-  const allTags = useMemo(() => {
-    const set = new Set<string>();
-    for (const e of entries) for (const t of e.tags ?? []) set.add(t);
-    return [...set].sort();
-  }, [entries]);
-
   const categoryCounts = useMemo(() => {
     const map = new Map<string, number>();
     for (const e of entries) map.set(e.category, (map.get(e.category) ?? 0) + 1);
@@ -411,14 +389,12 @@ export function VaultPage() {
     const list = entries.filter((e) => {
       if (favoritesOnly && !e.favorite) return false;
       if (categoryFilter !== "all" && e.category !== categoryFilter) return false;
-      if (tagFilter && !(e.tags ?? []).includes(tagFilter)) return false;
       if (!query) return true;
       const hay = [
         e.title,
         e.category,
         vaultCategoryLabel[e.category as VaultCategory] ?? e.category,
         customerLabel(e),
-        ...(e.tags ?? []),
       ]
         .join(" ")
         .toLowerCase();
@@ -442,10 +418,9 @@ export function VaultPage() {
       }
     };
     return [...list].sort(cmp);
-  }, [entries, q, categoryFilter, tagFilter, favoritesOnly, sortKey]);
+  }, [entries, q, categoryFilter, favoritesOnly, sortKey]);
 
   const groups = useMemo(() => {
-    if (!groupByCategory) return [{ key: "all", label: null as string | null, items: filtered }];
     const order = Object.keys(vaultCategoryLabel) as VaultCategory[];
     const byCat = new Map<string, VaultEntryMeta[]>();
     for (const e of filtered) {
@@ -464,7 +439,7 @@ export function VaultPage() {
       .filter((k) => !(k in vaultCategoryLabel))
       .map((k) => ({ key: k, label: k, items: byCat.get(k)! }));
     return [...known, ...unknown];
-  }, [filtered, groupByCategory]);
+  }, [filtered]);
 
   const strength = passwordStrength(generated || form.password);
 
@@ -559,7 +534,7 @@ export function VaultPage() {
               <input
                 className="vault-safe-search"
                 type="search"
-                placeholder="Suche Bezeichnung, Kategorie, Tag, Kunde…"
+                placeholder="Suche Bezeichnung, Kategorie, Kunde…"
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 aria-label="Zugänge durchsuchen"
@@ -573,6 +548,7 @@ export function VaultPage() {
                   emptyLabel="Alle Kunden"
                   placeholder="Kunde…"
                   activeOnly={false}
+                  compact
                 />
               </label>
               <label className="field vault-safe-field vault-safe-sort">
@@ -604,13 +580,6 @@ export function VaultPage() {
               >
                 Favoriten
               </button>
-              <button
-                type="button"
-                className={`vault-safe-chip${groupByCategory ? " is-active" : ""}`}
-                onClick={() => setGroupByCategory((v) => !v)}
-              >
-                Nach Kategorie
-              </button>
               <label className="field vault-safe-field vault-safe-category">
                 <span className="sr-only">Kategorie</span>
                 <select
@@ -630,19 +599,6 @@ export function VaultPage() {
                   ))}
                 </select>
               </label>
-              {allTags.length > 0 ? (
-                <label className="field vault-safe-field vault-safe-tag">
-                  <span className="sr-only">Tag</span>
-                  <select value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-                    <option value="">Alle Tags</option>
-                    {allTags.map((t) => (
-                      <option key={t} value={t}>
-                        #{t}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
             </div>
           </div>
 
@@ -687,7 +643,7 @@ export function VaultPage() {
                       <VaultEntryCard
                         key={entry.id}
                         entry={entry}
-                        showCategory={!groupByCategory}
+                        showCategory={false}
                         copying={copiedEntryId === entry.id}
                         copyBusyField={
                           copyBusyId === `${entry.id}:username`
@@ -730,6 +686,7 @@ export function VaultPage() {
                   type="button"
                   className={`vault-fav-toggle${form.favorite ? " is-on" : ""}`}
                   aria-pressed={form.favorite}
+                  aria-label={form.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
                   title={form.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
                   onClick={() => setForm({ ...form, favorite: !form.favorite })}
                 >
@@ -755,9 +712,6 @@ export function VaultPage() {
                         />
                       </svg>
                     )}
-                  </span>
-                  <span className="vault-fav-toggle-label">
-                    {form.favorite ? "Favorit" : "Favorit?"}
                   </span>
                 </button>
               </div>
@@ -800,17 +754,14 @@ export function VaultPage() {
                 />
               </label>
               <label className="field">
-                <span>
-                  Passwort / Secret
-                  {editingId ? " (leer = behalten)" : ""}
-                </span>
+                <span>Passwort / Secret</span>
                 <div className="vault-password-field">
                   <input
                     type="text"
                     autoComplete="new-password"
                     value={form.password}
                     onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    placeholder={editingId ? "Unverändert lassen…" : "Geheimnis eingeben"}
+                    placeholder={editingId ? "" : "Geheimnis eingeben"}
                     required={!editingId}
                   />
                   <button
@@ -833,12 +784,16 @@ export function VaultPage() {
                     {passwordStrength(form.password).label}
                   </span>
                 ) : (
-                  <span className="vault-access-hint">Oder mit „Würfeln“ ein sicheres Passwort erzeugen</span>
+                  <span className="vault-access-hint">
+                    {editingId
+                      ? "Leer lassen entfernt das Passwort"
+                      : "Oder mit „Würfeln“ ein sicheres Passwort erzeugen"}
+                  </span>
                 )}
               </label>
 
               <p className="vault-access-section full">Weitere Angaben</p>
-              <label className="field">
+              <label className="field full">
                 <span>URL</span>
                 <input
                   autoComplete="off"
@@ -847,19 +802,8 @@ export function VaultPage() {
                   placeholder="https://…"
                 />
               </label>
-              <label className="field">
-                <span>Tags</span>
-                <input
-                  value={form.tagsText}
-                  onChange={(e) => setForm({ ...form, tagsText: e.target.value })}
-                  placeholder="z. B. produktiv, backup"
-                />
-              </label>
               <label className="field full">
-                <span>
-                  2FA / TOTP-Secret
-                  {editingId ? " (leer = behalten, „-“ zum Entfernen)" : ""}
-                </span>
+                <span>2FA / TOTP-Secret</span>
                 <input
                   autoComplete="off"
                   spellCheck={false}
@@ -867,6 +811,9 @@ export function VaultPage() {
                   onChange={(e) => setForm({ ...form, totpSecret: e.target.value })}
                   placeholder="Base32-Secret oder otpauth://…"
                 />
+                {editingId ? (
+                  <span className="vault-access-hint">Leer lassen entfernt die 2FA</span>
+                ) : null}
               </label>
               <label className="field full">
                 <span>Notizen (verschlüsselt)</span>
@@ -932,47 +879,63 @@ export function VaultPage() {
             open={showGenerator}
             title="Passwort-Generator"
             onClose={() => setShowGenerator(false)}
-            className="modal-wide"
+            className="modal-wide modal-vault-generator"
           >
             <div className="vault-generator is-modal">
-              <div className="row-between vault-gen-head">
-                <p className="muted">
-                  Lokal erzeugen und kopieren oder direkt in einen neuen Zugang übernehmen.
-                </p>
-                <span className={`vault-strength vault-strength-${strength.score}`}>
-                  {generated ? strength.label : "Bereit"}
-                </span>
-              </div>
-              <div className="vault-gen-result">
-                <code className="vault-mono">{generated || "Noch kein Passwort erzeugt"}</code>
-                <div className="form-actions">
-                  <button type="button" className="btn btn-primary" onClick={runGenerator}>
-                    Generieren
-                  </button>
-                  {generated ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => void copyText(generated, "Passwort kopiert")}
-                      >
-                        Kopieren
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => useGeneratedInForm(generated)}
-                      >
-                        In neuen Zugang
-                      </button>
-                    </>
-                  ) : null}
+              <div className="vault-gen-stage">
+                <div className="vault-gen-stage-top">
+                  <p className="vault-gen-lede muted">
+                    Lokal im Browser erzeugen – nichts wird an den Server gesendet.
+                  </p>
+                  <div
+                    className={`vault-gen-strength vault-gen-strength-${generated ? strength.score : "idle"}`}
+                    aria-live="polite"
+                  >
+                    <span className="vault-gen-strength-bars" aria-hidden>
+                      {[0, 1, 2, 3].map((i) => (
+                        <i key={i} className={generated && strength.score > i ? "is-on" : undefined} />
+                      ))}
+                    </span>
+                    <span>{generated ? strength.label : "Bereit"}</span>
+                  </div>
+                </div>
+
+                <div className="vault-gen-output">
+                  <code className={`vault-mono vault-gen-password${!generated ? " is-empty" : ""}`}>
+                    {generated || "Noch kein Passwort erzeugt"}
+                  </code>
+                  <div className="vault-gen-actions">
+                    <button type="button" className="btn btn-primary" onClick={runGenerator}>
+                      Generieren
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={!generated}
+                      onClick={() => void copyText(generated, "Passwort kopiert")}
+                    >
+                      Kopieren
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      disabled={!generated}
+                      onClick={() => useGeneratedInForm(generated)}
+                    >
+                      In neuen Zugang
+                    </button>
+                  </div>
                 </div>
               </div>
-              <div className="vault-gen-opts form-grid">
-                <label className="field">
-                  <span>Länge: {genOpts.length}</span>
+
+              <div className="vault-gen-panel">
+                <div className="vault-gen-length">
+                  <div className="vault-gen-length-head">
+                    <span>Länge</span>
+                    <strong>{genOpts.length}</strong>
+                  </div>
                   <input
+                    className="vault-gen-range"
                     type="range"
                     min={8}
                     max={64}
@@ -980,43 +943,47 @@ export function VaultPage() {
                     onChange={(e) =>
                       setGenOpts({ ...genOpts, length: Number(e.target.value) })
                     }
+                    aria-label="Passwortlänge"
                   />
-                </label>
-                <Checkbox
-                  className="vault-check"
-                  label="Großbuchstaben"
-                  checked={genOpts.upper}
-                  onChange={(upper) => setGenOpts({ ...genOpts, upper })}
-                />
-                <Checkbox
-                  className="vault-check"
-                  label="Kleinbuchstaben"
-                  checked={genOpts.lower}
-                  onChange={(lower) => setGenOpts({ ...genOpts, lower })}
-                />
-                <Checkbox
-                  className="vault-check"
-                  label="Ziffern"
-                  checked={genOpts.digits}
-                  onChange={(digits) => setGenOpts({ ...genOpts, digits })}
-                />
-                <Checkbox
-                  className="vault-check"
-                  label="Sonderzeichen"
-                  checked={genOpts.symbols}
-                  onChange={(symbols) => setGenOpts({ ...genOpts, symbols })}
-                />
-                <Checkbox
-                  className="vault-check"
-                  label="Mehrdeutige meiden (0/O, 1/l/I)"
-                  checked={genOpts.excludeAmbiguous}
-                  onChange={(excludeAmbiguous) => setGenOpts({ ...genOpts, excludeAmbiguous })}
-                />
+                  <div className="vault-gen-length-scale" aria-hidden>
+                    <span>8</span>
+                    <span>64</span>
+                  </div>
+                </div>
+
+                <div className="vault-gen-chips" role="group" aria-label="Zeichenarten">
+                  {(
+                    [
+                      ["lower", "Kleinbuchstaben", genOpts.lower],
+                      ["upper", "Großbuchstaben", genOpts.upper],
+                      ["digits", "Ziffern", genOpts.digits],
+                      ["symbols", "Sonderzeichen", genOpts.symbols],
+                      ["excludeAmbiguous", "Ohne 0/O, 1/l/I", genOpts.excludeAmbiguous],
+                    ] as const
+                  ).map(([key, label, on]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      className={`vault-gen-chip${on ? " is-on" : ""}`}
+                      aria-pressed={on}
+                      onClick={() =>
+                        setGenOpts({
+                          ...genOpts,
+                          [key]: !on,
+                        })
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
               {genHistory.length > 0 ? (
                 <div className="vault-gen-history">
-                  <div className="row-between">
-                    <strong>Verlauf (lokal)</strong>
+                  <div className="vault-gen-history-head">
+                    <strong>Verlauf</strong>
+                    <span className="muted">nur lokal</span>
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
@@ -1025,16 +992,19 @@ export function VaultPage() {
                         setGenHistory([]);
                       }}
                     >
-                      Verlauf löschen
+                      Löschen
                     </button>
                   </div>
                   <ul className="vault-history-list">
                     {genHistory.map((item) => (
                       <li key={item.id}>
-                        <code className="vault-mono">{item.password}</code>
-                        <span className="muted">
-                          {item.length} Z. · {new Date(item.createdAt).toLocaleString("de-DE")}
-                        </span>
+                        <div className="vault-history-main">
+                          <code className="vault-mono">{item.password}</code>
+                          <span className="muted">
+                            {item.length} Zeichen ·{" "}
+                            {new Date(item.createdAt).toLocaleString("de-DE")}
+                          </span>
+                        </div>
                         <div className="list-actions">
                           <button
                             type="button"

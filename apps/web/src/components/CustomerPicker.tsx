@@ -14,6 +14,8 @@ type Props = {
   className?: string;
   /** Nur aktive Kunden in der Suche (Standard: ja). */
   activeOnly?: boolean;
+  /** Einzeilig ohne Meta-Zeile – für Filterleisten / Toolbars. */
+  compact?: boolean;
 };
 
 /**
@@ -28,6 +30,7 @@ export function CustomerPicker({
   placeholder = "Kontakt suchen…",
   className = "",
   activeOnly = true,
+  compact = false,
 }: Props) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -133,7 +136,10 @@ export function CustomerPicker({
   }
 
   return (
-    <div className={`customer-picker ${className}`} ref={rootRef}>
+    <div
+      className={`customer-picker${compact ? " is-compact" : ""}${selected && !open ? " has-value" : ""}${className ? ` ${className}` : ""}`}
+      ref={rootRef}
+    >
       <div className="customer-picker-control">
         <input
           className="customer-picker-input"
@@ -144,6 +150,7 @@ export function CustomerPicker({
           autoComplete="off"
           required={required && !value}
           placeholder={selected ? customerDisplayName(selected) : placeholder}
+          title={selected && !open ? customerDisplayName(selected) : undefined}
           value={open ? query : selected ? customerDisplayName(selected) : ""}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -167,7 +174,7 @@ export function CustomerPicker({
         ) : null}
       </div>
 
-      {selected && !open ? (
+      {selected && !open && !compact ? (
         <span className="customer-picker-meta muted">
           {[selected.contactPerson, selected.city, selected.phone].filter(Boolean).join(" · ")}
         </span>

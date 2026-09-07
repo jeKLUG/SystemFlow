@@ -52,7 +52,6 @@ export function CustomerWikiPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [contractCreateKey, setContractCreateKey] = useState(0);
-  const [pdfBusy, setPdfBusy] = useState(false);
   const [form, setForm] = useState({
     title: "",
     type: "article" as DocumentType,
@@ -153,27 +152,23 @@ export function CustomerWikiPage() {
           </div>
           <div className="docs-hero-actions">
             {view === "wiki" ? (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-ghost"
-                  disabled={docs.length === 0 || pdfBusy}
-                  onClick={() => {
-                    setPdfBusy(true);
-                    void api
-                      .exportWikiPdf(id)
-                      .catch((err) =>
-                        alert(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
-                      )
-                      .finally(() => setPdfBusy(false));
-                  }}
-                >
-                  {pdfBusy ? "PDF…" : "Alle als PDF"}
-                </button>
-                <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
-                  + Wiki-Seite
-                </button>
-              </>
+              <button
+                type="button"
+                className="btn btn-primary btn-icon"
+                onClick={() => setCreateOpen(true)}
+                title="Wiki-Seite anlegen"
+                aria-label="Wiki-Seite anlegen"
+              >
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path
+                    d="M20 10.5V6.8C20 5.11984 20 4.27976 19.673 3.63803C19.3854 3.07354 18.9265 2.6146 18.362 2.32698C17.7202 2 16.8802 2 15.2 2H8.8C7.11984 2 6.27976 2 5.63803 2.32698C5.07354 2.6146 4.6146 3.07354 4.32698 3.63803C4 4.27976 4 5.11984 4 6.8V17.2C4 18.8802 4 19.7202 4.32698 20.362C4.6146 20.9265 5.07354 21.3854 5.63803 21.673C6.27976 22 7.11984 22 8.8 22H12M14 11H8M10 15H8M16 7H8M18 21V15M15 18H21"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
             ) : view === "contracts" ? (
               <button
                 type="button"
