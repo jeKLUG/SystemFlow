@@ -3,6 +3,9 @@
 ## 1.5.96 – 2026-09-07
 
 - Kontakte (mobil): Suchfeld kompakt (feste Höhe), kein Auto-Focus mehr; Filterzeile enger
+- Kundenübersicht: Eyebrow „Profil“ über Stammdaten entfernt
+- Kalender: Eyebrow „Planung“ entfernt
+- Android-APK: native Titelzeile („Systemhaus-Ess“) entfernt – mehr Platz für die Web-UI
 
 ## 1.5.95 – 2026-09-07
 

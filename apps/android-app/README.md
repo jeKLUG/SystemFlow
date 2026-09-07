@@ -10,7 +10,7 @@ Einfache Android-Hülle um die Systemhaus-Ess Web-App – ohne Browser-Chrome.
 ## Server-URL setzen
 
 1. In `gradle.properties` die Zeile `app.url=...` anpassen **oder**
-2. Nach dem ersten Start im Menü **Server-URL** die Adresse eingeben
+2. Bei Verbindungsfehler auf dem Offline-Bildschirm **Server ändern** tippen
 
 Beispiel:
 

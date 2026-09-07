@@ -7,8 +7,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
-import android.view.Menu
-import android.view.MenuItem
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.URLUtil
@@ -33,8 +31,8 @@ import androidx.core.view.updatePadding
 import de.systemhausess.app.databinding.ActivityMainBinding
 
 /**
- * Schlanke WebView-Hülle für die Systemhaus-Ess Web-App.
- * Start-URL ist über Menü anpassbar und wird lokal gespeichert.
+ * Schlanke WebView-Hülle für die Systemhaus-Ess Web-App (ohne native ActionBar).
+ * Start-URL ist über den Offline-Bildschirm anpassbar und wird lokal gespeichert.
  */
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
@@ -57,7 +55,6 @@ class MainActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        setSupportActionBar(binding.toolbar)
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
             val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -89,31 +86,6 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         binding.webView.saveState(outState)
-    }
-
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(0, MENU_RELOAD, 0, R.string.action_reload)
-        menu.add(0, MENU_HOME, 1, R.string.action_home)
-        menu.add(0, MENU_SERVER, 2, R.string.action_server)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            MENU_RELOAD -> {
-                binding.webView.reload()
-                true
-            }
-            MENU_HOME -> {
-                loadHome()
-                true
-            }
-            MENU_SERVER -> {
-                showServerDialog()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -297,8 +269,5 @@ class MainActivity : AppCompatActivity() {
         private const val PREFS = "systemhaus_shell"
         private const val KEY_URL = "app_url"
         private const val KEY_CACHE_EPOCH = "cache_epoch"
-        private const val MENU_RELOAD = 1
-        private const val MENU_HOME = 2
-        private const val MENU_SERVER = 3
     }
 }

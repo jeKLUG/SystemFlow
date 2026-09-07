@@ -114,7 +114,6 @@ export function CustomerOverviewPage() {
         <div className={`panel stammdaten-panel${editing ? " is-editing" : ""}`}>
           <div className="stammdaten-panel-head">
             <div className="stammdaten-panel-title">
-              <p className="eyebrow">Profil</p>
               <h2>Stammdaten</h2>
             </div>
             <div className="stammdaten-actions">

@@ -330,7 +330,6 @@ export function CalendarPage() {
       <header className="calendar-topbar anim-fade-up">
         <div className="calendar-topbar-main">
           <div>
-            <p className="eyebrow">Planung</p>
             <h2>Kalender</h2>
             <p>
               {periodCount === 0

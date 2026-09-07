@@ -21,6 +21,8 @@ Auf dem Entwicklungsrechner ohne JDK/Android-SDK kann die APK hier nicht kompili
 
 ## Hinweise
 
+- Keine native Titelzeile: die Web-App nutzt den gesamten Bildschirm (nur System-Statusleiste).
+- Server-URL ändern: über den Offline-Bildschirm („Server ändern“), wenn die Start-URL nicht erreichbar ist.
 - Handy und Server müssen sich erreichen (gleiche WLAN-/VPN-Zone oder öffentliche HTTPS-URL).
 - Cookies bleiben in der WebView; Logout in der Web-App beendet die Session.
 - Externe Links (andere Hosts) öffnen die System-App (Browser/Mail/…).
