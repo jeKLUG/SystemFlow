@@ -287,7 +287,6 @@ export function RemindersPage() {
       <section className="tasks-hub-expiry panel" aria-labelledby="tasks-hub-expiry-title">
         <div className="tasks-hub-expiry-head">
           <div>
-            <p className="eyebrow">Fristen</p>
             <h3 id="tasks-hub-expiry-title">Abläufe</h3>
             <p className="muted">
               {expiryCount

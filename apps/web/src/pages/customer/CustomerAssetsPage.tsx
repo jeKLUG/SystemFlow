@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
+import { Modal } from "../../components/Modal";
 import {
   assetKindLabel,
   assetOwnershipFilterLabel,
@@ -97,15 +98,48 @@ function matchesQuery(asset: Asset, q: string) {
   return hay.includes(q);
 }
 
+/** Kurze Zweitzeile für die Liste (max. zwei Hinweise). */
+function assetListHint(asset: Asset): string {
+  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
+  const parts = [asset.location, asset.ipAddress || asset.hostname, hardware].filter(Boolean);
+  return parts.slice(0, 2).join(" · ");
+}
+
+type PreviewRow = { label: string; value: string; mono?: boolean; href?: string };
+
+function assetPreviewRows(asset: Asset): PreviewRow[] {
+  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
+  const rows: Array<PreviewRow | null> = [
+    hardware ? { label: "Gerät", value: hardware } : null,
+    asset.location ? { label: "Standort", value: asset.location } : null,
+    asset.hostname ? { label: "Hostname", value: asset.hostname, mono: true } : null,
+    asset.ipAddress ? { label: "IP-Adresse", value: asset.ipAddress, mono: true } : null,
+    asset.macAddress ? { label: "MAC-Adresse", value: asset.macAddress, mono: true } : null,
+    asset.vlan ? { label: "VLAN", value: asset.vlan } : null,
+    asset.os ? { label: "OS / Version", value: asset.os } : null,
+    asset.serialNumber ? { label: "Serien- / Lizenznr.", value: asset.serialNumber, mono: true } : null,
+    asset.warrantyUntil
+      ? { label: "Garantie / Laufzeit", value: formatDateOnly(asset.warrantyUntil) }
+      : null,
+    asset.managementUrl
+      ? { label: "Portal", value: asset.managementUrl, href: asset.managementUrl }
+      : null,
+    asset.notes ? { label: "Notizen", value: asset.notes } : null,
+  ];
+  return rows.filter((r): r is PreviewRow => Boolean(r));
+}
+
 /**
  * Inventar eines Kunden: Geräte, Lizenzen, Software, Leihgaben und verwahrte Kundengeräte.
+ * Liste kompakt; Details in Vorschau-Modal, Anlegen/Bearbeiten im Formular-Modal.
  */
 export function CustomerAssetsPage() {
   const { id = "" } = useParams();
   const [assetList, setAssetList] = useState<Asset[]>([]);
   const [assetForm, setAssetForm] = useState<AssetForm>(emptyAsset);
-  const [showForm, setShowForm] = useState(false);
+  const [formMode, setFormMode] = useState<"create" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<Asset | null>(null);
   const [q, setQ] = useState("");
   const [kindFilter, setKindFilter] = useState<"all" | AssetKind>("all");
   const [ownershipFilter, setOwnershipFilter] = useState<"all" | AssetOwnership>("all");
@@ -121,24 +155,33 @@ export function CustomerAssetsPage() {
     void reload();
   }, [id]);
 
-  function resetForm() {
-    setAssetForm(emptyAsset);
+  useEffect(() => {
+    setPreview((current) => {
+      if (!current) return null;
+      return assetList.find((a) => a.id === current.id) ?? null;
+    });
+  }, [assetList]);
+
+  function closeForm() {
+    setFormMode(null);
     setEditingId(null);
-    setShowForm(false);
+    setAssetForm(emptyAsset);
     setError("");
   }
 
   function startCreate() {
+    setPreview(null);
     setEditingId(null);
     setAssetForm(emptyAsset);
-    setShowForm(true);
+    setFormMode("create");
     setError("");
   }
 
   function startEdit(asset: Asset) {
+    setPreview(null);
     setEditingId(asset.id);
     setAssetForm(assetToForm(asset));
-    setShowForm(true);
+    setFormMode("edit");
     setError("");
   }
 
@@ -151,7 +194,7 @@ export function CustomerAssetsPage() {
       } else {
         await api.createAsset(id, assetForm);
       }
-      resetForm();
+      closeForm();
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -161,7 +204,8 @@ export function CustomerAssetsPage() {
   async function removeAsset(asset: Asset) {
     if (!window.confirm(`Inventar-Eintrag „${asset.name}“ wirklich löschen?`)) return;
     await api.deleteAsset(asset.id);
-    if (editingId === asset.id) resetForm();
+    if (editingId === asset.id) closeForm();
+    if (preview?.id === asset.id) setPreview(null);
     await reload();
   }
 
@@ -205,6 +249,14 @@ export function CustomerAssetsPage() {
       .map((k) => ({ kind: k, items: byKind.get(k)! }));
   }, [filtered, groupByKind]);
 
+  const previewRows = preview ? assetPreviewRows(preview) : [];
+  const previewOwnership = preview?.ownership ?? "customer";
+  const previewStatus = preview?.status ?? "active";
+
+  function openPreview(asset: Asset) {
+    setPreview(asset);
+  }
+
   return (
     <section className="section">
       <div className="section-head row-between">
@@ -215,15 +267,8 @@ export function CustomerAssetsPage() {
             dir.
           </p>
         </div>
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={() => {
-            if (showForm && !editingId) resetForm();
-            else startCreate();
-          }}
-        >
-          {showForm && !editingId ? "Abbrechen" : "+ Eintrag"}
+        <button type="button" className="btn btn-primary" onClick={startCreate}>
+          + Eintrag
         </button>
       </div>
 
@@ -349,15 +394,142 @@ export function CustomerAssetsPage() {
         </div>
       </div>
 
-      {showForm ? (
-        <form className="panel form-grid asset-form" onSubmit={saveAsset}>
-          <div className="full asset-form-title">
-            <strong>{editingId ? "Eintrag bearbeiten" : "Neuer Inventar-Eintrag"}</strong>
-            <p className="muted">
-              z. B. Notebook des Kunden, verliehener Adapter, Software-Lizenz oder Gerät in
-              deiner Werkstatt.
-            </p>
+      {assetList.length === 0 ? (
+        <p className="empty">
+          Noch kein Inventar. Lege Kundengeräte, verliehene Hardware/Software oder Lizenzen an.
+        </p>
+      ) : filtered.length === 0 ? (
+        <p className="empty">Keine Einträge für diese Filter.</p>
+      ) : (
+        <div className="asset-groups">
+          {groups.map((group) => (
+            <div key={group.kind ?? "flat"} className="asset-group">
+              {group.kind ? (
+                <h3 className="asset-group-title">
+                  {assetKindLabel[group.kind]}
+                  <span className="muted"> · {group.items.length}</span>
+                </h3>
+              ) : null}
+              <ul className="list">
+                {group.items.map((asset) => {
+                  const status = asset.status ?? "active";
+                  const ownership = asset.ownership ?? "customer";
+                  const hint = assetListHint(asset);
+                  return (
+                    <li key={asset.id} className="list-row asset-row">
+                      <button
+                        type="button"
+                        className="asset-open"
+                        onClick={() => openPreview(asset)}
+                      >
+                        <div className="asset-title-row">
+                          <strong>{asset.name}</strong>
+                          <span className={`badge badge-ownership-${ownership}`}>
+                            {assetOwnershipLabel[ownership]}
+                          </span>
+                          <span className={`badge badge-asset-${status}`}>
+                            {assetStatusLabel[status]}
+                          </span>
+                          {!groupByKind ? (
+                            <span className="badge badge-kind">{assetKindLabel[asset.kind]}</span>
+                          ) : null}
+                        </div>
+                        {hint ? <p className="asset-hint muted">{hint}</p> : null}
+                      </button>
+                      <div className="list-actions asset-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => startEdit(asset)}
+                        >
+                          Bearbeiten
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          onClick={() => void removeAsset(asset)}
+                        >
+                          Löschen
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Modal
+        open={preview != null}
+        title={preview?.name ?? "Gerät"}
+        onClose={() => setPreview(null)}
+        className="modal-wide modal-asset-preview"
+      >
+        {preview ? (
+          <div className="asset-preview">
+            <div className="asset-preview-badges">
+              <span className="badge badge-kind">{assetKindLabel[preview.kind]}</span>
+              <span className={`badge badge-ownership-${previewOwnership}`}>
+                {assetOwnershipLabel[previewOwnership]}
+              </span>
+              <span className={`badge badge-asset-${previewStatus}`}>
+                {assetStatusLabel[previewStatus]}
+              </span>
+            </div>
+
+            {previewRows.length ? (
+              <dl className="asset-preview-grid">
+                {previewRows.map((row) => (
+                  <div key={row.label} className="asset-preview-field">
+                    <dt>{row.label}</dt>
+                    <dd className={row.mono ? "is-mono" : undefined}>
+                      {row.href ? (
+                        <a href={row.href} target="_blank" rel="noreferrer">
+                          {row.value}
+                        </a>
+                      ) : (
+                        row.value
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="empty">Keine weiteren Details hinterlegt.</p>
+            )}
+
+            <div className="form-actions modal-actions">
+              <button type="button" className="btn btn-primary" onClick={() => startEdit(preview)}>
+                Bearbeiten
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => void removeAsset(preview)}
+              >
+                Löschen
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => setPreview(null)}>
+                Schließen
+              </button>
+            </div>
           </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={formMode != null}
+        title={formMode === "edit" ? "Eintrag bearbeiten" : "Neuer Inventar-Eintrag"}
+        onClose={closeForm}
+        className="modal-wide"
+      >
+        <form className="form-grid asset-form" onSubmit={saveAsset}>
+          <p className="muted full asset-form-lead">
+            z. B. Notebook des Kunden, verliehener Adapter, Software-Lizenz oder Gerät in deiner
+            Werkstatt.
+          </p>
           <label className="field">
             <span>Bezeichnung *</span>
             <input
@@ -498,139 +670,23 @@ export function CustomerAssetsPage() {
           <label className="field full">
             <span>Notizen</span>
             <textarea
-              rows={2}
+              rows={3}
               value={assetForm.notes}
               onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
               placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full form-actions">
+          <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
-              {editingId ? "Änderungen speichern" : "Eintrag anlegen"}
+              {formMode === "edit" ? "Änderungen speichern" : "Eintrag anlegen"}
             </button>
-            <button className="btn btn-ghost" type="button" onClick={resetForm}>
+            <button className="btn btn-ghost" type="button" onClick={closeForm}>
               Abbrechen
             </button>
           </div>
         </form>
-      ) : null}
-
-      {assetList.length === 0 ? (
-        <p className="empty">
-          Noch kein Inventar. Lege Kundengeräte, verliehene Hardware/Software oder Lizenzen an.
-        </p>
-      ) : filtered.length === 0 ? (
-        <p className="empty">Keine Einträge für diese Filter.</p>
-      ) : (
-        <div className="asset-groups">
-          {groups.map((group) => (
-            <div key={group.kind ?? "flat"} className="asset-group">
-              {group.kind ? (
-                <h3 className="asset-group-title">
-                  {assetKindLabel[group.kind]}
-                  <span className="muted"> · {group.items.length}</span>
-                </h3>
-              ) : null}
-              <ul className="list">
-                {group.items.map((asset) => {
-                  const status = asset.status ?? "active";
-                  const ownership = asset.ownership ?? "customer";
-                  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
-                  return (
-                    <li key={asset.id} className="list-row asset-row">
-                      <div className="asset-main">
-                        <div className="asset-title-row">
-                          <strong>{asset.name}</strong>
-                          <span className={`badge badge-ownership-${ownership}`}>
-                            {assetOwnershipLabel[ownership]}
-                          </span>
-                          <span className={`badge badge-asset-${status}`}>
-                            {assetStatusLabel[status]}
-                          </span>
-                          {!groupByKind ? (
-                            <span className="badge badge-kind">{assetKindLabel[asset.kind]}</span>
-                          ) : null}
-                        </div>
-                        <div className="asset-meta">
-                          {hardware ? <span>{hardware}</span> : null}
-                          {asset.hostname ? (
-                            <span>
-                              <em>Host</em> {asset.hostname}
-                            </span>
-                          ) : null}
-                          {asset.ipAddress ? (
-                            <span className="asset-ip">
-                              <em>IP</em> {asset.ipAddress}
-                            </span>
-                          ) : null}
-                          {asset.macAddress ? (
-                            <span>
-                              <em>MAC</em> {asset.macAddress}
-                            </span>
-                          ) : null}
-                          {asset.vlan ? (
-                            <span>
-                              <em>VLAN</em> {asset.vlan}
-                            </span>
-                          ) : null}
-                          {asset.location ? (
-                            <span>
-                              <em>Ort</em> {asset.location}
-                            </span>
-                          ) : null}
-                          {asset.os ? (
-                            <span>
-                              <em>OS</em> {asset.os}
-                            </span>
-                          ) : null}
-                          {asset.serialNumber ? (
-                            <span>
-                              <em>S/N</em> {asset.serialNumber}
-                            </span>
-                          ) : null}
-                          {asset.warrantyUntil ? (
-                            <span>
-                              <em>Bis</em> {formatDateOnly(asset.warrantyUntil)}
-                            </span>
-                          ) : null}
-                        </div>
-                        {asset.managementUrl ? (
-                          <a
-                            className="asset-link"
-                            href={asset.managementUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                          >
-                            Portal öffnen
-                          </a>
-                        ) : null}
-                        {asset.notes ? <p className="asset-notes muted">{asset.notes}</p> : null}
-                      </div>
-                      <div className="list-actions asset-actions">
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => startEdit(asset)}
-                        >
-                          Bearbeiten
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-sm"
-                          onClick={() => void removeAsset(asset)}
-                        >
-                          Löschen
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          ))}
-        </div>
-      )}
+      </Modal>
     </section>
   );
 }

@@ -29,7 +29,6 @@ export function CustomersPage() {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"all" | "active" | "inactive">("active");
   const [kind, setKind] = useState<"all" | ContactKind>("all");
-  const [sort, setSort] = useState<"updated" | "name">("name");
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(emptyCustomerForm);
   const [showForm, setShowForm] = useState(false);
@@ -45,13 +44,13 @@ export function CustomersPage() {
     const search = opts?.search ?? q;
     setLoading(true);
     try {
-      const cacheKey = `customers:${status}:${kind}:${sort}:${search.trim()}:${offset}`;
+      const cacheKey = `customers:${status}:${kind}:${search.trim()}:${offset}`;
       const { data: res, fromCache: cached } = await withOfflineFallback(cacheKey, () =>
         api.customers({
           q: search.trim() || undefined,
           status,
           kind,
-          sort,
+          sort: "name",
           limit: PAGE_SIZE,
           offset,
         }),
@@ -72,7 +71,7 @@ export function CustomersPage() {
     return () => {
       if (debounceRef.current) window.clearTimeout(debounceRef.current);
     };
-  }, [q, status, kind, sort]);
+  }, [q, status, kind]);
 
   useEffect(() => {
     if (params.get("new") === "1") setShowForm(true);
@@ -240,17 +239,6 @@ export function CustomersPage() {
               </button>
             ))}
           </div>
-          <label className="customers-sort">
-            <span className="sr-only">Sortierung</span>
-            <select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as "updated" | "name")}
-              aria-label="Sortierung"
-            >
-              <option value="name">A–Z</option>
-              <option value="updated">Zuletzt</option>
-            </select>
-          </label>
         </div>
       </div>
 

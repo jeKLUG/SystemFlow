@@ -31,7 +31,7 @@ Browser (React SPA)
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
-- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie)
+- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen)
@@ -50,7 +50,7 @@ Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail 
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
-Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; sticky Kontakt-Tabs als kompakte Einzeilen-Leiste (Kurzlabels, horizontal scroll, ohne Icons); größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 
 Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, Ordner, Inventar, Historie). Alte Route `/search` leitet auf `/` um.
 

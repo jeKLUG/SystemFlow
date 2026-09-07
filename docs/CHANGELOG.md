@@ -6,6 +6,12 @@
 - Kundenübersicht: Eyebrow „Profil“ über Stammdaten entfernt
 - Kalender: Eyebrow „Planung“ entfernt
 - Android-APK: native Titelzeile („Systemhaus-Ess“) entfernt – mehr Platz für die Web-UI
+- Kontakt-Reiter (mobil): kompakter (eine Zeile, Kurzlabels, ohne Icons; kein Umbruch mehr)
+- Sidebar: globale Suche unter der Trennlinie unter dem Logo
+- Aufgaben-Hub: Eyebrow „Fristen“ und gelber Glow bei Abläufe entfernt
+- Kontakte: Sortierfilter A–Z / Zuletzt entfernt (Liste fest nach Name)
+- Inventar: Statistik-Karten auf Desktop in einer Zeile (5 Spalten)
+- Inventar: kompakte Liste; Klick öffnet Detail-Vorschau; Anlegen/Bearbeiten im Modal (kein Aufklappen)
 
 ## 1.5.95 – 2026-09-07
 

@@ -65,11 +65,11 @@ const tabIcon = {
 const tabs: Tab[] = [
   { to: ".", end: true, label: "Übersicht", short: "Start", icon: tabIcon.overview },
   { to: "wiki", label: "Dokumente", short: "Docs", icon: tabIcon.docs },
-  { to: "projects", label: "Projekte", short: "Projekte", icon: tabIcon.projects },
+  { to: "projects", label: "Projekte", short: "Proj.", icon: tabIcon.projects },
   { to: "tasks", label: "Aufgaben", short: "Tasks", icon: tabIcon.tasks },
   { to: "time", label: "Zeiten", short: "Zeit", icon: tabIcon.time },
-  { to: "assets", label: "Inventar", short: "Inventar", icon: tabIcon.assets },
-  { to: "ops", label: "Protokoll", short: "Protokoll", icon: tabIcon.ops },
+  { to: "assets", label: "Inventar", short: "Inv.", icon: tabIcon.assets },
+  { to: "ops", label: "Protokoll", short: "Prot.", icon: tabIcon.ops },
 ];
 
 /**
