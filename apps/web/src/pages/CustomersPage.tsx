@@ -201,7 +201,6 @@ export function CustomersPage() {
           placeholder="Suchen…"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          autoFocus
           aria-label="Kontakte durchsuchen"
         />
         <div className="customers-filters">

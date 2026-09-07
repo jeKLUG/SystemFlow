@@ -106,7 +106,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
 }
 
 /**
- * App-Shell mit Sidebar, Topbar (globale Suche) und mobiler Navigation.
+ * App-Shell mit Sidebar (globale Suche unter dem Logo), Topbar mobil und Tabbar.
  */
 export function Layout() {
   const { user, logout } = useAuth();
@@ -141,6 +141,10 @@ export function Layout() {
         <div className="sidebar-brand">
           <img className="brand-mark" src="/logo.png" alt="" width={36} height={36} />
           <strong>Systemhaus-Ess</strong>
+        </div>
+
+        <div className="sidebar-search">
+          <GlobalSearch />
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
@@ -210,7 +214,6 @@ export function Layout() {
             <img className="brand-mark" src="/logo.png" alt="" width={28} height={28} />
             <strong>Systemhaus-Ess</strong>
           </div>
-          <GlobalSearch />
           <div className="app-topbar-actions">
             <NavLink to="/tasks" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Aufgaben">
               {icon.reminders}

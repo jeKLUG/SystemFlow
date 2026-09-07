@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.96 – 2026-09-07
+
+- Kontakte (mobil): Suchfeld kompakt (feste Höhe), kein Auto-Focus mehr; Filterzeile enger
+
+## 1.5.95 – 2026-09-07
+
+- Globale Suche: aus der Kopfleiste in die Sidebar unter das Logo verschoben (mobil über Menü erreichbar)
+
+## 1.5.94 – 2026-09-07
+
+- Inventar: Filter mit klaren Zeilen (Zuordnung / Status / Typ), kürzere Labels, Ansichtsumschalter getrennt von den Filtern
+
 ## 1.5.93 – 2026-09-07
 
 - Build-Fix: Globale Suche (`aria-expanded` Typ); Deploy bricht bei fehlgeschlagenem Image-Build ab (kein Start mit altem Image)

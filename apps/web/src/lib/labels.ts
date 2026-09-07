@@ -102,6 +102,13 @@ export const assetOwnershipLabel: Record<AssetOwnership, string> = {
   held: "Bei uns (Kundengerät)",
 };
 
+/** Kurzlabels für Filter-Chips. */
+export const assetOwnershipFilterLabel: Record<AssetOwnership, string> = {
+  customer: "Kundeneigentum",
+  loaned: "Verliehen",
+  held: "Bei uns",
+};
+
 export const assetStatusLabel: Record<AssetStatus, string> = {
   active: "Aktiv",
   spare: "Ersatz / Lager",

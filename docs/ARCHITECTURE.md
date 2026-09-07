@@ -50,9 +50,9 @@ Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail 
 
 Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
 
-Mobil (≤860px): Sticky Topbar (Menü / globale Suchleiste / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
+Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; sticky Kontakt-Tabs mit Auto-Scroll; größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 
-Desktop: Sticky Topbar über dem Inhalt mit globaler Suche (Kontakte, Wiki, Dateien, Ordner, Inventar, Historie); Sidebar ohne eigenen Suche-Eintrag. Alte Route `/search` leitet auf `/` um.
+Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, Ordner, Inventar, Historie). Alte Route `/search` leitet auf `/` um.
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 

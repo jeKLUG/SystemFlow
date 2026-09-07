@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import {
   assetKindLabel,
+  assetOwnershipFilterLabel,
   assetOwnershipLabel,
   assetStatusLabel,
   formatDateOnly,
@@ -251,82 +252,100 @@ export function CustomerAssetsPage() {
         </div>
       ) : null}
 
-      <div className="wiki-toolbar asset-toolbar">
-        <input
-          className="wiki-search"
-          type="search"
-          placeholder="Suche Name, IP, Hostname, S/N, Lizenz, Standort…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <div className="filter-chips" role="group" aria-label="Zuordnung">
+      <div className="panel asset-filters">
+        <div className="asset-filters-top">
+          <input
+            className="wiki-search asset-filters-search"
+            type="search"
+            placeholder="Suche Name, IP, Hostname, S/N, Lizenz, Standort…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Inventar durchsuchen"
+          />
           <button
             type="button"
-            className={`chip ${ownershipFilter === "all" ? "chip-active" : ""}`}
-            onClick={() => setOwnershipFilter("all")}
-          >
-            Alle Zuordnungen
-          </button>
-          {(Object.keys(assetOwnershipLabel) as AssetOwnership[]).map((o) => (
-            <button
-              key={o}
-              type="button"
-              className={`chip ${ownershipFilter === o ? "chip-active" : ""}`}
-              onClick={() => setOwnershipFilter(o)}
-            >
-              {assetOwnershipLabel[o]}
-              {o === "loaned" && stats.loaned ? ` (${stats.loaned})` : ""}
-              {o === "held" && stats.held ? ` (${stats.held})` : ""}
-            </button>
-          ))}
-        </div>
-        <div className="filter-chips">
-          <button
-            type="button"
-            className={`chip ${statusFilter === "all" ? "chip-active" : ""}`}
-            onClick={() => setStatusFilter("all")}
-          >
-            Alle Status
-          </button>
-          {(Object.keys(assetStatusLabel) as AssetStatus[]).map((s) => (
-            <button
-              key={s}
-              type="button"
-              className={`chip ${statusFilter === s ? "chip-active" : ""}`}
-              onClick={() => setStatusFilter(s)}
-            >
-              {assetStatusLabel[s]}
-            </button>
-          ))}
-          <button
-            type="button"
-            className={`chip ${groupByKind ? "chip-active" : ""}`}
+            className={`asset-view-toggle${groupByKind ? " is-active" : ""}`}
             onClick={() => setGroupByKind((v) => !v)}
+            aria-pressed={groupByKind}
           >
-            Nach Typ gruppieren
+            {groupByKind ? "Gruppiert nach Typ" : "Liste ohne Gruppen"}
           </button>
         </div>
-        <div className="filter-chips">
-          <button
-            type="button"
-            className={`chip ${kindFilter === "all" ? "chip-active" : ""}`}
-            onClick={() => setKindFilter("all")}
-          >
-            Alle Typen
-          </button>
-          {(Object.keys(assetKindLabel) as AssetKind[])
-            .filter((k) => (kindCounts.get(k) ?? 0) > 0 || kindFilter === k)
-            .map((k) => (
+
+        <div className="asset-filter-rows">
+          <div className="asset-filter-row">
+            <span className="asset-filter-label">Zuordnung</span>
+            <div className="asset-seg" role="group" aria-label="Zuordnung">
               <button
-                key={k}
                 type="button"
-                className={`chip ${kindFilter === k ? "chip-active" : ""}`}
-                onClick={() => setKindFilter(k)}
+                className={ownershipFilter === "all" ? "is-active" : undefined}
+                onClick={() => setOwnershipFilter("all")}
               >
-                {assetKindLabel[k]}
-                {kindCounts.get(k) ? ` (${kindCounts.get(k)})` : ""}
+                Alle
               </button>
-            ))}
+              {(Object.keys(assetOwnershipFilterLabel) as AssetOwnership[]).map((o) => (
+                <button
+                  key={o}
+                  type="button"
+                  className={ownershipFilter === o ? "is-active" : undefined}
+                  onClick={() => setOwnershipFilter(o)}
+                >
+                  {assetOwnershipFilterLabel[o]}
+                  {o === "loaned" && stats.loaned ? ` · ${stats.loaned}` : ""}
+                  {o === "held" && stats.held ? ` · ${stats.held}` : ""}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-row">
+            <span className="asset-filter-label">Status</span>
+            <div className="asset-seg" role="group" aria-label="Status">
+              <button
+                type="button"
+                className={statusFilter === "all" ? "is-active" : undefined}
+                onClick={() => setStatusFilter("all")}
+              >
+                Alle
+              </button>
+              {(Object.keys(assetStatusLabel) as AssetStatus[]).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={statusFilter === s ? "is-active" : undefined}
+                  onClick={() => setStatusFilter(s)}
+                >
+                  {assetStatusLabel[s]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-row">
+            <span className="asset-filter-label">Typ</span>
+            <div className="asset-seg asset-seg-wrap" role="group" aria-label="Typ">
+              <button
+                type="button"
+                className={kindFilter === "all" ? "is-active" : undefined}
+                onClick={() => setKindFilter("all")}
+              >
+                Alle
+              </button>
+              {(Object.keys(assetKindLabel) as AssetKind[])
+                .filter((k) => (kindCounts.get(k) ?? 0) > 0 || kindFilter === k)
+                .map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    className={kindFilter === k ? "is-active" : undefined}
+                    onClick={() => setKindFilter(k)}
+                  >
+                    {assetKindLabel[k]}
+                    {kindCounts.get(k) ? ` · ${kindCounts.get(k)}` : ""}
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
       </div>
 
