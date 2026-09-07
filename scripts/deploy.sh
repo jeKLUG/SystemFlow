@@ -229,11 +229,24 @@ compose_up() {
 
   # Zuerst nur bauen – Port erst direkt vor dem Start freigeben
   # (sonst kann waehrend langer Builds wieder ein alter node-Prozess den Port belegen)
+  # SYSTEMFLOW_NO_CACHE=1 erzwingt Rebuild ohne Docker-Layer-Cache (bei „alte UI“ nutzen)
   log "Baue Image…"
+  local build_flags=(--pull)
+  local build_id
+  build_id="$(git -C "${INSTALL_DIR}" rev-parse --short HEAD 2>/dev/null || date -u +%Y%m%d%H%M)"
+  build_flags+=(--build-arg "BUILD_ID=${build_id}")
+  if [[ "${SYSTEMFLOW_NO_CACHE:-0}" == "1" ]]; then
+    warn "SYSTEMFLOW_NO_CACHE=1 – baue ohne Cache (dauert laenger)"
+    build_flags+=(--no-cache)
+  fi
   if [[ "${mode}" == "compose" ]]; then
-    docker compose --env-file .env build --pull
+    if ! docker compose --env-file .env build "${build_flags[@]}"; then
+      die "Docker-Build fehlgeschlagen – es wird kein alter Container gestartet"
+    fi
   else
-    docker-compose --env-file .env build --pull
+    if ! docker-compose --env-file .env build "${build_flags[@]}"; then
+      die "Docker-Build fehlgeschlagen – es wird kein alter Container gestartet"
+    fi
   fi
 
   free_port "${PORT}"

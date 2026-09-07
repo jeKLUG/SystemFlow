@@ -122,7 +122,7 @@ export function GlobalSearch() {
     }
   }
 
-  const showPanel = open && (q.trim().length >= 2 || error);
+  const showPanel = Boolean(open && (q.trim().length >= 2 || error));
 
   return (
     <div className={`global-search${showPanel ? " is-open" : ""}`} ref={rootRef}>

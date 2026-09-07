@@ -97,15 +97,44 @@ async function main() {
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 
   const webDist = config.webDist || resolve(process.cwd(), "../web/dist");
+
+  app.get("/api/version", async () => ({
+    ok: true,
+    service: "systemhaus-ess",
+    buildId: process.env.BUILD_ID || null,
+    webDist: existsSync(webDist),
+  }));
+
   if (existsSync(webDist)) {
     await app.register(fastifyStatic, {
       root: webDist,
       wildcard: false,
+      /**
+       * HTML/SW nie lang cachen – sonst bleibt nach Deploy die alte PWA-Shell
+       * (z. B. veraltete Reiter-Texte). Gehashte /assets/* dürfen immutable sein.
+       */
+      setHeaders(reply, filePath) {
+        const name = filePath.replace(/\\/g, "/").toLowerCase();
+        const base = name.slice(name.lastIndexOf("/") + 1);
+        if (
+          base === "index.html" ||
+          base === "sw.js" ||
+          base === "registersw.js" ||
+          base === "manifest.webmanifest" ||
+          base.startsWith("workbox-")
+        ) {
+          reply.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+          reply.setHeader("Pragma", "no-cache");
+        } else if (name.includes("/assets/")) {
+          reply.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
     });
     app.setNotFoundHandler((request, reply) => {
       if (request.url.startsWith("/api/")) {
         return reply.code(404).send({ error: "Not found" });
       }
+      reply.header("Cache-Control", "no-cache, no-store, must-revalidate");
       return reply.sendFile("index.html");
     });
   }

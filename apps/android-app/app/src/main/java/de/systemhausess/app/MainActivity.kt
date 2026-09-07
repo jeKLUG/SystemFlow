@@ -39,6 +39,7 @@ import de.systemhausess.app.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private var filePathCallback: ValueCallback<Array<Uri>>? = null
+    private var pendingSwPurge = false
 
     private val prefs by lazy {
         getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -124,6 +125,7 @@ class MainActivity : AppCompatActivity() {
             javaScriptEnabled = true
             domStorageEnabled = true
             databaseEnabled = true
+            // Nach Deploys sonst oft die alte PWA-Shell (veraltete Reiter) im WebView-Cache.
             cacheMode = WebSettings.LOAD_DEFAULT
             mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             mediaPlaybackRequiresUserGesture = false
@@ -135,6 +137,14 @@ class MainActivity : AppCompatActivity() {
             allowFileAccess = true
             allowContentAccess = true
             javaScriptCanOpenWindowsAutomatically = false
+        }
+
+        // Einmalig pro Shell-Version: HTTP-Cache leeren, damit index.html/sw.js neu geladen werden.
+        val cacheEpoch = "2026-09-07-inventar-v2"
+        if (prefs.getString(KEY_CACHE_EPOCH, null) != cacheEpoch) {
+            binding.webView.clearCache(true)
+            pendingSwPurge = true
+            prefs.edit().putString(KEY_CACHE_EPOCH, cacheEpoch).apply()
         }
 
         binding.webView.webViewClient =
@@ -153,6 +163,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     binding.progress.visibility = View.GONE
                     CookieManager.getInstance().flush()
+                    maybePurgeServiceWorkers(view)
                 }
 
                 override fun onReceivedError(
@@ -252,6 +263,29 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun maybePurgeServiceWorkers(view: WebView?) {
+        if (view == null || !pendingSwPurge) return
+        pendingSwPurge = false
+        view.evaluateJavascript(
+            """
+            (async function () {
+              try {
+                if ('serviceWorker' in navigator) {
+                  var regs = await navigator.serviceWorker.getRegistrations();
+                  await Promise.all(regs.map(function (r) { return r.unregister(); }));
+                }
+                if (window.caches) {
+                  var keys = await caches.keys();
+                  await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                }
+                location.reload();
+              } catch (e) {}
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
     private fun normalizeUrl(raw: String): String {
         val trimmed = raw.trim().trimEnd('/')
         if (trimmed.isEmpty()) return BuildConfig.DEFAULT_APP_URL
@@ -262,6 +296,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PREFS = "systemhaus_shell"
         private const val KEY_URL = "app_url"
+        private const val KEY_CACHE_EPOCH = "cache_epoch"
         private const val MENU_RELOAD = 1
         private const val MENU_HOME = 2
         private const val MENU_SERVER = 3

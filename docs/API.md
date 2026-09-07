@@ -229,6 +229,7 @@ Siehe auch [BACKUP.md](BACKUP.md).
 
 ## Health
 
-| Methode | Pfad |
-|---------|------|
-| GET | `/api/health` |
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/health` | Liveness |
+| GET | `/api/version` | `buildId` (Deploy), ob `webDist` vorhanden |

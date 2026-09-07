@@ -14,10 +14,14 @@ RUN npm install
 COPY apps/api ./apps/api
 COPY apps/web ./apps/web
 
-RUN echo "==> Web bauen…" \
+ARG BUILD_ID=dev
+ENV BUILD_ID=${BUILD_ID}
+
+RUN echo "==> Web bauen (BUILD_ID=${BUILD_ID})…" \
   && npm run build -w @systemhaus/web \
   && echo "==> API bauen (tsc)…" \
   && npm run build -w @systemhaus/api \
+  && printf '%s\n' "${BUILD_ID}" > ./apps/web/dist/build-id.txt \
   && echo "==> DevDependencies entfernen…" \
   && npm prune --omit=dev \
   && echo "==> Build fertig"
@@ -25,11 +29,13 @@ RUN echo "==> Web bauen…" \
 FROM node:22-bookworm-slim AS runtime
 
 WORKDIR /app
+ARG BUILD_ID=dev
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
     DATABASE_PATH=/data/systemhaus.sqlite \
-    WEB_DIST=/app/apps/web/dist
+    WEB_DIST=/app/apps/web/dist \
+    BUILD_ID=${BUILD_ID}
 
 RUN apt-get update && apt-get install -y --no-install-recommends wget \
   && rm -rf /var/lib/apt/lists/*

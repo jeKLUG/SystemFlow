@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.93 – 2026-09-07
+
+- Build-Fix: Globale Suche (`aria-expanded` Typ); Deploy bricht bei fehlgeschlagenem Image-Build ab (kein Start mit altem Image)
+
+## 1.5.92 – 2026-09-07
+
+- Cache-Fix: `index.html`/Service-Worker ohne Langzeit-Cache; Client leert steckengebliebene PWA-Caches einmalig; Android-WebView leert Cache/SW; Deploy mit `BUILD_ID` und optional `SYSTEMFLOW_NO_CACHE=1`
+
 ## 1.5.91 – 2026-09-07
 
 - PWA: nach Deploy neue Version automatisch übernehmen (Service-Worker-Update + Reload); Deploy baut Image mit `--pull`
