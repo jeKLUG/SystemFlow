@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.90 – 2026-09-07
+
+- Mobil: Suchleisten (Topbar + Kontakte) kompakter; Dashboard Aufgaben-Legende nicht mehr abgeschnitten
+
 ## 1.5.89 – 2026-09-07
 
 - Reiter „Geräte & Netzwerk“ → „Inventar“; Zuordnung Kundeneigentum / von uns verliehen / bei uns; Typen u. a. Software, Tablet, Monitor, Zubehör
