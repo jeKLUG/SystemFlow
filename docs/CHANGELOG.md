@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.91 – 2026-09-07
+
+- PWA: nach Deploy neue Version automatisch übernehmen (Service-Worker-Update + Reload); Deploy baut Image mit `--pull`
+
 ## 1.5.90 – 2026-09-07
 
 - Mobil: Suchleisten (Topbar + Kontakte) kompakter; Dashboard Aufgaben-Legende nicht mehr abgeschnitten

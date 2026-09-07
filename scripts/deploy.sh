@@ -231,9 +231,9 @@ compose_up() {
   # (sonst kann waehrend langer Builds wieder ein alter node-Prozess den Port belegen)
   log "Baue Image…"
   if [[ "${mode}" == "compose" ]]; then
-    docker compose --env-file .env build
+    docker compose --env-file .env build --pull
   else
-    docker-compose --env-file .env build
+    docker-compose --env-file .env build --pull
   fi
 
   free_port "${PORT}"
