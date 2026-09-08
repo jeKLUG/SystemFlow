@@ -17,7 +17,7 @@ Browser (React SPA)
 | Komponente | Pfad | Rolle |
 |------------|------|-------|
 | API | `apps/api` | Auth, Kunden, Dokumente |
-| Web | `apps/web` | UI, TipTap-Editor |
+| Web | `apps/web` | UI, TipTap-Editor (Panels, Codeblock mit Zeilen/Kopieren, Checklisten) |
 | Android | `apps/android-app` | WebView-Hülle (APK) |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
 | Compose | `docker-compose.yml` | Container + Volume |

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.97 – 2026-09-08
+
+- Wiki-Editor: Dropdown für Infopanel, Warnpanel, Hinweis, Wichtig, Codeblock und Checkliste
+- Wiki-Editor: Codeblock mit Zeilennummern und „Kopiert!“-Meldung; Checklisten abhakbar
+- Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
+
 ## 1.5.96 – 2026-09-07
 
 - Kontakte (mobil): Suchfeld kompakt (feste Höhe), kein Auto-Focus mehr; Filterzeile enger

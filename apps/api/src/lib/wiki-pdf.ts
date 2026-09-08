@@ -325,10 +325,16 @@ function isVisuallyEmpty(node: TipTapNode): boolean {
   if (node.type === "paragraph" || node.type === "heading") {
     return !collectText(node.content ?? []).trim();
   }
-  if (node.type === "bulletList" || node.type === "orderedList") {
+  if (node.type === "bulletList" || node.type === "orderedList" || node.type === "taskList") {
     return !(node.content ?? []).some((item) => !isVisuallyEmpty(item));
   }
-  if (node.type === "listItem" || node.type === "blockquote" || node.type === "codeBlock") {
+  if (
+    node.type === "listItem" ||
+    node.type === "taskItem" ||
+    node.type === "blockquote" ||
+    node.type === "callout" ||
+    node.type === "codeBlock"
+  ) {
     return !collectText(node.content ?? []).trim() && !(node.content ?? []).some((c) => !isVisuallyEmpty(c));
   }
   if (node.content?.length) {
@@ -383,6 +389,9 @@ function renderNodes(
       case "orderedList":
         renderList(doc, node.content ?? [], true, ctx);
         break;
+      case "taskList":
+        renderTaskList(doc, node.content ?? [], ctx);
+        break;
       case "blockquote": {
         ensureSpace(doc, 28);
         const startY = doc.y;
@@ -400,6 +409,38 @@ function renderNodes(
           .restore();
         doc.x = MARGIN;
         doc.moveDown(0.35);
+        break;
+      }
+      case "callout": {
+        ensureSpace(doc, 28);
+        const variant = String(node.attrs?.variant ?? "info");
+        const label =
+          variant === "warn"
+            ? "Warnung"
+            : variant === "tip"
+              ? "Hinweis"
+              : variant === "danger"
+                ? "Wichtig"
+                : "Info";
+        const left = MARGIN;
+        const boxW = doc.page.width - MARGIN * 2;
+        const startY = doc.y;
+        doc.font("Helvetica-Bold").fontSize(9).fillColor(MUTED).text(label.toUpperCase(), left + 10, startY + 6, {
+          width: boxW - 20,
+        });
+        doc.font("Helvetica").fontSize(10.5).fillColor(TEXT);
+        doc.x = left + 10;
+        renderNodes(doc, node.content ?? [], { listDepth: 0, resolveImage: ctx.resolveImage });
+        const endY = Math.max(doc.y, startY + 28);
+        doc
+          .save()
+          .strokeColor(ACCENT)
+          .lineWidth(1)
+          .roundedRect(left, startY, boxW, endY - startY + 4, 4)
+          .stroke()
+          .restore();
+        doc.y = endY + 10;
+        doc.x = MARGIN;
         break;
       }
       case "codeBlock": {
@@ -543,6 +584,48 @@ function renderList(
         doc.moveDown(0.18);
       } else if (child.type === "bulletList" || child.type === "orderedList") {
         renderList(doc, child.content ?? [], child.type === "orderedList", {
+          listDepth: depth + 1,
+          resolveImage: ctx.resolveImage,
+        });
+      } else if (child.content) {
+        renderNodes(doc, [child], { listDepth: depth + 1, resolveImage: ctx.resolveImage });
+      }
+    }
+    doc.x = MARGIN;
+  }
+  doc.moveDown(0.2);
+}
+
+/**
+ * Rendert TipTap-Checklisten als abhakbare Bullet-Zeilen im PDF.
+ */
+function renderTaskList(
+  doc: PDFKit.PDFDocument,
+  items: TipTapNode[],
+  ctx: { listDepth: number; resolveImage?: WikiPdfImageResolver },
+) {
+  const depth = ctx.listDepth;
+  for (const item of items) {
+    if (item.type !== "taskItem") continue;
+    ensureSpace(doc, 16);
+    const indent = MARGIN + depth * 14;
+    const checked = Boolean(item.attrs?.checked);
+    const mark = checked ? "[x]" : "[ ]";
+    const y = doc.y;
+    doc.font("Courier").fontSize(10).fillColor(TEXT);
+    doc.text(mark, indent, y, { width: 22, lineBreak: false });
+    doc.x = indent + 24;
+    doc.font("Helvetica").fontSize(10.5).fillColor(checked ? MUTED : TEXT);
+    for (const child of item.content ?? []) {
+      if (child.type === "paragraph") {
+        const text = collectText(child.content ?? []);
+        if (!text) continue;
+        renderInline(doc, child.content ?? [], {
+          width: doc.page.width - indent - 24 - MARGIN,
+        });
+        doc.moveDown(0.18);
+      } else if (child.type === "taskList") {
+        renderTaskList(doc, child.content ?? [], {
           listDepth: depth + 1,
           resolveImage: ctx.resolveImage,
         });

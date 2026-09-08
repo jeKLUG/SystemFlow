@@ -3671,6 +3671,65 @@ input[type="checkbox"]:not(.check-input):checked {
   cursor: not-allowed;
 }
 
+.toolbar-btn-caret {
+  font-size: 0.65rem;
+  line-height: 1;
+  opacity: 0.75;
+  margin-left: 0.05rem;
+}
+
+.toolbar-dropdown {
+  position: relative;
+  display: inline-flex;
+}
+
+.toolbar-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  z-index: 30;
+  min-width: 12.5rem;
+  padding: 0.3rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-2, var(--surface));
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  animation: fade-up 0.14s ease both;
+}
+
+.toolbar-menu-item {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font: inherit;
+  padding: 0.45rem 0.55rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.toolbar-menu-item strong {
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.toolbar-menu-item span {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.toolbar-menu-item:hover,
+.toolbar-menu-item.is-active {
+  background: var(--accent-soft);
+}
+
 .editor-upload-error,
 .editor-upload-hint {
   margin: 0.45rem 0.85rem 0;
@@ -3736,7 +3795,208 @@ input[type="checkbox"]:not(.check-input):checked {
   color: var(--text-muted);
 }
 
-.tiptap-surface pre {
+.tiptap-surface ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0.15rem;
+  margin: 0.65rem 0;
+}
+
+.tiptap-surface ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.2rem;
+  display: inline-flex;
+  align-items: center;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent-bright);
+  cursor: pointer;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.tiptap-surface ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.tiptap-surface .editor-callout {
+  position: relative;
+  margin: 0.9rem 0;
+  padding: 0.75rem 0.9rem 0.65rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tiptap-surface .editor-callout::before {
+  content: attr(data-label);
+  display: block;
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tiptap-surface .editor-callout > :first-child {
+  margin-top: 0;
+}
+
+.tiptap-surface .editor-callout > :last-child {
+  margin-bottom: 0;
+}
+
+.tiptap-surface .editor-callout-info {
+  border-color: rgba(96, 165, 250, 0.35);
+  background: rgba(59, 130, 246, 0.1);
+  border-left: 3px solid #60a5fa;
+}
+
+.tiptap-surface .editor-callout-info::before {
+  color: #93c5fd;
+}
+
+.tiptap-surface .editor-callout-warn {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  border-left: 3px solid #fbbf24;
+}
+
+.tiptap-surface .editor-callout-warn::before {
+  color: #fde68a;
+}
+
+.tiptap-surface .editor-callout-tip {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 3px solid #34d399;
+}
+
+.tiptap-surface .editor-callout-tip::before {
+  color: #6ee7b7;
+}
+
+.tiptap-surface .editor-callout-danger {
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.1);
+  border-left: 3px solid #f87171;
+}
+
+.tiptap-surface .editor-callout-danger::before {
+  color: #fca5a5;
+}
+
+.tiptap-surface pre,
+.tiptap-surface .code-block-view {
+  margin: 0.85rem 0;
+}
+
+.tiptap-surface .code-block-view {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #0a101a;
+  overflow: hidden;
+}
+
+.tiptap-surface .code-block-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tiptap-surface .code-block-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.tiptap-surface .code-block-copy {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  border-radius: 6px;
+  min-height: 1.45rem;
+  padding: 0 0.5rem;
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.tiptap-surface .code-block-copy:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.tiptap-surface .code-block-copy.is-copied {
+  color: #86efac;
+  border-color: rgba(52, 211, 153, 0.4);
+  background: rgba(16, 185, 129, 0.12);
+}
+
+.tiptap-surface .code-block-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  overflow-x: auto;
+}
+
+.tiptap-surface .code-block-gutter,
+.tiptap-surface .code-block-pre {
+  margin: 0;
+  padding: 0.75rem 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  white-space: pre;
+  border: 0;
+  background: transparent;
+}
+
+.tiptap-surface .code-block-gutter {
+  padding-left: 0.75rem;
+  padding-right: 0.65rem;
+  text-align: right;
+  color: rgba(148, 163, 184, 0.55);
+  user-select: none;
+  border-right: 1px solid rgba(148, 163, 184, 0.14);
+  min-width: 2.1rem;
+}
+
+.tiptap-surface .code-block-pre {
+  padding-left: 0.75rem;
+  padding-right: 0.85rem;
+}
+
+.tiptap-surface .code-block-code {
+  display: block;
+  min-height: 1.55em;
+  outline: none;
+}
+
+.tiptap-surface pre:not(.code-block-gutter):not(.code-block-pre) {
   background: #0a101a;
   border: 1px solid var(--border);
   border-radius: 10px;

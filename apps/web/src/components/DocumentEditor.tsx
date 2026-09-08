@@ -1,3 +1,5 @@
+import TaskItem from "@tiptap/extension-task-item";
+import TaskList from "@tiptap/extension-task-list";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Table from "@tiptap/extension-table";
@@ -7,9 +9,16 @@ import TableRow from "@tiptap/extension-table-row";
 import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import ImageResize from "tiptap-extension-resize-image";
 import { api } from "../api";
+import { Callout } from "./editor/callout";
+import { CodeBlockWithChrome } from "./editor/CodeBlockComponent";
 
 interface Props {
   content: string;
@@ -19,7 +28,8 @@ interface Props {
 }
 
 /**
- * Wiki-Editor mit Toolbar, Bild-Upload (inline/skalierbar) und Tabellen.
+ * Wiki-Editor mit Toolbar, Blöcke-Dropdown (Panels/Code/Checkliste),
+ * Bild-Upload und Tabellen.
  */
 export function DocumentEditor({ content, onChange, customerId, documentId }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,11 +51,7 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
     try {
       const att = await api.uploadAttachment(customerId, file, { documentId });
       const src = `/api/attachments/${att.id}/download?inline=1`;
-      editor
-        .chain()
-        .focus()
-        .setImage({ src, alt: file.name })
-        .run();
+      editor.chain().focus().setImage({ src, alt: file.name }).run();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Bild-Upload fehlgeschlagen");
     } finally {
@@ -58,7 +64,12 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
+        codeBlock: false,
       }),
+      CodeBlockWithChrome,
+      Callout,
+      TaskList,
+      TaskItem.configure({ nested: true }),
       Underline,
       Link.configure({ openOnClick: false }),
       Placeholder.configure({
@@ -190,18 +201,18 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
             <IconOrdered />
           </ToolbarBtn>
           <ToolbarBtn
+            title="Checkliste"
+            active={editor.isActive("taskList")}
+            onClick={() => editor.chain().focus().toggleTaskList().run()}
+          >
+            <IconChecklist />
+          </ToolbarBtn>
+          <ToolbarBtn
             title="Zitat"
             active={editor.isActive("blockquote")}
             onClick={() => editor.chain().focus().toggleBlockquote().run()}
           >
             <IconQuote />
-          </ToolbarBtn>
-          <ToolbarBtn
-            title="Codeblock"
-            active={editor.isActive("codeBlock")}
-            onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          >
-            <IconCode />
           </ToolbarBtn>
           <ToolbarBtn
             title="Tabelle"
@@ -212,6 +223,10 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
           >
             <IconTable />
           </ToolbarBtn>
+        </div>
+
+        <div className="toolbar-group">
+          <BlocksMenu editor={editor} />
         </div>
 
         <div className="toolbar-group">
@@ -256,18 +271,133 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
   );
 }
 
+const blockItems: {
+  id: string;
+  label: string;
+  hint: string;
+  run: (editor: Editor) => void;
+  active?: (editor: Editor) => boolean;
+}[] = [
+  {
+    id: "info",
+    label: "Infopanel",
+    hint: "Hinweise & Kontext",
+    run: (ed) => ed.chain().focus().setCallout("info").run(),
+    active: (ed) => ed.isActive("callout", { variant: "info" }),
+  },
+  {
+    id: "warn",
+    label: "Warnpanel",
+    hint: "Vorsicht / Risiken",
+    run: (ed) => ed.chain().focus().setCallout("warn").run(),
+    active: (ed) => ed.isActive("callout", { variant: "warn" }),
+  },
+  {
+    id: "tip",
+    label: "Hinweispanel",
+    hint: "Tipps & Best Practices",
+    run: (ed) => ed.chain().focus().setCallout("tip").run(),
+    active: (ed) => ed.isActive("callout", { variant: "tip" }),
+  },
+  {
+    id: "danger",
+    label: "Wichtig-Panel",
+    hint: "Kritische Schritte",
+    run: (ed) => ed.chain().focus().setCallout("danger").run(),
+    active: (ed) => ed.isActive("callout", { variant: "danger" }),
+  },
+  {
+    id: "code",
+    label: "Codeblock",
+    hint: "Mit Zeilen & Kopieren",
+    run: (ed) => ed.chain().focus().toggleCodeBlock().run(),
+    active: (ed) => ed.isActive("codeBlock"),
+  },
+  {
+    id: "checklist",
+    label: "Checkliste",
+    hint: "Abhakbare Aufgaben",
+    run: (ed) => ed.chain().focus().toggleTaskList().run(),
+    active: (ed) => ed.isActive("taskList"),
+  },
+];
+
+/**
+ * Dropdown zum Einfügen von Panels, Codeblock und Checkliste.
+ */
+function BlocksMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const anyActive =
+    editor.isActive("callout") || editor.isActive("codeBlock") || editor.isActive("taskList");
+
+  return (
+    <div className={`toolbar-dropdown${open ? " is-open" : ""}`} ref={rootRef}>
+      <ToolbarBtn
+        title="Blöcke einfügen"
+        active={open || anyActive}
+        onClick={() => setOpen((v) => !v)}
+        ariaExpanded={open}
+      >
+        <IconBlocks />
+        <span className="toolbar-btn-caret" aria-hidden>
+          ▾
+        </span>
+      </ToolbarBtn>
+      {open ? (
+        <div className="toolbar-menu" role="menu" aria-label="Blöcke">
+          {blockItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              role="menuitem"
+              className={`toolbar-menu-item${item.active?.(editor) ? " is-active" : ""}`}
+              onClick={() => {
+                item.run(editor);
+                setOpen(false);
+              }}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.hint}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolbarBtn({
   title,
   onClick,
   active,
   disabled,
   children,
+  ariaExpanded,
 }: {
   title: string;
   onClick: () => void;
   active?: boolean;
   disabled?: boolean;
   children: ReactNode;
+  ariaExpanded?: boolean;
 }) {
   return (
     <button
@@ -276,6 +406,7 @@ function ToolbarBtn({
       title={title}
       aria-label={title}
       aria-pressed={active}
+      aria-expanded={ariaExpanded}
       disabled={disabled}
       onClick={onClick}
     >
@@ -340,6 +471,14 @@ function IconOrdered() {
     </svg>
   );
 }
+function IconChecklist() {
+  return (
+    <svg {...iconProps()}>
+      <path d="M9 7h11M9 12h11M9 17h11" strokeLinecap="round" />
+      <path d="M4.5 7l1 1 2-2M4.5 12l1 1 2-2M4.5 17l1 1 2-2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function IconQuote() {
   return (
     <svg {...iconProps()}>
@@ -347,10 +486,13 @@ function IconQuote() {
     </svg>
   );
 }
-function IconCode() {
+function IconBlocks() {
   return (
     <svg {...iconProps()}>
-      <path d="M9 8l-4 4 4 4M15 8l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="4" y="4" width="7" height="7" rx="1.5" />
+      <rect x="13" y="4" width="7" height="7" rx="1.5" />
+      <rect x="4" y="13" width="7" height="7" rx="1.5" />
+      <rect x="13" y="13" width="7" height="7" rx="1.5" />
     </svg>
   );
 }
