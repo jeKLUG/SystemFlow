@@ -250,8 +250,47 @@ export function CustomerSlaPanel({
         <ul className="sla-list">
           {sorted.map((c) => {
             const expanded = expandedId === c.id;
-            const normal =
-              c.responseNormalHours ?? c.slaResponseHours ?? null;
+            const normal = c.responseNormalHours ?? c.slaResponseHours ?? null;
+            const priceValue = c.priceYearly ?? c.priceMonthly ?? null;
+            const priceLabel =
+              c.priceYearly != null ? "pro Jahr" : c.priceMonthly != null ? "pro Monat" : null;
+            const hasContacts =
+              Boolean(c.contactPerson || c.contactPhone || c.contactEmail) ||
+              Boolean(c.escalationContact || c.escalationPhone || c.escalationEmail);
+            const hasExtraDetails = Boolean(
+              c.description || c.coverageNote || hasContacts || c.notes,
+            );
+            const prioRows = [
+              {
+                key: "p1",
+                code: "P1",
+                label: "Kritisch",
+                response: c.responseCriticalHours,
+                resolve: c.resolveCriticalHours,
+              },
+              {
+                key: "p2",
+                code: "P2",
+                label: "Hoch",
+                response: c.responseHighHours,
+                resolve: c.resolveHighHours,
+              },
+              {
+                key: "p3",
+                code: "P3",
+                label: "Normal",
+                response: normal,
+                resolve: c.resolveNormalHours,
+              },
+              {
+                key: "p4",
+                code: "P4",
+                label: "Niedrig",
+                response: c.responseLowHours,
+                resolve: c.resolveLowHours,
+              },
+            ] as const;
+
             return (
               <li key={c.id} className={`sla-card is-${c.status}`}>
                 <div className="sla-card-head">
@@ -264,14 +303,16 @@ export function CustomerSlaPanel({
                       <span className="sla-meta-chip">{c.contractNumber}</span>
                     ) : null}
                   </div>
-                  <div className="list-actions">
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setExpandedId(expanded ? null : c.id)}
-                    >
-                      {expanded ? "Weniger" : "Details"}
-                    </button>
+                  <div className="list-actions sla-card-actions">
+                    {hasExtraDetails ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setExpandedId(expanded ? null : c.id)}
+                      >
+                        {expanded ? "Weniger" : "Details"}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
@@ -309,116 +350,99 @@ export function CustomerSlaPanel({
                   </div>
                 </div>
 
-                <div className="sla-summary">
-                  <div className="sla-metric">
-                    <span className="label">Laufzeit</span>
-                    <strong>
-                      {formatDateOnly(c.startDate)} – {formatDateOnly(c.endDate)}
-                    </strong>
-                  </div>
-                  <div className="sla-metric">
-                    <span className="label">Servicezeiten</span>
-                    <strong>{c.coverageHours || "–"}</strong>
-                  </div>
-                  <div className="sla-metric">
-                    <span className="label">Reaktion normal</span>
-                    <strong>{formatSlaHours(normal)}</strong>
-                  </div>
-                  <div className="sla-metric">
-                    <span className="label">Inkl. Std./Monat</span>
-                    <strong>
-                      {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
-                    </strong>
-                  </div>
-                  <div className="sla-metric">
-                    <span className="label">
-                      {c.priceYearly != null ? "Preis / Jahr" : "Preis / Monat"}
-                    </span>
-                    <strong>
-                      {formatSlaMoney(c.priceYearly != null ? c.priceYearly : c.priceMonthly)}
-                    </strong>
+                <div className="sla-overview">
+                  {priceValue != null ? (
+                    <div className="sla-price">
+                      <span className="label">Preis</span>
+                      <strong>{formatSlaMoney(priceValue)}</strong>
+                      {priceLabel ? <span className="sla-price-unit">{priceLabel}</span> : null}
+                    </div>
+                  ) : null}
+                  <div className="sla-facts">
+                    <div className="sla-fact">
+                      <span className="label">Laufzeit</span>
+                      <strong>
+                        {formatDateOnly(c.startDate)} – {formatDateOnly(c.endDate)}
+                      </strong>
+                    </div>
+                    <div className="sla-fact">
+                      <span className="label">Servicezeiten</span>
+                      <strong>{c.coverageHours || "–"}</strong>
+                    </div>
+                    <div className="sla-fact">
+                      <span className="label">Inkl. Std./Monat</span>
+                      <strong>
+                        {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
+                      </strong>
+                    </div>
+                    {c.onsiteHours != null ? (
+                      <div className="sla-fact">
+                        <span className="label">Vor Ort</span>
+                        <strong>{formatSlaHours(c.onsiteHours)}</strong>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 
-                <div className="sla-priority-row" aria-label="Reaktionszeiten">
-                  {(
-                    [
-                      ["P1", c.responseCriticalHours],
-                      ["P2", c.responseHighHours],
-                      ["P3", normal],
-                      ["P4", c.responseLowHours],
-                    ] as const
-                  ).map(([label, hours]) => (
-                    <div key={label} className={`sla-prio is-${label.toLowerCase()}`}>
-                      <span>{label}</span>
-                      <strong>{formatSlaHours(hours)}</strong>
+                <div className="sla-matrix" aria-label="Service-Level-Ziele">
+                  <div className="sla-matrix-head">
+                    <span>Priorität</span>
+                    <span>Reaktion</span>
+                    <span>Lösung</span>
+                  </div>
+                  {prioRows.map((row) => (
+                    <div key={row.key} className={`sla-matrix-row is-${row.key}`}>
+                      <span className="sla-matrix-prio">
+                        <span className="sla-matrix-dot" aria-hidden />
+                        <span className="sla-matrix-code">{row.code}</span>
+                        <span className="sla-matrix-name">{row.label}</span>
+                      </span>
+                      <strong>{formatSlaHours(row.response)}</strong>
+                      <strong>{formatSlaHours(row.resolve)}</strong>
                     </div>
                   ))}
                 </div>
 
-                {expanded ? (
+                {expanded && hasExtraDetails ? (
                   <div className="sla-details">
                     {c.description ? (
-                      <p className="sla-scope">
-                        <span className="label">Leistungsumfang</span>
-                        {c.description}
-                      </p>
+                      <section className="sla-block">
+                        <h4>Leistungsumfang</h4>
+                        <p className="sla-scope">{c.description}</p>
+                      </section>
                     ) : null}
                     {c.coverageNote ? (
-                      <p className="muted">
-                        <span className="label">Abdeckung</span> {c.coverageNote}
-                      </p>
+                      <section className="sla-block">
+                        <h4>Abdeckung</h4>
+                        <p>{c.coverageNote}</p>
+                      </section>
                     ) : null}
 
-                    <div className="sla-matrix">
-                      <div className="sla-matrix-head">
-                        <span />
-                        <span>Reaktion</span>
-                        <span>Lösung</span>
-                      </div>
-                      {(
-                        [
-                          ["Kritisch (P1)", c.responseCriticalHours, c.resolveCriticalHours],
-                          ["Hoch (P2)", c.responseHighHours, c.resolveHighHours],
-                          ["Normal (P3)", normal, c.resolveNormalHours],
-                          ["Niedrig (P4)", c.responseLowHours, c.resolveLowHours],
-                        ] as const
-                      ).map(([label, response, resolve]) => (
-                        <div key={label} className="sla-matrix-row">
-                          <span>{label}</span>
-                          <strong>{formatSlaHours(response)}</strong>
-                          <strong>{formatSlaHours(resolve)}</strong>
+                    {hasContacts ? (
+                      <section className="sla-block">
+                        <h4>Ansprechpartner</h4>
+                        <div className="sla-contacts">
+                          <div className="sla-contact">
+                            <span className="label">Operativ</span>
+                            <strong>{c.contactPerson || "–"}</strong>
+                            {c.contactEmail ? <span>{c.contactEmail}</span> : null}
+                            {c.contactPhone ? <span>{c.contactPhone}</span> : null}
+                          </div>
+                          <div className="sla-contact">
+                            <span className="label">Eskalation</span>
+                            <strong>{c.escalationContact || "–"}</strong>
+                            {c.escalationEmail ? <span>{c.escalationEmail}</span> : null}
+                            {c.escalationPhone ? <span>{c.escalationPhone}</span> : null}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-
-                    <div className="sla-contacts">
-                      <div>
-                        <span className="label">Ansprechpartner</span>
-                        <p>
-                          {c.contactPerson || "–"}
-                          {c.contactPhone ? ` · ${c.contactPhone}` : ""}
-                          {c.contactEmail ? ` · ${c.contactEmail}` : ""}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="label">Eskalation</span>
-                        <p>
-                          {c.escalationContact || "–"}
-                          {c.escalationPhone ? ` · ${c.escalationPhone}` : ""}
-                          {c.escalationEmail ? ` · ${c.escalationEmail}` : ""}
-                        </p>
-                      </div>
-                      <div>
-                        <span className="label">Vor Ort</span>
-                        <p>{formatSlaHours(c.onsiteHours)}</p>
-                      </div>
-                    </div>
+                      </section>
+                    ) : null}
 
                     {c.notes ? (
-                      <p className="muted">
-                        <span className="label">Notizen</span> {c.notes}
-                      </p>
+                      <section className="sla-block">
+                        <h4>Notizen</h4>
+                        <p className="muted">{c.notes}</p>
+                      </section>
                     ) : null}
                   </div>
                 ) : null}

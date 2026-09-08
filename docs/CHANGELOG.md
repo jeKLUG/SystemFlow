@@ -19,6 +19,7 @@
 - PDF-Export (Wiki/SLA): Navbar-Logo (`logo.png`) in der Kopfzeile
 - PDF-Export: Leerseiten durch Fußzeilen-Text unter der Bottom-Margin behoben
 - SLA-PDF: blaue Akzentstriche unter Abschnittsüberschriften entfernt
+- SLA-Ansicht: klarere Karten (Preis hervorgehoben, Prioritäten-Matrix immer sichtbar, ruhigere Details)
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07
