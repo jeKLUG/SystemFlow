@@ -1,8 +1,8 @@
-import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { customers, priceItems, projects, timeEntries } from "../db/schema.js";
+import { customers, priceItems, projects, timeEntries, timeEntryLines } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { nowTime, todayIso } from "../lib/dates.js";
 import { hoursFromRange } from "../lib/time.js";
@@ -11,6 +11,11 @@ import { addActivity } from "./activities.js";
 import { resolveHourlyRate } from "./pricing.js";
 
 const timeStr = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Uhrzeit als HH:mm");
+
+const lineInput = z.object({
+  priceItemId: z.string().min(1),
+  quantity: z.number().positive().max(10000).optional(),
+});
 
 const entryBody = z
   .object({
@@ -23,6 +28,8 @@ const entryBody = z
     description: z.string().max(5000).optional().or(z.literal("")),
     projectId: z.string().optional().nullable().or(z.literal("")),
     priceItemId: z.string().optional().nullable().or(z.literal("")),
+    /** 1–n Katalog-Positionen (Stunden/Pauschale/Stück). */
+    lines: z.array(lineInput).max(20).optional(),
     billable: z.boolean().optional(),
     billed: z.boolean().optional(),
   })
@@ -89,7 +96,6 @@ function resolveHours(data: {
     return { hours, startTime: start, endTime: end };
   }
   if (start && !end) {
-    // Laufender Eintrag beibehalten
     return { hours: data.hours ?? 0, startTime: start, endTime: null };
   }
   if (data.hours != null && data.hours > 0) {
@@ -104,6 +110,114 @@ function amountFrom(hours: number, rate: number | null, billable: boolean) {
     rateSnapshot: rate,
     amountSnapshot: Math.round(hours * rate * 100) / 100,
   };
+}
+
+function roundMoney(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
+type BuiltLine = {
+  id: string;
+  timeEntryId: string;
+  priceItemId: string;
+  nameSnapshot: string;
+  kindSnapshot: "hourly" | "fixed" | "unit";
+  unitLabelSnapshot: string | null;
+  quantity: number;
+  unitPriceSnapshot: number;
+  amountSnapshot: number | null;
+  sortOrder: number;
+};
+
+/**
+ * Baut Snapshot-Zeilen aus Katalog-Eingaben.
+ */
+async function buildCatalogLines(
+  db: Db,
+  timeEntryId: string,
+  input: { priceItemId: string; quantity?: number }[],
+  entryHours: number,
+  billable: boolean,
+): Promise<{
+  lines: BuiltLine[];
+  amountSnapshot: number | null;
+  rateSnapshot: number | null;
+  priceItemId: string | null;
+}> {
+  const ids = [...new Set(input.map((l) => l.priceItemId))];
+  const items =
+    ids.length > 0
+      ? await db.select().from(priceItems).where(inArray(priceItems.id, ids)).all()
+      : [];
+  const map = new Map(items.map((i) => [i.id, i]));
+
+  const lines: BuiltLine[] = [];
+  let total = 0;
+  let rateSnapshot: number | null = null;
+  let primaryPriceId: string | null = null;
+
+  for (let i = 0; i < input.length; i++) {
+    const raw = input[i]!;
+    const item = map.get(raw.priceItemId);
+    if (!item) {
+      throw new Error(`Unbekannte Preisposition: ${raw.priceItemId}`);
+    }
+    const quantity =
+      raw.quantity != null && Number.isFinite(raw.quantity)
+        ? roundMoney(raw.quantity)
+        : item.kind === "hourly"
+          ? entryHours > 0
+            ? entryHours
+            : 1
+          : 1;
+    const amount = billable ? roundMoney(quantity * item.unitPrice) : null;
+    if (amount != null) total += amount;
+    if (item.kind === "hourly" && primaryPriceId == null) {
+      primaryPriceId = item.id;
+      rateSnapshot = item.unitPrice;
+    }
+    lines.push({
+      id: createId("tline"),
+      timeEntryId,
+      priceItemId: item.id,
+      nameSnapshot: item.name,
+      kindSnapshot: item.kind,
+      unitLabelSnapshot: item.unitLabel,
+      quantity,
+      unitPriceSnapshot: item.unitPrice,
+      amountSnapshot: amount,
+      sortOrder: i,
+    });
+  }
+
+  return {
+    lines,
+    amountSnapshot: billable && lines.length ? roundMoney(total) : billable ? null : null,
+    rateSnapshot,
+    priceItemId: primaryPriceId ?? lines[0]?.priceItemId ?? null,
+  };
+}
+
+async function replaceLines(db: Db, timeEntryId: string, lines: BuiltLine[]) {
+  await db.delete(timeEntryLines).where(eq(timeEntryLines.timeEntryId, timeEntryId));
+  if (lines.length) await db.insert(timeEntryLines).values(lines);
+}
+
+async function loadLinesForEntries(db: Db, entryIds: string[]) {
+  if (!entryIds.length) return new Map<string, BuiltLine[]>();
+  const rows = await db
+    .select()
+    .from(timeEntryLines)
+    .where(inArray(timeEntryLines.timeEntryId, entryIds))
+    .orderBy(asc(timeEntryLines.sortOrder))
+    .all();
+  const map = new Map<string, BuiltLine[]>();
+  for (const row of rows) {
+    const list = map.get(row.timeEntryId) ?? [];
+    list.push(row as BuiltLine);
+    map.set(row.timeEntryId, list);
+  }
+  return map;
 }
 
 /**
@@ -157,6 +271,33 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     if (q.from) filtered = filtered.filter((r) => r.workDate >= q.from!);
     if (q.to) filtered = filtered.filter((r) => r.workDate <= q.to!);
 
+    const lineMap = await loadLinesForEntries(
+      db,
+      filtered.map((r) => r.id),
+    );
+    const entries = filtered.map((r) => {
+      const lines = lineMap.get(r.id) ?? [];
+      // Legacy: einzelner priceItemId ohne Zeilen → für die UI als eine Position spiegeln
+      const legacyLines =
+        lines.length === 0 && r.priceItemId
+          ? [
+              {
+                id: `legacy-${r.id}`,
+                timeEntryId: r.id,
+                priceItemId: r.priceItemId,
+                nameSnapshot: r.priceItemName ?? "Leistung",
+                kindSnapshot: "hourly" as const,
+                unitLabelSnapshot: "Stunde",
+                quantity: r.hours,
+                unitPriceSnapshot: r.rateSnapshot ?? 0,
+                amountSnapshot: r.amountSnapshot,
+                sortOrder: 0,
+              },
+            ]
+          : lines;
+      return { ...r, lines: legacyLines };
+    });
+
     const totalHours = filtered.reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
     const billableHours = filtered
       .filter((r) => r.billable)
@@ -172,7 +313,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       .reduce((sum, r) => sum + (Number(r.amountSnapshot) || 0), 0);
 
     return {
-      entries: filtered,
+      entries,
       summary: {
         totalHours: Math.round(totalHours * 100) / 100,
         billableHours: Math.round(billableHours * 100) / 100,
@@ -221,7 +362,6 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum" });
     }
 
-    // Nur ein laufender Timer pro Kunde
     if (parsed.data.running) {
       const open = await db
         .select({ id: timeEntries.id })
@@ -251,21 +391,41 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       if (!project) return reply.code(400).send({ error: "Projekt gehört nicht zu diesem Kunden" });
     }
 
-    const priceItemId = emptyToNull(parsed.data.priceItemId);
-    const { rate, priceItemId: resolvedPriceId } = await resolveHourlyRate(db, {
-      priceItemId,
-      projectId,
-    });
     const billable = parsed.data.billable ?? true;
     const billed = parsed.data.billed ?? false;
-    const money = amountFrom(resolved.hours, rate, billable);
-
     const now = new Date();
+    const id = createId("time");
+
+    let priceItemId: string | null = emptyToNull(parsed.data.priceItemId);
+    let rateSnapshot: number | null = null;
+    let amountSnapshot: number | null = null;
+    let lines: BuiltLine[] = [];
+
+    if (parsed.data.lines && parsed.data.lines.length > 0) {
+      try {
+        const built = await buildCatalogLines(db, id, parsed.data.lines, resolved.hours, billable);
+        lines = built.lines;
+        priceItemId = built.priceItemId;
+        rateSnapshot = built.rateSnapshot;
+        amountSnapshot = built.amountSnapshot;
+      } catch (err) {
+        return reply
+          .code(400)
+          .send({ error: err instanceof Error ? err.message : "Ungültige Katalog-Positionen" });
+      }
+    } else {
+      const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
+      priceItemId = resolvedRate.priceItemId;
+      const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
+      rateSnapshot = money.rateSnapshot;
+      amountSnapshot = money.amountSnapshot;
+    }
+
     const row = {
-      id: createId("time"),
+      id,
       customerId,
       projectId,
-      priceItemId: resolvedPriceId,
+      priceItemId,
       workDate: parsed.data.workDate,
       startTime: resolved.startTime,
       endTime: resolved.endTime,
@@ -273,13 +433,14 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       description: emptyToNull(parsed.data.description),
       billable,
       billed,
-      rateSnapshot: money.rateSnapshot,
-      amountSnapshot: money.amountSnapshot,
+      rateSnapshot,
+      amountSnapshot,
       createdAt: now,
       updatedAt: now,
     };
 
     await db.insert(timeEntries).values(row);
+    await replaceLines(db, id, lines);
     await addActivity(
       db,
       customerId,
@@ -293,7 +454,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       row.description,
       now,
     );
-    return reply.code(201).send(row);
+    return reply.code(201).send({ ...row, lines });
   });
 
   /**
@@ -350,6 +511,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       projectId,
     });
     const billable = body.billable ?? true;
+    const money = amountFrom(0, rate, billable);
 
     const row = {
       id: createId("time"),
@@ -363,8 +525,8 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       description: emptyToNull(body.description),
       billable,
       billed: false,
-      rateSnapshot: billable ? rate : null,
-      amountSnapshot: null as number | null,
+      rateSnapshot: money.rateSnapshot,
+      amountSnapshot: money.amountSnapshot,
       createdAt: now,
       updatedAt: now,
     };
@@ -373,9 +535,6 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     return reply.code(201).send(row);
   });
 
-  /**
-   * Ausstempeln: setzt Endzeit und berechnet Stunden.
-   */
   app.post("/api/customers/:customerId/time-clock/out", async (request, reply) => {
     const { customerId } = request.params as { customerId: string };
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
@@ -414,8 +573,38 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum beim Ausstempeln" });
     }
 
-    const billable = open.billable;
-    const money = amountFrom(hours, open.rateSnapshot, billable);
+    const existingLines = await db
+      .select()
+      .from(timeEntryLines)
+      .where(eq(timeEntryLines.timeEntryId, open.id))
+      .orderBy(asc(timeEntryLines.sortOrder))
+      .all();
+
+    let rateSnapshot = open.rateSnapshot;
+    let amountSnapshot: number | null = null;
+    let priceItemId = open.priceItemId;
+
+    if (existingLines.length > 0) {
+      const rebuilt = await buildCatalogLines(
+        db,
+        open.id,
+        existingLines.map((l) => ({
+          priceItemId: l.priceItemId,
+          quantity: l.kindSnapshot === "hourly" ? hours : l.quantity,
+        })),
+        hours,
+        open.billable,
+      );
+      await replaceLines(db, open.id, rebuilt.lines);
+      rateSnapshot = rebuilt.rateSnapshot;
+      amountSnapshot = rebuilt.amountSnapshot;
+      priceItemId = rebuilt.priceItemId;
+    } else {
+      const money = amountFrom(hours, open.rateSnapshot, open.billable);
+      rateSnapshot = money.rateSnapshot;
+      amountSnapshot = money.amountSnapshot;
+    }
+
     const description =
       body.description !== undefined ? emptyToNull(body.description) : open.description;
 
@@ -423,8 +612,9 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       endTime,
       hours,
       description,
-      rateSnapshot: money.rateSnapshot,
-      amountSnapshot: money.amountSnapshot,
+      priceItemId,
+      rateSnapshot,
+      amountSnapshot,
       updatedAt: now,
     };
     await db.update(timeEntries).set(updated).where(eq(timeEntries.id, open.id));
@@ -435,7 +625,13 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       description,
       now,
     );
-    return { ...open, ...updated };
+    const lines = await db
+      .select()
+      .from(timeEntryLines)
+      .where(eq(timeEntryLines.timeEntryId, open.id))
+      .orderBy(asc(timeEntryLines.sortOrder))
+      .all();
+    return { ...open, ...updated, lines };
   });
 
   app.put("/api/time-entries/:id", async (request, reply) => {
@@ -451,6 +647,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       description: z.string().max(5000).optional().or(z.literal("")),
       projectId: z.string().optional().nullable().or(z.literal("")),
       priceItemId: z.string().optional().nullable().or(z.literal("")),
+      lines: z.array(lineInput).max(20).optional(),
       billable: z.boolean().optional(),
       billed: z.boolean().optional(),
     });
@@ -479,7 +676,6 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       parsed.data.startTime !== undefined ? parsed.data.startTime : existing.startTime;
     const endTime = parsed.data.endTime !== undefined ? parsed.data.endTime : existing.endTime;
 
-    // Explizite Stunden ohne Zeiten → nur Stunden speichern
     const hoursOnly =
       parsed.data.hours != null &&
       parsed.data.startTime === null &&
@@ -497,17 +693,79 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültiger Zeitraum" });
     }
 
-    const priceItemId =
+    const billable = parsed.data.billable ?? existing.billable;
+    const billed = parsed.data.billed ?? existing.billed;
+
+    let priceItemId =
       parsed.data.priceItemId !== undefined
         ? emptyToNull(parsed.data.priceItemId)
         : existing.priceItemId;
-    const billable = parsed.data.billable ?? existing.billable;
-    const billed = parsed.data.billed ?? existing.billed;
-    const { rate, priceItemId: resolvedPriceId } = await resolveHourlyRate(db, {
-      priceItemId,
-      projectId,
-    });
-    const money = amountFrom(resolved.hours, rate, billable);
+    let rateSnapshot: number | null = null;
+    let amountSnapshot: number | null = null;
+    let lines: BuiltLine[] = [];
+
+    if (parsed.data.lines !== undefined) {
+      if (parsed.data.lines.length > 0) {
+        try {
+          const built = await buildCatalogLines(
+            db,
+            id,
+            parsed.data.lines,
+            resolved.hours,
+            billable,
+          );
+          lines = built.lines;
+          priceItemId = built.priceItemId;
+          rateSnapshot = built.rateSnapshot;
+          amountSnapshot = built.amountSnapshot;
+        } catch (err) {
+          return reply
+            .code(400)
+            .send({ error: err instanceof Error ? err.message : "Ungültige Katalog-Positionen" });
+        }
+      } else {
+        const resolvedRate = await resolveHourlyRate(db, {
+          priceItemId: null,
+          projectId,
+        });
+        priceItemId = resolvedRate.priceItemId;
+        const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
+        rateSnapshot = money.rateSnapshot;
+        amountSnapshot = money.amountSnapshot;
+        lines = [];
+      }
+      await replaceLines(db, id, lines);
+    } else {
+      const existingLines = await db
+        .select()
+        .from(timeEntryLines)
+        .where(eq(timeEntryLines.timeEntryId, id))
+        .orderBy(asc(timeEntryLines.sortOrder))
+        .all();
+      if (existingLines.length > 0) {
+        const rebuilt = await buildCatalogLines(
+          db,
+          id,
+          existingLines.map((l) => ({
+            priceItemId: l.priceItemId,
+            quantity: l.kindSnapshot === "hourly" ? resolved.hours : l.quantity,
+          })),
+          resolved.hours,
+          billable,
+        );
+        await replaceLines(db, id, rebuilt.lines);
+        lines = rebuilt.lines;
+        priceItemId = rebuilt.priceItemId;
+        rateSnapshot = rebuilt.rateSnapshot;
+        amountSnapshot = rebuilt.amountSnapshot;
+      } else {
+        const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
+        priceItemId = resolvedRate.priceItemId;
+        const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
+        rateSnapshot = money.rateSnapshot;
+        amountSnapshot = money.amountSnapshot;
+      }
+    }
 
     const updated = {
       workDate: parsed.data.workDate ?? existing.workDate,
@@ -519,22 +777,32 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
           ? emptyToNull(parsed.data.description)
           : existing.description,
       projectId,
-      priceItemId: resolvedPriceId,
+      priceItemId,
       billable,
       billed,
-      rateSnapshot: money.rateSnapshot,
-      amountSnapshot: money.amountSnapshot,
+      rateSnapshot,
+      amountSnapshot,
       updatedAt: new Date(),
     };
 
     await db.update(timeEntries).set(updated).where(eq(timeEntries.id, id));
-    return { ...existing, ...updated };
+    const finalLines =
+      lines.length > 0
+        ? lines
+        : await db
+            .select()
+            .from(timeEntryLines)
+            .where(eq(timeEntryLines.timeEntryId, id))
+            .orderBy(asc(timeEntryLines.sortOrder))
+            .all();
+    return { ...existing, ...updated, lines: finalLines };
   });
 
   app.delete("/api/time-entries/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(timeEntries).where(eq(timeEntries.id, id)).get();
     if (!existing) return reply.code(404).send({ error: "Zeiteintrag nicht gefunden" });
+    await db.delete(timeEntryLines).where(eq(timeEntryLines.timeEntryId, id));
     await db.delete(timeEntries).where(eq(timeEntries.id, id));
     return { ok: true };
   });

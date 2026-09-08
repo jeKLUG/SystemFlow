@@ -144,6 +144,21 @@ export interface ProjectItem {
   budgetHoursRemaining?: number | null;
 }
 
+export type PriceItemKind = "hourly" | "fixed" | "unit";
+
+export interface TimeEntryLineItem {
+  id: string;
+  timeEntryId: string;
+  priceItemId: string;
+  nameSnapshot: string;
+  kindSnapshot: PriceItemKind;
+  unitLabelSnapshot: string | null;
+  quantity: number;
+  unitPriceSnapshot: number;
+  amountSnapshot: number | null;
+  sortOrder: number;
+}
+
 export interface TimeEntryItem {
   id: string;
   customerId: string;
@@ -151,6 +166,8 @@ export interface TimeEntryItem {
   projectName?: string | null;
   priceItemId?: string | null;
   priceItemName?: string | null;
+  /** Katalog-Positionen (1–n); Legacy-Einträge können leer sein. */
+  lines?: TimeEntryLineItem[];
   workDate: string;
   startTime: string | null;
   endTime: string | null;
@@ -176,8 +193,6 @@ export interface TimeEntriesResponse {
     entryCount: number;
   };
 }
-
-export type PriceItemKind = "hourly" | "fixed" | "unit";
 
 export interface OrgSettings {
   id: string;

@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
-import { Checkbox } from "../../components/Checkbox";
 import { DeleteIcon, EditIcon } from "../../components/Icons";
 import { Modal } from "../../components/Modal";
 import { addMinutesToTime, localNowTime, localTodayIso, parseDateOnly } from "../../lib/dates";
 import { formatDateOnly } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
 import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
+
+type FormLine = {
+  key: string;
+  priceItemId: string;
+  quantity: string;
+};
 
 type FormState = {
   workDate: string;
@@ -16,7 +21,7 @@ type FormState = {
   hoursOverride: string;
   description: string;
   projectId: string;
-  priceItemId: string;
+  lines: FormLine[];
   billable: boolean;
   billed: boolean;
 };
@@ -64,11 +69,21 @@ function emptyForm(): FormState {
     hoursOverride: "",
     description: "",
     projectId: "",
-    priceItemId: "",
+    lines: [],
     billable: true,
     billed: false,
   };
 }
+
+function newLineKey() {
+  return `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+const kindShort: Record<string, string> = {
+  hourly: "Stunde",
+  fixed: "Pauschale",
+  unit: "Stück",
+};
 
 /**
  * Zeiterfassung: Stempeluhr, Historie, manuelle Buchung und Bearbeitung.
@@ -106,8 +121,8 @@ export function CustomerTimePage() {
     return hoursFromRange(form.startTime, form.endTime);
   }, [form.startTime, form.endTime, form.hoursOverride]);
 
-  const hourlyPrices = useMemo(
-    () => priceItems.filter((p) => p.kind === "hourly" && p.active),
+  const catalogPrices = useMemo(
+    () => priceItems.filter((p) => p.active).sort((a, b) => a.name.localeCompare(b.name, "de")),
     [priceItems],
   );
 
@@ -238,6 +253,21 @@ export function CustomerTimePage() {
   function openEdit(entry: TimeEntryItem) {
     setError("");
     setEditingId(entry.id);
+    const entryLines = entry.lines?.length
+      ? entry.lines.map((l) => ({
+          key: l.id,
+          priceItemId: l.priceItemId,
+          quantity: String(l.quantity).replace(".", ","),
+        }))
+      : entry.priceItemId
+        ? [
+            {
+              key: newLineKey(),
+              priceItemId: entry.priceItemId,
+              quantity: String(entry.hours).replace(".", ","),
+            },
+          ]
+        : [];
     setForm({
       workDate: entry.workDate,
       startTime: entry.startTime || "09:00",
@@ -246,7 +276,7 @@ export function CustomerTimePage() {
         entry.startTime && entry.endTime ? "" : String(entry.hours).replace(".", ","),
       description: entry.description || "",
       projectId: entry.projectId || "",
-      priceItemId: entry.priceItemId || "",
+      lines: entryLines,
       billable: entry.billable,
       billed: entry.billed,
     });
@@ -315,11 +345,20 @@ export function CustomerTimePage() {
     }
 
     const hoursOnly = Boolean(form.hoursOverride.trim());
+    const linesPayload = form.lines
+      .filter((l) => l.priceItemId)
+      .map((l) => {
+        const qty = Number(l.quantity.replace(",", "."));
+        return {
+          priceItemId: l.priceItemId,
+          ...(Number.isFinite(qty) && qty > 0 ? { quantity: Math.round(qty * 100) / 100 } : {}),
+        };
+      });
     const payload: Record<string, unknown> = {
       workDate: form.workDate,
       description: form.description,
       projectId: form.projectId || null,
-      priceItemId: form.priceItemId || null,
+      lines: linesPayload,
       billable: form.billable,
       billed: form.billed,
     };
@@ -600,15 +639,27 @@ export function CustomerTimePage() {
                             <span className="time-meta-text">
                               {[
                                 entry.projectName || "Ohne Projekt",
-                                entry.priceItemName
-                                  ? `${entry.priceItemName}${
-                                      entry.rateSnapshot != null
-                                        ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
-                                        : ""
-                                    }`
-                                  : entry.rateSnapshot != null
-                                    ? `Standard · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
-                                    : null,
+                                entry.lines && entry.lines.length > 0
+                                  ? entry.lines
+                                      .map((l) =>
+                                        entry.lines!.length > 1
+                                          ? `${l.nameSnapshot} (${l.quantity})`
+                                          : `${l.nameSnapshot}${
+                                              l.kindSnapshot === "hourly" && l.unitPriceSnapshot
+                                                ? ` · ${l.unitPriceSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                                                : ""
+                                            }`,
+                                      )
+                                      .join(", ")
+                                  : entry.priceItemName
+                                    ? `${entry.priceItemName}${
+                                        entry.rateSnapshot != null
+                                          ? ` · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                                          : ""
+                                      }`
+                                    : entry.rateSnapshot != null
+                                      ? `Standard · ${entry.rateSnapshot.toLocaleString("de-DE")} ${currency}/h`
+                                      : null,
                               ]
                                 .filter(Boolean)
                                 .join(" · ")}
@@ -670,6 +721,7 @@ export function CustomerTimePage() {
         open={modalMode != null}
         title={modalMode === "edit" ? "Zeit anpassen" : "Zeit buchen"}
         onClose={closeModal}
+        showCloseButton={false}
         className="modal-wide"
       >
         <form className="form-grid time-form" onSubmit={saveEntry}>
@@ -725,20 +777,6 @@ export function CustomerTimePage() {
             />
           </label>
           <label className="field">
-            <span>Leistung / Satz</span>
-            <select
-              value={form.priceItemId}
-              onChange={(e) => setForm({ ...form, priceItemId: e.target.value })}
-            >
-              <option value="">Standard / Projekt-Satz</option>
-              {hourlyPrices.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.unitPrice.toLocaleString("de-DE")} {currency}/h)
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
             <span>Projekt</span>
             <select
               value={form.projectId}
@@ -753,21 +791,129 @@ export function CustomerTimePage() {
               ))}
             </select>
           </label>
-          <Checkbox
-            fieldLabel="Abrechenbar"
-            label={form.billable ? "Ja" : "Nein"}
-            checked={form.billable}
-            onChange={(billable) =>
-              setForm({ ...form, billable, billed: billable ? form.billed : false })
-            }
-          />
-          <Checkbox
-            fieldLabel="Bereits abgerechnet"
-            label={form.billed ? "Ja" : "Nein"}
-            checked={form.billed}
-            disabled={!form.billable}
-            onChange={(billed) => setForm({ ...form, billed })}
-          />
+          <div className="field full time-catalog">
+            <div className="time-catalog-head">
+              <span>Leistungen aus Katalog</span>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                disabled={catalogPrices.length === 0}
+                onClick={() => {
+                  const first = catalogPrices[0];
+                  if (!first) return;
+                  const qty =
+                    first.kind === "hourly" && computedHours != null
+                      ? String(computedHours).replace(".", ",")
+                      : "1";
+                  setForm({
+                    ...form,
+                    lines: [
+                      ...form.lines,
+                      { key: newLineKey(), priceItemId: first.id, quantity: qty },
+                    ],
+                  });
+                }}
+              >
+                + Position
+              </button>
+            </div>
+            {form.lines.length === 0 ? (
+              <p className="muted time-catalog-empty">
+                Keine Katalog-Positionen – es gilt der Standard-/Projekt-Stundensatz für die
+                gebuchten Stunden.
+              </p>
+            ) : (
+              <ul className="time-catalog-lines">
+                {form.lines.map((line, index) => {
+                  const item = catalogPrices.find((p) => p.id === line.priceItemId);
+                  return (
+                    <li key={line.key} className="time-catalog-line">
+                      <select
+                        value={line.priceItemId}
+                        aria-label={`Position ${index + 1}`}
+                        onChange={(e) => {
+                          const nextId = e.target.value;
+                          const nextItem = catalogPrices.find((p) => p.id === nextId);
+                          const nextLines = form.lines.map((l, i) => {
+                            if (i !== index) return l;
+                            const qty =
+                              nextItem?.kind === "hourly" && computedHours != null
+                                ? String(computedHours).replace(".", ",")
+                                : l.quantity || "1";
+                            return { ...l, priceItemId: nextId, quantity: qty };
+                          });
+                          setForm({ ...form, lines: nextLines });
+                        }}
+                      >
+                        {catalogPrices.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} · {kindShort[p.kind] ?? p.kind} ·{" "}
+                            {p.unitPrice.toLocaleString("de-DE")} {currency}
+                            {p.unitLabel ? `/${p.unitLabel}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        inputMode="decimal"
+                        value={line.quantity}
+                        aria-label={`Menge Position ${index + 1}`}
+                        title={
+                          item?.kind === "hourly"
+                            ? "Stunden"
+                            : item?.kind === "fixed"
+                              ? "Anzahl Pauschalen"
+                              : "Menge"
+                        }
+                        onChange={(e) => {
+                          const nextLines = form.lines.map((l, i) =>
+                            i === index ? { ...l, quantity: e.target.value } : l,
+                          );
+                          setForm({ ...form, lines: nextLines });
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        aria-label="Position entfernen"
+                        onClick={() =>
+                          setForm({
+                            ...form,
+                            lines: form.lines.filter((_, i) => i !== index),
+                          })
+                        }
+                      >
+                        Entfernen
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+          <label className="field">
+            <span>Abrechenbar</span>
+            <select
+              value={form.billable ? "yes" : "no"}
+              onChange={(e) => {
+                const billable = e.target.value === "yes";
+                setForm({ ...form, billable, billed: billable ? form.billed : false });
+              }}
+            >
+              <option value="yes">Ja</option>
+              <option value="no">Nein</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Bereits abgerechnet</span>
+            <select
+              value={form.billed ? "yes" : "no"}
+              disabled={!form.billable}
+              onChange={(e) => setForm({ ...form, billed: e.target.value === "yes" })}
+            >
+              <option value="yes">Ja</option>
+              <option value="no">Nein</option>
+            </select>
+          </label>
           <label className="field full">
             <span>Beschreibung</span>
             <input

@@ -86,10 +86,26 @@ export const timeEntries = sqliteTable("time_entries", {
   billed: integer("billed", { mode: "boolean" }).notNull().default(false),
   /** Stundensatz zum Buchungszeitpunkt (für Rechnungsvorbereitung). */
   rateSnapshot: real("rate_snapshot"),
-  /** Nettobetrag Stunden × Satz. */
+  /** Nettobetrag Stunden × Satz bzw. Summe der Katalog-Positionen. */
   amountSnapshot: real("amount_snapshot"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Katalog-Positionen an einem Zeiteintrag (1–n Leistungen). */
+export const timeEntryLines = sqliteTable("time_entry_lines", {
+  id: text("id").primaryKey(),
+  timeEntryId: text("time_entry_id")
+    .notNull()
+    .references(() => timeEntries.id, { onDelete: "cascade" }),
+  priceItemId: text("price_item_id").notNull(),
+  nameSnapshot: text("name_snapshot").notNull(),
+  kindSnapshot: text("kind_snapshot", { enum: ["hourly", "fixed", "unit"] }).notNull(),
+  unitLabelSnapshot: text("unit_label_snapshot"),
+  quantity: real("quantity").notNull(),
+  unitPriceSnapshot: real("unit_price_snapshot").notNull(),
+  amountSnapshot: real("amount_snapshot"),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 /** Subnetze / VLANs pro Kunde für den Netzwerkplan. */
@@ -425,6 +441,7 @@ export type Customer = typeof customers.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type TimeEntry = typeof timeEntries.$inferSelect;
+export type TimeEntryLine = typeof timeEntryLines.$inferSelect;
 export type Asset = typeof assets.$inferSelect;
 export type NetworkSegment = typeof networkSegments.$inferSelect;
 export type NetworkPlan = typeof networkPlans.$inferSelect;

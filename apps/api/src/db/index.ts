@@ -132,6 +132,19 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS time_entry_lines (
+      id TEXT PRIMARY KEY,
+      time_entry_id TEXT NOT NULL REFERENCES time_entries(id) ON DELETE CASCADE,
+      price_item_id TEXT NOT NULL,
+      name_snapshot TEXT NOT NULL,
+      kind_snapshot TEXT NOT NULL,
+      unit_label_snapshot TEXT,
+      quantity REAL NOT NULL,
+      unit_price_snapshot REAL NOT NULL,
+      amount_snapshot REAL,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
     CREATE TABLE IF NOT EXISTS org_settings (
       id TEXT PRIMARY KEY,
       default_hourly_rate REAL,
@@ -348,6 +361,7 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_projects_customer ON projects(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
+    CREATE INDEX IF NOT EXISTS idx_time_entry_lines_entry ON time_entry_lines(time_entry_id);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder
