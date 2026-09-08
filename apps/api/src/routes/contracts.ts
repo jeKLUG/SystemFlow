@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, like } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
@@ -10,37 +10,49 @@ import { requireAuth } from "../plugins/auth.js";
 const optionalText = (max: number) => z.string().max(max).optional().or(z.literal(""));
 const optionalHours = z.coerce.number().positive().max(8760).optional().nullable();
 
-const contractBody = z.object({
-  title: z.string().min(1).max(300),
-  contractNumber: optionalText(80),
-  status: z.enum(contractStatuses).optional(),
-  description: optionalText(5000),
-  startDate: optionalText(40),
-  endDate: optionalText(40),
-  coverageHours: optionalText(200),
-  coverageNote: optionalText(1000),
-  includedHoursMonth: z.coerce.number().nonnegative().max(10000).optional().nullable(),
-  priceMonthly: z.coerce.number().nonnegative().max(1_000_000).optional().nullable(),
-  priceYearly: z.coerce.number().nonnegative().max(10_000_000).optional().nullable(),
-  /** Legacy-Feld; wird aus responseNormalHours abgeleitet, wenn gesetzt. */
-  slaResponseHours: z.coerce.number().int().positive().max(8760).optional().nullable(),
-  responseCriticalHours: optionalHours,
-  responseHighHours: optionalHours,
-  responseNormalHours: optionalHours,
-  responseLowHours: optionalHours,
-  resolveCriticalHours: optionalHours,
-  resolveHighHours: optionalHours,
-  resolveNormalHours: optionalHours,
-  resolveLowHours: optionalHours,
-  onsiteHours: optionalHours,
-  contactPerson: optionalText(200),
-  contactPhone: optionalText(80),
-  contactEmail: optionalText(200),
-  escalationContact: optionalText(200),
-  escalationPhone: optionalText(80),
-  escalationEmail: optionalText(200),
-  notes: optionalText(5000),
-});
+const contractBody = z
+  .object({
+    title: z.string().min(1).max(300),
+    contractNumber: optionalText(80),
+    status: z.enum(contractStatuses).optional(),
+    description: optionalText(5000),
+    startDate: optionalText(40),
+    endDate: optionalText(40),
+    coverageHours: optionalText(200),
+    coverageNote: optionalText(1000),
+    includedHoursMonth: z.coerce.number().nonnegative().max(10000).optional().nullable(),
+    priceMonthly: z.coerce.number().nonnegative().max(1_000_000).optional().nullable(),
+    priceYearly: z.coerce.number().nonnegative().max(10_000_000).optional().nullable(),
+    /** Legacy-Feld; wird aus responseNormalHours abgeleitet, wenn gesetzt. */
+    slaResponseHours: z.coerce.number().int().positive().max(8760).optional().nullable(),
+    responseCriticalHours: optionalHours,
+    responseHighHours: optionalHours,
+    responseNormalHours: optionalHours,
+    responseLowHours: optionalHours,
+    resolveCriticalHours: optionalHours,
+    resolveHighHours: optionalHours,
+    resolveNormalHours: optionalHours,
+    resolveLowHours: optionalHours,
+    onsiteHours: optionalHours,
+    contactPerson: optionalText(200),
+    contactPhone: optionalText(80),
+    contactEmail: optionalText(200),
+    escalationContact: optionalText(200),
+    escalationPhone: optionalText(80),
+    escalationEmail: optionalText(200),
+    notes: optionalText(5000),
+  })
+  .superRefine((data, ctx) => {
+    const monthly = data.priceMonthly != null && !Number.isNaN(data.priceMonthly);
+    const yearly = data.priceYearly != null && !Number.isNaN(data.priceYearly);
+    if (monthly && yearly) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Nur monatlicher oder jährlicher Preis, nicht beides",
+        path: ["priceYearly"],
+      });
+    }
+  });
 
 function emptyToNull(value: string | undefined): string | null {
   const t = value?.trim();
@@ -49,6 +61,27 @@ function emptyToNull(value: string | undefined): string | null {
 
 function hoursOrNull(value: number | null | undefined): number | null {
   return value == null || Number.isNaN(value) ? null : value;
+}
+
+/**
+ * Nächste freie Vertragsnummer im Format `SLA-YYYY-NNN`.
+ */
+async function nextContractNumber(db: Db): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `SLA-${year}-`;
+  const rows = await db
+    .select({ contractNumber: contracts.contractNumber })
+    .from(contracts)
+    .where(like(contracts.contractNumber, `${prefix}%`))
+    .all();
+
+  let max = 0;
+  for (const row of rows) {
+    const raw = row.contractNumber ?? "";
+    const seq = Number(raw.slice(prefix.length));
+    if (Number.isFinite(seq) && seq > max) max = seq;
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 /**
@@ -62,6 +95,9 @@ function mapContractFields(data: z.infer<typeof contractBody>) {
   const slaLegacy =
     responseNormal != null ? Math.max(1, Math.round(responseNormal)) : hoursOrNull(data.slaResponseHours);
 
+  const priceMonthly = hoursOrNull(data.priceMonthly);
+  const priceYearly = hoursOrNull(data.priceYearly);
+
   return {
     title: data.title.trim(),
     contractNumber: emptyToNull(data.contractNumber),
@@ -72,8 +108,8 @@ function mapContractFields(data: z.infer<typeof contractBody>) {
     coverageHours: emptyToNull(data.coverageHours),
     coverageNote: emptyToNull(data.coverageNote),
     includedHoursMonth: hoursOrNull(data.includedHoursMonth),
-    priceMonthly: hoursOrNull(data.priceMonthly),
-    priceYearly: hoursOrNull(data.priceYearly),
+    priceMonthly: priceMonthly != null ? priceMonthly : null,
+    priceYearly: priceMonthly != null ? null : priceYearly,
     slaResponseHours: slaLegacy,
     responseCriticalHours: hoursOrNull(data.responseCriticalHours),
     responseHighHours: hoursOrNull(data.responseHighHours),
@@ -123,11 +159,13 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
+    const fields = mapContractFields(parsed.data);
     const now = new Date();
     const row = {
       id: createId("ctr"),
       customerId,
-      ...mapContractFields(parsed.data),
+      ...fields,
+      contractNumber: fields.contractNumber ?? (await nextContractNumber(db)),
       createdAt: now,
       updatedAt: now,
     };
@@ -169,8 +207,14 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
+    const fields = mapContractFields({
+      ...parsed.data,
+      status: parsed.data.status ?? existing.status,
+    });
     const updated = {
-      ...mapContractFields({ ...parsed.data, status: parsed.data.status ?? existing.status }),
+      ...fields,
+      contractNumber:
+        fields.contractNumber ?? existing.contractNumber ?? (await nextContractNumber(db)),
       updatedAt: new Date(),
     };
     await db.update(contracts).set(updated).where(eq(contracts.id, id));

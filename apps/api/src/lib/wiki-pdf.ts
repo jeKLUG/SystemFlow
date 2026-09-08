@@ -1,4 +1,11 @@
 import PDFDocument from "pdfkit";
+import {
+  paintPdfFooter,
+  paintPdfHeader,
+  PDF_FOOTER_H,
+  PDF_HEADER_H,
+  PDF_MARGIN,
+} from "./pdf-chrome.js";
 
 export type WikiPdfDoc = {
   title: string;
@@ -29,9 +36,9 @@ type TipTapNode = {
   attrs?: Record<string, unknown>;
 };
 
-const MARGIN = 48;
-const HEADER_H = 42;
-const FOOTER_H = 36;
+const MARGIN = PDF_MARGIN;
+const HEADER_H = PDF_HEADER_H;
+const FOOTER_H = PDF_FOOTER_H;
 const ACCENT = "#3b82f6";
 const MUTED = "#64748b";
 const TEXT = "#0f172a";
@@ -111,8 +118,8 @@ export async function buildWikiPdf(
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
     const title = pageTitles[i] ?? activeTitle;
-    paintHeader(doc, title);
-    paintFooter(doc, i + 1, range.count);
+    paintPdfHeader(doc, title);
+    paintPdfFooter(doc, i + 1, range.count);
   }
 
   doc.end();
@@ -136,86 +143,6 @@ function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
   if (doc.y + needed <= bottom) return;
   if (doc.y <= top + 2) return;
   doc.addPage();
-}
-
-/** Dezente Kopfzeile: Logo + Dokumenttitel. */
-function paintHeader(doc: PDFKit.PDFDocument, title: string) {
-  const y = MARGIN - 4;
-  doc.save();
-  drawLogo(doc, MARGIN, y, 18);
-  doc
-    .font("Helvetica")
-    .fontSize(8)
-    .fillColor(MUTED)
-    .text("Systemhaus-Ess", MARGIN + 24, y + 4, { lineBreak: false });
-
-  const titleX = MARGIN + 110;
-  const titleW = doc.page.width - titleX - MARGIN;
-  doc
-    .font("Helvetica")
-    .fontSize(9)
-    .fillColor(TEXT)
-    .text(title, titleX, y + 3, {
-      width: titleW,
-      align: "right",
-      lineBreak: false,
-      ellipsis: true,
-      height: 14,
-    });
-
-  const ruleY = MARGIN + HEADER_H - 14;
-  doc
-    .strokeColor(RULE)
-    .lineWidth(0.7)
-    .moveTo(MARGIN, ruleY)
-    .lineTo(doc.page.width - MARGIN, ruleY)
-    .stroke();
-  doc.restore();
-}
-
-/** Seitenzahl unten mittig. */
-function paintFooter(doc: PDFKit.PDFDocument, pageNo: number, total: number) {
-  const y = doc.page.height - MARGIN - 8;
-  doc.save();
-  doc
-    .strokeColor(RULE)
-    .lineWidth(0.7)
-    .moveTo(MARGIN, y - 12)
-    .lineTo(doc.page.width - MARGIN, y - 12)
-    .stroke();
-  doc
-    .font("Helvetica")
-    .fontSize(9)
-    .fillColor(MUTED)
-    .text(`${pageNo} / ${total}`, MARGIN, y - 6, {
-      width: doc.page.width - MARGIN * 2,
-      align: "center",
-      lineBreak: false,
-    });
-  doc.restore();
-}
-
-/** Kleines Markenlogo (Vektor, ohne Bilddatei). */
-function drawLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number) {
-  const r = size * 0.18;
-  doc.save();
-  doc.roundedRect(x, y, size, size, r).fill("#121b29");
-  const cx = x + size / 2;
-  const cy = y + size / 2;
-  const s = size * 0.28;
-  doc
-    .strokeColor(ACCENT)
-    .lineWidth(1.4)
-    .moveTo(cx, cy - s)
-    .lineTo(cx + s, cy - s * 0.45)
-    .lineTo(cx + s, cy + s * 0.45)
-    .lineTo(cx, cy + s)
-    .lineTo(cx - s, cy + s * 0.45)
-    .lineTo(cx - s, cy - s * 0.45)
-    .closePath()
-    .stroke();
-  doc.circle(cx, cy, size * 0.08).fill(ACCENT);
-  doc.restore();
 }
 
 function renderBody(

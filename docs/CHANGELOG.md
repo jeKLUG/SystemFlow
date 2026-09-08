@@ -14,6 +14,11 @@
 - Wiki-PDF: schlichtes Layout – Kopfzeile (Logo + Titel), editornaher Inhalt, Seitenzahl; ohne Leerseiten/Deckblatt
 - SLA-PDF: gleiches schlichtes Layout (Kopfzeile, Seitenzahl), Leerseiten-Fix, klarere Abschnitte
 - SLA: monatlicher und jährlicher Preis (EUR) im Formular, Übersicht und PDF
+- SLA: Preis nur monatlich oder jährlich (nicht beides)
+- SLA: Vertragsnummer wird beim Anlegen automatisch als `SLA-YYYY-NNN` vergeben
+- PDF-Export (Wiki/SLA): Navbar-Logo (`logo.png`) in der Kopfzeile
+- PDF-Export: Leerseiten durch Fußzeilen-Text unter der Bottom-Margin behoben
+- SLA-PDF: blaue Akzentstriche unter Abschnittsüberschriften entfernt
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

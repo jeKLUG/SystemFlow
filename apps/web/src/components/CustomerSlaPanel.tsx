@@ -14,8 +14,9 @@ const emptyForm = {
   coverageHours: "Mo–Fr 08:00–17:00",
   coverageNote: "",
   includedHoursMonth: "",
-  priceMonthly: "",
-  priceYearly: "",
+  /** Nur eine Abrechnung: monatlich oder jährlich. */
+  priceBilling: "" as "" | "monthly" | "yearly",
+  priceAmount: "",
   responseCriticalHours: "1",
   responseHighHours: "4",
   responseNormalHours: "8",
@@ -61,7 +62,7 @@ function formatSlaMoney(value: number | null | undefined): string {
   }).format(value);
 }
 
-function formFromContract(c: ContractItem) {
+function formFromContract(c: ContractItem): typeof emptyForm {
   return {
     title: c.title,
     contractNumber: c.contractNumber ?? "",
@@ -72,8 +73,13 @@ function formFromContract(c: ContractItem) {
     coverageHours: c.coverageHours ?? "",
     coverageNote: c.coverageNote ?? "",
     includedHoursMonth: c.includedHoursMonth != null ? String(c.includedHoursMonth) : "",
-    priceMonthly: c.priceMonthly != null ? String(c.priceMonthly) : "",
-    priceYearly: c.priceYearly != null ? String(c.priceYearly) : "",
+    priceBilling: c.priceMonthly != null ? "monthly" : c.priceYearly != null ? "yearly" : "",
+    priceAmount:
+      c.priceMonthly != null
+        ? String(c.priceMonthly)
+        : c.priceYearly != null
+          ? String(c.priceYearly)
+          : "",
     responseCriticalHours:
       c.responseCriticalHours != null ? String(c.responseCriticalHours) : "",
     responseHighHours: c.responseHighHours != null ? String(c.responseHighHours) : "",
@@ -110,8 +116,8 @@ function toBody(form: typeof emptyForm) {
     coverageHours: form.coverageHours,
     coverageNote: form.coverageNote,
     includedHoursMonth: numOrNull(form.includedHoursMonth),
-    priceMonthly: numOrNull(form.priceMonthly),
-    priceYearly: numOrNull(form.priceYearly),
+    priceMonthly: form.priceBilling === "monthly" ? numOrNull(form.priceAmount) : null,
+    priceYearly: form.priceBilling === "yearly" ? numOrNull(form.priceAmount) : null,
     responseCriticalHours: numOrNull(form.responseCriticalHours),
     responseHighHours: numOrNull(form.responseHighHours),
     responseNormalHours: numOrNull(form.responseNormalHours),
@@ -325,12 +331,12 @@ export function CustomerSlaPanel({
                     </strong>
                   </div>
                   <div className="sla-metric">
-                    <span className="label">Preis / Monat</span>
-                    <strong>{formatSlaMoney(c.priceMonthly)}</strong>
-                  </div>
-                  <div className="sla-metric">
-                    <span className="label">Preis / Jahr</span>
-                    <strong>{formatSlaMoney(c.priceYearly)}</strong>
+                    <span className="label">
+                      {c.priceYearly != null ? "Preis / Jahr" : "Preis / Monat"}
+                    </span>
+                    <strong>
+                      {formatSlaMoney(c.priceYearly != null ? c.priceYearly : c.priceMonthly)}
+                    </strong>
                   </div>
                 </div>
 
@@ -442,9 +448,15 @@ export function CustomerSlaPanel({
           <label className="field">
             <span>Vertragsnr.</span>
             <input
-              value={form.contractNumber}
+              value={editingId ? form.contractNumber : ""}
+              readOnly={!editingId}
               onChange={(e) => setForm({ ...form, contractNumber: e.target.value })}
-              placeholder="SLA-2026-014"
+              placeholder={editingId ? "SLA-2026-014" : "Wird automatisch vergeben"}
+              title={
+                editingId
+                  ? "Vertragsnummer"
+                  : "Beim Anlegen automatisch als SLA-JJJJ-NNN vergeben"
+              }
             />
           </label>
           <label className="field">
@@ -471,25 +483,38 @@ export function CustomerSlaPanel({
             />
           </label>
           <label className="field">
-            <span>Preis / Monat (€)</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={form.priceMonthly}
-              onChange={(e) => setForm({ ...form, priceMonthly: e.target.value })}
-              placeholder="z. B. 299"
-            />
+            <span>Preis-Abrechnung</span>
+            <select
+              value={form.priceBilling}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  priceBilling: e.target.value as "" | "monthly" | "yearly",
+                  priceAmount: e.target.value ? form.priceAmount : "",
+                })
+              }
+            >
+              <option value="">Kein Preis</option>
+              <option value="monthly">Monatlich</option>
+              <option value="yearly">Jährlich</option>
+            </select>
           </label>
           <label className="field">
-            <span>Preis / Jahr (€)</span>
+            <span>
+              {form.priceBilling === "yearly"
+                ? "Preis / Jahr (€)"
+                : form.priceBilling === "monthly"
+                  ? "Preis / Monat (€)"
+                  : "Preis (€)"}
+            </span>
             <input
               type="number"
               min={0}
               step={0.01}
-              value={form.priceYearly}
-              onChange={(e) => setForm({ ...form, priceYearly: e.target.value })}
-              placeholder="z. B. 3200"
+              disabled={!form.priceBilling}
+              value={form.priceAmount}
+              onChange={(e) => setForm({ ...form, priceAmount: e.target.value })}
+              placeholder={form.priceBilling === "yearly" ? "z. B. 3200" : "z. B. 299"}
             />
           </label>
           <label className="field">
