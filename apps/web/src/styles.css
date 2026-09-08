@@ -3698,8 +3698,8 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .toolbar-menu {
   position: absolute;
-  bottom: calc(100% + 0.35rem);
-  top: auto;
+  top: calc(100% + 0.35rem);
+  bottom: auto;
   left: 0;
   z-index: 60;
   min-width: 12.5rem;
@@ -3709,7 +3709,7 @@ input[type="checkbox"]:not(.check-input):checked {
   border-radius: 10px;
   border: 1px solid var(--border-strong);
   background: var(--surface-2, var(--surface));
-  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -3719,7 +3719,7 @@ input[type="checkbox"]:not(.check-input):checked {
 @keyframes toolbar-menu-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(-6px);
   }
   to {
     opacity: 1;
@@ -3826,29 +3826,76 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .tiptap-surface ul[data-type="taskList"] {
   list-style: none;
-  padding-left: 0.15rem;
-  margin: 0.65rem 0;
+  padding-left: 0;
+  margin: 0.75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .tiptap-surface ul[data-type="taskList"] li {
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
-  margin: 0.25rem 0;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.2rem 0.35rem 0.2rem 0.2rem;
+  border-radius: 8px;
+  transition: background 0.12s ease;
+}
+
+.tiptap-surface ul[data-type="taskList"] li:hover {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .tiptap-surface ul[data-type="taskList"] li > label {
   flex-shrink: 0;
-  margin-top: 0.2rem;
+  /* Höhe = erste Textzeile → Checkbox optisch mittig */
+  height: calc(1em * 1.65);
+  margin: 0;
+  padding: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  cursor: pointer;
 }
 
 .tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"] {
-  width: 1rem;
-  height: 1rem;
-  accent-color: var(--accent-bright);
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  border-radius: 5px;
+  border: 1.5px solid rgba(148, 163, 184, 0.55);
+  background: rgba(255, 255, 255, 0.03);
   cursor: pointer;
+  display: grid;
+  place-content: center;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"]::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  transform: scale(0);
+  transition: transform 0.12s ease;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background: #fff;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"]:hover {
+  border-color: rgba(96, 165, 250, 0.55);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"]:checked {
+  border-color: rgba(96, 165, 250, 0.7);
+  background: rgba(59, 130, 246, 0.85);
+}
+
+.tiptap-surface ul[data-type="taskList"] li > label input[type="checkbox"]:checked::before {
+  transform: scale(1);
 }
 
 .tiptap-surface ul[data-type="taskList"] li > div {
@@ -3856,9 +3903,22 @@ input[type="checkbox"]:not(.check-input):checked {
   min-width: 0;
 }
 
+.tiptap-surface ul[data-type="taskList"] li > div > p {
+  margin: 0;
+  line-height: 1.65;
+}
+
+.tiptap-surface ul[data-type="taskList"] li > div > p + p {
+  margin-top: 0.35rem;
+}
+
 .tiptap-surface ul[data-type="taskList"] li[data-checked="true"] > div {
   color: var(--text-muted);
+}
+
+.tiptap-surface ul[data-type="taskList"] li[data-checked="true"] > div > p {
   text-decoration: line-through;
+  text-decoration-color: rgba(148, 163, 184, 0.45);
 }
 
 .tiptap-surface .editor-callout {

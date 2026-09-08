@@ -8,6 +8,8 @@
 - Wiki-Editor: Panel-Icons links statt Text; leeres Panel per Backspace löschen; zweimal Enter verlässt Panel
 - Wiki-Editor: Checkliste nur in der Listen-Toolbar (nicht im Dropdown)
 - Wiki-Editor: neue Toolbar-Icons; Überschrift als Dropdown; Einfügen-Label statt Gitter-Icon
+- Wiki-Editor: Toolbar-Dropdowns öffnen wieder nach unten
+- Wiki-Editor: Checklisten-Checkboxen mittig zur ersten Zeile, klareres Design
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07
