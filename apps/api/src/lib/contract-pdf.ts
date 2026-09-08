@@ -1,8 +1,10 @@
 import PDFDocument from "pdfkit";
 import type { Contract, Customer } from "../db/schema.js";
 
-const MARGIN = 52;
-const ACCENT = "#1d4ed8";
+const MARGIN = 48;
+const HEADER_H = 42;
+const FOOTER_H = 36;
+const ACCENT = "#3b82f6";
 const MUTED = "#64748b";
 const TEXT = "#0f172a";
 const RULE = "#e2e8f0";
@@ -17,16 +19,24 @@ const statusLabel: Record<string, string> = {
 };
 
 /**
- * Erzeugt ein druckfertiges SLA-/Vertrags-PDF.
+ * Erzeugt ein schlichtes SLA-/Vertrags-PDF (Kopfzeile, Seitenzahl, ohne Leerseiten).
  */
 export async function buildContractPdf(customer: Customer, contract: Contract): Promise<Buffer> {
   const customerLabel = customer.company?.trim() || customer.name;
+  const headerTitle = contract.title?.trim() || "SLA / Vertrag";
+
   const doc = new PDFDocument({
     size: "A4",
     bufferPages: true,
-    margins: { top: MARGIN, bottom: MARGIN + 36, left: MARGIN, right: MARGIN },
+    autoFirstPage: true,
+    margins: {
+      top: MARGIN + HEADER_H,
+      bottom: MARGIN + FOOTER_H,
+      left: MARGIN,
+      right: MARGIN,
+    },
     info: {
-      Title: contract.title,
+      Title: headerTitle,
       Author: "Systemhaus-Ess",
       Subject: `SLA / Vertrag – ${customerLabel}`,
       Creator: "Systemhaus-Ess",
@@ -40,36 +50,44 @@ export async function buildContractPdf(customer: Customer, contract: Contract): 
     doc.on("error", reject);
   });
 
-  drawHeader(doc);
-  drawTitleBlock(doc, contract, customerLabel);
-  drawParties(doc, customer);
+  doc.x = MARGIN;
+  doc.y = contentTop(doc);
+
+  drawTitle(doc, contract, customerLabel);
   drawMeta(doc, contract);
-  drawSection(doc, "1. Leistungsumfang", () => {
-    const text = contract.description?.trim() || "Keine Angaben zum Leistungsumfang hinterlegt.";
-    paragraph(doc, text);
+  drawParties(doc, customer);
+  drawSection(doc, "Leistungsumfang", () => {
+    paragraph(
+      doc,
+      contract.description?.trim() || "Keine Angaben zum Leistungsumfang hinterlegt.",
+    );
   });
-  drawSection(doc, "2. Servicezeiten & Abdeckung", () => {
+  drawSection(doc, "Servicezeiten & Abdeckung", () => {
     kv(doc, "Servicezeiten", contract.coverageHours || "–");
-    if (contract.coverageNote) kv(doc, "Hinweise", contract.coverageNote);
+    if (contract.coverageNote?.trim()) kv(doc, "Abdeckung / Ausnahmen", contract.coverageNote.trim());
     if (contract.includedHoursMonth != null) {
       kv(doc, "Inklusive Stunden / Monat", `${formatNum(contract.includedHoursMonth)} h`);
     }
     if (contract.onsiteHours != null) {
-      kv(doc, "Vor-Ort-Einsatz (Ziel)", formatHours(contract.onsiteHours));
+      kv(doc, "Vor Ort (Stunden)", formatHours(contract.onsiteHours));
+    }
+    if (contract.priceMonthly != null || contract.priceYearly != null) {
+      if (contract.priceMonthly != null) kv(doc, "Preis / Monat", formatMoney(contract.priceMonthly));
+      if (contract.priceYearly != null) kv(doc, "Preis / Jahr", formatMoney(contract.priceYearly));
     }
   });
-  drawSection(doc, "3. Service-Level-Ziele", () => {
+  drawSection(doc, "Service-Level-Ziele", () => {
     paragraph(
       doc,
-      "Die folgenden Reaktions- und Lösungszeiten gelten innerhalb der vereinbarten Servicezeiten. Zeiten außerhalb der Servicezeiten werden nicht auf die SLA-Frist angerechnet, sofern nicht anders vereinbart.",
+      "Reaktions- und Lösungszeiten gelten innerhalb der vereinbarten Servicezeiten. Zeiten außerhalb werden nicht auf die SLA-Frist angerechnet, sofern nicht anders vereinbart.",
     );
     drawSlaTable(doc, contract);
   });
-  drawSection(doc, "4. Ansprechpartner & Eskalation", () => {
+  drawSection(doc, "Ansprechpartner & Eskalation", () => {
     drawContacts(doc, contract);
   });
   if (contract.notes?.trim()) {
-    drawSection(doc, "5. Sonstige Vereinbarungen", () => {
+    drawSection(doc, "Sonstige Vereinbarungen", () => {
       paragraph(doc, contract.notes!.trim());
     });
   }
@@ -78,72 +96,188 @@ export async function buildContractPdf(customer: Customer, contract: Contract): 
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
-    paintFooter(doc, customerLabel, contract, i + 1, range.count);
+    paintHeader(doc, headerTitle);
+    paintFooter(doc, i + 1, range.count);
   }
 
   doc.end();
   return done;
 }
 
-function drawHeader(doc: PDFKit.PDFDocument) {
-  doc.save().rect(0, 0, doc.page.width, 7).fill(ACCENT).restore();
-  doc.font("Helvetica").fontSize(9).fillColor(ACCENT).text("SYSTEMHAUS-ESS", MARGIN, MARGIN - 6, {
-    characterSpacing: 1.5,
-  });
+function contentTop(doc: PDFKit.PDFDocument): number {
+  return doc.page.margins.top;
+}
+
+function contentBottom(doc: PDFKit.PDFDocument): number {
+  return doc.page.height - doc.page.margins.bottom;
+}
+
+function contentWidth(doc: PDFKit.PDFDocument): number {
+  return doc.page.width - MARGIN * 2;
+}
+
+/** Seitenumbruch nur wenn nötig – nicht am Seitenanfang. */
+function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
+  const bottom = contentBottom(doc);
+  const top = contentTop(doc);
+  if (doc.y + needed <= bottom) return;
+  if (doc.y <= top + 2) return;
+  doc.addPage();
+  doc.x = MARGIN;
+}
+
+function paintHeader(doc: PDFKit.PDFDocument, title: string) {
+  const y = MARGIN - 4;
+  doc.save();
+  drawLogo(doc, MARGIN, y, 18);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(MUTED)
+    .text("Systemhaus-Ess", MARGIN + 24, y + 4, { lineBreak: false });
+
+  const titleX = MARGIN + 110;
+  const titleW = doc.page.width - titleX - MARGIN;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor(TEXT)
+    .text(title, titleX, y + 3, {
+      width: titleW,
+      align: "right",
+      lineBreak: false,
+      ellipsis: true,
+      height: 14,
+    });
+
+  const ruleY = MARGIN + HEADER_H - 14;
+  doc
+    .strokeColor(RULE)
+    .lineWidth(0.7)
+    .moveTo(MARGIN, ruleY)
+    .lineTo(doc.page.width - MARGIN, ruleY)
+    .stroke();
+  doc.restore();
+}
+
+function paintFooter(doc: PDFKit.PDFDocument, pageNo: number, total: number) {
+  const y = doc.page.height - MARGIN - 8;
+  doc.save();
+  doc
+    .strokeColor(RULE)
+    .lineWidth(0.7)
+    .moveTo(MARGIN, y - 12)
+    .lineTo(doc.page.width - MARGIN, y - 12)
+    .stroke();
   doc
     .font("Helvetica")
     .fontSize(9)
     .fillColor(MUTED)
-    .text("IT-Service · SLA / Vertrag", doc.page.width - MARGIN - 160, MARGIN - 6, {
-      width: 160,
-      align: "right",
+    .text(`${pageNo} / ${total}`, MARGIN, y - 6, {
+      width: doc.page.width - MARGIN * 2,
+      align: "center",
+      lineBreak: false,
     });
-  doc.moveDown(1.4);
+  doc.restore();
 }
 
-function drawTitleBlock(doc: PDFKit.PDFDocument, contract: Contract, customerLabel: string) {
+function drawLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number) {
+  const r = size * 0.18;
+  doc.save();
+  doc.roundedRect(x, y, size, size, r).fill("#121b29");
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const s = size * 0.28;
+  doc
+    .strokeColor(ACCENT)
+    .lineWidth(1.4)
+    .moveTo(cx, cy - s)
+    .lineTo(cx + s, cy - s * 0.45)
+    .lineTo(cx + s, cy + s * 0.45)
+    .lineTo(cx, cy + s)
+    .lineTo(cx - s, cy + s * 0.45)
+    .lineTo(cx - s, cy - s * 0.45)
+    .closePath()
+    .stroke();
+  doc.circle(cx, cy, size * 0.08).fill(ACCENT);
+  doc.restore();
+}
+
+function drawTitle(doc: PDFKit.PDFDocument, contract: Contract, customerLabel: string) {
+  doc.font("Helvetica").fontSize(8).fillColor(ACCENT).text("SLA / VERTRAG");
+  doc.moveDown(0.25);
   doc
     .font("Helvetica-Bold")
-    .fontSize(22)
+    .fontSize(18)
     .fillColor(TEXT)
-    .text(contract.title, { width: doc.page.width - MARGIN * 2 });
-  doc.moveDown(0.25);
-  doc.font("Helvetica").fontSize(11).fillColor(MUTED).text(`für ${customerLabel}`);
+    .text(contract.title?.trim() || "Ohne Titel", { width: contentWidth(doc) });
+  doc.moveDown(0.2);
+  doc.font("Helvetica").fontSize(10).fillColor(MUTED).text(customerLabel);
   doc.moveDown(0.55);
   doc
     .strokeColor(RULE)
-    .lineWidth(1)
+    .lineWidth(0.8)
     .moveTo(MARGIN, doc.y)
-    .lineTo(doc.page.width - MARGIN, doc.y)
+    .lineTo(MARGIN + contentWidth(doc), doc.y)
     .stroke();
-  doc.moveDown(0.7);
+  doc.moveDown(0.65);
+}
+
+function drawMeta(doc: PDFKit.PDFDocument, contract: Contract) {
+  const items: [string, string][] = [
+    ["Vertragsnr.", contract.contractNumber || "–"],
+    ["Status", statusLabel[contract.status] ?? contract.status],
+    ["Beginn", formatDate(contract.startDate)],
+    ["Ende", formatDate(contract.endDate)],
+  ];
+  ensureSpace(doc, 52);
+  const gap = 8;
+  const boxW = (contentWidth(doc) - gap * 3) / 4;
+  const y = doc.y;
+  items.forEach(([label, value], i) => {
+    const x = MARGIN + i * (boxW + gap);
+    doc.save().roundedRect(x, y, boxW, 44, 6).fillAndStroke("#fff", RULE).restore();
+    doc.font("Helvetica").fontSize(7).fillColor(MUTED).text(label.toUpperCase(), x + 8, y + 8, {
+      width: boxW - 16,
+      lineBreak: false,
+    });
+    doc
+      .font("Helvetica-Bold")
+      .fontSize(9.5)
+      .fillColor(TEXT)
+      .text(value, x + 8, y + 22, { width: boxW - 16, height: 16, ellipsis: true });
+  });
+  doc.y = y + 54;
+  doc.x = MARGIN;
 }
 
 function drawParties(doc: PDFKit.PDFDocument, customer: Customer) {
-  ensureSpace(doc, 110);
-  const colW = (doc.page.width - MARGIN * 2 - 16) / 2;
-  const y0 = doc.y;
-
-  drawPartyBox(doc, MARGIN, y0, colW, "Auftragnehmer", [
-    "Systemhaus-Ess",
-    "IT-Dienstleistungen & Support",
-  ]);
-
-  const address = [
+  const leftLines = ["Systemhaus-Ess", "IT-Dienstleistungen & Support"];
+  const rightLines = [
     customer.company || customer.name,
     customer.contactPerson ? `z. Hd. ${customer.contactPerson}` : null,
     customer.address,
     [customer.zip, customer.city].filter(Boolean).join(" ") || null,
-    customer.country,
+    customer.country && customer.country !== "DE" ? customer.country : null,
     customer.email,
     customer.phone,
   ].filter(Boolean) as string[];
 
-  drawPartyBox(doc, MARGIN + colW + 16, y0, colW, "Auftraggeber", address.length ? address : [customer.name]);
+  const colW = (contentWidth(doc) - 12) / 2;
+  const leftH = partyBoxHeight(leftLines);
+  const rightH = partyBoxHeight(rightLines);
+  const boxH = Math.max(leftH, rightH, 72);
+  ensureSpace(doc, boxH + 12);
 
-  doc.y = y0 + 108;
+  const y0 = doc.y;
+  drawPartyBox(doc, MARGIN, y0, colW, boxH, "Auftragnehmer", leftLines);
+  drawPartyBox(doc, MARGIN + colW + 12, y0, colW, boxH, "Auftraggeber", rightLines);
+  doc.y = y0 + boxH + 12;
   doc.x = MARGIN;
-  doc.moveDown(0.4);
+}
+
+function partyBoxHeight(lines: string[]): number {
+  return 28 + Math.min(lines.length, 6) * 13 + 12;
 }
 
 function drawPartyBox(
@@ -151,80 +285,65 @@ function drawPartyBox(
   x: number,
   y: number,
   w: number,
+  h: number,
   title: string,
   lines: string[],
 ) {
-  doc.save().roundedRect(x, y, w, 100, 8).fill(SOFT).restore();
-  doc.save().roundedRect(x, y, w, 100, 8).stroke(RULE).restore();
-  doc.font("Helvetica-Bold").fontSize(8).fillColor(ACCENT).text(title.toUpperCase(), x + 12, y + 12, {
-    characterSpacing: 0.8,
+  doc.save().roundedRect(x, y, w, h, 7).fill(SOFT).restore();
+  doc.save().roundedRect(x, y, w, h, 7).stroke(RULE).restore();
+  doc.font("Helvetica-Bold").fontSize(7.5).fillColor(ACCENT).text(title.toUpperCase(), x + 10, y + 10, {
+    width: w - 20,
+    lineBreak: false,
   });
-  doc.font("Helvetica").fontSize(10).fillColor(TEXT);
-  let ty = y + 28;
-  for (const line of lines.slice(0, 5)) {
-    doc.text(line, x + 12, ty, { width: w - 24, lineBreak: false });
+  doc.font("Helvetica").fontSize(9.5).fillColor(TEXT);
+  let ty = y + 26;
+  for (const line of lines.slice(0, 6)) {
+    doc.text(line, x + 10, ty, { width: w - 20, lineBreak: false, ellipsis: true, height: 12 });
     ty += 13;
   }
 }
 
-function drawMeta(doc: PDFKit.PDFDocument, contract: Contract) {
-  ensureSpace(doc, 70);
-  const items: [string, string][] = [
-    ["Vertragsnr.", contract.contractNumber || "–"],
-    ["Status", statusLabel[contract.status] ?? contract.status],
-    ["Beginn", formatDate(contract.startDate)],
-    ["Ende", formatDate(contract.endDate)],
-  ];
-  const gap = 8;
-  const boxW = (doc.page.width - MARGIN * 2 - gap * 3) / 4;
-  const y = doc.y;
-  items.forEach(([label, value], i) => {
-    const x = MARGIN + i * (boxW + gap);
-    doc.save().roundedRect(x, y, boxW, 48, 7).fillAndStroke("#fff", RULE).restore();
-    doc.font("Helvetica").fontSize(7.5).fillColor(MUTED).text(label.toUpperCase(), x + 8, y + 9);
-    doc
-      .font("Helvetica-Bold")
-      .fontSize(10)
-      .fillColor(TEXT)
-      .text(value, x + 8, y + 24, { width: boxW - 16 });
-  });
-  doc.y = y + 58;
-  doc.x = MARGIN;
-}
-
 function drawSection(doc: PDFKit.PDFDocument, title: string, body: () => void) {
-  ensureSpace(doc, 48);
-  doc.moveDown(0.35);
-  doc.font("Helvetica-Bold").fontSize(12).fillColor(TEXT).text(title);
+  ensureSpace(doc, 40);
+  if (doc.y > contentTop(doc) + 4) doc.y += 6;
+  doc.font("Helvetica-Bold").fontSize(11.5).fillColor(TEXT).text(title);
   doc
     .strokeColor(ACCENT)
     .lineWidth(1.5)
     .moveTo(MARGIN, doc.y + 2)
-    .lineTo(MARGIN + 36, doc.y + 2)
+    .lineTo(MARGIN + 28, doc.y + 2)
     .stroke();
-  doc.moveDown(0.55);
+  doc.moveDown(0.45);
   body();
 }
 
 function drawSlaTable(doc: PDFKit.PDFDocument, contract: Contract) {
   const normal = contract.responseNormalHours ?? contract.slaResponseHours ?? null;
   const rows: [string, number | null, number | null][] = [
-    ["Kritisch (P1)", contract.responseCriticalHours, contract.resolveCriticalHours],
-    ["Hoch (P2)", contract.responseHighHours, contract.resolveHighHours],
-    ["Normal (P3)", normal, contract.resolveNormalHours],
-    ["Niedrig (P4)", contract.responseLowHours, contract.resolveLowHours],
+    ["P1 Kritisch", contract.responseCriticalHours, contract.resolveCriticalHours],
+    ["P2 Hoch", contract.responseHighHours, contract.resolveHighHours],
+    ["P3 Normal", normal, contract.resolveNormalHours],
+    ["P4 Niedrig", contract.responseLowHours, contract.resolveLowHours],
   ];
 
-  const tableW = doc.page.width - MARGIN * 2;
-  const cols = [tableW * 0.4, tableW * 0.3, tableW * 0.3];
-  ensureSpace(doc, 28 + rows.length * 26);
+  const tableW = contentWidth(doc);
+  const cols = [tableW * 0.38, tableW * 0.31, tableW * 0.31];
+  const rowH = 22;
+  ensureSpace(doc, 20 + (rows.length + 1) * rowH);
 
-  const headY = doc.y;
-  drawTableRow(doc, headY, cols, ["Priorität", "Reaktionszeit", "Ziel-Lösungszeit"], true);
-  let y = headY + 24;
+  let y = doc.y;
+  drawTableRow(doc, y, cols, rowH, ["Priorität", "Reaktionszeit", "Lösungszeit"], true);
+  y += rowH;
   for (const [prio, response, resolve] of rows) {
-    drawTableRow(doc, y, cols, [prio, formatHours(response), formatHours(resolve)], false);
-    y += 24;
+    if (y + rowH > contentBottom(doc)) {
+      doc.addPage();
+      doc.x = MARGIN;
+      y = contentTop(doc);
+      drawTableRow(doc, y, cols, rowH, ["Priorität", "Reaktionszeit", "Lösungszeit"], true);
+      y += rowH;
+    }
+    drawTableRow(doc, y, cols, rowH, [prio, formatHours(response), formatHours(resolve)], false);
+    y += rowH;
   }
   doc.y = y + 8;
   doc.x = MARGIN;
@@ -234,6 +353,7 @@ function drawTableRow(
   doc: PDFKit.PDFDocument,
   y: number,
   cols: number[],
+  rowH: number,
   cells: string[],
   header: boolean,
 ) {
@@ -242,14 +362,14 @@ function drawTableRow(
     const w = cols[i]!;
     doc
       .save()
-      .rect(x, y, w, 24)
+      .rect(x, y, w, rowH)
       .fillAndStroke(header ? "#eff6ff" : i === 0 ? SOFT : "#fff", RULE)
       .restore();
     doc
       .font(header || i === 0 ? "Helvetica-Bold" : "Helvetica")
-      .fontSize(header ? 8 : 10)
+      .fontSize(header ? 8 : 9.5)
       .fillColor(header ? ACCENT : TEXT)
-      .text(cells[i] ?? "–", x + 8, y + (header ? 8 : 7), {
+      .text(cells[i] ?? "–", x + 8, y + (header ? 7 : 6), {
         width: w - 16,
         lineBreak: false,
       });
@@ -269,12 +389,13 @@ function drawContacts(doc: PDFKit.PDFDocument, contract: Contract) {
     ["E-Mail", contract.escalationEmail || "–"],
   ];
 
-  ensureSpace(doc, 80);
-  const colW = (doc.page.width - MARGIN * 2 - 16) / 2;
+  const colW = (contentWidth(doc) - 12) / 2;
+  const boxH = 74;
+  ensureSpace(doc, boxH + 8);
   const y0 = doc.y;
-  drawContactColumn(doc, MARGIN, y0, colW, "Operativ", left);
-  drawContactColumn(doc, MARGIN + colW + 16, y0, colW, "Eskalation", right);
-  doc.y = y0 + 86;
+  drawContactColumn(doc, MARGIN, y0, colW, boxH, "Operativ", left);
+  drawContactColumn(doc, MARGIN + colW + 12, y0, colW, boxH, "Eskalation", right);
+  doc.y = y0 + boxH + 8;
   doc.x = MARGIN;
 }
 
@@ -283,99 +404,92 @@ function drawContactColumn(
   x: number,
   y: number,
   w: number,
+  h: number,
   title: string,
   rows: [string, string][],
 ) {
-  doc.save().roundedRect(x, y, w, 78, 8).fillAndStroke("#fff", RULE).restore();
-  doc.font("Helvetica-Bold").fontSize(8).fillColor(ACCENT).text(title.toUpperCase(), x + 10, y + 10);
+  doc.save().roundedRect(x, y, w, h, 7).fillAndStroke("#fff", RULE).restore();
+  doc.font("Helvetica-Bold").fontSize(7.5).fillColor(ACCENT).text(title.toUpperCase(), x + 10, y + 10, {
+    width: w - 20,
+    lineBreak: false,
+  });
   let ty = y + 26;
   for (const [label, value] of rows) {
-    doc.font("Helvetica").fontSize(8).fillColor(MUTED).text(label, x + 10, ty, { width: 70 });
-    doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(value, x + 80, ty, { width: w - 90 });
-    ty += 16;
+    doc.font("Helvetica").fontSize(7.5).fillColor(MUTED).text(label, x + 10, ty, {
+      width: 72,
+      lineBreak: false,
+    });
+    doc.font("Helvetica").fontSize(9).fillColor(TEXT).text(value, x + 82, ty, {
+      width: w - 92,
+      lineBreak: false,
+      ellipsis: true,
+      height: 12,
+    });
+    ty += 15;
   }
 }
 
 function drawSignatures(doc: PDFKit.PDFDocument, customerLabel: string) {
-  ensureSpace(doc, 120);
+  ensureSpace(doc, 100);
+  if (doc.y > contentTop(doc) + 4) doc.y += 10;
+  doc
+    .font("Helvetica")
+    .fontSize(8.5)
+    .fillColor(MUTED)
+    .text(
+      `Erstellt am ${formatDateTime(new Date())}. Verbindliche Leistungen ergeben sich aus diesem Dokument und etwaigen Anlagen.`,
+      { width: contentWidth(doc), lineGap: 1.5 },
+    );
   doc.moveDown(1.2);
-  doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(
-    `Erstellt am ${formatDateTime(new Date())} · Verbindliche Leistungen ergeben sich aus diesem Dokument und etwaigen Anlagen.`,
-  );
-  doc.moveDown(1.4);
 
-  const colW = (doc.page.width - MARGIN * 2 - 24) / 2;
-  const y = doc.y + 36;
+  const colW = (contentWidth(doc) - 20) / 2;
+  ensureSpace(doc, 56);
+  const y = doc.y + 28;
   for (let i = 0; i < 2; i++) {
-    const x = MARGIN + i * (colW + 24);
+    const x = MARGIN + i * (colW + 20);
     doc
       .strokeColor(RULE)
-      .lineWidth(1)
+      .lineWidth(0.9)
       .moveTo(x, y)
       .lineTo(x + colW, y)
       .stroke();
     doc
       .font("Helvetica")
-      .fontSize(9)
+      .fontSize(8.5)
       .fillColor(MUTED)
-      .text(i === 0 ? "Systemhaus-Ess · Datum / Unterschrift" : `${customerLabel} · Datum / Unterschrift`, x, y + 8, {
-        width: colW,
-      });
+      .text(
+        i === 0 ? "Systemhaus-Ess · Datum / Unterschrift" : `${customerLabel} · Datum / Unterschrift`,
+        x,
+        y + 8,
+        { width: colW },
+      );
   }
-  doc.y = y + 40;
-}
-
-function paintFooter(
-  doc: PDFKit.PDFDocument,
-  customerLabel: string,
-  contract: Contract,
-  pageNo: number,
-  total: number,
-) {
-  const bottom = doc.page.height - 32;
-  doc.save();
-  doc
-    .strokeColor(RULE)
-    .lineWidth(0.6)
-    .moveTo(MARGIN, bottom - 10)
-    .lineTo(doc.page.width - MARGIN, bottom - 10)
-    .stroke();
-  doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-  const left = `Systemhaus-Ess · ${contract.contractNumber || contract.title} · ${customerLabel}`;
-  doc.text(left, MARGIN, bottom - 4, {
-    width: doc.page.width - MARGIN * 2 - 60,
-    lineBreak: false,
-  });
-  doc.text(`${pageNo} / ${total}`, doc.page.width - MARGIN - 48, bottom - 4, {
-    width: 48,
-    align: "right",
-    lineBreak: false,
-  });
-  doc.restore();
+  doc.y = y + 36;
 }
 
 function paragraph(doc: PDFKit.PDFDocument, text: string) {
+  ensureSpace(doc, 24);
   doc.font("Helvetica").fontSize(10).fillColor(TEXT).text(text, {
-    width: doc.page.width - MARGIN * 2,
+    width: contentWidth(doc),
     align: "left",
-    lineGap: 2,
+    lineGap: 2.5,
   });
-  doc.moveDown(0.35);
+  doc.moveDown(0.3);
 }
 
 function kv(doc: PDFKit.PDFDocument, label: string, value: string) {
-  ensureSpace(doc, 22);
+  ensureSpace(doc, 20);
   const y = doc.y;
-  doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(label, MARGIN, y, { width: 150 });
-  doc.font("Helvetica").fontSize(10).fillColor(TEXT).text(value, MARGIN + 150, y, {
-    width: doc.page.width - MARGIN * 2 - 150,
+  const labelW = 150;
+  doc.font("Helvetica").fontSize(9).fillColor(MUTED).text(label, MARGIN, y, {
+    width: labelW,
+    lineBreak: false,
   });
-  doc.y = Math.max(doc.y, y + 16);
+  doc.font("Helvetica").fontSize(10).fillColor(TEXT).text(value, MARGIN + labelW, y, {
+    width: contentWidth(doc) - labelW,
+  });
+  doc.y = Math.max(doc.y, y + 15);
   doc.x = MARGIN;
-}
-
-function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
-  if (doc.y + needed > doc.page.height - MARGIN - 40) doc.addPage();
 }
 
 function formatHours(hours: number | null | undefined): string {
@@ -387,6 +501,14 @@ function formatHours(hours: number | null | undefined): string {
 
 function formatNum(n: number): string {
   return Number.isInteger(n) ? String(n) : String(Math.round(n * 100) / 100);
+}
+
+function formatMoney(n: number): string {
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(n);
 }
 
 function formatDate(value: string | null | undefined): string {

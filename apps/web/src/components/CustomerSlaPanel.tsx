@@ -14,6 +14,8 @@ const emptyForm = {
   coverageHours: "Mo–Fr 08:00–17:00",
   coverageNote: "",
   includedHoursMonth: "",
+  priceMonthly: "",
+  priceYearly: "",
   responseCriticalHours: "1",
   responseHighHours: "4",
   responseNormalHours: "8",
@@ -49,6 +51,16 @@ function numOrNull(value: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Formatiert SLA-Preise in EUR (de-DE). */
+function formatSlaMoney(value: number | null | undefined): string {
+  if (value == null || Number.isNaN(value)) return "–";
+  return new Intl.NumberFormat("de-DE", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formFromContract(c: ContractItem) {
   return {
     title: c.title,
@@ -60,6 +72,8 @@ function formFromContract(c: ContractItem) {
     coverageHours: c.coverageHours ?? "",
     coverageNote: c.coverageNote ?? "",
     includedHoursMonth: c.includedHoursMonth != null ? String(c.includedHoursMonth) : "",
+    priceMonthly: c.priceMonthly != null ? String(c.priceMonthly) : "",
+    priceYearly: c.priceYearly != null ? String(c.priceYearly) : "",
     responseCriticalHours:
       c.responseCriticalHours != null ? String(c.responseCriticalHours) : "",
     responseHighHours: c.responseHighHours != null ? String(c.responseHighHours) : "",
@@ -96,6 +110,8 @@ function toBody(form: typeof emptyForm) {
     coverageHours: form.coverageHours,
     coverageNote: form.coverageNote,
     includedHoursMonth: numOrNull(form.includedHoursMonth),
+    priceMonthly: numOrNull(form.priceMonthly),
+    priceYearly: numOrNull(form.priceYearly),
     responseCriticalHours: numOrNull(form.responseCriticalHours),
     responseHighHours: numOrNull(form.responseHighHours),
     responseNormalHours: numOrNull(form.responseNormalHours),
@@ -308,6 +324,14 @@ export function CustomerSlaPanel({
                       {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
                     </strong>
                   </div>
+                  <div className="sla-metric">
+                    <span className="label">Preis / Monat</span>
+                    <strong>{formatSlaMoney(c.priceMonthly)}</strong>
+                  </div>
+                  <div className="sla-metric">
+                    <span className="label">Preis / Jahr</span>
+                    <strong>{formatSlaMoney(c.priceYearly)}</strong>
+                  </div>
                 </div>
 
                 <div className="sla-priority-row" aria-label="Reaktionszeiten">
@@ -444,6 +468,28 @@ export function CustomerSlaPanel({
               step={0.25}
               value={form.includedHoursMonth}
               onChange={(e) => setForm({ ...form, includedHoursMonth: e.target.value })}
+            />
+          </label>
+          <label className="field">
+            <span>Preis / Monat (€)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.priceMonthly}
+              onChange={(e) => setForm({ ...form, priceMonthly: e.target.value })}
+              placeholder="z. B. 299"
+            />
+          </label>
+          <label className="field">
+            <span>Preis / Jahr (€)</span>
+            <input
+              type="number"
+              min={0}
+              step={0.01}
+              value={form.priceYearly}
+              onChange={(e) => setForm({ ...form, priceYearly: e.target.value })}
+              placeholder="z. B. 3200"
             />
           </label>
           <label className="field">

@@ -247,6 +247,10 @@ export const contracts = sqliteTable("contracts", {
   coverageNote: text("coverage_note"),
   /** Enthaltene Support-Stunden pro Monat. */
   includedHoursMonth: real("included_hours_month"),
+  /** Monatlicher Preis (EUR). */
+  priceMonthly: real("price_monthly"),
+  /** Jährlicher Preis (EUR). */
+  priceYearly: real("price_yearly"),
   /**
    * Legacy: allgemeine Reaktionszeit in Stunden.
    * Wird mit `responseNormalHours` synchron gehalten.

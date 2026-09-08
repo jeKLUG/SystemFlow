@@ -34,7 +34,7 @@ Browser (React SPA)
 - **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
-- **contracts** – Verträge/SLA (keine Rechnungen)
+- **contracts** – Verträge/SLA (keine Rechnungen; optional Preis monatlich/jährlich in EUR)
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id`
 - **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`
 - **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage

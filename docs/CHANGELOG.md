@@ -12,6 +12,8 @@
 - Wiki-Editor: Checklisten-Checkboxen mittig zur ersten Zeile, klareres Design
 - Wiki-Seite: Icons bei Speichern / PDF / Löschen; Löschen mit Bestätigungsdialog
 - Wiki-PDF: schlichtes Layout – Kopfzeile (Logo + Titel), editornaher Inhalt, Seitenzahl; ohne Leerseiten/Deckblatt
+- SLA-PDF: gleiches schlichtes Layout (Kopfzeile, Seitenzahl), Leerseiten-Fix, klarere Abschnitte
+- SLA: monatlicher und jährlicher Preis (EUR) im Formular, Übersicht und PDF
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

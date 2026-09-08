@@ -161,13 +161,13 @@ Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne
 
 ## Verträge / SLA
 
-Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat, Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
+Detaillierte SLA-Felder: Status, Vertragsnr., Servicezeiten, inkl. Stunden/Monat, Preis monatlich/jährlich (EUR), Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
 
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/contracts` |
 | PUT/DELETE | `/api/contracts/:id` |
-| GET | `/api/contracts/:id/pdf` (SLA/Vertrag als PDF) |
+| GET | `/api/contracts/:id/pdf` | SLA/Vertrag als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl) |
 
 ## Anhänge / Dokumentenablage
 

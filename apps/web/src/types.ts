@@ -430,6 +430,8 @@ export interface ContractItem {
   coverageHours: string | null;
   coverageNote: string | null;
   includedHoursMonth: number | null;
+  priceMonthly: number | null;
+  priceYearly: number | null;
   slaResponseHours: number | null;
   responseCriticalHours: number | null;
   responseHighHours: number | null;

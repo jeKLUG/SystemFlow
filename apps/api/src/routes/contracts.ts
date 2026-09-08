@@ -20,6 +20,8 @@ const contractBody = z.object({
   coverageHours: optionalText(200),
   coverageNote: optionalText(1000),
   includedHoursMonth: z.coerce.number().nonnegative().max(10000).optional().nullable(),
+  priceMonthly: z.coerce.number().nonnegative().max(1_000_000).optional().nullable(),
+  priceYearly: z.coerce.number().nonnegative().max(10_000_000).optional().nullable(),
   /** Legacy-Feld; wird aus responseNormalHours abgeleitet, wenn gesetzt. */
   slaResponseHours: z.coerce.number().int().positive().max(8760).optional().nullable(),
   responseCriticalHours: optionalHours,
@@ -70,6 +72,8 @@ function mapContractFields(data: z.infer<typeof contractBody>) {
     coverageHours: emptyToNull(data.coverageHours),
     coverageNote: emptyToNull(data.coverageNote),
     includedHoursMonth: hoursOrNull(data.includedHoursMonth),
+    priceMonthly: hoursOrNull(data.priceMonthly),
+    priceYearly: hoursOrNull(data.priceYearly),
     slaResponseHours: slaLegacy,
     responseCriticalHours: hoursOrNull(data.responseCriticalHours),
     responseHighHours: hoursOrNull(data.responseHighHours),
