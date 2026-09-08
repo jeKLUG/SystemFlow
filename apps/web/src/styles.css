@@ -1462,6 +1462,12 @@ a.list-row {
   user-select: none;
 }
 
+.prices-toolbar-add {
+  flex: 0 0 auto;
+  min-height: 2.15rem;
+  padding-inline: 0.85rem;
+}
+
 .prices-loading {
   margin: 1rem 0;
 }

@@ -28,6 +28,7 @@
 - Preise: Artikelnummer wird beim Anlegen automatisch als `ART-YYYY-NNN` vergeben
 - Preise-Seite: klarerer Hero für Standards, kompakte Toolbar, bessere Karten und Empty-State
 - Zeiterfassung: beim Buchen 1–n Positionen aus dem Preiskatalog (Stunden/Pauschale/Stück) mit Menge; Betrag = Summe der Positionen
+- Zeiterfassung: kein automatischer Standard-/Projekt-Stundensatz mehr – Stundensätze explizit als Position (`__org_hourly__` / `__project_hourly__`) neben Artikeln wählbar
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

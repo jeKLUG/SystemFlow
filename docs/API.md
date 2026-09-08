@@ -23,7 +23,7 @@ UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung �
 | PUT/DELETE | `/api/price-items/:id` | Aktualisieren / löschen |
 | GET | `/api/customers/:id/billing-preview?from=&to=` | Abrechenbare Zeiten als Positionen + Summen |
 
-Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot`, optional `priceItemId` und `lines[]` (Katalog-Positionen).
+Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot`, optional `priceItemId` und `lines[]` (Katalog- oder Stundensatz-Positionen; ohne Positionen kein automatischer Betrag).
 
 ## Kunden / Kontakte
 
@@ -78,11 +78,13 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | PUT | `/api/time-entries/:id` | Aktualisieren (Zeiten/Stunden nachträglich anpassen) |
 | DELETE | `/api/time-entries/:id` | Löschen |
 
-Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Katalog-Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `billed`. Ohne `lines` gilt Standard-/Projekt-Stundensatz. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+
+`lines[].priceItemId` kann eine Katalog-ID sein oder virtuell `__org_hourly__` (Standard-Stundensatz) bzw. `__project_hourly__` (Projekt-Stundensatz, Projekt erforderlich). Ohne `lines` und ohne `priceItemId` entsteht **kein** automatischer Betrag. Legacy: nur `priceItemId` ohne `lines` setzt weiterhin den Katalog-Satz.
 
 Antworten enthalten `lines` mit Snapshots (`nameSnapshot`, `kindSnapshot`, `quantity`, `unitPriceSnapshot`, `amountSnapshot`).
 
-Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Ohne Zeiten: App-Zeitzone (`APP_TIMEZONE`, Standard `Europe/Berlin`). Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
+Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Ohne `priceItemId` kein Stundensatz-Snapshot. Ohne Zeiten: App-Zeitzone (`APP_TIMEZONE`, Standard `Europe/Berlin`). Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
 
 Body (Clock-out): optional `endTime`, `description`, `entryId`. Gleiche Minute wie Start → 1 Minute (nicht 24 h).
 

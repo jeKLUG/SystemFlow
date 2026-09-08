@@ -190,11 +190,6 @@ export function PricesPage() {
         <div>
           <h2>Preise</h2>
         </div>
-        <div className="page-actions">
-          <button type="button" className="btn btn-primary" onClick={() => openCreate()}>
-            + Position
-          </button>
-        </div>
       </div>
 
       <section className="prices-hero panel">
@@ -274,6 +269,13 @@ export function PricesPage() {
           />
           Inaktive
         </label>
+        <button
+          type="button"
+          className="btn btn-primary prices-toolbar-add"
+          onClick={() => openCreate()}
+        >
+          + Position
+        </button>
       </div>
 
       {loading ? (

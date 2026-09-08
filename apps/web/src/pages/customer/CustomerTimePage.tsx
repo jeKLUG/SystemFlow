@@ -8,6 +8,18 @@ import { formatDateOnly } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
 import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
 
+/** Virtuelle Positions-IDs (API: Standard-/Projekt-Stundensatz). */
+const RATE_LINE_ORG = "__org_hourly__";
+const RATE_LINE_PROJECT = "__project_hourly__";
+
+type LineOption = {
+  id: string;
+  name: string;
+  kind: "hourly" | "fixed" | "unit";
+  unitPrice: number;
+  unitLabel?: string | null;
+};
+
 type FormLine = {
   key: string;
   priceItemId: string;
@@ -102,6 +114,7 @@ export function CustomerTimePage() {
   const [projects, setProjects] = useState<ProjectItem[]>([]);
   const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
   const [currency, setCurrency] = useState("EUR");
+  const [defaultHourlyRate, setDefaultHourlyRate] = useState<number | null>(null);
   const [filterProject, setFilterProject] = useState("");
   const [modalMode, setModalMode] = useState<"create" | "edit" | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -125,6 +138,57 @@ export function CustomerTimePage() {
     () => priceItems.filter((p) => p.active).sort((a, b) => a.name.localeCompare(b.name, "de")),
     [priceItems],
   );
+
+  const selectedProject = useMemo(
+    () => projects.find((p) => p.id === form.projectId) ?? null,
+    [projects, form.projectId],
+  );
+
+  /** Wählbare Positionen: Standard-/Projekt-Stundensatz + Katalog. */
+  const lineOptions = useMemo((): LineOption[] => {
+    const opts: LineOption[] = [];
+    if (defaultHourlyRate != null) {
+      opts.push({
+        id: RATE_LINE_ORG,
+        name: "Standard-Stundensatz",
+        kind: "hourly",
+        unitPrice: defaultHourlyRate,
+        unitLabel: "h",
+      });
+    }
+    if (selectedProject?.hourlyRate != null) {
+      opts.push({
+        id: RATE_LINE_PROJECT,
+        name: `Projekt-Stundensatz (${selectedProject.name})`,
+        kind: "hourly",
+        unitPrice: selectedProject.hourlyRate,
+        unitLabel: "h",
+      });
+    }
+    for (const p of catalogPrices) {
+      opts.push({
+        id: p.id,
+        name: p.name,
+        kind: p.kind,
+        unitPrice: p.unitPrice,
+        unitLabel: p.unitLabel,
+      });
+    }
+    return opts;
+  }, [defaultHourlyRate, selectedProject, catalogPrices]);
+
+  function defaultLineId(): string | null {
+    if (selectedProject?.hourlyRate != null) return RATE_LINE_PROJECT;
+    if (defaultHourlyRate != null) return RATE_LINE_ORG;
+    return catalogPrices[0]?.id ?? null;
+  }
+
+  function quantityForOption(opt: LineOption | undefined): string {
+    if (opt?.kind === "hourly" && computedHours != null) {
+      return String(computedHours).replace(".", ",");
+    }
+    return "1";
+  }
 
   const running = useMemo(() => entries.find(isRunningEntry) ?? null, [entries]);
 
@@ -154,6 +218,7 @@ export function CustomerTimePage() {
     setProjects(p);
     setPriceItems(prices);
     setCurrency(org.currency || "EUR");
+    setDefaultHourlyRate(org.defaultHourlyRate ?? null);
   }
 
   useEffect(() => {
@@ -780,7 +845,22 @@ export function CustomerTimePage() {
             <span>Projekt</span>
             <select
               value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+              onChange={(e) => {
+                const projectId = e.target.value;
+                const nextProject = projects.find((p) => p.id === projectId);
+                const lines =
+                  nextProject?.hourlyRate != null
+                    ? form.lines
+                    : form.lines.map((l) => {
+                        if (l.priceItemId !== RATE_LINE_PROJECT) return l;
+                        const fallback =
+                          defaultHourlyRate != null
+                            ? RATE_LINE_ORG
+                            : catalogPrices[0]?.id ?? "";
+                        return fallback ? { ...l, priceItemId: fallback } : l;
+                      });
+                setForm({ ...form, projectId, lines });
+              }}
             >
               <option value="">Kein Projekt</option>
               {projects.map((p) => (
@@ -793,23 +873,24 @@ export function CustomerTimePage() {
           </label>
           <div className="field full time-catalog">
             <div className="time-catalog-head">
-              <span>Leistungen aus Katalog</span>
+              <span>Leistungen</span>
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
-                disabled={catalogPrices.length === 0}
+                disabled={lineOptions.length === 0}
                 onClick={() => {
-                  const first = catalogPrices[0];
-                  if (!first) return;
-                  const qty =
-                    first.kind === "hourly" && computedHours != null
-                      ? String(computedHours).replace(".", ",")
-                      : "1";
+                  const id = defaultLineId();
+                  if (!id) return;
+                  const opt = lineOptions.find((o) => o.id === id);
                   setForm({
                     ...form,
                     lines: [
                       ...form.lines,
-                      { key: newLineKey(), priceItemId: first.id, quantity: qty },
+                      {
+                        key: newLineKey(),
+                        priceItemId: id,
+                        quantity: quantityForOption(opt),
+                      },
                     ],
                   });
                 }}
@@ -819,13 +900,13 @@ export function CustomerTimePage() {
             </div>
             {form.lines.length === 0 ? (
               <p className="muted time-catalog-empty">
-                Keine Katalog-Positionen – es gilt der Standard-/Projekt-Stundensatz für die
-                gebuchten Stunden.
+                Keine Positionen – Betrag bleibt leer. Stundensatz und Artikel über „+ Position“
+                hinzufügen (z. B. Projektstundensatz + Artikel).
               </p>
             ) : (
               <ul className="time-catalog-lines">
                 {form.lines.map((line, index) => {
-                  const item = catalogPrices.find((p) => p.id === line.priceItemId);
+                  const item = lineOptions.find((o) => o.id === line.priceItemId);
                   return (
                     <li key={line.key} className="time-catalog-line">
                       <select
@@ -833,25 +914,35 @@ export function CustomerTimePage() {
                         aria-label={`Position ${index + 1}`}
                         onChange={(e) => {
                           const nextId = e.target.value;
-                          const nextItem = catalogPrices.find((p) => p.id === nextId);
+                          const nextItem = lineOptions.find((o) => o.id === nextId);
                           const nextLines = form.lines.map((l, i) => {
                             if (i !== index) return l;
-                            const qty =
-                              nextItem?.kind === "hourly" && computedHours != null
-                                ? String(computedHours).replace(".", ",")
-                                : l.quantity || "1";
-                            return { ...l, priceItemId: nextId, quantity: qty };
+                            return {
+                              ...l,
+                              priceItemId: nextId,
+                              quantity: quantityForOption(nextItem),
+                            };
                           });
                           setForm({ ...form, lines: nextLines });
                         }}
                       >
-                        {catalogPrices.map((p) => (
+                        {lineOptions.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name} · {kindShort[p.kind] ?? p.kind} ·{" "}
                             {p.unitPrice.toLocaleString("de-DE")} {currency}
                             {p.unitLabel ? `/${p.unitLabel}` : ""}
                           </option>
                         ))}
+                        {/* Bestehende virtuelle Zeile behalten, falls Projekt gerade keinen Satz hat */}
+                        {!lineOptions.some((o) => o.id === line.priceItemId) && line.priceItemId ? (
+                          <option value={line.priceItemId}>
+                            {line.priceItemId === RATE_LINE_PROJECT
+                              ? "Projekt-Stundensatz (nicht verfügbar)"
+                              : line.priceItemId === RATE_LINE_ORG
+                                ? "Standard-Stundensatz (nicht verfügbar)"
+                                : "Unbekannte Position"}
+                          </option>
+                        ) : null}
                       </select>
                       <input
                         inputMode="decimal"

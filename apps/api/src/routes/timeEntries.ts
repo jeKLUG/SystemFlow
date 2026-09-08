@@ -2,7 +2,14 @@ import { and, asc, desc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { customers, priceItems, projects, timeEntries, timeEntryLines } from "../db/schema.js";
+import {
+  customers,
+  orgSettings,
+  priceItems,
+  projects,
+  timeEntries,
+  timeEntryLines,
+} from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { nowTime, todayIso } from "../lib/dates.js";
 import { hoursFromRange } from "../lib/time.js";
@@ -12,10 +19,20 @@ import { resolveHourlyRate } from "./pricing.js";
 
 const timeStr = z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, "Uhrzeit als HH:mm");
 
+/** Virtuelle Positions-IDs für Standard-/Projekt-Stundensatz (kein Katalog-Eintrag). */
+export const RATE_LINE_ORG = "__org_hourly__";
+export const RATE_LINE_PROJECT = "__project_hourly__";
+
+const SETTINGS_ID = "default";
+
 const lineInput = z.object({
   priceItemId: z.string().min(1),
   quantity: z.number().positive().max(10000).optional(),
 });
+
+function isVirtualRateLine(priceItemId: string) {
+  return priceItemId === RATE_LINE_ORG || priceItemId === RATE_LINE_PROJECT;
+}
 
 const entryBody = z
   .object({
@@ -130,7 +147,8 @@ type BuiltLine = {
 };
 
 /**
- * Baut Snapshot-Zeilen aus Katalog-Eingaben.
+ * Baut Snapshot-Zeilen aus Katalog- und virtuellen Stundensatz-Positionen.
+ * Virtuelle IDs: `__org_hourly__` (Standard), `__project_hourly__` (Projekt).
  */
 async function buildCatalogLines(
   db: Db,
@@ -138,18 +156,50 @@ async function buildCatalogLines(
   input: { priceItemId: string; quantity?: number }[],
   entryHours: number,
   billable: boolean,
+  projectId: string | null,
 ): Promise<{
   lines: BuiltLine[];
   amountSnapshot: number | null;
   rateSnapshot: number | null;
   priceItemId: string | null;
 }> {
-  const ids = [...new Set(input.map((l) => l.priceItemId))];
+  const catalogIds = [
+    ...new Set(input.map((l) => l.priceItemId).filter((id) => !isVirtualRateLine(id))),
+  ];
   const items =
-    ids.length > 0
-      ? await db.select().from(priceItems).where(inArray(priceItems.id, ids)).all()
+    catalogIds.length > 0
+      ? await db.select().from(priceItems).where(inArray(priceItems.id, catalogIds)).all()
       : [];
   const map = new Map(items.map((i) => [i.id, i]));
+
+  let orgRate: number | null | undefined;
+  let projectRate: number | null | undefined;
+  let projectName: string | undefined;
+
+  async function resolveOrgRate() {
+    if (orgRate !== undefined) return orgRate;
+    const settings = await db
+      .select()
+      .from(orgSettings)
+      .where(eq(orgSettings.id, SETTINGS_ID))
+      .get();
+    orgRate = settings?.defaultHourlyRate ?? null;
+    return orgRate;
+  }
+
+  async function resolveProjectRate() {
+    if (projectRate !== undefined) return { rate: projectRate, name: projectName ?? "Projekt" };
+    if (!projectId) {
+      throw new Error("Projekt-Stundensatz erfordert ein gewähltes Projekt");
+    }
+    const project = await db.select().from(projects).where(eq(projects.id, projectId)).get();
+    if (!project || project.hourlyRate == null) {
+      throw new Error("Gewähltes Projekt hat keinen Stundensatz");
+    }
+    projectRate = project.hourlyRate;
+    projectName = project.name;
+    return { rate: projectRate, name: projectName };
+  }
 
   const lines: BuiltLine[] = [];
   let total = 0;
@@ -158,33 +208,64 @@ async function buildCatalogLines(
 
   for (let i = 0; i < input.length; i++) {
     const raw = input[i]!;
-    const item = map.get(raw.priceItemId);
-    if (!item) {
-      throw new Error(`Unbekannte Preisposition: ${raw.priceItemId}`);
+    let name: string;
+    let kind: "hourly" | "fixed" | "unit";
+    let unitLabel: string | null;
+    let unitPrice: number;
+    let linePriceId: string;
+
+    if (raw.priceItemId === RATE_LINE_ORG) {
+      const rate = await resolveOrgRate();
+      if (rate == null) {
+        throw new Error("Kein Standard-Stundensatz hinterlegt");
+      }
+      name = "Standard-Stundensatz";
+      kind = "hourly";
+      unitLabel = "h";
+      unitPrice = rate;
+      linePriceId = RATE_LINE_ORG;
+    } else if (raw.priceItemId === RATE_LINE_PROJECT) {
+      const { rate, name: pName } = await resolveProjectRate();
+      name = `Projekt-Stundensatz (${pName})`;
+      kind = "hourly";
+      unitLabel = "h";
+      unitPrice = rate!;
+      linePriceId = RATE_LINE_PROJECT;
+    } else {
+      const item = map.get(raw.priceItemId);
+      if (!item) {
+        throw new Error(`Unbekannte Preisposition: ${raw.priceItemId}`);
+      }
+      name = item.name;
+      kind = item.kind;
+      unitLabel = item.unitLabel;
+      unitPrice = item.unitPrice;
+      linePriceId = item.id;
     }
+
     const quantity =
       raw.quantity != null && Number.isFinite(raw.quantity)
         ? roundMoney(raw.quantity)
-        : item.kind === "hourly"
+        : kind === "hourly"
           ? entryHours > 0
             ? entryHours
             : 1
           : 1;
-    const amount = billable ? roundMoney(quantity * item.unitPrice) : null;
+    const amount = billable ? roundMoney(quantity * unitPrice) : null;
     if (amount != null) total += amount;
-    if (item.kind === "hourly" && primaryPriceId == null) {
-      primaryPriceId = item.id;
-      rateSnapshot = item.unitPrice;
+    if (kind === "hourly" && primaryPriceId == null) {
+      primaryPriceId = linePriceId;
+      rateSnapshot = unitPrice;
     }
     lines.push({
       id: createId("tline"),
       timeEntryId,
-      priceItemId: item.id,
-      nameSnapshot: item.name,
-      kindSnapshot: item.kind,
-      unitLabelSnapshot: item.unitLabel,
+      priceItemId: linePriceId,
+      nameSnapshot: name,
+      kindSnapshot: kind,
+      unitLabelSnapshot: unitLabel,
       quantity,
-      unitPriceSnapshot: item.unitPrice,
+      unitPriceSnapshot: unitPrice,
       amountSnapshot: amount,
       sortOrder: i,
     });
@@ -192,7 +273,7 @@ async function buildCatalogLines(
 
   return {
     lines,
-    amountSnapshot: billable && lines.length ? roundMoney(total) : billable ? null : null,
+    amountSnapshot: billable && lines.length ? roundMoney(total) : null,
     rateSnapshot,
     priceItemId: primaryPriceId ?? lines[0]?.priceItemId ?? null,
   };
@@ -403,7 +484,14 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
 
     if (parsed.data.lines && parsed.data.lines.length > 0) {
       try {
-        const built = await buildCatalogLines(db, id, parsed.data.lines, resolved.hours, billable);
+        const built = await buildCatalogLines(
+          db,
+          id,
+          parsed.data.lines,
+          resolved.hours,
+          billable,
+          projectId,
+        );
         lines = built.lines;
         priceItemId = built.priceItemId;
         rateSnapshot = built.rateSnapshot;
@@ -413,12 +501,18 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
           .code(400)
           .send({ error: err instanceof Error ? err.message : "Ungültige Katalog-Positionen" });
       }
-    } else {
+    } else if (priceItemId) {
+      // Legacy: einzelne Katalog-Position ohne lines[]
       const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
       priceItemId = resolvedRate.priceItemId;
       const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
       rateSnapshot = money.rateSnapshot;
       amountSnapshot = money.amountSnapshot;
+    } else {
+      // Kein automatischer Stundensatz – Leistungen explizit über lines hinzufügen
+      priceItemId = null;
+      rateSnapshot = null;
+      amountSnapshot = null;
     }
 
     const row = {
@@ -506,12 +600,18 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const priceItemId = emptyToNull(body.priceItemId);
-    const { rate, priceItemId: resolvedPriceId } = await resolveHourlyRate(db, {
-      priceItemId,
-      projectId,
-    });
     const billable = body.billable ?? true;
-    const money = amountFrom(0, rate, billable);
+    // Stempeluhr startet ohne Betrag; Sätze beim Bearbeiten/Ausstempeln über Positionen
+    let rateSnapshot: number | null = null;
+    let amountSnapshot: number | null = null;
+    let resolvedPriceId: string | null = priceItemId;
+    if (priceItemId) {
+      const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
+      resolvedPriceId = resolvedRate.priceItemId;
+      const money = amountFrom(0, resolvedRate.rate, billable);
+      rateSnapshot = money.rateSnapshot;
+      amountSnapshot = money.amountSnapshot;
+    }
 
     const row = {
       id: createId("time"),
@@ -525,8 +625,8 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       description: emptyToNull(body.description),
       billable,
       billed: false,
-      rateSnapshot: money.rateSnapshot,
-      amountSnapshot: money.amountSnapshot,
+      rateSnapshot,
+      amountSnapshot,
       createdAt: now,
       updatedAt: now,
     };
@@ -594,6 +694,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         })),
         hours,
         open.billable,
+        open.projectId,
       );
       await replaceLines(db, open.id, rebuilt.lines);
       rateSnapshot = rebuilt.rateSnapshot;
@@ -713,6 +814,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
             parsed.data.lines,
             resolved.hours,
             billable,
+            projectId,
           );
           lines = built.lines;
           priceItemId = built.priceItemId;
@@ -724,14 +826,9 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
             .send({ error: err instanceof Error ? err.message : "Ungültige Katalog-Positionen" });
         }
       } else {
-        const resolvedRate = await resolveHourlyRate(db, {
-          priceItemId: null,
-          projectId,
-        });
-        priceItemId = resolvedRate.priceItemId;
-        const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
-        rateSnapshot = money.rateSnapshot;
-        amountSnapshot = money.amountSnapshot;
+        priceItemId = null;
+        rateSnapshot = null;
+        amountSnapshot = null;
         lines = [];
       }
       await replaceLines(db, id, lines);
@@ -752,16 +849,22 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
           })),
           resolved.hours,
           billable,
+          projectId,
         );
         await replaceLines(db, id, rebuilt.lines);
         lines = rebuilt.lines;
         priceItemId = rebuilt.priceItemId;
         rateSnapshot = rebuilt.rateSnapshot;
         amountSnapshot = rebuilt.amountSnapshot;
-      } else {
+      } else if (priceItemId) {
         const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
         priceItemId = resolvedRate.priceItemId;
         const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
+        rateSnapshot = money.rateSnapshot;
+        amountSnapshot = money.amountSnapshot;
+      } else {
+        // Bestehenden Snapshot bei Stundenänderung behalten (Legacy ohne Positionen)
+        const money = amountFrom(resolved.hours, existing.rateSnapshot, billable);
         rateSnapshot = money.rateSnapshot;
         amountSnapshot = money.amountSnapshot;
       }
