@@ -20,6 +20,9 @@
 - PDF-Export: Leerseiten durch Fußzeilen-Text unter der Bottom-Margin behoben
 - SLA-PDF: blaue Akzentstriche unter Abschnittsüberschriften entfernt
 - SLA-Ansicht: klarere Karten (Preis hervorgehoben, Prioritäten-Matrix immer sichtbar, ruhigere Details)
+- Preise: eigene App in der Navbar (`/prices`) für Katalog und Standardpreise; Preiskatalog aus den Einstellungen entfernt
+- Einstellungen: nur noch Profil (Passwort) und Sicherung
+- Wiki-PDF: Bilder größer/schärfer – Editorbreite beachten, Rahmen, bessere Seitenpassung
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

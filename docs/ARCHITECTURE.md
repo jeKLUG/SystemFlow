@@ -29,8 +29,8 @@ Browser (React SPA)
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz
 - **documents** – Wiki/Notizen (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`; `customerId` optional (Schnellnotiz ohne Kunde), optional `projectId`
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot
-- **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (unter Konto)
-- **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`)
+- **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App)
+- **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`; UI: Preise-App unter `/prices`)
 - **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
@@ -57,6 +57,7 @@ Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
+Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält nur Passwort und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
 
 ## Zeitzone

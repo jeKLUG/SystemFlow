@@ -11,9 +11,9 @@ Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`
 | GET | `/api/auth/me` | Aktueller Benutzer |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
 
-## Preise / Konto (Rechnungsvorbereitung)
+## Preise (Rechnungsvorbereitung)
 
-Keine Lexware-Anbindung – Stammdaten für spätere Abrechnung aus der Historie.
+UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung – Stammdaten für spätere Abrechnung aus der Historie.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|

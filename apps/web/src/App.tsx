@@ -16,6 +16,7 @@ import { DocumentPage } from "./pages/DocumentPage";
 import { LoginPage } from "./pages/LoginPage";
 import { QuickNotePage } from "./pages/QuickNotePage";
 import { RemindersPage } from "./pages/RemindersPage";
+import { PricesPage } from "./pages/PricesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
 
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="reminders" element={<Navigate to="/tasks" replace />} />
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="prices" element={<PricesPage />} />
         <Route path="vault" element={<VaultPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="customers" element={<CustomersPage />} />

@@ -45,6 +45,12 @@ const icon = {
       <path d="M14 3.5V8h4.5M8.5 12h7M8.5 15.5h5" />
     </svg>
   ),
+  prices: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M12 3.5v17" strokeLinecap="round" />
+      <path d="M15.5 7.2c-.7-1.1-2-1.8-3.5-1.8-2.1 0-3.8 1.4-3.8 3.2 0 3.5 7.3 1.8 7.3 5.4 0 1.8-1.7 3.3-4 3.3-1.7 0-3.1-.8-3.8-2" strokeLinecap="round" />
+    </svg>
+  ),
   settings: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
       <circle cx="12" cy="12" r="3" />
@@ -72,6 +78,7 @@ const primaryNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
+  { to: "/prices", label: "Preise", icon: icon.prices },
   { to: "/quick-note", label: "Schnellnotiz", icon: icon.note },
   { to: "/settings", label: "Konto", icon: icon.settings },
 ];

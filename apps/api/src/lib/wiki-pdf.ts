@@ -436,7 +436,6 @@ function renderImage(
 ) {
   const alt = String(node.attrs?.alt ?? "Bild");
   const src = String(node.attrs?.src ?? "");
-  const maxH = 260;
   const filePath = src && resolveImage ? resolveImage(src) : null;
 
   if (filePath) {
@@ -447,13 +446,47 @@ function renderImage(
         }
       ).openImage.bind(doc);
       const img = openImage(filePath);
-      const scale = Math.min(width / img.width, maxH / img.height, 1);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      ensureSpace(doc, Math.min(h + 16, contentBottom(doc) - contentTop(doc) - 4));
-      const x = MARGIN + (width - w) / 2;
-      doc.image(filePath, x, doc.y, { width: w, height: h });
-      doc.y += h + 8;
+      const natW = Math.max(1, img.width);
+      const natH = Math.max(1, img.height);
+
+      const pad = 5;
+      const gap = 12;
+      const pageInnerH = contentBottom(doc) - contentTop(doc) - 4;
+      const maxH = Math.min(pageInnerH, 560);
+
+      const intendedW = resolveImageDisplayWidth(node.attrs, width, natW);
+      let drawW = intendedW;
+      let drawH = (natH / natW) * drawW;
+      if (drawH > maxH) {
+        drawH = maxH;
+        drawW = (natW / natH) * drawH;
+      }
+
+      const boxH = drawH + pad * 2;
+      ensureSpace(doc, Math.min(boxH + gap, pageInnerH));
+
+      const avail = contentBottom(doc) - doc.y - gap;
+      if (boxH > avail && avail > 96) {
+        const scale = (avail - pad * 2) / drawH;
+        drawW *= scale;
+        drawH *= scale;
+      }
+
+      const frameW = drawW + pad * 2;
+      const frameH = drawH + pad * 2;
+      const align = resolveImageAlign(node.attrs);
+      let x = MARGIN;
+      if (align === "center") x = MARGIN + (width - frameW) / 2;
+      else if (align === "right") x = MARGIN + width - frameW;
+
+      const y0 = doc.y;
+      doc
+        .save()
+        .roundedRect(x, y0, frameW, frameH, 6)
+        .fillAndStroke("#ffffff", RULE)
+        .restore();
+      doc.image(filePath, x + pad, y0 + pad, { width: drawW, height: drawH });
+      doc.y = y0 + frameH + gap;
       doc.x = MARGIN;
       return;
     } catch {
@@ -464,6 +497,53 @@ function renderImage(
   ensureSpace(doc, 16);
   doc.font("Helvetica-Oblique").fontSize(9).fillColor(MUTED).text(`[Bild: ${alt}]`);
   doc.moveDown(0.3);
+}
+
+/** Anzeigebreite aus Editor-Attrs bzw. sinnvolle Fallback-Größe. */
+function resolveImageDisplayWidth(
+  attrs: Record<string, unknown> | undefined,
+  contentWidth: number,
+  naturalWidth: number,
+): number {
+  const fromAttr = parsePositiveNumber(attrs?.width);
+  const fromStyle = parseCssPxWidth(attrs?.containerStyle);
+  const intended = fromAttr ?? fromStyle;
+  if (intended != null) return Math.min(Math.max(intended, 48), contentWidth);
+
+  // Ohne explizite Größe: große Fotos/Screenshots über die volle Textbreite,
+  // kleine Grafiken in natürlicher Größe belassen.
+  if (naturalWidth >= contentWidth * 0.85) return contentWidth;
+  return Math.min(naturalWidth, contentWidth);
+}
+
+function parsePositiveNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value) && value > 0) return value;
+  if (typeof value === "string") {
+    const n = Number.parseFloat(value.replace(/px$/i, "").trim());
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}
+
+function parseCssPxWidth(style: unknown): number | null {
+  if (typeof style !== "string" || !style.trim()) return null;
+  const m = /(?:^|;)\s*width\s*:\s*([0-9.]+)px\b/i.exec(style);
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function resolveImageAlign(attrs: Record<string, unknown> | undefined): "left" | "center" | "right" {
+  const wrap = String(attrs?.wrapperStyle ?? "");
+  const container = String(attrs?.containerStyle ?? "");
+  const style = `${wrap};${container}`;
+  if (/float\s*:\s*right/i.test(style)) return "right";
+  if (/float\s*:\s*left/i.test(style)) return "left";
+  if (/text-align\s*:\s*right/i.test(style)) return "right";
+  if (/text-align\s*:\s*center/i.test(style)) return "center";
+  if (/margin-left\s*:\s*auto/i.test(style) && /margin-right\s*:\s*auto/i.test(style)) return "center";
+  if (/margin-left\s*:\s*auto/i.test(style)) return "right";
+  return "center";
 }
 
 function renderList(

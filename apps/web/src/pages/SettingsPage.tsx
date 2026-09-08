@@ -1,25 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth";
 import { api } from "../api";
-import type { OrgSettings, PriceItem, PriceItemKind } from "../types";
-
-const kindLabel: Record<PriceItemKind, string> = {
-  hourly: "Stundensatz",
-  fixed: "Pauschale",
-  unit: "Stückpreis",
-};
-
-const emptyPrice = {
-  name: "",
-  description: "",
-  kind: "hourly" as PriceItemKind,
-  unitLabel: "",
-  unitPrice: "",
-  sku: "",
-};
 
 /**
- * Konto: Passwort sowie Stundensätze / Preiskatalog für Rechnungsvorbereitung.
+ * Konto: Passwort ändern und Datensicherung.
  */
 export function SettingsPage() {
   const { user, changePassword } = useAuth();
@@ -30,20 +14,6 @@ export function SettingsPage() {
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const [org, setOrg] = useState<OrgSettings | null>(null);
-  const [orgForm, setOrgForm] = useState({
-    defaultHourlyRate: "",
-    currency: "EUR",
-    defaultVatPercent: "19",
-    invoiceNote: "",
-  });
-  const [orgMsg, setOrgMsg] = useState("");
-  const [prices, setPrices] = useState<PriceItem[]>([]);
-  const [priceForm, setPriceForm] = useState(emptyPrice);
-  const [showPriceForm, setShowPriceForm] = useState(false);
-  const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
-  const [priceError, setPriceError] = useState("");
-
   const [backupBusy, setBackupBusy] = useState(false);
   const [backupMsg, setBackupMsg] = useState("");
   const [backupInfo, setBackupInfo] = useState<{
@@ -52,22 +22,7 @@ export function SettingsPage() {
     hint: string;
   } | null>(null);
 
-  async function loadPricing() {
-    const [settings, items] = await Promise.all([api.orgSettings(), api.priceItems()]);
-    setOrg(settings);
-    setOrgForm({
-      defaultHourlyRate:
-        settings.defaultHourlyRate != null ? String(settings.defaultHourlyRate) : "",
-      currency: settings.currency || "EUR",
-      defaultVatPercent:
-        settings.defaultVatPercent != null ? String(settings.defaultVatPercent) : "",
-      invoiceNote: settings.invoiceNote ?? "",
-    });
-    setPrices(items);
-  }
-
   useEffect(() => {
-    void loadPricing();
     void api
       .backupInfo()
       .then((info) => setBackupInfo(info))
@@ -138,79 +93,12 @@ export function SettingsPage() {
     }
   }
 
-  async function saveOrg(e: FormEvent) {
-    e.preventDefault();
-    setOrgMsg("");
-    try {
-      const updated = await api.updateOrgSettings({
-        defaultHourlyRate: orgForm.defaultHourlyRate
-          ? Number(orgForm.defaultHourlyRate)
-          : null,
-        currency: orgForm.currency.trim() || "EUR",
-        defaultVatPercent: orgForm.defaultVatPercent
-          ? Number(orgForm.defaultVatPercent)
-          : null,
-        invoiceNote: orgForm.invoiceNote,
-      });
-      setOrg(updated);
-      setOrgMsg("Gespeichert");
-      window.setTimeout(() => setOrgMsg(""), 2000);
-    } catch (err) {
-      setOrgMsg(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
-    }
-  }
-
-  function startEditPrice(item: PriceItem) {
-    setEditingPriceId(item.id);
-    setShowPriceForm(true);
-    setPriceForm({
-      name: item.name,
-      description: item.description ?? "",
-      kind: item.kind,
-      unitLabel: item.unitLabel ?? "",
-      unitPrice: String(item.unitPrice),
-      sku: item.sku ?? "",
-    });
-  }
-
-  function resetPriceForm() {
-    setPriceForm(emptyPrice);
-    setEditingPriceId(null);
-    setShowPriceForm(false);
-    setPriceError("");
-  }
-
-  async function savePrice(e: FormEvent) {
-    e.preventDefault();
-    setPriceError("");
-    const body = {
-      name: priceForm.name,
-      description: priceForm.description,
-      kind: priceForm.kind,
-      unitLabel: priceForm.unitLabel,
-      unitPrice: Number(priceForm.unitPrice),
-      sku: priceForm.sku,
-      active: true,
-    };
-    try {
-      if (editingPriceId) {
-        await api.updatePriceItem(editingPriceId, body);
-      } else {
-        await api.createPriceItem(body);
-      }
-      resetPriceForm();
-      await loadPricing();
-    } catch (err) {
-      setPriceError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
-    }
-  }
-
   return (
     <div className="page settings-page">
       <div className="page-header">
         <div>
           <h2>Einstellungen</h2>
-          <p className="muted">Konto und Abrechnung · {user?.username}</p>
+          <p className="muted">Konto und Sicherung · {user?.username}</p>
         </div>
       </div>
 
@@ -266,222 +154,6 @@ export function SettingsPage() {
             </button>
           </div>
         </form>
-      </section>
-
-      <section className="panel settings-card">
-        <header className="settings-card-head">
-          <div>
-            <p className="eyebrow">Abrechnung</p>
-            <h3>Standardpreise</h3>
-          </div>
-        </header>
-        <p className="settings-card-lead muted">
-          Satz für neue Zeitbuchungen (Snapshot). Rechnungen schreibst du weiter in Lexware – hier
-          sammelst du die Beträge aus der Kundenhistorie.
-        </p>
-        <form className="settings-org-form" onSubmit={saveOrg}>
-          <label className="field">
-            <span>Stundensatz</span>
-            <input
-              type="number"
-              min={0}
-              step={0.01}
-              value={orgForm.defaultHourlyRate}
-              onChange={(e) => setOrgForm({ ...orgForm, defaultHourlyRate: e.target.value })}
-              placeholder="z. B. 95"
-            />
-          </label>
-          <label className="field">
-            <span>Währung</span>
-            <input
-              value={orgForm.currency}
-              onChange={(e) => setOrgForm({ ...orgForm, currency: e.target.value.toUpperCase() })}
-              maxLength={8}
-            />
-          </label>
-          <label className="field">
-            <span>MwSt. %</span>
-            <input
-              type="number"
-              min={0}
-              max={100}
-              step={0.1}
-              value={orgForm.defaultVatPercent}
-              onChange={(e) => setOrgForm({ ...orgForm, defaultVatPercent: e.target.value })}
-            />
-          </label>
-          <label className="field settings-span-all">
-            <span>Hinweistext für Abrechnung</span>
-            <textarea
-              rows={2}
-              value={orgForm.invoiceNote}
-              onChange={(e) => setOrgForm({ ...orgForm, invoiceNote: e.target.value })}
-              placeholder="z. B. Zahlung innerhalb 14 Tagen …"
-            />
-          </label>
-          {orgMsg ? <p className="form-success settings-span-all">{orgMsg}</p> : null}
-          <div className="settings-span-all">
-            <button className="btn btn-primary" type="submit">
-              Speichern
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <section className="panel settings-card">
-        <header className="settings-card-head">
-          <div>
-            <p className="eyebrow">Katalog</p>
-            <h3>Preispositionen</h3>
-            <p className="muted">Stundensätze, Pauschalen und Stückpreise</p>
-          </div>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={() => {
-              if (showPriceForm && !editingPriceId) resetPriceForm();
-              else {
-                setEditingPriceId(null);
-                setPriceForm(emptyPrice);
-                setShowPriceForm(true);
-              }
-            }}
-          >
-            {showPriceForm && !editingPriceId ? "Abbrechen" : "+ Position"}
-          </button>
-        </header>
-
-        {showPriceForm ? (
-          <form className="settings-price-form form-grid" onSubmit={savePrice}>
-            <label className="field">
-              <span>Bezeichnung *</span>
-              <input
-                required
-                value={priceForm.name}
-                onChange={(e) => setPriceForm({ ...priceForm, name: e.target.value })}
-                placeholder="z. B. Remote Support"
-              />
-            </label>
-            <label className="field">
-              <span>Art</span>
-              <select
-                value={priceForm.kind}
-                onChange={(e) =>
-                  setPriceForm({ ...priceForm, kind: e.target.value as PriceItemKind })
-                }
-              >
-                {(Object.keys(kindLabel) as PriceItemKind[]).map((k) => (
-                  <option key={k} value={k}>
-                    {kindLabel[k]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="field">
-              <span>Preis ({org?.currency ?? "EUR"})</span>
-              <input
-                type="number"
-                required
-                min={0}
-                step={0.01}
-                value={priceForm.unitPrice}
-                onChange={(e) => setPriceForm({ ...priceForm, unitPrice: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Einheit</span>
-              <input
-                value={priceForm.unitLabel}
-                onChange={(e) => setPriceForm({ ...priceForm, unitLabel: e.target.value })}
-                placeholder="Stunde / Stück / Pauschale"
-              />
-            </label>
-            <label className="field">
-              <span>Artikel-Nr.</span>
-              <input
-                value={priceForm.sku}
-                onChange={(e) => setPriceForm({ ...priceForm, sku: e.target.value })}
-                placeholder="optional"
-              />
-            </label>
-            <label className="field full">
-              <span>Beschreibung</span>
-              <textarea
-                rows={2}
-                value={priceForm.description}
-                onChange={(e) => setPriceForm({ ...priceForm, description: e.target.value })}
-              />
-            </label>
-            {priceError ? <p className="form-error full">{priceError}</p> : null}
-            <div className="full form-actions">
-              <button className="btn btn-primary" type="submit">
-                {editingPriceId ? "Aktualisieren" : "Anlegen"}
-              </button>
-              <button type="button" className="btn btn-ghost" onClick={resetPriceForm}>
-                Abbrechen
-              </button>
-            </div>
-          </form>
-        ) : null}
-
-        {prices.length === 0 ? (
-          <div className="settings-empty">
-            <strong>Noch keine Positionen</strong>
-            <p className="muted">Lege z. B. „Remote Support“ oder „Vor-Ort-Einsatz“ an.</p>
-          </div>
-        ) : (
-          <ul className="settings-price-list">
-            {prices.map((item) => (
-              <li key={item.id} className={`settings-price-row${!item.active ? " is-inactive" : ""}`}>
-                <div className="settings-price-main">
-                  <strong>{item.name}</strong>
-                  <span className="muted">
-                    {kindLabel[item.kind]} · {item.unitPrice.toLocaleString("de-DE")}{" "}
-                    {org?.currency ?? "EUR"}
-                    {item.unitLabel ? ` / ${item.unitLabel}` : ""}
-                    {item.sku ? ` · ${item.sku}` : ""}
-                    {!item.active ? " · inaktiv" : ""}
-                  </span>
-                  {item.description ? <span className="muted">{item.description}</span> : null}
-                </div>
-                <div className="settings-price-actions">
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => startEditPrice(item)}
-                  >
-                    Bearbeiten
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={() =>
-                      void api
-                        .updatePriceItem(item.id, {
-                          active: !item.active,
-                          name: item.name,
-                          unitPrice: item.unitPrice,
-                        })
-                        .then(() => loadPricing())
-                    }
-                  >
-                    {item.active ? "Deaktivieren" : "Aktivieren"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger btn-sm"
-                    onClick={() => {
-                      if (!confirm("Preisposition löschen?")) return;
-                      void api.deletePriceItem(item.id).then(() => loadPricing());
-                    }}
-                  >
-                    Löschen
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
       </section>
 
       <section className="panel settings-card">
