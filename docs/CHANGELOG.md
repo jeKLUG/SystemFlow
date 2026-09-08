@@ -10,6 +10,8 @@
 - Wiki-Editor: neue Toolbar-Icons; Überschrift als Dropdown; Einfügen-Label statt Gitter-Icon
 - Wiki-Editor: Toolbar-Dropdowns öffnen wieder nach unten
 - Wiki-Editor: Checklisten-Checkboxen mittig zur ersten Zeile, klareres Design
+- Wiki-Seite: Icons bei Speichern / PDF / Löschen; Löschen mit Bestätigungsdialog
+- Wiki-PDF: schlichtes Layout – Kopfzeile (Logo + Titel), editornaher Inhalt, Seitenzahl; ohne Leerseiten/Deckblatt
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

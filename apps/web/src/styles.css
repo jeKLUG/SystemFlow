@@ -738,6 +738,13 @@ a.btn {
     transform 0.18s var(--ease);
 }
 
+.btn .btn-icon-svg,
+a.btn .btn-icon-svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+
 .btn:hover,
 a.btn:hover {
   filter: brightness(1.04);
@@ -2338,6 +2345,50 @@ input[type="checkbox"]:not(.check-input):checked {
   gap: 0.5rem;
 }
 
+.modal-confirm {
+  max-width: 26rem;
+}
+
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.confirm-dialog-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+
+.confirm-dialog-icon .btn-icon-svg {
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.confirm-dialog-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.confirm-dialog-lead strong {
+  font-weight: 650;
+  color: var(--text);
+}
+
+.confirm-dialog-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 1100px) {
   .tasks-quick-add {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -3924,7 +3975,7 @@ input[type="checkbox"]:not(.check-input):checked {
 .tiptap-surface .editor-callout {
   position: relative;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 0.65rem;
   margin: 0.9rem 0;
   padding: 0.7rem 0.85rem 0.7rem 0.75rem;
@@ -3940,7 +3991,7 @@ input[type="checkbox"]:not(.check-input):checked {
   justify-content: center;
   width: 1.35rem;
   height: 1.35rem;
-  margin-top: 0.15rem;
+  margin: 0;
   color: currentColor;
 }
 
@@ -3959,6 +4010,19 @@ input[type="checkbox"]:not(.check-input):checked {
 }
 
 .tiptap-surface .editor-callout-body > :last-child {
+  margin-bottom: 0;
+}
+
+.tiptap-surface .editor-callout-body > p {
+  margin: 0.2rem 0;
+  line-height: 1.55;
+}
+
+.tiptap-surface .editor-callout-body > p:first-child {
+  margin-top: 0;
+}
+
+.tiptap-surface .editor-callout-body > p:last-child {
   margin-bottom: 0;
 }
 

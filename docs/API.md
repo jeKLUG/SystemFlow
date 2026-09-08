@@ -214,8 +214,8 @@ Body: `title`, `kind` (`customer`\|`internal`\|`personal`\|`other`), `startDate`
 |---------|------|
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
-| GET | `/api/customers/:id/wiki/pdf` (alle Wiki-Seiten als PDF, inkl. eingebetteter Bilder) |
-| GET | `/api/documents/:id/pdf` (eine Wiki-Seite als PDF) |
+| GET | `/api/customers/:id/wiki/pdf` | Alle Wiki-Seiten als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl, Bilder) |
+| GET | `/api/documents/:id/pdf` | Eine Wiki-Seite als PDF (gleiches Layout) |
 
 ## Systemsicherung
 

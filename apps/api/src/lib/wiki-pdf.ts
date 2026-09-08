@@ -20,14 +20,6 @@ export type WikiPdfOptions = {
   resolveImage?: WikiPdfImageResolver;
 };
 
-const typeLabel: Record<string, string> = {
-  note: "Notiz",
-  protocol: "Protokoll",
-  documentation: "Dokumentation",
-  article: "Artikel",
-  workflow: "Workflow",
-};
-
 type TipTapMark = { type?: string };
 type TipTapNode = {
   type?: string;
@@ -37,17 +29,24 @@ type TipTapNode = {
   attrs?: Record<string, unknown>;
 };
 
-const MARGIN = 52;
-const FOOTER_H = 40;
-const ACCENT = "#2563eb";
+const MARGIN = 48;
+const HEADER_H = 42;
+const FOOTER_H = 36;
+const ACCENT = "#3b82f6";
 const MUTED = "#64748b";
 const TEXT = "#0f172a";
 const RULE = "#e2e8f0";
 const SOFT = "#f8fafc";
 
+const CALLOUT: Record<string, { bar: string; bg: string; label: string }> = {
+  info: { bar: "#60a5fa", bg: "#eff6ff", label: "Info" },
+  warn: { bar: "#fbbf24", bg: "#fffbeb", label: "Warnung" },
+  tip: { bar: "#34d399", bg: "#ecfdf5", label: "Hinweis" },
+  danger: { bar: "#f87171", bg: "#fef2f2", label: "Wichtig" },
+};
+
 /**
- * Erzeugt ein PDF für eine oder mehrere Wiki-Seiten.
- * Vermeidet unnötige Leerseiten (leere Absätze, übertriebenes Page-Break).
+ * Erzeugt ein schlichtes Wiki-PDF: Kopfzeile (Logo + Titel), Inhalt wie im Editor, Seitenzahl.
  */
 export async function buildWikiPdf(
   customer: WikiPdfCustomer,
@@ -56,20 +55,31 @@ export async function buildWikiPdf(
 ): Promise<Buffer> {
   const sorted = [...docs].sort((a, b) => a.title.localeCompare(b.title, "de"));
   const customerLabel = customer.company?.trim() || customer.name;
-  const stamp = new Date();
   const resolveImage = options.resolveImage;
+  const pageTitles: string[] = [];
+  let activeTitle = sorted[0]?.title?.trim() || "Wiki";
 
   const doc = new PDFDocument({
     size: "A4",
     bufferPages: true,
     autoFirstPage: true,
-    margins: { top: MARGIN, bottom: MARGIN + 28, left: MARGIN, right: MARGIN },
+    margins: {
+      top: MARGIN + HEADER_H,
+      bottom: MARGIN + FOOTER_H,
+      left: MARGIN,
+      right: MARGIN,
+    },
     info: {
       Title: sorted.length === 1 ? sorted[0]!.title : `Wiki – ${customerLabel}`,
       Author: "Systemhaus-Ess",
       Subject: `Wiki-Export für ${customerLabel}`,
       Creator: "Systemhaus-Ess",
     },
+  });
+
+  pageTitles.push(activeTitle);
+  doc.on("pageAdded", () => {
+    pageTitles.push(activeTitle);
   });
 
   const chunks: Buffer[] = [];
@@ -81,203 +91,147 @@ export async function buildWikiPdf(
   });
 
   if (sorted.length === 0) {
-    doc.font("Helvetica-Bold").fontSize(18).fillColor(TEXT).text("Keine Wiki-Seiten");
-    doc
-      .font("Helvetica")
-      .fontSize(11)
-      .fillColor(MUTED)
-      .text("Für diesen Kunden liegen keine Dokumente vor.");
-  } else if (sorted.length === 1) {
-    renderDocument(doc, sorted[0]!, customerLabel, true, resolveImage);
+    activeTitle = "Wiki";
+    pageTitles[0] = activeTitle;
+    doc.font("Helvetica").fontSize(11).fillColor(MUTED).text("Keine Wiki-Seiten vorhanden.");
   } else {
-    drawCover(doc, customerLabel, sorted.length, stamp);
-    // Inhaltsverzeichnis nur wenn sinnvoll Platz / mehrere Seiten
-    if (sorted.length >= 2) {
-      doc.addPage();
-      drawToc(doc, sorted);
-    }
-    for (const page of sorted) {
-      doc.addPage();
-      renderDocument(doc, page, customerLabel, false, resolveImage);
+    for (let i = 0; i < sorted.length; i++) {
+      const page = sorted[i]!;
+      activeTitle = page.title?.trim() || "Ohne Titel";
+      if (i > 0) {
+        doc.addPage();
+      } else {
+        pageTitles[0] = activeTitle;
+      }
+      renderBody(doc, page, resolveImage);
     }
   }
 
   const range = doc.bufferedPageRange();
   for (let i = 0; i < range.count; i++) {
     doc.switchToPage(range.start + i);
-    paintFooter(doc, customerLabel, i + 1, range.count);
+    const title = pageTitles[i] ?? activeTitle;
+    paintHeader(doc, title);
+    paintFooter(doc, i + 1, range.count);
   }
 
   doc.end();
   return done;
 }
 
-/**
- * Unterkante des nutzbaren Inhaltsbereichs (ohne Footer).
- */
 function contentBottom(doc: PDFKit.PDFDocument): number {
-  return doc.page.height - MARGIN - FOOTER_H;
+  return doc.page.height - doc.page.margins.bottom;
+}
+
+function contentTop(doc: PDFKit.PDFDocument): number {
+  return doc.page.margins.top;
 }
 
 /**
- * Seitenumbruch nur wenn nötig und nicht bereits am Seitenanfang
- * (verhindert Ketten leerer Seiten bei großen Blöcken / leeren Absätzen).
+ * Seitenumbruch nur wenn nötig – nicht am Seitenanfang (keine Leerseiten-Ketten).
  */
 function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
   const bottom = contentBottom(doc);
-  const top = doc.page.margins.top;
+  const top = contentTop(doc);
   if (doc.y + needed <= bottom) return;
-  if (doc.y <= top + 1) return;
+  if (doc.y <= top + 2) return;
   doc.addPage();
 }
 
-function paintFooter(
-  doc: PDFKit.PDFDocument,
-  customerLabel: string,
-  pageNo: number,
-  total: number,
-) {
-  const bottom = doc.page.height - 32;
+/** Dezente Kopfzeile: Logo + Dokumenttitel. */
+function paintHeader(doc: PDFKit.PDFDocument, title: string) {
+  const y = MARGIN - 4;
   doc.save();
+  drawLogo(doc, MARGIN, y, 18);
+  doc
+    .font("Helvetica")
+    .fontSize(8)
+    .fillColor(MUTED)
+    .text("Systemhaus-Ess", MARGIN + 24, y + 4, { lineBreak: false });
+
+  const titleX = MARGIN + 110;
+  const titleW = doc.page.width - titleX - MARGIN;
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor(TEXT)
+    .text(title, titleX, y + 3, {
+      width: titleW,
+      align: "right",
+      lineBreak: false,
+      ellipsis: true,
+      height: 14,
+    });
+
+  const ruleY = MARGIN + HEADER_H - 14;
   doc
     .strokeColor(RULE)
-    .lineWidth(0.6)
-    .moveTo(MARGIN, bottom - 10)
-    .lineTo(doc.page.width - MARGIN, bottom - 10)
+    .lineWidth(0.7)
+    .moveTo(MARGIN, ruleY)
+    .lineTo(doc.page.width - MARGIN, ruleY)
     .stroke();
-  doc.font("Helvetica").fontSize(8).fillColor(MUTED);
-  doc.text(`Systemhaus-Ess · ${customerLabel}`, MARGIN, bottom - 4, {
-    width: doc.page.width - MARGIN * 2 - 70,
-    lineBreak: false,
-  });
-  doc.text(`${pageNo} / ${total}`, doc.page.width - MARGIN - 50, bottom - 4, {
-    width: 50,
-    align: "right",
-    lineBreak: false,
-  });
   doc.restore();
 }
 
-function drawCover(
-  doc: PDFKit.PDFDocument,
-  customerLabel: string,
-  count: number,
-  stamp: Date,
-) {
-  doc.save().rect(0, 0, doc.page.width, 6).fill(ACCENT).restore();
-  doc
-    .save()
-    .rect(0, 6, doc.page.width, 120)
-    .fill(SOFT)
-    .restore();
-
-  const y0 = 48;
-  doc.font("Helvetica").fontSize(9).fillColor(ACCENT).text("SYSTEMHAUS-ESS", MARGIN, y0, {
-    characterSpacing: 1.6,
-  });
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(26)
-    .fillColor(TEXT)
-    .text("Wiki-Dokumentation", MARGIN, y0 + 22, { width: doc.page.width - MARGIN * 2 });
-
-  doc
-    .font("Helvetica")
-    .fontSize(13)
-    .fillColor(MUTED)
-    .text(customerLabel, MARGIN, doc.y + 6, { width: doc.page.width - MARGIN * 2 });
-
-  doc.moveDown(1);
-  doc
-    .strokeColor(ACCENT)
-    .lineWidth(2)
-    .moveTo(MARGIN, doc.y)
-    .lineTo(MARGIN + 48, doc.y)
-    .stroke();
-
-  doc.moveDown(1);
-  doc.font("Helvetica").fontSize(11).fillColor(TEXT);
-  doc.text(`${count} Wiki-Seite${count === 1 ? "" : "n"}`);
-  doc.fillColor(MUTED).text(`Exportiert am ${formatDateTime(stamp)}`);
-}
-
-function drawToc(doc: PDFKit.PDFDocument, docs: WikiPdfDoc[]) {
-  doc.font("Helvetica-Bold").fontSize(16).fillColor(TEXT).text("Inhalt");
-  doc.moveDown(0.55);
-
-  for (const item of docs) {
-    ensureSpace(doc, 22);
-    const type = typeLabel[item.type] ?? item.type;
-    const y = doc.y;
-    doc.font("Helvetica").fontSize(10.5).fillColor(TEXT).text(item.title, MARGIN, y, {
-      width: doc.page.width - MARGIN * 2 - 96,
-    });
-    const afterTitle = doc.y;
-    doc.font("Helvetica").fontSize(8.5).fillColor(MUTED).text(type, doc.page.width - MARGIN - 88, y, {
-      width: 88,
-      align: "right",
-      lineBreak: false,
-    });
-    doc.y = Math.max(afterTitle, y + 12) + 4;
-    doc
-      .strokeColor(RULE)
-      .lineWidth(0.4)
-      .moveTo(MARGIN, doc.y)
-      .lineTo(doc.page.width - MARGIN, doc.y)
-      .stroke();
-    doc.y += 8;
-  }
-}
-
-function renderDocument(
-  doc: PDFKit.PDFDocument,
-  page: WikiPdfDoc,
-  customerLabel: string,
-  single: boolean,
-  resolveImage?: WikiPdfImageResolver,
-) {
-  if (single) {
-    doc.save().rect(0, 0, doc.page.width, 5).fill(ACCENT).restore();
-    doc.font("Helvetica").fontSize(8.5).fillColor(ACCENT).text("SYSTEMHAUS-ESS", MARGIN, MARGIN - 6, {
-      characterSpacing: 1.2,
-    });
-    doc.moveDown(0.35);
-  }
-
-  const type = typeLabel[page.type] ?? page.type;
-  doc.font("Helvetica-Bold").fontSize(8).fillColor(ACCENT).text(type.toUpperCase());
-  doc.moveDown(0.2);
-  doc
-    .font("Helvetica-Bold")
-    .fontSize(18)
-    .fillColor(TEXT)
-    .text(page.title, { width: doc.page.width - MARGIN * 2 });
-
-  doc.moveDown(0.3);
-  doc.font("Helvetica").fontSize(8.5).fillColor(MUTED);
-  const meta = [
-    customerLabel,
-    page.updatedAt ? `Aktualisiert ${formatDateTime(page.updatedAt)}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  doc.text(meta);
-
-  doc.moveDown(0.4);
+/** Seitenzahl unten mittig. */
+function paintFooter(doc: PDFKit.PDFDocument, pageNo: number, total: number) {
+  const y = doc.page.height - MARGIN - 8;
+  doc.save();
   doc
     .strokeColor(RULE)
-    .lineWidth(1)
-    .moveTo(MARGIN, doc.y)
-    .lineTo(doc.page.width - MARGIN, doc.y)
+    .lineWidth(0.7)
+    .moveTo(MARGIN, y - 12)
+    .lineTo(doc.page.width - MARGIN, y - 12)
     .stroke();
-  doc.moveDown(0.65);
+  doc
+    .font("Helvetica")
+    .fontSize(9)
+    .fillColor(MUTED)
+    .text(`${pageNo} / ${total}`, MARGIN, y - 6, {
+      width: doc.page.width - MARGIN * 2,
+      align: "center",
+      lineBreak: false,
+    });
+  doc.restore();
+}
+
+/** Kleines Markenlogo (Vektor, ohne Bilddatei). */
+function drawLogo(doc: PDFKit.PDFDocument, x: number, y: number, size: number) {
+  const r = size * 0.18;
+  doc.save();
+  doc.roundedRect(x, y, size, size, r).fill("#121b29");
+  const cx = x + size / 2;
+  const cy = y + size / 2;
+  const s = size * 0.28;
+  doc
+    .strokeColor(ACCENT)
+    .lineWidth(1.4)
+    .moveTo(cx, cy - s)
+    .lineTo(cx + s, cy - s * 0.45)
+    .lineTo(cx + s, cy + s * 0.45)
+    .lineTo(cx, cy + s)
+    .lineTo(cx - s, cy + s * 0.45)
+    .lineTo(cx - s, cy - s * 0.45)
+    .closePath()
+    .stroke();
+  doc.circle(cx, cy, size * 0.08).fill(ACCENT);
+  doc.restore();
+}
+
+function renderBody(
+  doc: PDFKit.PDFDocument,
+  page: WikiPdfDoc,
+  resolveImage?: WikiPdfImageResolver,
+) {
+  doc.x = MARGIN;
+  doc.y = contentTop(doc);
 
   const nodes = trimEmptyNodes(parseTipTap(page.content));
   if (!nodes.length) {
     doc.font("Helvetica-Oblique").fontSize(10).fillColor(MUTED).text("Kein Inhalt.");
     return;
   }
-  renderNodes(doc, nodes, { listDepth: 0, resolveImage, skipLeadingGap: true });
+  renderNodes(doc, nodes, { listDepth: 0, resolveImage, atBlockStart: true });
 }
 
 function parseTipTap(raw: string): TipTapNode[] {
@@ -292,30 +246,9 @@ function parseTipTap(raw: string): TipTapNode[] {
   return [{ type: "paragraph", content: [{ type: "text", text }] }];
 }
 
-/** Entfernt führende/trailing und überzählige leere Absätze. */
+/** Entfernt leere Absätze vollständig (kein künstliches Spacing). */
 function trimEmptyNodes(nodes: TipTapNode[]): TipTapNode[] {
-  const cleaned: TipTapNode[] = [];
-  for (const node of nodes) {
-    if (isVisuallyEmpty(node)) {
-      // maximal ein kleiner Abstand, keine Ketten leerer Absätze
-      if (cleaned.length && cleaned[cleaned.length - 1]?.type !== "_gap") {
-        cleaned.push({ type: "_gap" });
-      }
-      continue;
-    }
-    cleaned.push(node);
-  }
-  while (cleaned.length && (cleaned[0]?.type === "_gap" || isVisuallyEmpty(cleaned[0]!))) {
-    cleaned.shift();
-  }
-  while (
-    cleaned.length &&
-    (cleaned[cleaned.length - 1]?.type === "_gap" ||
-      isVisuallyEmpty(cleaned[cleaned.length - 1]!))
-  ) {
-    cleaned.pop();
-  }
-  return cleaned;
+  return nodes.filter((node) => !isVisuallyEmpty(node));
 }
 
 function isVisuallyEmpty(node: TipTapNode): boolean {
@@ -335,12 +268,19 @@ function isVisuallyEmpty(node: TipTapNode): boolean {
     node.type === "callout" ||
     node.type === "codeBlock"
   ) {
-    return !collectText(node.content ?? []).trim() && !(node.content ?? []).some((c) => !isVisuallyEmpty(c));
+    return (
+      !collectText(node.content ?? []).trim() &&
+      !(node.content ?? []).some((c) => !isVisuallyEmpty(c))
+    );
   }
-  if (node.content?.length) {
-    return node.content.every(isVisuallyEmpty);
-  }
+  if (node.content?.length) return node.content.every(isVisuallyEmpty);
   return !node.text?.trim();
+}
+
+function spaceBefore(doc: PDFKit.PDFDocument, atBlockStart: boolean, amount: number) {
+  if (atBlockStart) return;
+  if (doc.y <= contentTop(doc) + 1) return;
+  doc.y += amount;
 }
 
 function renderNodes(
@@ -349,159 +289,227 @@ function renderNodes(
   ctx: {
     listDepth: number;
     resolveImage?: WikiPdfImageResolver;
-    skipLeadingGap?: boolean;
+    atBlockStart?: boolean;
+    contentWidth?: number;
   },
 ) {
-  let first = true;
+  let atStart = Boolean(ctx.atBlockStart);
+  const width = ctx.contentWidth ?? doc.page.width - MARGIN * 2;
+
   for (const node of nodes) {
-    if (!node?.type) continue;
-    if (node.type === "_gap") {
-      if (first && ctx.skipLeadingGap) continue;
-      ensureSpace(doc, 10);
-      doc.moveDown(0.35);
-      continue;
-    }
-    first = false;
+    if (!node?.type || isVisuallyEmpty(node)) continue;
 
     switch (node.type) {
       case "heading": {
         const level = Number(node.attrs?.level ?? 1);
-        const size = level === 1 ? 15 : level === 2 ? 12.5 : 11;
-        ensureSpace(doc, size + 14);
-        doc.moveDown(0.45);
+        const size = level === 1 ? 16 : level === 2 ? 13 : 11.5;
+        spaceBefore(doc, atStart, level === 1 ? 14 : 10);
+        ensureSpace(doc, size + 10);
         doc.font("Helvetica-Bold").fontSize(size).fillColor(TEXT);
-        renderInline(doc, node.content ?? [], { bold: true });
-        doc.moveDown(0.3);
+        renderInline(doc, node.content ?? [], { bold: true, width, size });
+        doc.moveDown(0.25);
         break;
       }
       case "paragraph": {
-        const text = collectText(node.content ?? []);
-        if (!text) break;
+        spaceBefore(doc, atStart, 6);
         ensureSpace(doc, 16);
         doc.font("Helvetica").fontSize(10.5).fillColor(TEXT);
-        renderInline(doc, node.content ?? [], {});
-        doc.moveDown(0.4);
-        break;
-      }
-      case "bulletList":
-        renderList(doc, node.content ?? [], false, ctx);
-        break;
-      case "orderedList":
-        renderList(doc, node.content ?? [], true, ctx);
-        break;
-      case "taskList":
-        renderTaskList(doc, node.content ?? [], ctx);
-        break;
-      case "blockquote": {
-        ensureSpace(doc, 28);
-        const startY = doc.y;
-        const left = MARGIN + 8;
-        doc.font("Helvetica-Oblique").fontSize(10).fillColor(MUTED);
-        renderNodesBlockquote(doc, node.content ?? [], left + 8);
-        const endY = doc.y;
-        doc
-          .save()
-          .strokeColor(ACCENT)
-          .lineWidth(2)
-          .moveTo(left, startY)
-          .lineTo(left, Math.max(endY, startY + 8))
-          .stroke()
-          .restore();
-        doc.x = MARGIN;
+        renderInline(doc, node.content ?? [], { width, size: 10.5 });
         doc.moveDown(0.35);
         break;
       }
+      case "bulletList":
+        spaceBefore(doc, atStart, 4);
+        renderList(doc, node.content ?? [], false, ctx);
+        break;
+      case "orderedList":
+        spaceBefore(doc, atStart, 4);
+        renderList(doc, node.content ?? [], true, ctx);
+        break;
+      case "taskList":
+        spaceBefore(doc, atStart, 4);
+        renderTaskList(doc, node.content ?? [], ctx);
+        break;
+      case "blockquote": {
+        spaceBefore(doc, atStart, 8);
+        renderBlockquote(doc, node.content ?? [], width);
+        break;
+      }
       case "callout": {
-        ensureSpace(doc, 28);
-        const variant = String(node.attrs?.variant ?? "info");
-        const label =
-          variant === "warn"
-            ? "Warnung"
-            : variant === "tip"
-              ? "Hinweis"
-              : variant === "danger"
-                ? "Wichtig"
-                : "Info";
-        const left = MARGIN;
-        const boxW = doc.page.width - MARGIN * 2;
-        const startY = doc.y;
-        doc.font("Helvetica-Bold").fontSize(9).fillColor(MUTED).text(label.toUpperCase(), left + 10, startY + 6, {
-          width: boxW - 20,
-        });
-        doc.font("Helvetica").fontSize(10.5).fillColor(TEXT);
-        doc.x = left + 10;
-        renderNodes(doc, node.content ?? [], { listDepth: 0, resolveImage: ctx.resolveImage });
-        const endY = Math.max(doc.y, startY + 28);
-        doc
-          .save()
-          .strokeColor(ACCENT)
-          .lineWidth(1)
-          .roundedRect(left, startY, boxW, endY - startY + 4, 4)
-          .stroke()
-          .restore();
-        doc.y = endY + 10;
-        doc.x = MARGIN;
+        spaceBefore(doc, atStart, 8);
+        renderCallout(doc, node, width, ctx.resolveImage);
         break;
       }
       case "codeBlock": {
-        const text = collectText(node.content ?? []);
-        if (!text) break;
-        const boxW = doc.page.width - MARGIN * 2;
-        doc.font("Courier").fontSize(9).fillColor(TEXT);
-        const h = doc.heightOfString(text, { width: boxW - 16 });
-        ensureSpace(doc, Math.min(h + 18, contentBottom(doc) - doc.page.margins.top - 8));
-        const boxY = doc.y;
-        doc
-          .save()
-          .roundedRect(MARGIN, boxY - 2, boxW, h + 12, 5)
-          .fill(SOFT)
-          .restore();
-        doc.text(text, MARGIN + 8, boxY + 4, { width: boxW - 16 });
-        doc.y = boxY + h + 16;
-        doc.x = MARGIN;
+        spaceBefore(doc, atStart, 8);
+        renderCodeBlock(doc, node, width);
         break;
       }
       case "horizontalRule": {
-        ensureSpace(doc, 14);
+        spaceBefore(doc, atStart, 8);
+        ensureSpace(doc, 12);
+        const y = doc.y + 2;
         doc
           .strokeColor(RULE)
-          .lineWidth(1)
-          .moveTo(MARGIN, doc.y + 3)
-          .lineTo(doc.page.width - MARGIN, doc.y + 3)
+          .lineWidth(0.8)
+          .moveTo(MARGIN, y)
+          .lineTo(MARGIN + width, y)
           .stroke();
-        doc.moveDown(0.65);
+        doc.y = y + 10;
         break;
       }
       case "table":
-        renderTable(doc, node);
+        spaceBefore(doc, atStart, 8);
+        renderTable(doc, node, width);
         break;
       case "image":
-      case "imageResize": {
-        renderImage(doc, node, ctx.resolveImage);
-        break;
-      }
-      case "hardBreak":
-        doc.moveDown(0.3);
+      case "imageResize":
+        spaceBefore(doc, atStart, 8);
+        renderImage(doc, node, width, ctx.resolveImage);
         break;
       default:
-        if (node.content?.length) renderNodes(doc, node.content, ctx);
+        if (node.content?.length) {
+          renderNodes(doc, node.content, { ...ctx, atBlockStart: atStart });
+        }
         break;
     }
+    atStart = false;
   }
 }
 
-/**
- * Betten ein Wiki-Bild in das PDF ein oder zeigt einen Platzhalter.
- */
+function renderBlockquote(doc: PDFKit.PDFDocument, nodes: TipTapNode[], width: number) {
+  const text = collectText(nodes);
+  if (!text) return;
+  doc.font("Helvetica-Oblique").fontSize(10).fillColor(MUTED);
+  const h = doc.heightOfString(text, { width: width - 14 });
+  ensureSpace(doc, h + 10);
+  const y0 = doc.y;
+  doc
+    .save()
+    .strokeColor(ACCENT)
+    .lineWidth(2.5)
+    .moveTo(MARGIN, y0)
+    .lineTo(MARGIN, y0 + h)
+    .stroke()
+    .restore();
+  doc.x = MARGIN + 10;
+  renderInline(doc, flattenToParagraphs(nodes), {
+    italic: true,
+    width: width - 14,
+    size: 10,
+  });
+  doc.x = MARGIN;
+  doc.y = Math.max(doc.y, y0 + h) + 6;
+}
+
+function flattenToParagraphs(nodes: TipTapNode[]): TipTapNode[] {
+  const out: TipTapNode[] = [];
+  for (const n of nodes) {
+    if (n.type === "paragraph" && n.content) out.push(...n.content);
+    else if (n.content) out.push(...flattenToParagraphs(n.content));
+    else if (n.type === "text") out.push(n);
+  }
+  return out;
+}
+
+function renderCallout(
+  doc: PDFKit.PDFDocument,
+  node: TipTapNode,
+  width: number,
+  resolveImage?: WikiPdfImageResolver,
+) {
+  const variant = String(node.attrs?.variant ?? "info");
+  const style = CALLOUT[variant] ?? CALLOUT.info!;
+  const inner = (node.content ?? []).filter((n) => !isVisuallyEmpty(n));
+  if (!inner.length) return;
+
+  ensureSpace(doc, 28);
+  const y0 = doc.y;
+  const padX = 12;
+  const innerW = width - padX - 6;
+
+  doc
+    .font("Helvetica-Bold")
+    .fontSize(7.5)
+    .fillColor(style.bar)
+    .text(style.label.toUpperCase(), MARGIN + padX, y0, {
+      width: innerW,
+      lineBreak: false,
+    });
+  doc.y = y0 + 12;
+  doc.x = MARGIN + padX;
+  renderNodes(doc, inner, {
+    listDepth: 0,
+    resolveImage,
+    atBlockStart: true,
+    contentWidth: innerW,
+  });
+
+  const y1 = Math.max(doc.y, y0 + 20);
+  doc
+    .save()
+    .strokeColor(style.bar)
+    .lineWidth(3)
+    .moveTo(MARGIN + 1.5, y0)
+    .lineTo(MARGIN + 1.5, y1)
+    .stroke()
+    .restore();
+
+  doc.x = MARGIN;
+  doc.y = y1 + 8;
+}
+
+function renderCodeBlock(doc: PDFKit.PDFDocument, node: TipTapNode, width: number) {
+  const text = collectText(node.content ?? []);
+  if (!text) return;
+  const lines = text.split("\n");
+  doc.font("Courier").fontSize(8.5).fillColor(TEXT);
+  const lineH = 11;
+  const pad = 10;
+  const boxH = lines.length * lineH + pad * 2;
+  ensureSpace(doc, Math.min(boxH + 4, contentBottom(doc) - contentTop(doc) - 8));
+
+  const y0 = doc.y;
+  doc.save().roundedRect(MARGIN, y0, width, boxH, 5).fill(SOFT).restore();
+  doc
+    .save()
+    .strokeColor(RULE)
+    .lineWidth(0.6)
+    .roundedRect(MARGIN, y0, width, boxH, 5)
+    .stroke()
+    .restore();
+
+  let y = y0 + pad;
+  const gutterW = String(lines.length).length * 5 + 8;
+  for (let i = 0; i < lines.length; i++) {
+    doc
+      .font("Courier")
+      .fontSize(8)
+      .fillColor(MUTED)
+      .text(String(i + 1), MARGIN + 8, y, { width: gutterW, lineBreak: false });
+    doc
+      .font("Courier")
+      .fontSize(8.5)
+      .fillColor(TEXT)
+      .text(lines[i] || " ", MARGIN + 8 + gutterW + 6, y, {
+        width: width - gutterW - 22,
+        lineBreak: false,
+      });
+    y += lineH;
+  }
+  doc.y = y0 + boxH + 8;
+  doc.x = MARGIN;
+}
+
 function renderImage(
   doc: PDFKit.PDFDocument,
   node: TipTapNode,
+  width: number,
   resolveImage?: WikiPdfImageResolver,
 ) {
   const alt = String(node.attrs?.alt ?? "Bild");
   const src = String(node.attrs?.src ?? "");
-  const maxW = doc.page.width - MARGIN * 2;
-  const maxH = 280;
+  const maxH = 260;
   const filePath = src && resolveImage ? resolveImage(src) : null;
 
   if (filePath) {
@@ -512,48 +520,23 @@ function renderImage(
         }
       ).openImage.bind(doc);
       const img = openImage(filePath);
-      const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+      const scale = Math.min(width / img.width, maxH / img.height, 1);
       const w = img.width * scale;
       const h = img.height * scale;
-      ensureSpace(doc, Math.min(h + 24, contentBottom(doc) - doc.page.margins.top - 4));
-      const x = MARGIN + (maxW - w) / 2;
+      ensureSpace(doc, Math.min(h + 16, contentBottom(doc) - contentTop(doc) - 4));
+      const x = MARGIN + (width - w) / 2;
       doc.image(filePath, x, doc.y, { width: w, height: h });
-      doc.y += h + 5;
+      doc.y += h + 8;
       doc.x = MARGIN;
-      if (alt && alt !== "Bild") {
-        doc
-          .font("Helvetica-Oblique")
-          .fontSize(8)
-          .fillColor(MUTED)
-          .text(alt, { width: maxW, align: "center" });
-        doc.moveDown(0.3);
-      } else {
-        doc.moveDown(0.4);
-      }
       return;
     } catch {
-      /* Fallback */
+      /* fallback */
     }
   }
 
-  ensureSpace(doc, 18);
+  ensureSpace(doc, 16);
   doc.font("Helvetica-Oblique").fontSize(9).fillColor(MUTED).text(`[Bild: ${alt}]`);
-  doc.moveDown(0.35);
-}
-
-function renderNodesBlockquote(doc: PDFKit.PDFDocument, nodes: TipTapNode[], x: number) {
-  const width = doc.page.width - x - MARGIN;
-  for (const node of nodes) {
-    if (node.type === "paragraph") {
-      const text = collectText(node.content ?? []);
-      if (!text) continue;
-      doc.x = x;
-      renderInline(doc, node.content ?? [], { italic: true, width });
-      doc.moveDown(0.25);
-    } else if (node.content) {
-      renderNodesBlockquote(doc, node.content, x);
-    }
-  }
+  doc.moveDown(0.3);
 }
 
 function renderList(
@@ -565,7 +548,7 @@ function renderList(
   const depth = ctx.listDepth;
   let index = 0;
   for (const item of items) {
-    if (item.type !== "listItem") continue;
+    if (item.type !== "listItem" || isVisuallyEmpty(item)) continue;
     index += 1;
     ensureSpace(doc, 16);
     const indent = MARGIN + depth * 14;
@@ -580,15 +563,20 @@ function renderList(
         if (!text) continue;
         renderInline(doc, child.content ?? [], {
           width: doc.page.width - indent - 16 - MARGIN,
+          size: 10.5,
         });
-        doc.moveDown(0.18);
+        doc.moveDown(0.15);
       } else if (child.type === "bulletList" || child.type === "orderedList") {
         renderList(doc, child.content ?? [], child.type === "orderedList", {
           listDepth: depth + 1,
           resolveImage: ctx.resolveImage,
         });
       } else if (child.content) {
-        renderNodes(doc, [child], { listDepth: depth + 1, resolveImage: ctx.resolveImage });
+        renderNodes(doc, [child], {
+          listDepth: depth + 1,
+          resolveImage: ctx.resolveImage,
+          atBlockStart: false,
+        });
       }
     }
     doc.x = MARGIN;
@@ -596,9 +584,6 @@ function renderList(
   doc.moveDown(0.2);
 }
 
-/**
- * Rendert TipTap-Checklisten als abhakbare Bullet-Zeilen im PDF.
- */
 function renderTaskList(
   doc: PDFKit.PDFDocument,
   items: TipTapNode[],
@@ -606,31 +591,43 @@ function renderTaskList(
 ) {
   const depth = ctx.listDepth;
   for (const item of items) {
-    if (item.type !== "taskItem") continue;
+    if (item.type !== "taskItem" || isVisuallyEmpty(item)) continue;
     ensureSpace(doc, 16);
     const indent = MARGIN + depth * 14;
     const checked = Boolean(item.attrs?.checked);
-    const mark = checked ? "[x]" : "[ ]";
     const y = doc.y;
-    doc.font("Courier").fontSize(10).fillColor(TEXT);
-    doc.text(mark, indent, y, { width: 22, lineBreak: false });
-    doc.x = indent + 24;
+    doc
+      .save()
+      .strokeColor(checked ? ACCENT : RULE)
+      .lineWidth(1)
+      .roundedRect(indent, y + 1, 9, 9, 1.5)
+      .stroke();
+    if (checked) {
+      doc
+        .strokeColor(ACCENT)
+        .lineWidth(1.2)
+        .moveTo(indent + 2, y + 5.5)
+        .lineTo(indent + 4, y + 7.5)
+        .lineTo(indent + 7.5, y + 3)
+        .stroke();
+    }
+    doc.restore();
+    doc.x = indent + 14;
     doc.font("Helvetica").fontSize(10.5).fillColor(checked ? MUTED : TEXT);
     for (const child of item.content ?? []) {
       if (child.type === "paragraph") {
         const text = collectText(child.content ?? []);
         if (!text) continue;
         renderInline(doc, child.content ?? [], {
-          width: doc.page.width - indent - 24 - MARGIN,
+          width: doc.page.width - indent - 14 - MARGIN,
+          size: 10.5,
         });
-        doc.moveDown(0.18);
+        doc.moveDown(0.12);
       } else if (child.type === "taskList") {
         renderTaskList(doc, child.content ?? [], {
           listDepth: depth + 1,
           resolveImage: ctx.resolveImage,
         });
-      } else if (child.content) {
-        renderNodes(doc, [child], { listDepth: depth + 1, resolveImage: ctx.resolveImage });
       }
     }
     doc.x = MARGIN;
@@ -638,7 +635,7 @@ function renderTaskList(
   doc.moveDown(0.2);
 }
 
-function renderTable(doc: PDFKit.PDFDocument, table: TipTapNode) {
+function renderTable(doc: PDFKit.PDFDocument, table: TipTapNode, width: number) {
   const rows = (table.content ?? []).filter((r) => r.type === "tableRow");
   if (!rows.length) return;
   const colCount = Math.max(
@@ -648,8 +645,7 @@ function renderTable(doc: PDFKit.PDFDocument, table: TipTapNode) {
     ),
     1,
   );
-  const tableW = doc.page.width - MARGIN * 2;
-  const colW = tableW / colCount;
+  const colW = width / colCount;
 
   for (const row of rows) {
     const cells = (row.content ?? []).filter(
@@ -660,7 +656,7 @@ function renderTable(doc: PDFKit.PDFDocument, table: TipTapNode) {
     doc.font(isHeader ? "Helvetica-Bold" : "Helvetica").fontSize(9);
     const heights = texts.map((t) => doc.heightOfString(t, { width: colW - 10 }));
     const rowH = Math.max(...heights, 14) + 8;
-    ensureSpace(doc, Math.min(rowH + 2, contentBottom(doc) - doc.page.margins.top - 4));
+    ensureSpace(doc, Math.min(rowH + 2, contentBottom(doc) - contentTop(doc) - 4));
     const y = doc.y;
     for (let i = 0; i < colCount; i++) {
       const x = MARGIN + i * colW;
@@ -677,15 +673,16 @@ function renderTable(doc: PDFKit.PDFDocument, table: TipTapNode) {
     doc.y = y + rowH;
     doc.x = MARGIN;
   }
-  doc.moveDown(0.4);
+  doc.moveDown(0.35);
 }
 
 function renderInline(
   doc: PDFKit.PDFDocument,
   nodes: TipTapNode[],
-  opts: { bold?: boolean; italic?: boolean; width?: number },
+  opts: { bold?: boolean; italic?: boolean; width?: number; size?: number },
 ) {
   const width = opts.width ?? doc.page.width - doc.x - MARGIN;
+  const size = opts.size ?? 10.5;
   const segments = flattenInline(nodes).filter((s) => s.text.length > 0);
   if (!segments.length) return;
 
@@ -697,11 +694,12 @@ function renderInline(
     if (bold && italic) font = "Helvetica-BoldOblique";
     else if (bold) font = "Helvetica-Bold";
     else if (italic) font = "Helvetica-Oblique";
-    doc.font(font).fontSize(10.5).fillColor(TEXT);
+    doc.font(font).fontSize(size).fillColor(TEXT);
     doc.text(seg.text, {
       width,
       continued: i < segments.length - 1,
       underline: seg.underline,
+      lineGap: 2,
     });
   }
 }
@@ -735,16 +733,4 @@ function collectText(nodes: TipTapNode[]): string {
     .map((s) => s.text)
     .join("")
     .trim();
-}
-
-function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "–";
-  try {
-    return new Intl.DateTimeFormat("de-DE", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    }).format(new Date(value));
-  } catch {
-    return String(value);
-  }
 }
