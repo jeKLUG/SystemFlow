@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, like } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
@@ -29,6 +29,27 @@ const priceBody = z.object({
 function emptyToNull(value: string | null | undefined) {
   if (!value || !value.trim()) return null;
   return value.trim();
+}
+
+/**
+ * Nächste freie Artikelnummer im Format `ART-YYYY-NNN`.
+ */
+async function nextPriceSku(db: Db): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `ART-${year}-`;
+  const rows = await db
+    .select({ sku: priceItems.sku })
+    .from(priceItems)
+    .where(like(priceItems.sku, `${prefix}%`))
+    .all();
+
+  let max = 0;
+  for (const row of rows) {
+    const raw = row.sku ?? "";
+    const seq = Number(raw.slice(prefix.length));
+    if (Number.isFinite(seq) && seq > max) max = seq;
+  }
+  return `${prefix}${String(max + 1).padStart(3, "0")}`;
 }
 
 async function ensureSettings(db: Db) {
@@ -185,6 +206,7 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
     }
     const now = new Date();
     const kind = parsed.data.kind ?? "hourly";
+    const sku = emptyToNull(parsed.data.sku) ?? (await nextPriceSku(db));
     const row = {
       id: createId("price"),
       name: parsed.data.name.trim(),
@@ -194,7 +216,7 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
         emptyToNull(parsed.data.unitLabel) ??
         (kind === "hourly" ? "Stunde" : kind === "fixed" ? "Pauschale" : "Stück"),
       unitPrice: parsed.data.unitPrice,
-      sku: emptyToNull(parsed.data.sku),
+      sku,
       active: parsed.data.active ?? true,
       sortOrder: parsed.data.sortOrder ?? 0,
       createdAt: now,
@@ -215,6 +237,8 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
     }
 
     const kind = parsed.data.kind ?? existing.kind;
+    const nextSku =
+      parsed.data.sku !== undefined ? emptyToNull(parsed.data.sku) : existing.sku;
     const updated = {
       name: parsed.data.name?.trim() ?? existing.name,
       description:
@@ -227,7 +251,7 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
           ? emptyToNull(parsed.data.unitLabel) ?? existing.unitLabel
           : existing.unitLabel,
       unitPrice: parsed.data.unitPrice ?? existing.unitPrice,
-      sku: parsed.data.sku !== undefined ? emptyToNull(parsed.data.sku) : existing.sku,
+      sku: nextSku ?? existing.sku ?? (await nextPriceSku(db)),
       active: parsed.data.active ?? existing.active,
       sortOrder: parsed.data.sortOrder ?? existing.sortOrder,
       updatedAt: new Date(),

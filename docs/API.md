@@ -19,7 +19,7 @@ UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung �
 |---------|------|--------------|
 | GET/PUT | `/api/settings/org` | Standard-Stundensatz, Währung, MwSt.-Hinweis, Notiz |
 | GET | `/api/price-items?activeOnly=&kind=` | Preiskatalog |
-| POST | `/api/price-items` | Position anlegen (`hourly`\|`fixed`\|`unit`) |
+| POST | `/api/price-items` | Position anlegen (`hourly`\|`fixed`\|`unit`); Artikelnummer (`sku`) wird als `ART-YYYY-NNN` vergeben, falls leer |
 | PUT/DELETE | `/api/price-items/:id` | Aktualisieren / löschen |
 | GET | `/api/customers/:id/billing-preview?from=&to=` | Abrechenbare Zeiten als Positionen + Summen |
 

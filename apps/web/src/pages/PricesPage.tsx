@@ -153,7 +153,6 @@ export function PricesPage() {
       kind: form.kind,
       unitLabel: form.unitLabel,
       unitPrice: Number(form.unitPrice),
-      sku: form.sku,
       active: true,
     };
     try {
@@ -421,9 +420,10 @@ export function PricesPage() {
           <label className="field">
             <span>Artikel-Nr.</span>
             <input
-              value={form.sku}
-              onChange={(e) => setForm({ ...form, sku: e.target.value })}
-              placeholder="optional"
+              value={editingId ? form.sku || "–" : "Wird automatisch vergeben"}
+              readOnly
+              disabled
+              title="Artikelnummer wird automatisch vergeben"
             />
           </label>
           <label className="field full">
