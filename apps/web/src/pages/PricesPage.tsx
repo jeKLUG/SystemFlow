@@ -188,9 +188,7 @@ export function PricesPage() {
     <div className="page prices-page">
       <div className="page-header prices-page-header">
         <div>
-          <p className="eyebrow">Katalog</p>
           <h2>Preise</h2>
-          <p className="muted">Stundensätze, Pauschalen und Stückpreise für die Abrechnungsvorbereitung</p>
         </div>
         <div className="page-actions">
           <button type="button" className="btn btn-primary" onClick={() => openCreate()}>
@@ -199,27 +197,25 @@ export function PricesPage() {
         </div>
       </div>
 
-      <section className="prices-defaults panel">
-        <div className="prices-defaults-main">
-          <div className="prices-default">
-            <span className="label">Standard-Stundensatz</span>
-            <strong>
-              {org?.defaultHourlyRate != null ? formatMoney(org.defaultHourlyRate, currency) : "–"}
-            </strong>
-          </div>
-          <div className="prices-default">
+      <section className="prices-hero panel">
+        <div className="prices-hero-rate">
+          <span className="label">Standard-Stundensatz</span>
+          <strong>
+            {org?.defaultHourlyRate != null ? formatMoney(org.defaultHourlyRate, currency) : "–"}
+          </strong>
+          <span className="prices-hero-hint">für neue Zeitbuchungen</span>
+        </div>
+        <div className="prices-hero-meta">
+          <div className="prices-hero-pill">
             <span className="label">Währung</span>
             <strong>{currency}</strong>
           </div>
-          <div className="prices-default">
+          <div className="prices-hero-pill">
             <span className="label">MwSt.</span>
             <strong>
               {org?.defaultVatPercent != null ? `${org.defaultVatPercent} %` : "–"}
             </strong>
           </div>
-        </div>
-        <div className="prices-defaults-actions">
-          {orgMsg ? <span className="form-success">{orgMsg}</span> : null}
           <button
             type="button"
             className="btn btn-ghost btn-sm"
@@ -228,12 +224,13 @@ export function PricesPage() {
               setOrgOpen(true);
             }}
           >
-            Standards bearbeiten
+            Bearbeiten
           </button>
         </div>
+        {orgMsg ? <p className="form-success prices-hero-msg">{orgMsg}</p> : null}
       </section>
 
-      <div className="prices-toolbar">
+      <div className="prices-toolbar panel">
         <label className="prices-search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
             <circle cx="11" cy="11" r="6.5" />
@@ -275,33 +272,43 @@ export function PricesPage() {
             checked={showInactive}
             onChange={(e) => setShowInactive(e.target.checked)}
           />
-          Inaktive anzeigen
+          Inaktive
         </label>
       </div>
 
       {loading ? (
-        <p className="muted">Lade Preise…</p>
+        <p className="muted prices-loading">Lade Preise…</p>
       ) : filtered.length === 0 ? (
-        <div className="prices-empty panel">
+        <div className={`prices-empty panel${prices.length === 0 ? " is-first" : ""}`}>
           <div className="prices-empty-icon" aria-hidden>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
-              <path d="M4 7.5h16v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-11Z" />
-              <path d="M8 7.5V6a4 4 0 0 1 8 0v1.5" />
-              <path d="M9 13h6" strokeLinecap="round" />
+              <path d="M12 3.5v17" strokeLinecap="round" />
+              <path
+                d="M15.5 7.2c-.7-1.1-2-1.8-3.5-1.8-2.1 0-3.8 1.4-3.8 3.2 0 3.5 7.3 1.8 7.3 5.4 0 1.8-1.7 3.3-4 3.3-1.7 0-3.1-.8-3.8-2"
+                strokeLinecap="round"
+              />
             </svg>
           </div>
-          <div>
+          <div className="prices-empty-copy">
             <strong>{prices.length === 0 ? "Noch keine Positionen" : "Keine Treffer"}</strong>
             <p className="muted">
               {prices.length === 0
-                ? "Lege z. B. „Remote Support“, „Vor-Ort-Einsatz“ oder ein Wartungspaket an."
+                ? "Lege Stundensätze, Wartungspakete oder Stückpreise an – für Zeitbuchungen und Abrechnung."
                 : "Filter oder Suche anpassen."}
             </p>
           </div>
           {prices.length === 0 ? (
-            <button type="button" className="btn btn-primary" onClick={() => openCreate()}>
-              Erste Position
-            </button>
+            <div className="prices-empty-actions">
+              <button type="button" className="btn btn-primary" onClick={() => openCreate("hourly")}>
+                Stundensatz
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => openCreate("fixed")}>
+                Pauschale
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => openCreate("unit")}>
+                Stückpreis
+              </button>
+            </div>
           ) : null}
         </div>
       ) : (
@@ -313,17 +320,15 @@ export function PricesPage() {
             >
               <div className="prices-card-top">
                 <span className={`prices-kind is-${item.kind}`}>{kindLabel[item.kind]}</span>
-                {!item.active ? <span className="prices-inactive-badge">Inaktiv</span> : null}
+                {item.sku ? <span className="prices-sku">{item.sku}</span> : null}
               </div>
               <h3>{item.name}</h3>
               <p className="prices-amount">
                 <strong>{formatMoney(item.unitPrice, currency)}</strong>
-                <span>
-                  {item.unitLabel ? `/ ${item.unitLabel}` : kindHint[item.kind]}
-                </span>
+                <span>{item.unitLabel ? `/ ${item.unitLabel}` : kindHint[item.kind]}</span>
               </p>
               {item.description ? <p className="prices-desc">{item.description}</p> : null}
-              {item.sku ? <p className="prices-sku">Art.-Nr. {item.sku}</p> : null}
+              {!item.active ? <p className="prices-inactive-badge">Inaktiv</p> : null}
               <div className="prices-card-actions">
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>
                   Bearbeiten
