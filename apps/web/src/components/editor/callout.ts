@@ -1,6 +1,9 @@
 import { Node, mergeAttributes, type CommandProps } from "@tiptap/core";
+import { TextSelection } from "@tiptap/pm/state";
+import { ReactNodeViewRenderer } from "@tiptap/react";
+import { CalloutView, type CalloutVariant } from "./CalloutView";
 
-export type CalloutVariant = "info" | "warn" | "tip" | "danger";
+export type { CalloutVariant };
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -15,15 +18,19 @@ declare module "@tiptap/core" {
   }
 }
 
-const labels: Record<CalloutVariant, string> = {
-  info: "Info",
-  warn: "Warnung",
-  tip: "Hinweis",
-  danger: "Wichtig",
-};
+function isEmptyParagraph(node: { type: { name: string }; content: { size: number } } | null | undefined) {
+  return Boolean(node && node.type.name === "paragraph" && node.content.size === 0);
+}
+
+function calloutDepth($from: { depth: number; node: (d: number) => { type: { name: string } } }, name: string) {
+  for (let d = $from.depth; d > 0; d--) {
+    if ($from.node(d).type.name === name) return d;
+  }
+  return -1;
+}
 
 /**
- * TipTap-Block für farbige Info-/Warn-/Hinweis-Panels.
+ * TipTap-Block für farbige Info-/Warn-/Hinweis-Panels (Icon links).
  */
 export const Callout = Node.create({
   name: "callout",
@@ -54,10 +61,13 @@ export const Callout = Node.create({
       mergeAttributes(HTMLAttributes, {
         "data-callout": variant,
         class: `editor-callout editor-callout-${variant}`,
-        "data-label": labels[variant] ?? "Info",
       }),
       0,
     ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(CalloutView);
   },
 
   addCommands() {
@@ -89,6 +99,75 @@ export const Callout = Node.create({
         () =>
         ({ commands }: CommandProps) =>
           commands.lift(this.name),
+    };
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      /** Leeres Panel per Backspace entfernen. */
+      Backspace: ({ editor }) => {
+        const { $from, empty } = editor.state.selection;
+        if (!empty || $from.parentOffset !== 0) return false;
+
+        const depth = calloutDepth($from, this.name);
+        if (depth < 0) return false;
+
+        const callout = $from.node(depth);
+        const onlyEmpty = callout.childCount === 1 && isEmptyParagraph(callout.firstChild);
+        if (!onlyEmpty) return false;
+
+        const from = $from.before(depth);
+        const to = $from.after(depth);
+        return editor.chain().focus().deleteRange({ from, to }).run();
+      },
+
+      /** Zweimal Enter ohne Text → Panel verlassen. */
+      Enter: ({ editor }) => {
+        const { state } = editor;
+        const { $from, empty } = state.selection;
+        if (!empty || !isEmptyParagraph($from.parent)) return false;
+
+        const depth = calloutDepth($from, this.name);
+        if (depth < 0) return false;
+
+        const callout = $from.node(depth);
+        const index = $from.index(depth);
+        if (index === 0) return false;
+
+        const prev = callout.child(index - 1);
+        if (!isEmptyParagraph(prev)) return false;
+
+        const calloutFrom = $from.before(depth);
+        const calloutTo = $from.after(depth);
+        const remaining = callout.childCount - 2;
+
+        return editor
+          .chain()
+          .focus()
+          .command(({ tr, dispatch }) => {
+            if (!dispatch) return true;
+
+            let pos = $from.start(depth);
+            for (let i = 0; i < index - 1; i++) {
+              pos += callout.child(i).nodeSize;
+            }
+            const deleteFrom = pos;
+            const deleteTo = pos + prev.nodeSize + $from.parent.nodeSize;
+
+            if (remaining <= 0) {
+              tr.replaceWith(calloutFrom, calloutTo, state.schema.nodes.paragraph.create());
+              tr.setSelection(TextSelection.near(tr.doc.resolve(calloutFrom + 1)));
+              return true;
+            }
+
+            tr.delete(deleteFrom, deleteTo);
+            const after = tr.mapping.map(calloutTo, -1);
+            tr.insert(after, state.schema.nodes.paragraph.create());
+            tr.setSelection(TextSelection.near(tr.doc.resolve(after + 1)));
+            return true;
+          })
+          .run();
+      },
     };
   },
 });

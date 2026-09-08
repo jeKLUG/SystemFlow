@@ -4,6 +4,10 @@
 
 - Wiki-Editor: Dropdown für Infopanel, Warnpanel, Hinweis, Wichtig, Codeblock und Checkliste
 - Wiki-Editor: Codeblock mit Zeilennummern und „Kopiert!“-Meldung; Checklisten abhakbar
+- Wiki-Editor: Blöcke-Dropdown öffnet nach oben (nicht über dem Inhalt, vollständig sichtbar)
+- Wiki-Editor: Panel-Icons links statt Text; leeres Panel per Backspace löschen; zweimal Enter verlässt Panel
+- Wiki-Editor: Checkliste nur in der Listen-Toolbar (nicht im Dropdown)
+- Wiki-Editor: neue Toolbar-Icons; Überschrift als Dropdown; Einfügen-Label statt Gitter-Icon
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07

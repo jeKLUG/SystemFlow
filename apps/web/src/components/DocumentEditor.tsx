@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import ImageResize from "tiptap-extension-resize-image";
 import { api } from "../api";
@@ -28,7 +29,7 @@ interface Props {
 }
 
 /**
- * Wiki-Editor mit Toolbar, Blöcke-Dropdown (Panels/Code/Checkliste),
+ * Wiki-Editor mit Toolbar, Blöcke-Dropdown (Panels/Code), Checklisten,
  * Bild-Upload und Tabellen.
  */
 export function DocumentEditor({ content, onChange, customerId, documentId }: Props) {
@@ -138,27 +139,7 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
     <div className={`editor${busy ? " is-busy" : ""}`}>
       <div className="editor-toolbar" role="toolbar" aria-label="Formatierung">
         <div className="toolbar-group">
-          <ToolbarBtn
-            title="Überschrift 1"
-            active={editor.isActive("heading", { level: 1 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          >
-            H1
-          </ToolbarBtn>
-          <ToolbarBtn
-            title="Überschrift 2"
-            active={editor.isActive("heading", { level: 2 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          >
-            H2
-          </ToolbarBtn>
-          <ToolbarBtn
-            title="Überschrift 3"
-            active={editor.isActive("heading", { level: 3 })}
-            onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          >
-            H3
-          </ToolbarBtn>
+          <HeadingMenu editor={editor} />
         </div>
 
         <div className="toolbar-group">
@@ -227,9 +208,6 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
 
         <div className="toolbar-group">
           <BlocksMenu editor={editor} />
-        </div>
-
-        <div className="toolbar-group">
           <ToolbarBtn
             title="Bild einfügen"
             active={editor.isActive("imageResize") || editor.isActive("image")}
@@ -313,56 +291,87 @@ const blockItems: {
     run: (ed) => ed.chain().focus().toggleCodeBlock().run(),
     active: (ed) => ed.isActive("codeBlock"),
   },
-  {
-    id: "checklist",
-    label: "Checkliste",
-    hint: "Abhakbare Aufgaben",
-    run: (ed) => ed.chain().focus().toggleTaskList().run(),
-    active: (ed) => ed.isActive("taskList"),
-  },
 ];
 
 /**
- * Dropdown zum Einfügen von Panels, Codeblock und Checkliste.
+ * Dropdown für Überschriften H1–H3.
  */
-function BlocksMenu({ editor }: { editor: Editor }) {
+function HeadingMenu({ editor }: { editor: Editor }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  useDropdownDismiss(open, setOpen, rootRef);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const anyActive =
-    editor.isActive("callout") || editor.isActive("codeBlock") || editor.isActive("taskList");
+  const activeLevel = editor.isActive("heading", { level: 1 })
+    ? 1
+    : editor.isActive("heading", { level: 2 })
+      ? 2
+      : editor.isActive("heading", { level: 3 })
+        ? 3
+        : 0;
 
   return (
     <div className={`toolbar-dropdown${open ? " is-open" : ""}`} ref={rootRef}>
       <ToolbarBtn
-        title="Blöcke einfügen"
-        active={open || anyActive}
+        title="Überschrift"
+        active={open || activeLevel > 0}
         onClick={() => setOpen((v) => !v)}
         ariaExpanded={open}
       >
-        <IconBlocks />
+        <IconHeading />
         <span className="toolbar-btn-caret" aria-hidden>
           ▾
         </span>
       </ToolbarBtn>
       {open ? (
-        <div className="toolbar-menu" role="menu" aria-label="Blöcke">
+        <div className="toolbar-menu" role="menu" aria-label="Überschrift">
+          {([1, 2, 3] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              role="menuitem"
+              className={`toolbar-menu-item${activeLevel === level ? " is-active" : ""}`}
+              onClick={() => {
+                editor.chain().focus().toggleHeading({ level }).run();
+                setOpen(false);
+              }}
+            >
+              <strong>H{level}</strong>
+              <span>
+                {level === 1 ? "Große Überschrift" : level === 2 ? "Mittel" : "Klein"}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Dropdown zum Einfügen von Panels und Codeblock.
+ */
+function BlocksMenu({ editor }: { editor: Editor }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useDropdownDismiss(open, setOpen, rootRef);
+
+  const anyActive = editor.isActive("callout") || editor.isActive("codeBlock");
+
+  return (
+    <div className={`toolbar-dropdown${open ? " is-open" : ""}`} ref={rootRef}>
+      <ToolbarBtn
+        title="Einfügen"
+        active={open || anyActive}
+        onClick={() => setOpen((v) => !v)}
+        ariaExpanded={open}
+      >
+        <span className="toolbar-btn-label">Einfügen</span>
+        <span className="toolbar-btn-caret" aria-hidden>
+          ▾
+        </span>
+      </ToolbarBtn>
+      {open ? (
+        <div className="toolbar-menu" role="menu" aria-label="Einfügen">
           {blockItems.map((item) => (
             <button
               key={item.id}
@@ -382,6 +391,29 @@ function BlocksMenu({ editor }: { editor: Editor }) {
       ) : null}
     </div>
   );
+}
+
+/** Schließt ein Toolbar-Dropdown bei Klick außerhalb oder Escape. */
+function useDropdownDismiss(
+  open: boolean,
+  setOpen: (v: boolean | ((prev: boolean) => boolean)) => void,
+  rootRef: RefObject<HTMLDivElement | null>,
+) {
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, rootRef, setOpen]);
 }
 
 function ToolbarBtn({
@@ -431,36 +463,63 @@ function iconProps() {
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: 1.8,
+    strokeWidth: 2,
     "aria-hidden": true as const,
   };
 }
 
+function IconHeading() {
+  return (
+    <svg {...iconProps()}>
+      <path
+        d="M8 7V17M16 7V17M16 12L8 12M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 function IconBold() {
   return (
     <svg {...iconProps()}>
-      <path d="M7 5h6a3.5 3.5 0 010 7H7zm0 7h7a3.5 3.5 0 010 7H7z" strokeLinejoin="round" />
+      <path
+        d="M8.5 12H13C14.3807 12 15.5 10.8807 15.5 9.5C15.5 8.11929 14.3807 7 13 7H8.5V12ZM8.5 12H14C15.3807 12 16.5 13.1193 16.5 14.5C16.5 15.8807 15.3807 17 14 17H8.5V12ZM7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconItalic() {
   return (
     <svg {...iconProps()}>
-      <path d="M12 5h6M8 19h6M14.5 5l-5 14" strokeLinecap="round" />
+      <path
+        d="M14 7L10 17M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconUnderline() {
   return (
     <svg {...iconProps()}>
-      <path d="M7 5v6a5 5 0 0010 0V5M6 19h12" strokeLinecap="round" />
+      <path
+        d="M15.5 7V10.5C15.5 12.433 13.933 14 12 14C10.067 14 8.5 12.433 8.5 10.5V7M8 17H16M7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V7.8C21 6.11984 21 5.27976 20.673 4.63803C20.3854 4.07354 19.9265 3.6146 19.362 3.32698C18.7202 3 17.8802 3 16.2 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconList() {
   return (
     <svg {...iconProps()}>
-      <path d="M9 7h11M9 12h11M9 17h11M5 7h.01M5 12h.01M5 17h.01" strokeLinecap="round" />
+      <path
+        d="M21 5L10 5M21 19L10 19M21 12L10 12M6 5C6 5.82843 5.32843 6.5 4.5 6.5C3.67157 6.5 3 5.82843 3 5C3 4.17157 3.67157 3.5 4.5 3.5C5.32843 3.5 6 4.17157 6 5ZM6 19C6 19.8284 5.32843 20.5 4.5 20.5C3.67157 20.5 3 19.8284 3 19C3 18.1716 3.67157 17.5 4.5 17.5C5.32843 17.5 6 18.1716 6 19ZM6 12C6 12.8284 5.32843 13.5 4.5 13.5C3.67157 13.5 3 12.8284 3 12C3 11.1716 3.67157 10.5 4.5 10.5C5.32843 10.5 6 11.1716 6 12Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -474,8 +533,11 @@ function IconOrdered() {
 function IconChecklist() {
   return (
     <svg {...iconProps()}>
-      <path d="M9 7h11M9 12h11M9 17h11" strokeLinecap="round" />
-      <path d="M4.5 7l1 1 2-2M4.5 12l1 1 2-2M4.5 17l1 1 2-2" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M9 11L12 14L22 4M16 3H7.8C6.11984 3 5.27976 3 4.63803 3.32698C4.07354 3.6146 3.6146 4.07354 3.32698 4.63803C3 5.27976 3 6.11984 3 7.8V16.2C3 17.8802 3 18.7202 3.32698 19.362C3.6146 19.9265 4.07354 20.3854 4.63803 20.673C5.27976 21 6.11984 21 7.8 21H16.2C17.8802 21 18.7202 21 19.362 20.673C19.9265 20.3854 20.3854 19.9265 20.673 19.362C21 18.7202 21 17.8802 21 16.2V12"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -486,21 +548,14 @@ function IconQuote() {
     </svg>
   );
 }
-function IconBlocks() {
-  return (
-    <svg {...iconProps()}>
-      <rect x="4" y="4" width="7" height="7" rx="1.5" />
-      <rect x="13" y="4" width="7" height="7" rx="1.5" />
-      <rect x="4" y="13" width="7" height="7" rx="1.5" />
-      <rect x="13" y="13" width="7" height="7" rx="1.5" />
-    </svg>
-  );
-}
 function IconTable() {
   return (
     <svg {...iconProps()}>
-      <rect x="4" y="5" width="16" height="14" rx="1.5" />
-      <path d="M4 10h16M4 14h16M10 5v14M14 5v14" />
+      <path
+        d="M3 9H21M9 9L9 21M7.8 3H16.2C17.8802 3 18.7202 3 19.362 3.32698C19.9265 3.6146 20.3854 4.07354 20.673 4.63803C21 5.27976 21 6.11984 21 7.8V16.2C21 17.8802 21 18.7202 20.673 19.362C20.3854 19.9265 19.9265 20.3854 19.362 20.673C18.7202 21 17.8802 21 16.2 21H7.8C6.11984 21 5.27976 21 4.63803 20.673C4.07354 20.3854 3.6146 19.9265 3.32698 19.362C3 18.7202 3 17.8802 3 16.2V7.8C3 6.11984 3 5.27976 3.32698 4.63803C3.6146 4.07354 4.07354 3.6146 4.63803 3.32698C5.27976 3 6.11984 3 7.8 3Z"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
@@ -516,14 +571,22 @@ function IconImage() {
 function IconUndo() {
   return (
     <svg {...iconProps()}>
-      <path d="M9 8H5V4M5 8a8 8 0 118 8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M3 9H16.5C18.9853 9 21 11.0147 21 13.5C21 15.9853 18.9853 18 16.5 18H12M3 9L7 5M3 9L7 13"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
 function IconRedo() {
   return (
     <svg {...iconProps()}>
-      <path d="M15 8h4V4M19 8a8 8 0 10-8 8" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M21 9H7.5C5.01472 9 3 11.0147 3 13.5C3 15.9853 5.01472 18 7.5 18H12M21 9L17 5M21 9L17 13"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
