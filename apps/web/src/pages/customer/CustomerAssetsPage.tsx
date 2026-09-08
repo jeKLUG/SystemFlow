@@ -299,97 +299,97 @@ export function CustomerAssetsPage() {
 
       <div className="panel asset-filters">
         <div className="asset-filters-top">
-          <input
-            className="wiki-search asset-filters-search"
-            type="search"
-            placeholder="Suche Name, IP, Hostname, S/N, Lizenz, Standort…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Inventar durchsuchen"
-          />
+          <label className="asset-filters-search">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+              <circle cx="11" cy="11" r="6.5" />
+              <path d="M16.2 16.2 20 20" strokeLinecap="round" />
+            </svg>
+            <input
+              type="search"
+              placeholder="Name, IP, Hostname, S/N, Standort…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              aria-label="Inventar durchsuchen"
+            />
+          </label>
           <button
             type="button"
             className={`asset-view-toggle${groupByKind ? " is-active" : ""}`}
             onClick={() => setGroupByKind((v) => !v)}
             aria-pressed={groupByKind}
+            title={groupByKind ? "Als flache Liste anzeigen" : "Nach Typ gruppieren"}
           >
-            {groupByKind ? "Gruppiert nach Typ" : "Liste ohne Gruppen"}
+            {groupByKind ? "Gruppiert" : "Liste"}
           </button>
         </div>
 
-        <div className="asset-filter-rows">
-          <div className="asset-filter-row">
-            <span className="asset-filter-label">Zuordnung</span>
-            <div className="asset-seg" role="group" aria-label="Zuordnung">
+        <div className="asset-filter-chips">
+          <div className="asset-chip-group" role="group" aria-label="Zuordnung">
+            <span className="asset-chip-label">Zuordnung</span>
+            <button
+              type="button"
+              className={ownershipFilter === "all" ? "is-active" : undefined}
+              onClick={() => setOwnershipFilter("all")}
+            >
+              Alle
+            </button>
+            {(Object.keys(assetOwnershipFilterLabel) as AssetOwnership[]).map((o) => (
               <button
+                key={o}
                 type="button"
-                className={ownershipFilter === "all" ? "is-active" : undefined}
-                onClick={() => setOwnershipFilter("all")}
+                className={ownershipFilter === o ? "is-active" : undefined}
+                onClick={() => setOwnershipFilter(o)}
               >
-                Alle
+                {assetOwnershipFilterLabel[o]}
+                {o === "loaned" && stats.loaned ? ` · ${stats.loaned}` : ""}
+                {o === "held" && stats.held ? ` · ${stats.held}` : ""}
               </button>
-              {(Object.keys(assetOwnershipFilterLabel) as AssetOwnership[]).map((o) => (
-                <button
-                  key={o}
-                  type="button"
-                  className={ownershipFilter === o ? "is-active" : undefined}
-                  onClick={() => setOwnershipFilter(o)}
-                >
-                  {assetOwnershipFilterLabel[o]}
-                  {o === "loaned" && stats.loaned ? ` · ${stats.loaned}` : ""}
-                  {o === "held" && stats.held ? ` · ${stats.held}` : ""}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
 
-          <div className="asset-filter-row">
-            <span className="asset-filter-label">Status</span>
-            <div className="asset-seg" role="group" aria-label="Status">
+          <div className="asset-chip-group" role="group" aria-label="Status">
+            <span className="asset-chip-label">Status</span>
+            <button
+              type="button"
+              className={statusFilter === "all" ? "is-active" : undefined}
+              onClick={() => setStatusFilter("all")}
+            >
+              Alle
+            </button>
+            {(Object.keys(assetStatusLabel) as AssetStatus[]).map((s) => (
               <button
+                key={s}
                 type="button"
-                className={statusFilter === "all" ? "is-active" : undefined}
-                onClick={() => setStatusFilter("all")}
+                className={statusFilter === s ? "is-active" : undefined}
+                onClick={() => setStatusFilter(s)}
               >
-                Alle
+                {assetStatusLabel[s]}
               </button>
-              {(Object.keys(assetStatusLabel) as AssetStatus[]).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={statusFilter === s ? "is-active" : undefined}
-                  onClick={() => setStatusFilter(s)}
-                >
-                  {assetStatusLabel[s]}
-                </button>
-              ))}
-            </div>
+            ))}
           </div>
 
-          <div className="asset-filter-row">
-            <span className="asset-filter-label">Typ</span>
-            <div className="asset-seg asset-seg-wrap" role="group" aria-label="Typ">
-              <button
-                type="button"
-                className={kindFilter === "all" ? "is-active" : undefined}
-                onClick={() => setKindFilter("all")}
-              >
-                Alle
-              </button>
-              {(Object.keys(assetKindLabel) as AssetKind[])
-                .filter((k) => (kindCounts.get(k) ?? 0) > 0 || kindFilter === k)
-                .map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    className={kindFilter === k ? "is-active" : undefined}
-                    onClick={() => setKindFilter(k)}
-                  >
-                    {assetKindLabel[k]}
-                    {kindCounts.get(k) ? ` · ${kindCounts.get(k)}` : ""}
-                  </button>
-                ))}
-            </div>
+          <div className="asset-chip-group" role="group" aria-label="Typ">
+            <span className="asset-chip-label">Typ</span>
+            <button
+              type="button"
+              className={kindFilter === "all" ? "is-active" : undefined}
+              onClick={() => setKindFilter("all")}
+            >
+              Alle
+            </button>
+            {(Object.keys(assetKindLabel) as AssetKind[])
+              .filter((k) => (kindCounts.get(k) ?? 0) > 0 || kindFilter === k)
+              .map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={kindFilter === k ? "is-active" : undefined}
+                  onClick={() => setKindFilter(k)}
+                >
+                  {assetKindLabel[k]}
+                  {kindCounts.get(k) ? ` · ${kindCounts.get(k)}` : ""}
+                </button>
+              ))}
           </div>
         </div>
       </div>
@@ -523,161 +523,182 @@ export function CustomerAssetsPage() {
         open={formMode != null}
         title={formMode === "edit" ? "Eintrag bearbeiten" : "Neuer Inventar-Eintrag"}
         onClose={closeForm}
-        className="modal-wide"
+        showCloseButton={false}
+        className="modal-wide modal-asset-form"
       >
-        <form className="form-grid asset-form" onSubmit={saveAsset}>
-          <p className="muted full asset-form-lead">
-            z. B. Notebook des Kunden, verliehener Adapter, Software-Lizenz oder Gerät in deiner
-            Werkstatt.
-          </p>
-          <label className="field">
-            <span>Bezeichnung *</span>
-            <input
-              required
-              value={assetForm.name}
-              onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-              placeholder="z. B. NB-Müller / Office 365 / Leih-USV"
-            />
-          </label>
-          <label className="field">
-            <span>Typ</span>
-            <select
-              value={assetForm.kind}
-              onChange={(e) =>
-                setAssetForm({ ...assetForm, kind: e.target.value as AssetKind })
-              }
-            >
-              {Object.entries(assetKindLabel).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Zuordnung</span>
-            <select
-              value={assetForm.ownership}
-              onChange={(e) =>
-                setAssetForm({ ...assetForm, ownership: e.target.value as AssetOwnership })
-              }
-            >
-              {Object.entries(assetOwnershipLabel).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Status</span>
-            <select
-              value={assetForm.status}
-              onChange={(e) =>
-                setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })
-              }
-            >
-              {Object.entries(assetStatusLabel).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Standort</span>
-            <input
-              value={assetForm.location}
-              onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
-              placeholder="Kunde / Werkstatt / Lager"
-            />
-          </label>
-          <label className="field">
-            <span>Hersteller</span>
-            <input
-              value={assetForm.manufacturer}
-              onChange={(e) => setAssetForm({ ...assetForm, manufacturer: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Modell / Produkt</span>
-            <input
-              value={assetForm.model}
-              onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Serien- / Lizenznummer</span>
-            <input
-              value={assetForm.serialNumber}
-              onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>Hostname</span>
-            <input
-              value={assetForm.hostname}
-              onChange={(e) => setAssetForm({ ...assetForm, hostname: e.target.value })}
-              placeholder="optional"
-            />
-          </label>
-          <label className="field">
-            <span>IP-Adresse</span>
-            <input
-              value={assetForm.ipAddress}
-              onChange={(e) => setAssetForm({ ...assetForm, ipAddress: e.target.value })}
-              placeholder="optional"
-            />
-          </label>
-          <label className="field">
-            <span>MAC-Adresse</span>
-            <input
-              value={assetForm.macAddress}
-              onChange={(e) => setAssetForm({ ...assetForm, macAddress: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>VLAN</span>
-            <input
-              value={assetForm.vlan}
-              onChange={(e) => setAssetForm({ ...assetForm, vlan: e.target.value })}
-            />
-          </label>
-          <label className="field">
-            <span>OS / Version</span>
-            <input
-              value={assetForm.os}
-              onChange={(e) => setAssetForm({ ...assetForm, os: e.target.value })}
-              placeholder="Windows 11 / v3.2"
-            />
-          </label>
-          <label className="field">
-            <span>Portal- / Management-URL</span>
-            <input
-              value={assetForm.managementUrl}
-              onChange={(e) => setAssetForm({ ...assetForm, managementUrl: e.target.value })}
-              placeholder="https://…"
-            />
-          </label>
-          <label className="field">
-            <span>Garantie / Laufzeit bis</span>
-            <input
-              type="date"
-              value={assetForm.warrantyUntil}
-              onChange={(e) => setAssetForm({ ...assetForm, warrantyUntil: e.target.value })}
-            />
-          </label>
-          <label className="field full">
-            <span>Notizen</span>
-            <textarea
-              rows={3}
-              value={assetForm.notes}
-              onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
-              placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
-            />
-          </label>
-          {error ? <p className="form-error full">{error}</p> : null}
-          <div className="full form-actions modal-actions">
+        <form className="asset-form" onSubmit={saveAsset}>
+          <section className="asset-form-block">
+            <h4>Grunddaten</h4>
+            <div className="asset-form-grid">
+              <label className="field asset-form-span-2">
+                <span>Bezeichnung *</span>
+                <input
+                  required
+                  value={assetForm.name}
+                  onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
+                  placeholder="z. B. NB-Müller / Office 365 / Leih-USV"
+                />
+              </label>
+              <label className="field">
+                <span>Typ</span>
+                <select
+                  value={assetForm.kind}
+                  onChange={(e) =>
+                    setAssetForm({ ...assetForm, kind: e.target.value as AssetKind })
+                  }
+                >
+                  {Object.entries(assetKindLabel).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Zuordnung</span>
+                <select
+                  value={assetForm.ownership}
+                  onChange={(e) =>
+                    setAssetForm({ ...assetForm, ownership: e.target.value as AssetOwnership })
+                  }
+                >
+                  {Object.entries(assetOwnershipLabel).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Status</span>
+                <select
+                  value={assetForm.status}
+                  onChange={(e) =>
+                    setAssetForm({ ...assetForm, status: e.target.value as AssetStatus })
+                  }
+                >
+                  {Object.entries(assetStatusLabel).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="field">
+                <span>Standort</span>
+                <input
+                  value={assetForm.location}
+                  onChange={(e) => setAssetForm({ ...assetForm, location: e.target.value })}
+                  placeholder="Kunde / Werkstatt / Lager"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="asset-form-block">
+            <h4>Gerät & Produkt</h4>
+            <div className="asset-form-grid">
+              <label className="field">
+                <span>Hersteller</span>
+                <input
+                  value={assetForm.manufacturer}
+                  onChange={(e) => setAssetForm({ ...assetForm, manufacturer: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Modell / Produkt</span>
+                <input
+                  value={assetForm.model}
+                  onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Serien- / Lizenznummer</span>
+                <input
+                  value={assetForm.serialNumber}
+                  onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>OS / Version</span>
+                <input
+                  value={assetForm.os}
+                  onChange={(e) => setAssetForm({ ...assetForm, os: e.target.value })}
+                  placeholder="Windows 11 / v3.2"
+                />
+              </label>
+              <label className="field asset-form-span-2">
+                <span>Portal- / Management-URL</span>
+                <input
+                  value={assetForm.managementUrl}
+                  onChange={(e) => setAssetForm({ ...assetForm, managementUrl: e.target.value })}
+                  placeholder="https://…"
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="asset-form-block">
+            <h4>Netzwerk</h4>
+            <div className="asset-form-grid">
+              <label className="field">
+                <span>Hostname</span>
+                <input
+                  value={assetForm.hostname}
+                  onChange={(e) => setAssetForm({ ...assetForm, hostname: e.target.value })}
+                  placeholder="optional"
+                />
+              </label>
+              <label className="field">
+                <span>IP-Adresse</span>
+                <input
+                  value={assetForm.ipAddress}
+                  onChange={(e) => setAssetForm({ ...assetForm, ipAddress: e.target.value })}
+                  placeholder="optional"
+                />
+              </label>
+              <label className="field">
+                <span>MAC-Adresse</span>
+                <input
+                  value={assetForm.macAddress}
+                  onChange={(e) => setAssetForm({ ...assetForm, macAddress: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>VLAN</span>
+                <input
+                  value={assetForm.vlan}
+                  onChange={(e) => setAssetForm({ ...assetForm, vlan: e.target.value })}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section className="asset-form-block">
+            <h4>Laufzeit & Notizen</h4>
+            <div className="asset-form-grid">
+              <label className="field">
+                <span>Garantie / Laufzeit bis</span>
+                <input
+                  type="date"
+                  value={assetForm.warrantyUntil}
+                  onChange={(e) => setAssetForm({ ...assetForm, warrantyUntil: e.target.value })}
+                />
+              </label>
+              <label className="field asset-form-span-2">
+                <span>Notizen</span>
+                <textarea
+                  rows={3}
+                  value={assetForm.notes}
+                  onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
+                  placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
+                />
+              </label>
+            </div>
+          </section>
+
+          {error ? <p className="form-error">{error}</p> : null}
+          <div className="form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
               {formMode === "edit" ? "Änderungen speichern" : "Eintrag anlegen"}
             </button>

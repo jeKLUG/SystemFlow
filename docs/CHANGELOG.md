@@ -23,6 +23,8 @@
 - Preise: eigene App in der Navbar (`/prices`) für Katalog und Standardpreise; Preiskatalog aus den Einstellungen entfernt
 - Einstellungen: nur noch Profil (Passwort) und Sicherung
 - Wiki-PDF: Bilder größer/schärfer – Editorbreite beachten, Rahmen, bessere Seitenpassung
+- Inventar: Bearbeiten-Modal ohne X; Formular in Abschnitte (Grunddaten, Gerät, Netzwerk, Notizen)
+- Inventar: Filter kompakter als Chip-Leisten (Suche + Zuordnung/Status/Typ in einer Zeile)
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
 
 ## 1.5.96 – 2026-09-07
