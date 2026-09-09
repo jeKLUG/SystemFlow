@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
+import { CreateDocIcon, UploadIcon } from "../../components/Icons";
 import { Modal } from "../../components/Modal";
 import { localTodayIso } from "../../lib/dates";
 import { emailDirectionLabel, formatDateOnly } from "../../lib/labels";
@@ -235,8 +236,12 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
         ))}
       </div>
       <div className="emails-toolbar-actions">
-        <label className={`btn btn-ghost${importBusy ? " is-busy" : ""}`}>
-          {importBusy ? "Import…" : ".eml importieren"}
+        <label
+          className={`btn btn-ghost btn-icon${importBusy ? " is-busy" : ""}`}
+          title={importBusy ? "Import…" : ".eml importieren"}
+          aria-label={importBusy ? "Import…" : ".eml importieren"}
+        >
+          <UploadIcon />
           <input
             type="file"
             accept=".eml,message/rfc822"
@@ -249,8 +254,14 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
             }}
           />
         </label>
-        <button type="button" className="btn btn-primary" onClick={openCreate}>
-          + E-Mail
+        <button
+          type="button"
+          className="btn btn-primary btn-icon"
+          onClick={openCreate}
+          title="E-Mail ablegen"
+          aria-label="E-Mail ablegen"
+        >
+          <CreateDocIcon />
         </button>
       </div>
     </div>

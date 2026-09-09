@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #080d16;
   --bg-elevated: #101826;
   --surface: #121b29;
@@ -6870,6 +6870,18 @@ input[type="checkbox"]:not(.check-input):checked {
     align-items: stretch;
   }
 
+  .docs-wiki-toolbar .emails-toolbar-actions {
+    margin-left: 0;
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .docs-wiki-toolbar .emails-dir-seg {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
   .wiki-search {
     width: 100%;
     min-height: 2.75rem;
@@ -7493,13 +7505,45 @@ a.stat-chip:hover {
 
 .docs-wiki-toolbar {
   margin: 0;
-  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
   border-radius: 14px;
 }
 
 .docs-wiki-toolbar .wiki-search {
-  width: 100%;
+  flex: 1 1 14rem;
+  min-width: 0;
+  min-height: 2.35rem;
+  padding: 0 0.8rem;
+  border-radius: 10px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-elevated);
+  width: auto;
   max-width: none;
+}
+
+.docs-wiki-toolbar .emails-dir-seg {
+  flex: 0 1 auto;
+}
+
+.docs-wiki-toolbar .emails-dir-seg button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.docs-wiki-toolbar .emails-dir-seg button em {
+  font-style: normal;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.docs-wiki-toolbar .emails-toolbar-actions {
+  margin-left: auto;
 }
 
 .docs-wiki-board {
@@ -8722,6 +8766,74 @@ a.stat-chip:hover {
   align-items: center;
   gap: 0.35rem;
   padding: 0 0.15rem;
+}
+
+.time-hours-manual {
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0;
+  overflow: hidden;
+}
+
+.time-hours-manual > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  cursor: pointer;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+  user-select: none;
+}
+
+.time-hours-manual > summary::-webkit-details-marker {
+  display: none;
+}
+
+.time-hours-manual > summary::after {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  border-right: 2px solid var(--text-muted);
+  border-bottom: 2px solid var(--text-muted);
+  transform: rotate(45deg);
+  transition: transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.time-hours-manual[open] > summary::after {
+  transform: rotate(-135deg);
+  margin-top: 0.25rem;
+}
+
+.time-hours-manual > summary em {
+  font-style: normal;
+  font-weight: 550;
+  font-size: 0.8rem;
+  color: var(--accent-bright);
+  margin-left: auto;
+  margin-right: 0.35rem;
+}
+
+.time-hours-manual > summary em.muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.time-hours-manual-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0 0.85rem 0.85rem;
+}
+
+.time-hours-manual-hint {
+  font-size: 0.78rem;
+  line-height: 1.35;
 }
 
 .time-catalog {
@@ -14074,6 +14186,10 @@ summary:focus-visible {
   }
 
   .emails-toolbar-actions .btn {
+    flex: 0 0 auto;
+  }
+
+  .emails-toolbar-actions .btn:not(.btn-icon) {
     flex: 1 1 auto;
   }
 

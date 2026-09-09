@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { api } from "../../api";
 import { AttachmentPanel } from "../../components/AttachmentPanel";
 import { CustomerSlaPanel } from "../../components/CustomerSlaPanel";
+import { CreateDocIcon } from "../../components/Icons";
 import { Modal } from "../../components/Modal";
 import { formatBytes } from "../../lib/files";
 import { documentTypeLabel, formatDate } from "../../lib/labels";
@@ -151,31 +152,15 @@ export function CustomerWikiPage() {
             </p>
           </div>
           <div className="docs-hero-actions">
-            {view === "wiki" ? (
+            {view === "contracts" ? (
               <button
                 type="button"
                 className="btn btn-primary btn-icon"
-                onClick={() => setCreateOpen(true)}
-                title="Wiki-Seite anlegen"
-                aria-label="Wiki-Seite anlegen"
-              >
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-                  <path
-                    d="M20 10.5V6.8C20 5.11984 20 4.27976 19.673 3.63803C19.3854 3.07354 18.9265 2.6146 18.362 2.32698C17.7202 2 16.8802 2 15.2 2H8.8C7.11984 2 6.27976 2 5.63803 2.32698C5.07354 2.6146 4.6146 3.07354 4.32698 3.63803C4 4.27976 4 5.11984 4 6.8V17.2C4 18.8802 4 19.7202 4.32698 20.362C4.6146 20.9265 5.07354 21.3854 5.63803 21.673C6.27976 22 7.11984 22 8.8 22H12M14 11H8M10 15H8M16 7H8M18 21V15M15 18H21"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
-            ) : view === "contracts" ? (
-              <button
-                type="button"
-                className="btn btn-primary"
                 onClick={() => setContractCreateKey((k) => k + 1)}
+                title="Vertrag anlegen"
+                aria-label="Vertrag anlegen"
               >
-                + Vertrag
+                <CreateDocIcon />
               </button>
             ) : null}
           </div>
@@ -224,32 +209,46 @@ export function CustomerWikiPage() {
 
       {view === "wiki" ? (
         <>
-          <div className="wiki-toolbar docs-wiki-toolbar panel">
+          <div className="docs-wiki-toolbar panel">
             <input
               className="wiki-search"
+              type="search"
               placeholder="Wiki-Seiten durchsuchen…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               aria-label="Wiki durchsuchen"
             />
-            <div className="filter-chips">
+            <div className="emails-dir-seg" role="group" aria-label="Seitentyp">
               <button
                 type="button"
-                className={filter === "all" ? "chip chip-active" : "chip"}
+                className={filter === "all" ? "is-active" : ""}
                 onClick={() => setFilter("all")}
               >
-                Alle ({docs.length})
+                Alle
+                <em>{docs.length}</em>
               </button>
               {wikiTypes.map((t) => (
                 <button
                   key={t}
                   type="button"
-                  className={filter === t ? "chip chip-active" : "chip"}
+                  className={filter === t ? "is-active" : ""}
                   onClick={() => setFilter(t)}
                 >
-                  {documentTypeLabel[t]} ({counts[t]})
+                  {documentTypeLabel[t]}
+                  <em>{counts[t]}</em>
                 </button>
               ))}
+            </div>
+            <div className="emails-toolbar-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-icon"
+                onClick={() => setCreateOpen(true)}
+                title="Wiki-Seite anlegen"
+                aria-label="Wiki-Seite anlegen"
+              >
+                <CreateDocIcon />
+              </button>
             </div>
           </div>
 

@@ -31,6 +31,10 @@
 - Wiki-Editor: neues Bild-Icon; klareres Icon für nummerierte Liste
 - Dateien/Vault: Kontextmenü nur noch Icons (Bearbeiten / Verschieben / Löschen)
 - Wiki-Seite: Speichern / PDF / Löschen als Icons neben der Kundenauswahl
+- Dokumente: E-Mail-/Vertrag-Anlegen mit Wiki-Icon; .eml-Import als Upload-Icon
+- Wiki: Suchleiste wie E-Mails (Suche · Typ-Filter · Anlegen rechts)
+- Navbar: neues Preise-Icon
+- Zeiterfassung: manuelle Stunden einklappbar, nur Zahlen mit max. 2 Nachkommastellen
 - Zeiterfassung: beim Buchen 1–n Positionen aus dem Preiskatalog (Stunden/Pauschale/Stück) mit Menge; Betrag = Summe der Positionen
 - Zeiterfassung: kein automatischer Standard-/Projekt-Stundensatz mehr – Stundensätze explizit als Position (`__org_hourly__` / `__project_hourly__`) neben Artikeln wählbar
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt

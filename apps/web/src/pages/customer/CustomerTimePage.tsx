@@ -91,6 +91,18 @@ function newLineKey() {
   return `line-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+/** Erlaubt nur Ziffern und max. eine Dezimalstelle (Komma/Punkt) mit ≤2 Nachkommastellen. */
+function sanitizeHoursInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.,]/g, "");
+  const match = cleaned.match(/^(\d*)([.,]?)(\d{0,2})/);
+  if (!match) return "";
+  const intPart = match[1] ?? "";
+  const sep = match[2] ?? "";
+  const frac = match[3] ?? "";
+  if (!sep) return intPart;
+  return `${intPart}${sep}${frac}`;
+}
+
 const kindShort: Record<string, string> = {
   hourly: "Stunde",
   fixed: "Pauschale",
@@ -125,6 +137,7 @@ export function CustomerTimePage() {
   const [clockProjectId, setClockProjectId] = useState("");
   const [elapsedLabel, setElapsedLabel] = useState("0min");
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [hoursManualOpen, setHoursManualOpen] = useState(false);
 
   const computedHours = useMemo(() => {
     if (form.hoursOverride.trim()) {
@@ -306,6 +319,7 @@ export function CustomerTimePage() {
   function openCreate() {
     setError("");
     setEditingId(null);
+    setHoursManualOpen(false);
     setForm({
       ...emptyForm(),
       startTime: localNowTime(),
@@ -333,12 +347,14 @@ export function CustomerTimePage() {
             },
           ]
         : [];
+    const hoursOverride =
+      entry.startTime && entry.endTime ? "" : String(entry.hours).replace(".", ",");
+    setHoursManualOpen(Boolean(hoursOverride));
     setForm({
       workDate: entry.workDate,
       startTime: entry.startTime || "09:00",
       endTime: entry.endTime || addMinutesToTime(entry.startTime || "09:00", 60),
-      hoursOverride:
-        entry.startTime && entry.endTime ? "" : String(entry.hours).replace(".", ","),
+      hoursOverride,
       description: entry.description || "",
       projectId: entry.projectId || "",
       lines: entryLines,
@@ -832,15 +848,41 @@ export function CustomerTimePage() {
               onChange={(e) => setForm({ ...form, endTime: e.target.value })}
             />
           </label>
-          <label className="field full">
-            <span>Stunden manuell (ersetzt Von/Bis)</span>
-            <input
-              inputMode="decimal"
-              value={form.hoursOverride}
-              onChange={(e) => setForm({ ...form, hoursOverride: e.target.value })}
-              placeholder="z. B. 1,5 – leer lassen für Von/Bis"
-            />
-          </label>
+          <details
+            className="field full time-hours-manual"
+            open={hoursManualOpen}
+            onToggle={(e) => {
+              const next = (e.currentTarget as HTMLDetailsElement).open;
+              setHoursManualOpen(next);
+              if (!next && form.hoursOverride.trim()) {
+                setForm({ ...form, hoursOverride: "" });
+              }
+            }}
+          >
+            <summary>
+              Stunden manuell
+              {form.hoursOverride.trim() ? (
+                <em>{form.hoursOverride.replace(".", ",")} h</em>
+              ) : (
+                <em className="muted">ersetzt Von/Bis</em>
+              )}
+            </summary>
+            <label className="time-hours-manual-field">
+              <span className="sr-only">Stunden manuell</span>
+              <input
+                inputMode="decimal"
+                value={form.hoursOverride}
+                onChange={(e) =>
+                  setForm({ ...form, hoursOverride: sanitizeHoursInput(e.target.value) })
+                }
+                placeholder="z. B. 1,5"
+                aria-describedby="time-hours-manual-hint"
+              />
+              <span id="time-hours-manual-hint" className="muted time-hours-manual-hint">
+                Nur Zahlen, max. zwei Nachkommastellen. Leer = Von/Bis nutzen.
+              </span>
+            </label>
+          </details>
           <label className="field">
             <span>Projekt</span>
             <select
@@ -898,12 +940,7 @@ export function CustomerTimePage() {
                 + Position
               </button>
             </div>
-            {form.lines.length === 0 ? (
-              <p className="muted time-catalog-empty">
-                Keine Positionen – Betrag bleibt leer. Stundensatz und Artikel über „+ Position“
-                hinzufügen (z. B. Projektstundensatz + Artikel).
-              </p>
-            ) : (
+            {form.lines.length === 0 ? null : (
               <ul className="time-catalog-lines">
                 {form.lines.map((line, index) => {
                   const item = lineOptions.find((o) => o.id === line.priceItemId);
