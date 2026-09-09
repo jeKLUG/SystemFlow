@@ -1,8 +1,8 @@
-import { asc, desc, eq, inArray, like } from "drizzle-orm";
+import { asc, desc, eq, like } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { orgSettings, priceItems, projects, timeEntries, timeEntryLines } from "../db/schema.js";
+import { orgSettings, priceItems, projects, timeEntries } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 
@@ -96,66 +96,6 @@ export async function resolveHourlyRate(
     rate: settings.defaultHourlyRate,
     priceItemId: opts.priceItemId ?? null,
   };
-}
-
-/**
- * Aktualisiert rateSnapshot/amountSnapshot aller Projekt-Zeiten ohne explizite Positionen.
- * Einträge mit Katalog-/Stundensatz-Zeilen oder Katalog-hourly bleiben unverändert.
- */
-export async function recalculateProjectTimeRates(db: Db, projectId: string): Promise<number> {
-  const entries = await db
-    .select()
-    .from(timeEntries)
-    .where(eq(timeEntries.projectId, projectId))
-    .all();
-
-  const entryIds = entries.map((e) => e.id);
-  const linedIds = new Set<string>();
-  if (entryIds.length) {
-    const lined = await db
-      .select({ timeEntryId: timeEntryLines.timeEntryId })
-      .from(timeEntryLines)
-      .where(inArray(timeEntryLines.timeEntryId, entryIds))
-      .all();
-    for (const row of lined) linedIds.add(row.timeEntryId);
-  }
-
-  let updatedCount = 0;
-  for (const entry of entries) {
-    if (linedIds.has(entry.id)) continue;
-
-    // Expliziter Katalog-Stundensatz hat Vorrang – nicht durch Projekt-Satz überschreiben
-    if (entry.priceItemId) {
-      const item = await db
-        .select()
-        .from(priceItems)
-        .where(eq(priceItems.id, entry.priceItemId))
-        .get();
-      if (item && item.kind === "hourly" && item.active) continue;
-    }
-
-    const { rate } = await resolveHourlyRate(db, {
-      priceItemId: entry.priceItemId,
-      projectId,
-    });
-    const amountSnapshot =
-      entry.billable && rate != null ? Math.round(entry.hours * rate * 100) / 100 : null;
-
-    const rateChanged = entry.rateSnapshot !== rate;
-    const amountChanged = entry.amountSnapshot !== amountSnapshot;
-    if (!rateChanged && !amountChanged) continue;
-
-    await db
-      .update(timeEntries)
-      .set({
-        rateSnapshot: rate,
-        amountSnapshot,
-        updatedAt: new Date(),
-      })
-      .where(eq(timeEntries.id, entry.id));
-    updatedCount += 1;
-  }
-  return updatedCount;
 }
 
 /**

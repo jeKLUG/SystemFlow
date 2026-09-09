@@ -35,6 +35,7 @@
 - Wiki: Suchleiste wie E-Mails (Suche · Typ-Filter · Anlegen rechts)
 - Navbar: neues Preise-Icon
 - Preise: Einheit als Dropdown (Stunde / Stück / Pauschale)
+- Zeitbuchungen: Preis-Snapshots bleiben bei Katalog-/Standard-/Projekt-Satzänderungen unverändert
 - Zeiterfassung: manuelle Stunden einklappbar, nur Zahlen mit max. 2 Nachkommastellen
 - Zeiterfassung: beim Buchen 1–n Positionen aus dem Preiskatalog (Stunden/Pauschale/Stück) mit Menge; Betrag = Summe der Positionen
 - Zeiterfassung: kein automatischer Standard-/Projekt-Stundensatz mehr – Stundensätze explizit als Position (`__org_hourly__` / `__project_hourly__`) neben Artikeln wählbar

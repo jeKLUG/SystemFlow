@@ -23,7 +23,7 @@ UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung �
 | PUT/DELETE | `/api/price-items/:id` | Aktualisieren / löschen |
 | GET | `/api/customers/:id/billing-preview?from=&to=` | Abrechenbare Zeiten als Positionen + Summen |
 
-Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot`, optional `priceItemId` und `lines[]` (Katalog- oder Stundensatz-Positionen; ohne Positionen kein automatischer Betrag).
+Zeitbuchungen speichern `rateSnapshot` / `amountSnapshot`, optional `priceItemId` und `lines[]` (Katalog- oder Stundensatz-Positionen; ohne Positionen kein automatischer Betrag). Preis-Snapshots bleiben bei Katalog-/Satzänderungen unverändert.
 
 ## Kunden / Kontakte
 
@@ -61,7 +61,7 @@ Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optio
 | GET | `/api/customers/:id/projects` | Liste inkl. `loggedHours`, Budget-Rest |
 | POST | `/api/customers/:id/projects` | Anlegen |
 | GET | `/api/projects/:id` | Detail |
-| PUT | `/api/projects/:id` | Aktualisieren; bei geändertem `hourlyRate` werden Projekt-Zeiten neu berechnet (`recalculatedEntries`) |
+| PUT | `/api/projects/:id` | Aktualisieren; geänderter `hourlyRate` gilt nur für **neue** Buchungen (bestehende Snapshots bleiben) |
 | DELETE | `/api/projects/:id` | Löschen (Zeiten behalten, Projekt-Bezug wird gelöst) |
 
 Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|`done`), `startDate`, `endDate`, `budgetHours`, `budgetAmount`, `hourlyRate`.

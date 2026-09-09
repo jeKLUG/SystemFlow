@@ -28,7 +28,7 @@ Browser (React SPA)
 - **customers** – Stammdaten
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz
 - **documents** – Wiki/Notizen (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`; `customerId` optional (Schnellnotiz ohne Kunde), optional `projectId`
-- **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot; optional mehrere Positionen in **time_entry_lines**
+- **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot; optional mehrere Positionen in **time_entry_lines** (Snapshots ändern sich nicht nachträglich bei Katalog-/Satzupdates)
 - **time_entry_lines** – 1–n Leistungen je Zeiteintrag (Katalog oder virtueller Standard-/Projekt-Stundensatz; Menge, Preis-Snapshot)
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`; UI: Preise-App unter `/prices`)

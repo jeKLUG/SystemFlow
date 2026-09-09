@@ -6,7 +6,6 @@ import { customers, projects, timeEntries } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
-import { recalculateProjectTimeRates } from "./pricing.js";
 
 const projectBody = z.object({
   name: z.string().min(1).max(300),
@@ -141,12 +140,8 @@ export async function projectRoutes(app: FastifyInstance, db: Db) {
 
     await db.update(projects).set(updated).where(eq(projects.id, id));
 
-    let recalculatedEntries = 0;
-    if (parsed.data.hourlyRate !== undefined && parsed.data.hourlyRate !== existing.hourlyRate) {
-      recalculatedEntries = await recalculateProjectTimeRates(db, id);
-    }
-
-    return { ...existing, ...updated, recalculatedEntries };
+    // Bestehende Zeitbuchungen behalten ihre Preis-Snapshots – neuer Projekt-Satz gilt nur für neue Buchungen
+    return { ...existing, ...updated, recalculatedEntries: 0 };
   });
 
   app.delete("/api/projects/:id", async (request, reply) => {

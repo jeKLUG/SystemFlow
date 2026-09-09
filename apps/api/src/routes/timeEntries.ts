@@ -149,6 +149,9 @@ type BuiltLine = {
 /**
  * Baut Snapshot-Zeilen aus Katalog- und virtuellen Stundensatz-Positionen.
  * Virtuelle IDs: `__org_hourly__` (Standard), `__project_hourly__` (Projekt).
+ *
+ * `preserveLines`: bestehende Snapshots (Preis/Name) beibehalten – Katalogänderungen
+ * ändern alte Buchungen nicht; nur Menge/Betrag werden neu berechnet.
  */
 async function buildCatalogLines(
   db: Db,
@@ -157,6 +160,7 @@ async function buildCatalogLines(
   entryHours: number,
   billable: boolean,
   projectId: string | null,
+  preserveLines?: BuiltLine[],
 ): Promise<{
   lines: BuiltLine[];
   amountSnapshot: number | null;
@@ -171,6 +175,13 @@ async function buildCatalogLines(
       ? await db.select().from(priceItems).where(inArray(priceItems.id, catalogIds)).all()
       : [];
   const map = new Map(items.map((i) => [i.id, i]));
+
+  const preservePool = [...(preserveLines ?? [])];
+  function takePreserved(priceItemId: string): BuiltLine | undefined {
+    const idx = preservePool.findIndex((l) => l.priceItemId === priceItemId);
+    if (idx < 0) return undefined;
+    return preservePool.splice(idx, 1)[0];
+  }
 
   let orgRate: number | null | undefined;
   let projectRate: number | null | undefined;
@@ -214,7 +225,14 @@ async function buildCatalogLines(
     let unitPrice: number;
     let linePriceId: string;
 
-    if (raw.priceItemId === RATE_LINE_ORG) {
+    const preserved = takePreserved(raw.priceItemId);
+    if (preserved) {
+      name = preserved.nameSnapshot;
+      kind = preserved.kindSnapshot;
+      unitLabel = preserved.unitLabelSnapshot;
+      unitPrice = preserved.unitPriceSnapshot;
+      linePriceId = preserved.priceItemId;
+    } else if (raw.priceItemId === RATE_LINE_ORG) {
       const rate = await resolveOrgRate();
       if (rate == null) {
         throw new Error("Kein Standard-Stundensatz hinterlegt");
@@ -266,6 +284,57 @@ async function buildCatalogLines(
       unitLabelSnapshot: unitLabel,
       quantity,
       unitPriceSnapshot: unitPrice,
+      amountSnapshot: amount,
+      sortOrder: i,
+    });
+  }
+
+  return {
+    lines,
+    amountSnapshot: billable && lines.length ? roundMoney(total) : null,
+    rateSnapshot,
+    priceItemId: primaryPriceId ?? lines[0]?.priceItemId ?? null,
+  };
+}
+
+/**
+ * Skaliert bestehende Positions-Snapshots (ohne Katalog neu zu lesen).
+ */
+function rescaleFrozenLines(
+  timeEntryId: string,
+  existing: BuiltLine[],
+  entryHours: number,
+  billable: boolean,
+): {
+  lines: BuiltLine[];
+  amountSnapshot: number | null;
+  rateSnapshot: number | null;
+  priceItemId: string | null;
+} {
+  const lines: BuiltLine[] = [];
+  let total = 0;
+  let rateSnapshot: number | null = null;
+  let primaryPriceId: string | null = null;
+
+  for (let i = 0; i < existing.length; i++) {
+    const prev = existing[i]!;
+    const quantity =
+      prev.kindSnapshot === "hourly"
+        ? entryHours > 0
+          ? roundMoney(entryHours)
+          : prev.quantity
+        : prev.quantity;
+    const amount = billable ? roundMoney(quantity * prev.unitPriceSnapshot) : null;
+    if (amount != null) total += amount;
+    if (prev.kindSnapshot === "hourly" && primaryPriceId == null) {
+      primaryPriceId = prev.priceItemId;
+      rateSnapshot = prev.unitPriceSnapshot;
+    }
+    lines.push({
+      ...prev,
+      id: createId("tline"),
+      timeEntryId,
+      quantity,
       amountSnapshot: amount,
       sortOrder: i,
     });
@@ -685,16 +754,11 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     let priceItemId = open.priceItemId;
 
     if (existingLines.length > 0) {
-      const rebuilt = await buildCatalogLines(
-        db,
+      const rebuilt = rescaleFrozenLines(
         open.id,
-        existingLines.map((l) => ({
-          priceItemId: l.priceItemId,
-          quantity: l.kindSnapshot === "hourly" ? hours : l.quantity,
-        })),
+        existingLines as BuiltLine[],
         hours,
         open.billable,
-        open.projectId,
       );
       await replaceLines(db, open.id, rebuilt.lines);
       rateSnapshot = rebuilt.rateSnapshot;
@@ -808,6 +872,12 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     if (parsed.data.lines !== undefined) {
       if (parsed.data.lines.length > 0) {
         try {
+          const existingLines = await db
+            .select()
+            .from(timeEntryLines)
+            .where(eq(timeEntryLines.timeEntryId, id))
+            .orderBy(asc(timeEntryLines.sortOrder))
+            .all();
           const built = await buildCatalogLines(
             db,
             id,
@@ -815,6 +885,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
             resolved.hours,
             billable,
             projectId,
+            existingLines as BuiltLine[],
           );
           lines = built.lines;
           priceItemId = built.priceItemId;
@@ -840,30 +911,19 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         .orderBy(asc(timeEntryLines.sortOrder))
         .all();
       if (existingLines.length > 0) {
-        const rebuilt = await buildCatalogLines(
-          db,
+        const rebuilt = rescaleFrozenLines(
           id,
-          existingLines.map((l) => ({
-            priceItemId: l.priceItemId,
-            quantity: l.kindSnapshot === "hourly" ? resolved.hours : l.quantity,
-          })),
+          existingLines as BuiltLine[],
           resolved.hours,
           billable,
-          projectId,
         );
         await replaceLines(db, id, rebuilt.lines);
         lines = rebuilt.lines;
         priceItemId = rebuilt.priceItemId;
         rateSnapshot = rebuilt.rateSnapshot;
         amountSnapshot = rebuilt.amountSnapshot;
-      } else if (priceItemId) {
-        const resolvedRate = await resolveHourlyRate(db, { priceItemId, projectId });
-        priceItemId = resolvedRate.priceItemId;
-        const money = amountFrom(resolved.hours, resolvedRate.rate, billable);
-        rateSnapshot = money.rateSnapshot;
-        amountSnapshot = money.amountSnapshot;
       } else {
-        // Bestehenden Snapshot bei Stundenänderung behalten (Legacy ohne Positionen)
+        // Legacy ohne Positionen: eingefrorenen Satz behalten, nur Betrag skalieren
         const money = amountFrom(resolved.hours, existing.rateSnapshot, billable);
         rateSnapshot = money.rateSnapshot;
         amountSnapshot = money.amountSnapshot;
