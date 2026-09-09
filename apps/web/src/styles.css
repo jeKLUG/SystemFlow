@@ -1618,8 +1618,8 @@ a.list-row {
 
 .prices-card-actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
   margin-top: auto;
   padding-top: 0.7rem;
   border-top: 1px solid rgba(148, 163, 184, 0.1);
@@ -2994,7 +2994,26 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .editor-customer-field {
   margin: 0 0 0.85rem;
-  max-width: 28rem;
+  max-width: none;
+}
+
+.editor-customer-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.editor-customer-row .customer-picker {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.editor-customer-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.55rem;
 }
 
 .editor-attach-hint {
@@ -3581,6 +3600,38 @@ input[type="checkbox"]:not(.check-input):checked {
   flex-direction: column;
   gap: 0.08rem;
   animation: vault-menu-in 0.12s ease both;
+}
+
+.vault-menu-icons {
+  min-width: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.12rem;
+  padding: 0.28rem;
+}
+
+.vault-menu-icons .vault-menu-sep {
+  width: 1px;
+  height: 1.35rem;
+  margin: 0 0.12rem;
+  align-self: center;
+}
+
+.vault-menu-icons button,
+.vault-menu-icons a {
+  width: 2.05rem;
+  min-width: 2.05rem;
+  height: 2.05rem;
+  padding: 0;
+  justify-content: center;
+  gap: 0;
+}
+
+.vault-menu-icons button svg,
+.vault-menu-icons a svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  opacity: 0.9;
 }
 
 @keyframes vault-menu-in {

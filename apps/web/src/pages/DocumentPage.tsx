@@ -166,56 +166,62 @@ export function DocumentPage() {
           {dirty && saveState !== "saving" && "Ungespeicherte Änderungen"}
           {!dirty && saveState === "idle" && documentTypeLabel[type]}
         </span>
-        <button
-          type="button"
-          className="btn btn-primary"
-          disabled={!dirty || saveState === "saving"}
-          onClick={() => void save()}
-        >
-          <IconSave />
-          {saveState === "saving" ? "Speichert…" : "Speichern"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          disabled={pdfBusy || dirty}
-          title={dirty ? "Zuerst speichern" : "Als PDF exportieren"}
-          onClick={() => {
-            setPdfBusy(true);
-            void api
-              .exportDocumentPdf(id, title)
-              .catch((err) =>
-                setError(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
-              )
-              .finally(() => setPdfBusy(false));
-          }}
-        >
-          <IconPdf />
-          {pdfBusy ? "PDF…" : "PDF"}
-        </button>
-        <button
-          type="button"
-          className="btn btn-danger btn-sm"
-          onClick={() => setDeleteOpen(true)}
-        >
-          <IconTrash />
-          Löschen
-        </button>
       </div>
 
-      <label className="field editor-customer-field">
-        <span>Kunde</span>
-        <CustomerPicker
-          value={customerId}
-          onChange={(next) => {
-            setCustomerId(next);
-            setSaveState("idle");
-          }}
-          allowEmpty
-          emptyLabel="Ohne Kunde"
-          placeholder="Kunde zuordnen…"
-        />
-      </label>
+      <div className="field editor-customer-field">
+        <span className="editor-customer-label">Kunde</span>
+        <div className="editor-customer-row">
+          <CustomerPicker
+            value={customerId}
+            onChange={(next) => {
+              setCustomerId(next);
+              setSaveState("idle");
+            }}
+            allowEmpty
+            emptyLabel="Ohne Kunde"
+            placeholder="Kunde zuordnen…"
+          />
+          <div className="editor-customer-actions">
+            <button
+              type="button"
+              className="btn btn-primary btn-icon"
+              disabled={!dirty || saveState === "saving"}
+              aria-label={saveState === "saving" ? "Speichert…" : "Speichern"}
+              title={saveState === "saving" ? "Speichert…" : "Speichern"}
+              onClick={() => void save()}
+            >
+              <IconSave />
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost btn-icon"
+              disabled={pdfBusy || dirty}
+              aria-label={pdfBusy ? "PDF wird erstellt…" : "Als PDF exportieren"}
+              title={dirty ? "Zuerst speichern" : pdfBusy ? "PDF wird erstellt…" : "Als PDF exportieren"}
+              onClick={() => {
+                setPdfBusy(true);
+                void api
+                  .exportDocumentPdf(id, title)
+                  .catch((err) =>
+                    setError(err instanceof Error ? err.message : "PDF-Export fehlgeschlagen"),
+                  )
+                  .finally(() => setPdfBusy(false));
+              }}
+            >
+              <IconPdf />
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger btn-icon"
+              aria-label="Löschen"
+              title="Löschen"
+              onClick={() => setDeleteOpen(true)}
+            >
+              <IconTrash />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {error ? <p className="form-error">{error}</p> : null}
 

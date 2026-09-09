@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { api } from "../api";
+import { ActivateIcon, DeactivateIcon, DeleteIcon, EditIcon } from "../components/Icons";
 import { Modal } from "../components/Modal";
 import type { OrgSettings, PriceItem, PriceItemKind } from "../types";
 
@@ -332,12 +333,20 @@ export function PricesPage() {
               {item.description ? <p className="prices-desc">{item.description}</p> : null}
               {!item.active ? <p className="prices-inactive-badge">Inaktiv</p> : null}
               <div className="prices-card-actions">
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => openEdit(item)}>
-                  Bearbeiten
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-icon"
+                  aria-label="Bearbeiten"
+                  title="Bearbeiten"
+                  onClick={() => openEdit(item)}
+                >
+                  <EditIcon />
                 </button>
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="btn btn-ghost btn-icon"
+                  aria-label={item.active ? "Deaktivieren" : "Aktivieren"}
+                  title={item.active ? "Deaktivieren" : "Aktivieren"}
                   onClick={() =>
                     void api
                       .updatePriceItem(item.id, {
@@ -348,17 +357,19 @@ export function PricesPage() {
                       .then(() => load())
                   }
                 >
-                  {item.active ? "Deaktivieren" : "Aktivieren"}
+                  {item.active ? <DeactivateIcon /> : <ActivateIcon />}
                 </button>
                 <button
                   type="button"
-                  className="btn btn-danger btn-sm"
+                  className="btn btn-danger btn-icon"
+                  aria-label="Löschen"
+                  title="Löschen"
                   onClick={() => {
                     if (!confirm(`„${item.name}“ wirklich löschen?`)) return;
                     void api.deletePriceItem(item.id).then(() => load());
                   }}
                 >
-                  Löschen
+                  <DeleteIcon />
                 </button>
               </div>
             </li>

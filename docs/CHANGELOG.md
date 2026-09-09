@@ -27,6 +27,10 @@
 - Inventar: Filter kompakter als Chip-Leisten (Suche + Zuordnung/Status/Typ in einer Zeile)
 - Preise: Artikelnummer wird beim Anlegen automatisch als `ART-YYYY-NNN` vergeben
 - Preise-Seite: klarerer Hero für Standards, kompakte Toolbar, bessere Karten und Empty-State
+- Preise: Karten-Aktionen nur noch als Icons (Bearbeiten / Aktivieren·Deaktivieren / Löschen)
+- Wiki-Editor: neues Bild-Icon; klareres Icon für nummerierte Liste
+- Dateien/Vault: Kontextmenü nur noch Icons (Bearbeiten / Verschieben / Löschen)
+- Wiki-Seite: Speichern / PDF / Löschen als Icons neben der Kundenauswahl
 - Zeiterfassung: beim Buchen 1–n Positionen aus dem Preiskatalog (Stunden/Pauschale/Stück) mit Menge; Betrag = Summe der Positionen
 - Zeiterfassung: kein automatischer Standard-/Projekt-Stundensatz mehr – Stundensätze explizit als Position (`__org_hourly__` / `__project_hourly__`) neben Artikeln wählbar
 - Wiki-PDF/Text-Export: Callouts und Task-Listen berücksichtigt
