@@ -16,6 +16,8 @@ const kindHint: Record<PriceItemKind, string> = {
   unit: "pro Einheit",
 };
 
+const unitLabelOptions = ["Stunde", "Stück", "Pauschale"] as const;
+
 const emptyForm = {
   name: "",
   description: "",
@@ -26,6 +28,10 @@ const emptyForm = {
 };
 
 type KindFilter = "all" | PriceItemKind;
+
+function defaultUnitLabel(kind: PriceItemKind): string {
+  return kind === "hourly" ? "Stunde" : kind === "unit" ? "Stück" : "Pauschale";
+}
 
 function formatMoney(value: number, currency: string) {
   return new Intl.NumberFormat("de-DE", {
@@ -119,7 +125,7 @@ export function PricesPage() {
 
   function openCreate(kind: PriceItemKind = "hourly") {
     setEditingId(null);
-    setForm({ ...emptyForm, kind, unitLabel: kind === "hourly" ? "Stunde" : kind === "unit" ? "Stück" : "Pauschale" });
+    setForm({ ...emptyForm, kind, unitLabel: defaultUnitLabel(kind) });
     setFormError("");
     setFormOpen(true);
   }
@@ -403,9 +409,7 @@ export function PricesPage() {
                 setForm({
                   ...form,
                   kind,
-                  unitLabel:
-                    form.unitLabel ||
-                    (kind === "hourly" ? "Stunde" : kind === "unit" ? "Stück" : "Pauschale"),
+                  unitLabel: defaultUnitLabel(kind),
                 });
               }}
             >
@@ -429,11 +433,20 @@ export function PricesPage() {
           </label>
           <label className="field">
             <span>Einheit</span>
-            <input
-              value={form.unitLabel}
+            <select
+              value={form.unitLabel || defaultUnitLabel(form.kind)}
               onChange={(e) => setForm({ ...form, unitLabel: e.target.value })}
-              placeholder="Stunde / Stück / Pauschale"
-            />
+            >
+              {unitLabelOptions.map((u) => (
+                <option key={u} value={u}>
+                  {u}
+                </option>
+              ))}
+              {form.unitLabel &&
+              !(unitLabelOptions as readonly string[]).includes(form.unitLabel) ? (
+                <option value={form.unitLabel}>{form.unitLabel}</option>
+              ) : null}
+            </select>
           </label>
           <label className="field">
             <span>Artikel-Nr.</span>

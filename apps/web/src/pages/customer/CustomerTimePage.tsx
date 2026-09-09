@@ -863,9 +863,7 @@ export function CustomerTimePage() {
               Stunden manuell
               {form.hoursOverride.trim() ? (
                 <em>{form.hoursOverride.replace(".", ",")} h</em>
-              ) : (
-                <em className="muted">ersetzt Von/Bis</em>
-              )}
+              ) : null}
             </summary>
             <label className="time-hours-manual-field">
               <span className="sr-only">Stunden manuell</span>

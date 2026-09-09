@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #080d16;
   --bg-elevated: #101826;
   --surface: #121b29;
@@ -8880,8 +8880,17 @@ a.stat-chip:hover {
 
 .time-catalog-line select,
 .time-catalog-line input {
-  min-height: 2.15rem;
-  height: 2.15rem;
+  min-height: var(--control-h, 2.6rem);
+  height: auto;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  line-height: 1.35;
+  overflow: visible;
+}
+
+.time-catalog-line select {
+  /* Windows/Chrome: Text in selects nicht abschneiden */
+  padding-block: 0.55rem;
 }
 
 @media (max-width: 640px) {
