@@ -1237,10 +1237,6 @@ export function VaultPage() {
           >
             {shareEntry && !shareResult ? (
               <form className="form-stack" onSubmit={createShare}>
-                <p className="muted">
-                  Entschlüsselt den Eintrag einmal und verschlüsselt ihn neu mit eigenem Link und
-                  PIN. Die Vault-Passphrase wird nicht weitergegeben.
-                </p>
                 <p>
                   <strong>{shareEntry.title}</strong>
                 </p>

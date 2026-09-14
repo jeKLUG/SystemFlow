@@ -98,7 +98,7 @@ export function VaultSharePage() {
             <strong>Systemhaus-Ess</strong>
           </div>
           <h1>Geteilter Zugang</h1>
-          <p className="muted">Einmaliger Abruf – ohne Vault-Passphrase.</p>
+          <p className="muted">Einmaliger Abruf.</p>
         </section>
 
         <div className="login-panel panel">
