@@ -88,3 +88,8 @@ export function checkUnlockAllowed(userId: string): { locked: boolean; retryAfte
   if (!cur || cur.lockedUntil <= Date.now()) return { locked: false, retryAfterSec: 0 };
   return { locked: true, retryAfterSec: Math.ceil((cur.lockedUntil - Date.now()) / 1000) };
 }
+
+/** Rate-Limit-Schlüssel für öffentliche Share-PIN-Versuche. */
+export function shareFailureKey(token: string): string {
+  return `share:${token}`;
+}

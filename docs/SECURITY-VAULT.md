@@ -37,6 +37,18 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 - **Passwort-Generator** läuft im Browser; der Verlauf liegt nur in `localStorage` (nicht auf dem Server)
 - **2FA / TOTP**: Secret verschlüsselt speichern; Live-Codes nach „Anzeigen“ lokal erzeugen (otpauth:// oder Base32)
 
+## Einweg-Share-Links
+
+Für den sicheren Versand an Kunden (ohne Vault-Passphrase):
+
+1. Admin entsperrt den Tresor und erstellt aus einem Eintrag einen **Einweg-Share**.
+2. Server entschlüsselt einmal mit DEK und verschlüsselt die Payload **neu** mit einem Schlüssel aus **6-stelliger PIN + Salt** (scrypt → AES-256-GCM).
+3. Empfänger öffnet `/share/vault/:token`, gibt die PIN (separat übermittelt) ein und sieht die Daten.
+4. Nach Ablauf oder Erreichen von `maxViews` wird der Ciphertext gelöscht (nicht nur markiert).
+5. TOTP-Secret ist standardmäßig **nicht** enthalten (optional zuschaltbar).
+
+Rate-Limit wie beim Vault-Unlock bei falschen PINs. Widerruf löscht Payload sofort.
+
 ## API (Kurz)
 
 | Aktion | Pfad |
@@ -49,3 +61,9 @@ Zugangsdaten (VPN, Admin, Hosting, …) **verschlüsselt at rest** speichern. Oh
 | Einträge (Meta) | `GET /api/vault/entries` |
 | Anlegen / Aktualisieren | `POST/PUT /api/vault/entries` – inkl. `category`, `favorite`, `tags` |
 | Anzeigen (Klartext) | `GET /api/vault/entries/:id/reveal` |
+| Löschen | `DELETE /api/vault/entries/:id` |
+| Einweg-Share anlegen | `POST /api/vault/entries/:id/share` – `{ expiresInHours, maxViews, includeNotes?, includeTotp? }` → `{ path, pin, … }` (PIN einmal) |
+| Shares listen | `GET /api/vault/shares` |
+| Share widerrufen | `DELETE /api/vault/shares/:id` |
+| Share-Status (öffentlich) | `GET /api/public/vault-shares/:token` |
+| Share öffnen (öffentlich) | `POST /api/public/vault-shares/:token/open` – `{ pin }` |

@@ -39,7 +39,7 @@ Browser (React SPA)
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id`
 - **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`
 - **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage
-- **vault_meta** / **vault_entries** – Passworttresor (AES-256-GCM, eigene Passphrase; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
+- **vault_meta** / **vault_entries** / **vault_shares** – Passworttresor (AES-256-GCM, eigene Passphrase; Einweg-Shares mit PIN; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
 - **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
 

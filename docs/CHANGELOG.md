@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.98 – 2026-09-14
+
+- Vault: Einweg-Share-Links – Eintrag einmal entschlüsseln, neu mit Link-Token + PIN verschlüsseln; Ablauf und Abruf-Limit; öffentliche Seite `/share/vault/:token` ohne Vault-Passphrase
+
 ## 1.5.97 – 2026-09-08
 
 - Besuchsblatt-PDF pro Kunde: Kontakt, Anlagen, offene Aufgaben und offene Zeiten (Button auf der Übersicht)

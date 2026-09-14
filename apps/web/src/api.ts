@@ -496,6 +496,29 @@ export const api = {
     }),
   vaultDeleteEntry: (id: string) =>
     request<{ ok: boolean }>(`/api/vault/entries/${id}`, { method: "DELETE" }),
+  vaultCreateShare: (
+    entryId: string,
+    body: {
+      expiresInHours?: 1 | 24 | 72 | 168;
+      maxViews?: 1 | 3;
+      includeNotes?: boolean;
+      includeTotp?: boolean;
+    },
+  ) =>
+    request<import("./types").VaultShareCreated>(`/api/vault/entries/${entryId}/share`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  vaultShares: () => request<import("./types").VaultShareMeta[]>("/api/vault/shares"),
+  vaultRevokeShare: (id: string) =>
+    request<{ ok: boolean }>(`/api/vault/shares/${id}`, { method: "DELETE" }),
+  vaultShareStatus: (token: string) =>
+    request<import("./types").VaultSharePublicStatus>(`/api/public/vault-shares/${token}`),
+  vaultShareOpen: (token: string, pin: string) =>
+    request<import("./types").VaultShareOpened>(`/api/public/vault-shares/${token}/open`, {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
   orgSettings: () => request<import("./types").OrgSettings>("/api/settings/org"),
   updateOrgSettings: (body: Record<string, unknown>) =>
     request<import("./types").OrgSettings>("/api/settings/org", {

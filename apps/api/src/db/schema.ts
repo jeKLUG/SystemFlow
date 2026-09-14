@@ -384,6 +384,28 @@ export const vaultEntries = sqliteTable("vault_entries", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/**
+ * Einweg-Share-Links: Payload mit eigenem PIN (scrypt → AES-256-GCM),
+ * unabhängig von der Vault-Passphrase. Token = Primärschlüssel (URL).
+ */
+export const vaultShares = sqliteTable("vault_shares", {
+  id: text("id").primaryKey(),
+  entryId: text("entry_id"),
+  /** Klartext-Titel für Admin-Liste (kein Geheimnis). */
+  title: text("title").notNull(),
+  saltB64: text("salt_b64").notNull(),
+  /** AES-GCM-Payload; nach Verbrauch leer. */
+  payloadEnc: text("payload_enc").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  maxViews: integer("max_views").notNull().default(1),
+  viewCount: integer("view_count").notNull().default(0),
+  includeTotp: integer("include_totp", { mode: "boolean" }).notNull().default(false),
+  createdBy: text("created_by").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
+  consumedAt: integer("consumed_at", { mode: "timestamp_ms" }),
+});
+
 /** Ordner in der Kunden-Dokumentenablage. */
 export const fileFolders = sqliteTable("file_folders", {
   id: text("id").primaryKey(),
@@ -453,6 +475,7 @@ export type OrgSettings = typeof orgSettings.$inferSelect;
 export type PriceItem = typeof priceItems.$inferSelect;
 export type VaultMeta = typeof vaultMeta.$inferSelect;
 export type VaultEntry = typeof vaultEntries.$inferSelect;
+export type VaultShare = typeof vaultShares.$inferSelect;
 export type FileFolder = typeof fileFolders.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type CustomerEmail = typeof customerEmails.$inferSelect;

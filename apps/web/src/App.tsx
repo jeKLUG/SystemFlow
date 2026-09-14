@@ -19,6 +19,7 @@ import { RemindersPage } from "./pages/RemindersPage";
 import { PricesPage } from "./pages/PricesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
+import { VaultSharePage } from "./pages/VaultSharePage";
 
 /** Alte URL `/customers/:id/emails` → Dokumente-Hub mit E-Mail-Ansicht. */
 function CustomerEmailsRedirect() {
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/share/vault/:token" element={<VaultSharePage />} />
       <Route
         path="/"
         element={

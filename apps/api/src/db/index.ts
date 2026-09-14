@@ -302,6 +302,22 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS vault_shares (
+      id TEXT PRIMARY KEY,
+      entry_id TEXT,
+      title TEXT NOT NULL,
+      salt_b64 TEXT NOT NULL,
+      payload_enc TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      max_views INTEGER NOT NULL DEFAULT 1,
+      view_count INTEGER NOT NULL DEFAULT 0,
+      include_totp INTEGER NOT NULL DEFAULT 0,
+      created_by TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      revoked_at INTEGER,
+      consumed_at INTEGER
+    );
+
     CREATE TABLE IF NOT EXISTS file_folders (
       id TEXT PRIMARY KEY,
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -346,6 +362,7 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_appointments_start ON appointments(start_date);
     CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
     CREATE INDEX IF NOT EXISTS idx_vault_entries_customer ON vault_entries(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_vault_shares_expires ON vault_shares(expires_at);
     CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
     CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id);
     CREATE INDEX IF NOT EXISTS idx_network_segments_customer ON network_segments(customer_id);

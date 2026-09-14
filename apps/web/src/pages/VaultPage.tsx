@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
+import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { Modal } from "../components/Modal";
 import { copyToClipboard } from "../lib/clipboard";
@@ -15,7 +16,14 @@ import {
   type GeneratorOptions,
 } from "../lib/passwordGenerator";
 import { formatTotpCode, generateTotp, normalizeTotpSecret } from "../lib/totp";
-import type { VaultCategory, VaultEntryMeta, VaultEntrySecret, VaultStatus } from "../types";
+import type {
+  VaultCategory,
+  VaultEntryMeta,
+  VaultEntrySecret,
+  VaultShareCreated,
+  VaultShareMeta,
+  VaultStatus,
+} from "../types";
 
 type SortKey = "updated" | "title" | "category" | "customer";
 
@@ -90,6 +98,16 @@ export function VaultPage() {
   const [copyBusyId, setCopyBusyId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+  const [shareEntry, setShareEntry] = useState<VaultEntryMeta | null>(null);
+  const [shareExpires, setShareExpires] = useState<1 | 24 | 72 | 168>(24);
+  const [shareMaxViews, setShareMaxViews] = useState<1 | 3>(1);
+  const [shareIncludeNotes, setShareIncludeNotes] = useState(true);
+  const [shareIncludeTotp, setShareIncludeTotp] = useState(false);
+  const [shareResult, setShareResult] = useState<VaultShareCreated | null>(null);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [shareListOpen, setShareListOpen] = useState(false);
+  const [shareList, setShareList] = useState<VaultShareMeta[]>([]);
   const secretCache = useRef(new Map<string, { secret: VaultEntrySecret; at: number }>());
   const copyAnimTimer = useRef<number | null>(null);
 
@@ -127,6 +145,70 @@ export function VaultPage() {
     setRevealed(null);
     setRevealVisible(false);
     if (revealTimer.current) window.clearTimeout(revealTimer.current);
+  }
+
+  function openShare(entry: VaultEntryMeta) {
+    setShareEntry(entry);
+    setShareExpires(24);
+    setShareMaxViews(1);
+    setShareIncludeNotes(true);
+    setShareIncludeTotp(false);
+    setShareResult(null);
+    setShareError("");
+  }
+
+  function closeShare() {
+    setShareEntry(null);
+    setShareResult(null);
+    setShareError("");
+    setShareBusy(false);
+  }
+
+  async function createShare(e: FormEvent) {
+    e.preventDefault();
+    if (!shareEntry) return;
+    setShareBusy(true);
+    setShareError("");
+    try {
+      const created = await api.vaultCreateShare(shareEntry.id, {
+        expiresInHours: shareExpires,
+        maxViews: shareMaxViews,
+        includeNotes: shareIncludeNotes,
+        includeTotp: shareIncludeTotp,
+      });
+      setShareResult(created);
+    } catch (err) {
+      setShareError(err instanceof Error ? err.message : "Share fehlgeschlagen");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function loadShareList() {
+    try {
+      setShareList(await api.vaultShares());
+    } catch {
+      setShareList([]);
+    }
+  }
+
+  async function openShareList() {
+    setShareListOpen(true);
+    await loadShareList();
+  }
+
+  async function revokeShare(id: string) {
+    try {
+      await api.vaultRevokeShare(id);
+      await loadShareList();
+      if (shareResult?.token === id) closeShare();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Widerruf fehlgeschlagen");
+    }
+  }
+
+  function shareAbsoluteUrl(path: string) {
+    return `${window.location.origin}${path}`;
   }
 
   function resetForm() {
@@ -567,6 +649,9 @@ export function VaultPage() {
               >
                 Generator
               </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void openShareList()}>
+                Einweg-Links
+              </button>
               <button type="button" className="btn btn-primary" onClick={openCreate}>
                 + Zugang
               </button>
@@ -657,6 +742,7 @@ export function VaultPage() {
                         onToggleFavorite={toggleFavorite}
                         onEdit={startEdit}
                         onReveal={onReveal}
+                        onShare={openShare}
                       />
                     ))}
                   </ul>
@@ -1119,6 +1205,18 @@ export function VaultPage() {
                       const id = revealed.id;
                       const entry = entries.find((e) => e.id === id);
                       clearReveal();
+                      if (entry) openShare(entry);
+                    }}
+                  >
+                    Teilen
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      const id = revealed.id;
+                      const entry = entries.find((e) => e.id === id);
+                      clearReveal();
                       if (entry) void startEdit(entry);
                     }}
                   >
@@ -1130,6 +1228,158 @@ export function VaultPage() {
                 </div>
               </div>
             ) : null}
+          </Modal>
+
+          <Modal
+            open={Boolean(shareEntry)}
+            title={shareResult ? "Share bereit" : "Einweg-Link teilen"}
+            onClose={closeShare}
+          >
+            {shareEntry && !shareResult ? (
+              <form className="form-stack" onSubmit={createShare}>
+                <p className="muted">
+                  Entschlüsselt den Eintrag einmal und verschlüsselt ihn neu mit eigenem Link und
+                  PIN. Die Vault-Passphrase wird nicht weitergegeben.
+                </p>
+                <p>
+                  <strong>{shareEntry.title}</strong>
+                </p>
+                <label className="field">
+                  <span>Gültigkeit</span>
+                  <select
+                    value={shareExpires}
+                    onChange={(e) =>
+                      setShareExpires(Number(e.target.value) as 1 | 24 | 72 | 168)
+                    }
+                  >
+                    <option value={1}>1 Stunde</option>
+                    <option value={24}>24 Stunden</option>
+                    <option value={72}>3 Tage</option>
+                    <option value={168}>7 Tage</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Abrufe</span>
+                  <select
+                    value={shareMaxViews}
+                    onChange={(e) => setShareMaxViews(Number(e.target.value) as 1 | 3)}
+                  >
+                    <option value={1}>1× (Einmal)</option>
+                    <option value={3}>3×</option>
+                  </select>
+                </label>
+                <Checkbox
+                  label="Notizen einschließen"
+                  checked={shareIncludeNotes}
+                  onChange={setShareIncludeNotes}
+                />
+                {shareEntry.hasTotp ? (
+                  <Checkbox
+                    label="2FA-Secret einschließen (sensibel)"
+                    checked={shareIncludeTotp}
+                    onChange={setShareIncludeTotp}
+                  />
+                ) : null}
+                {shareError ? <p className="form-error">{shareError}</p> : null}
+                <div className="form-actions modal-actions">
+                  <button type="button" className="btn btn-ghost" onClick={closeShare}>
+                    Abbrechen
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={shareBusy}>
+                    {shareBusy ? "Erstellen…" : "Link erstellen"}
+                  </button>
+                </div>
+              </form>
+            ) : shareResult ? (
+              <div className="form-stack vault-share-created">
+                <p className="muted">
+                  Link und PIN getrennt an den Empfänger senden. PIN wird hier nur einmal angezeigt.
+                </p>
+                <label className="field">
+                  <span>Link</span>
+                  <div className="password-field">
+                    <input readOnly value={shareAbsoluteUrl(shareResult.path)} />
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() =>
+                        void copyText(shareAbsoluteUrl(shareResult.path), "Link kopiert")
+                      }
+                    >
+                      Kopieren
+                    </button>
+                  </div>
+                </label>
+                <label className="field">
+                  <span>PIN</span>
+                  <div className="password-field">
+                    <input readOnly className="vault-mono" value={shareResult.pin} />
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => void copyText(shareResult.pin, "PIN kopiert")}
+                    >
+                      Kopieren
+                    </button>
+                  </div>
+                </label>
+                <p className="muted">
+                  Bis {new Date(shareResult.expiresAt).toLocaleString("de-DE")} ·{" "}
+                  {shareResult.maxViews} Abruf{shareResult.maxViews === 1 ? "" : "e"}
+                </p>
+                <div className="form-actions modal-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => void revokeShare(shareResult.token)}
+                  >
+                    Widerrufen
+                  </button>
+                  <button type="button" className="btn btn-primary" onClick={closeShare}>
+                    Fertig
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </Modal>
+
+          <Modal
+            open={shareListOpen}
+            title="Einweg-Links"
+            onClose={() => setShareListOpen(false)}
+            className="modal-wide"
+          >
+            {shareList.length === 0 ? (
+              <p className="muted">Keine Shares vorhanden.</p>
+            ) : (
+              <ul className="vault-share-list">
+                {shareList.map((s) => (
+                  <li key={s.id}>
+                    <div className="vault-share-list-main">
+                      <strong>{s.title}</strong>
+                      <span className="muted">
+                        {s.status === "active"
+                          ? "aktiv"
+                          : s.status === "consumed"
+                            ? "genutzt"
+                            : "abgelaufen"}{" "}
+                        · bis {new Date(s.expiresAt).toLocaleString("de-DE")} · {s.viewCount}/
+                        {s.maxViews} Abrufe
+                      </span>
+                    </div>
+                    {s.status === "active" ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => void revokeShare(s.id)}
+                      >
+                        Widerrufen
+                      </button>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </Modal>
         </>
       )}
@@ -1150,6 +1400,7 @@ function VaultEntryCard({
   onToggleFavorite,
   onEdit,
   onReveal,
+  onShare,
 }: {
   entry: VaultEntryMeta;
   showCategory: boolean;
@@ -1160,6 +1411,7 @@ function VaultEntryCard({
   onToggleFavorite: (entry: VaultEntryMeta) => void | Promise<void>;
   onEdit: (entry: VaultEntryMeta) => void | Promise<void>;
   onReveal: (id: string) => void | Promise<void>;
+  onShare: (entry: VaultEntryMeta) => void;
 }) {
   const rootRef = useRef<HTMLLIElement>(null);
   const [secret, setSecret] = useState<VaultEntrySecret | null>(null);
@@ -1303,6 +1555,16 @@ function VaultEntryCard({
                 }}
               >
                 Details anzeigen
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setMenuOpen(false);
+                  onShare(entry);
+                }}
+              >
+                Einweg-Link teilen
               </button>
               {entry.customerId ? (
                 <Link

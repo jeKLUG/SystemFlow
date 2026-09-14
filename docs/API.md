@@ -135,6 +135,11 @@ Siehe auch [SECURITY-VAULT.md](SECURITY-VAULT.md). Freischaltung mit eigener Vau
 | PUT | `/api/vault/entries/:id` | Aktualisieren |
 | GET | `/api/vault/entries/:id/reveal` | Klartext (zeitlich begrenzt in der UI) |
 | DELETE | `/api/vault/entries/:id` | Löschen |
+| POST | `/api/vault/entries/:id/share` | Einweg-Share: `{ expiresInHours: 1\|24\|72\|168, maxViews: 1\|3, includeNotes?, includeTotp? }` → `{ path, pin, expiresAt, … }` (PIN nur einmal) |
+| GET | `/api/vault/shares` | Liste (ohne Geheimnisse): Status active/expired/consumed |
+| DELETE | `/api/vault/shares/:id` | Widerrufen (Payload löschen) |
+| GET | `/api/public/vault-shares/:token` | Öffentlich: Status ohne Auth |
+| POST | `/api/public/vault-shares/:token/open` | Öffentlich: `{ pin }` → Klartext, Abruf zählen; nach maxViews Ciphertext weg |
 
 Body: `title`, optional `category`, `favorite`, `tags[]`, `customerId`, `username`, `password`, `url`, `notes`, `totpSecret` (Base32 oder nach Client-Normalisierung).  
 Kategorien: `vpn` · `admin` · `hosting` · `email` · `firewall` · `remote` · `wifi` · `database` · `cloud` · `license` · `office` · `isp` · `other`.

@@ -1,8 +1,8 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { customers, vaultEntries, vaultMeta } from "../db/schema.js";
+import { customers, vaultEntries, vaultMeta, vaultShares } from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import {
   decryptText,
@@ -13,6 +13,11 @@ import {
   wipe,
   type VaultMetaPayload,
 } from "../lib/vaultCrypto.js";
+import {
+  createSharePin,
+  createShareToken,
+  encryptSharePayload,
+} from "../lib/vaultShareCrypto.js";
 import {
   checkUnlockAllowed,
   clearUnlockFailures,
@@ -491,6 +496,137 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
     const existing = await db.select().from(vaultEntries).where(eq(vaultEntries.id, id)).get();
     if (!existing) return reply.code(404).send({ error: "Eintrag nicht gefunden" });
     await db.delete(vaultEntries).where(eq(vaultEntries.id, id));
+    return { ok: true };
+  });
+
+  /**
+   * Einweg-Share aus einem Eintrag: einmal entschlüsseln (DEK), neu mit PIN verschlüsseln.
+   * Vault-Passphrase geht nicht an den Empfänger.
+   */
+  app.post("/api/vault/entries/:id/share", async (request, reply) => {
+    const userId = requireUserId(request);
+    const dek = requireDek(userId);
+    if (!dek) return reply.code(403).send({ error: "Tresor ist gesperrt", code: "VAULT_LOCKED" });
+
+    const { id } = request.params as { id: string };
+    const row = await db.select().from(vaultEntries).where(eq(vaultEntries.id, id)).get();
+    if (!row) return reply.code(404).send({ error: "Eintrag nicht gefunden" });
+
+    const parsed = z
+      .object({
+        expiresInHours: z
+          .union([z.literal(1), z.literal(24), z.literal(72), z.literal(168)])
+          .default(24),
+        maxViews: z.union([z.literal(1), z.literal(3)]).default(1),
+        includeNotes: z.boolean().default(true),
+        includeTotp: z.boolean().default(false),
+      })
+      .safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Ungültige Share-Optionen" });
+    }
+
+    let username: string | null = null;
+    let password: string | null = null;
+    let url: string | null = null;
+    let notes: string | null = null;
+    let totpSecret: string | null = null;
+    try {
+      username = row.usernameEnc ? decryptText(dek, row.usernameEnc) : null;
+      password = row.passwordEnc ? decryptText(dek, row.passwordEnc) : null;
+      url = row.urlEnc ? decryptText(dek, row.urlEnc) : null;
+      if (parsed.data.includeNotes) {
+        notes = row.notesEnc ? decryptText(dek, row.notesEnc) : null;
+      }
+      if (parsed.data.includeTotp) {
+        totpSecret = row.totpSecretEnc ? decryptText(dek, row.totpSecretEnc) : null;
+      }
+    } catch {
+      return reply.code(500).send({ error: "Entschlüsselung fehlgeschlagen" });
+    }
+
+    const token = createShareToken();
+    const pin = createSharePin();
+    const { saltB64, payloadEnc } = await encryptSharePayload(pin, {
+      title: row.title,
+      username,
+      password,
+      url,
+      notes,
+      totpSecret,
+    });
+
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + parsed.data.expiresInHours * 60 * 60 * 1000);
+    await db.insert(vaultShares).values({
+      id: token,
+      entryId: row.id,
+      title: row.title,
+      saltB64,
+      payloadEnc,
+      expiresAt,
+      maxViews: parsed.data.maxViews,
+      viewCount: 0,
+      includeTotp: parsed.data.includeTotp,
+      createdBy: userId,
+      createdAt: now,
+      revokedAt: null,
+      consumedAt: null,
+    });
+
+    const path = `/share/vault/${token}`;
+    return {
+      token,
+      pin,
+      path,
+      expiresAt: expiresAt.toISOString(),
+      maxViews: parsed.data.maxViews,
+      title: row.title,
+    };
+  });
+
+  app.get("/api/vault/shares", async () => {
+    const rows = await db
+      .select()
+      .from(vaultShares)
+      .where(isNull(vaultShares.revokedAt))
+      .orderBy(desc(vaultShares.createdAt))
+      .all();
+
+    const now = Date.now();
+    return rows.map((r) => {
+      const expired = now > r.expiresAt.getTime();
+      const consumed = Boolean(r.consumedAt) || !r.payloadEnc || r.viewCount >= r.maxViews;
+      return {
+        id: r.id,
+        entryId: r.entryId,
+        title: r.title,
+        expiresAt: r.expiresAt.toISOString(),
+        maxViews: r.maxViews,
+        viewCount: r.viewCount,
+        includeTotp: Boolean(r.includeTotp),
+        createdAt: r.createdAt.toISOString(),
+        consumedAt: r.consumedAt ? r.consumedAt.toISOString() : null,
+        status: consumed ? "consumed" : expired ? "expired" : "active",
+        path: `/share/vault/${r.id}`,
+      };
+    });
+  });
+
+  app.delete("/api/vault/shares/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const row = await db.select().from(vaultShares).where(eq(vaultShares.id, id)).get();
+    if (!row) return reply.code(404).send({ error: "Share nicht gefunden" });
+    if (row.revokedAt) return { ok: true };
+
+    await db
+      .update(vaultShares)
+      .set({
+        revokedAt: new Date(),
+        payloadEnc: "",
+        saltB64: "",
+      })
+      .where(eq(vaultShares.id, id));
     return { ok: true };
   });
 }

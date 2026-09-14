@@ -81,6 +81,50 @@ export interface VaultEntrySecret {
   totpSecret: string | null;
 }
 
+/** Ergebnis nach Anlegen eines Einweg-Shares (PIN nur einmal). */
+export interface VaultShareCreated {
+  token: string;
+  pin: string;
+  path: string;
+  expiresAt: string;
+  maxViews: number;
+  title: string;
+}
+
+export interface VaultShareMeta {
+  id: string;
+  entryId: string | null;
+  title: string;
+  expiresAt: string;
+  maxViews: number;
+  viewCount: number;
+  includeTotp: boolean;
+  createdAt: string;
+  consumedAt: string | null;
+  status: "active" | "expired" | "consumed";
+  path: string;
+}
+
+export interface VaultSharePublicStatus {
+  status: "ok" | "expired" | "consumed" | "revoked" | "not_found";
+  expiresAt?: string;
+  maxViews?: number;
+  viewCount?: number;
+  viewsRemaining?: number;
+}
+
+export interface VaultShareOpened {
+  status: "ok";
+  title: string;
+  username: string | null;
+  password: string | null;
+  url: string | null;
+  notes: string | null;
+  totpSecret: string | null;
+  viewsRemaining: number;
+  expiresAt: string;
+}
+
 export interface User {
   id: string;
   username: string;

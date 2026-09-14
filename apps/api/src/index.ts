@@ -29,6 +29,7 @@ import { taskRoutes } from "./routes/tasks.js";
 import { templateRoutes } from "./routes/templates.js";
 import { timeEntryRoutes } from "./routes/timeEntries.js";
 import { vaultRoutes } from "./routes/vault.js";
+import { vaultSharesPublicRoutes } from "./routes/vaultSharesPublic.js";
 import { backupRoutes } from "./routes/backup.js";
 import { emailRoutes } from "./routes/emails.js";
 
@@ -73,6 +74,8 @@ async function main() {
   });
 
   await authRoutes(app, db);
+  /** Öffentliche Einweg-Shares ohne Auth (PIN schützt den Inhalt). */
+  await vaultSharesPublicRoutes(app, db);
   await app.register(async (scoped) => customerRoutes(scoped, db));
   await app.register(async (scoped) => documentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => projectRoutes(scoped, db));
