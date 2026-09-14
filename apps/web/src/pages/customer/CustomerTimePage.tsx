@@ -706,15 +706,6 @@ export function CustomerTimePage() {
                             <strong className="time-entry-title">
                               {entry.description || "Ohne Beschreibung"}
                             </strong>
-                            {entry.amountSnapshot != null ? (
-                              <span className="time-entry-amount">
-                                {entry.amountSnapshot.toLocaleString("de-DE", {
-                                  minimumFractionDigits: 0,
-                                  maximumFractionDigits: 2,
-                                })}{" "}
-                                {currency}
-                              </span>
-                            ) : null}
                           </div>
                           <div className="time-entry-meta">
                             <span className="time-meta-text">
@@ -764,7 +755,19 @@ export function CustomerTimePage() {
                             )}
                           </div>
                         </div>
-                        <div className="time-entry-actions">
+                        <div className="time-entry-trailing">
+                          {entry.amountSnapshot != null ? (
+                            <span className="time-entry-amount">
+                              {entry.amountSnapshot.toLocaleString("de-DE", {
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 2,
+                              })}{" "}
+                              {currency}
+                            </span>
+                          ) : (
+                            <span className="time-entry-amount is-empty" aria-hidden />
+                          )}
+                          <div className="time-entry-actions">
                           <button
                             type="button"
                             className="btn btn-ghost btn-icon"
@@ -787,6 +790,7 @@ export function CustomerTimePage() {
                           >
                             <DeleteIcon />
                           </button>
+                          </div>
                         </div>
                       </li>
                     ))}

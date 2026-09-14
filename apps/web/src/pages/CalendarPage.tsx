@@ -473,8 +473,7 @@ export function CalendarPage() {
             />
           </label>
           <Checkbox
-            fieldLabel="Ganztägig"
-            label={form.allDay ? "Ja" : "Nein"}
+            label="Ganztägig"
             checked={form.allDay}
             onChange={(allDay) => setForm({ ...form, allDay })}
           />
