@@ -76,7 +76,7 @@ export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
     .filter((t) => !t.done)
     .sort((a, b) => {
       if (a.priority !== b.priority) return a.priority - b.priority;
-      return (a.dueDate || "9999").localeCompare(a.dueDate || "9999");
+      return (a.dueDate || "9999").localeCompare(b.dueDate || "9999");
     });
   const times = input.timeEntries
     .filter((t) => t.billable && !t.billed)
