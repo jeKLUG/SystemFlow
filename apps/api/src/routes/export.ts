@@ -17,10 +17,16 @@ import {
   timeEntries,
 } from "../db/schema.js";
 import { tiptapToText } from "../lib/tiptap-text.js";
+import { buildVisitPdf } from "../lib/visit-pdf.js";
 import { requireAuth } from "../plugins/auth.js";
 
+function pdfFilename(base: string): string {
+  const safe = base.replace(/[^\w\-äöüÄÖÜß]+/gi, "_").replace(/_+/g, "_").slice(0, 80);
+  return `${safe || "Besuch"}.pdf`;
+}
+
 /**
- * Registriert Kunden-Export als ZIP.
+ * Registriert Kunden-Export als ZIP und Besuchsblatt-PDF.
  */
 export async function exportRoutes(
   app: FastifyInstance,
@@ -28,6 +34,45 @@ export async function exportRoutes(
   uploadDir: string,
 ) {
   app.addHook("preHandler", requireAuth);
+
+  /**
+   * Kompaktes Besuchsblatt (PDF): Kontakt, Anlagen, offene Aufgaben, offene Zeiten.
+   */
+  app.get("/api/customers/:customerId/visit/pdf", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const [assetRows, taskRows, timeRows, projectRows] = await Promise.all([
+      db.select().from(assets).where(eq(assets.customerId, customerId)).all(),
+      db.select().from(tasks).where(eq(tasks.customerId, customerId)).all(),
+      db
+        .select()
+        .from(timeEntries)
+        .where(eq(timeEntries.customerId, customerId))
+        .orderBy(desc(timeEntries.workDate))
+        .all(),
+      db.select().from(projects).where(eq(projects.customerId, customerId)).all(),
+    ]);
+
+    const buffer = await buildVisitPdf({
+      customer,
+      assets: assetRows,
+      tasks: taskRows,
+      timeEntries: timeRows,
+      projects: projectRows,
+    });
+
+    const label = (customer.company || customer.name).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 50);
+    const stamp = new Date().toISOString().slice(0, 10);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `attachment; filename="${pdfFilename(`Besuch_${label}_${stamp}`)}"`,
+      )
+      .send(buffer);
+  });
 
   app.get("/api/customers/:customerId/export", async (request, reply) => {
     const { customerId } = request.params as { customerId: string };

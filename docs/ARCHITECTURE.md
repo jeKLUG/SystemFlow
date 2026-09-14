@@ -45,6 +45,8 @@ Browser (React SPA)
 
 Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Snapshots zur Vorbereitung.
 
+PDF-Exporte (Wiki, SLA, Besuchsblatt) nutzen gemeinsames Chrome in `apps/api/src/lib/pdf-chrome.ts`. Das Besuchsblatt (`GET /api/customers/:id/visit/pdf`) bündelt Kontakt, aktive Anlagen, offene Aufgaben und nicht abgerechnete Zeiten für den Vor-Ort-Einsatz.
+
 ## Kontakte-UI
 
 Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateien / E-Mails / Verträge) · Projekte · Aufgaben · Zeiten · Inventar · Protokoll (Einsatz-Historie).

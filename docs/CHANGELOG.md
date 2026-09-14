@@ -2,6 +2,7 @@
 
 ## 1.5.97 – 2026-09-08
 
+- Besuchsblatt-PDF pro Kunde: Kontakt, Anlagen, offene Aufgaben und offene Zeiten (Button auf der Übersicht)
 - Wiki-Editor: Dropdown für Infopanel, Warnpanel, Hinweis, Wichtig, Codeblock und Checkliste
 - Wiki-Editor: Codeblock mit Zeilennummern und „Kopiert!“-Meldung; Checklisten abhakbar
 - Wiki-Editor: Blöcke-Dropdown öffnet nach oben (nicht über dem Inhalt, vollständig sichtbar)

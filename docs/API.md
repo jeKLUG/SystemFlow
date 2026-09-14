@@ -218,6 +218,7 @@ Body: `title`, `kind` (`customer`\|`internal`\|`personal`\|`other`), `startDate`
 |---------|------|
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
+| GET | `/api/customers/:id/visit/pdf` | Besuchsblatt-PDF: Kontakt, aktive Anlagen, offene Aufgaben, offene/nicht abgerechnete Zeiten |
 | GET | `/api/customers/:id/wiki/pdf` | Alle Wiki-Seiten als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl, Bilder) |
 | GET | `/api/documents/:id/pdf` | Eine Wiki-Seite als PDF (gleiches Layout) |
 

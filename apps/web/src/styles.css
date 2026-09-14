@@ -11100,6 +11100,20 @@ a.stat-chip:hover {
   margin: 0;
 }
 
+.calendar-allday-field {
+  justify-content: flex-start;
+}
+
+.calendar-allday-field > span:first-child {
+  line-height: 1.3;
+  min-height: 1.3em;
+}
+
+.calendar-allday-field .check {
+  min-height: var(--control-h, 2.6rem);
+  align-items: center;
+}
+
 .calendar-stage {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

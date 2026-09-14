@@ -20,6 +20,7 @@ export function CustomerOverviewPage() {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(emptyCustomerForm);
   const [error, setError] = useState("");
+  const [visitBusy, setVisitBusy] = useState(false);
   const [stats, setStats] = useState({
     wiki: 0,
     projects: 0,
@@ -82,6 +83,18 @@ export function CustomerOverviewPage() {
     navigate("/customers");
   }
 
+  async function downloadVisitPdf() {
+    setVisitBusy(true);
+    setError("");
+    try {
+      await api.exportVisitPdf(id, customer.company || customer.name);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Besuchsblatt fehlgeschlagen");
+    } finally {
+      setVisitBusy(false);
+    }
+  }
+
   const kind = customer.kind ?? "customer";
   const isCustomer = kind === "customer";
   const address = customerAddressLine(customer);
@@ -120,6 +133,15 @@ export function CustomerOverviewPage() {
               <button
                 type="button"
                 className="btn btn-ghost btn-sm"
+                disabled={visitBusy}
+                title="PDF mit Kontakt, Anlagen, offenen Aufgaben und Zeiten"
+                onClick={() => void downloadVisitPdf()}
+              >
+                {visitBusy ? "PDF…" : "Besuchsblatt"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
                 onClick={() => setEditing((v) => !v)}
               >
                 {editing ? "Schließen" : "Bearbeiten"}
@@ -135,6 +157,8 @@ export function CustomerOverviewPage() {
               ) : null}
             </div>
           </div>
+
+          {error && !editing ? <p className="form-error">{error}</p> : null}
 
           {editing ? (
             <form className="customer-edit-form" onSubmit={saveCustomer}>

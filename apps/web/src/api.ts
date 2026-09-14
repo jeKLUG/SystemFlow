@@ -548,6 +548,11 @@ export const api = {
     const safe = (title || contractId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 60);
     await downloadPdf(`/api/contracts/${contractId}/pdf`, `SLA_${safe || "Vertrag"}.pdf`);
   },
+  /** Besuchsblatt (Kontakt, Anlagen, offene Aufgaben/Zeiten) als PDF. */
+  exportVisitPdf: async (customerId: string, label?: string) => {
+    const safe = (label || customerId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 50);
+    await downloadPdf(`/api/customers/${customerId}/visit/pdf`, `Besuch_${safe || "Kunde"}.pdf`);
+  },
   /** Meta zur Systemsicherung. */
   backupInfo: () =>
     request<{

@@ -472,11 +472,14 @@ export function CalendarPage() {
               placeholder="Kunde suchen…"
             />
           </label>
-          <Checkbox
-            label="Ganztägig"
-            checked={form.allDay}
-            onChange={(allDay) => setForm({ ...form, allDay })}
-          />
+          <div className="field calendar-allday-field">
+            <span aria-hidden="true">&nbsp;</span>
+            <Checkbox
+              label="Ganztägig"
+              checked={form.allDay}
+              onChange={(allDay) => setForm({ ...form, allDay })}
+            />
+          </div>
           <label className="field">
             <span>Datum *</span>
             <input
