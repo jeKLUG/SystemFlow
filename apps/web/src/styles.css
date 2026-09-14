@@ -10099,8 +10099,27 @@ a.stat-chip:hover {
   max-width: 28rem;
 }
 
+.vault-share-page .vault-share-stack {
+  margin-top: 0;
+  max-width: none;
+  width: 100%;
+  gap: 1rem;
+}
+
+.vault-share-page .vault-share-stack > h2,
+.vault-share-page .vault-share-stack > .muted,
+.vault-share-page .vault-share-stack > .vault-reveal-hint,
+.vault-share-page .vault-share-stack > .form-error,
+.vault-share-page .vault-share-stack > .form-success {
+  margin: 0;
+}
+
+.vault-share-page .vault-share-stack > .btn-xl {
+  margin-top: 0.35rem;
+}
+
 .vault-share-result .vault-reveal-grid {
-  margin-top: 0.75rem;
+  margin-top: 0;
 }
 
 .vault-page.is-locked {

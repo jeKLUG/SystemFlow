@@ -105,7 +105,7 @@ export function VaultSharePage() {
           {!meta ? (
             <p>Link wird geprüft…</p>
           ) : blocked && !opened ? (
-            <div>
+            <div className="form-stack vault-share-stack">
               <h2>
                 {meta.status === "expired"
                   ? "Link abgelaufen"
@@ -121,7 +121,7 @@ export function VaultSharePage() {
               </p>
             </div>
           ) : opened ? (
-            <div className="vault-share-result">
+            <div className="form-stack vault-share-stack vault-share-result">
               <h2>{opened.title || "Zugangsdaten"}</h2>
               {opened.viewsRemaining === 0 ? (
                 <p className="vault-reveal-hint">
@@ -216,7 +216,7 @@ export function VaultSharePage() {
               </div>
             </div>
           ) : (
-            <form onSubmit={onSubmit}>
+            <form className="form-stack vault-share-stack" onSubmit={onSubmit}>
               <h2>PIN eingeben</h2>
               <p className="muted">
                 Den 6-stelligen PIN erhalten Sie separat vom Absender – nicht im Link.
@@ -243,7 +243,11 @@ export function VaultSharePage() {
                 />
               </label>
               {error ? <p className="form-error">{error}</p> : null}
-              <button type="submit" className="btn btn-primary btn-xl" disabled={busy || pin.length !== 6}>
+              <button
+                type="submit"
+                className="btn btn-primary btn-xl"
+                disabled={busy || pin.length !== 6}
+              >
                 {busy ? "Prüfen…" : "Anzeigen"}
               </button>
             </form>
