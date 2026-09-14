@@ -10161,28 +10161,35 @@ a.stat-chip:hover {
   word-break: break-word;
 }
 
-.vault-share-icon-btn {
+.vault-share-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  margin-top: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+}
+
+.vault-share-warn svg {
   flex: 0 0 auto;
-  display: inline-grid;
-  place-items: center;
-  width: 2rem;
-  height: 2rem;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-top: 0.1rem;
+  color: var(--warn, #fbbf24);
 }
 
-.vault-share-icon-btn svg {
-  width: 1.1rem;
-  height: 1.1rem;
+.vault-share-warn p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
 }
 
-.vault-share-icon-btn:hover {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.06);
+.vault-share-remaining {
+  margin: 0;
+  font-size: 0.88rem;
 }
 
 .vault-page.is-locked {
