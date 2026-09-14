@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.103 – 2026-09-14
+
+- Vault-Share-Abruf: Beim Kopieren Rahmen-Animation am Feld statt grüner Toast-Meldung
+
 ## 1.5.102 – 2026-09-14
 
 - Zeiterfassung: Status „Zur Rechnung vorgemerkt“ (`readyForInvoice`); Monatsreport-PDF pro Kunde (Stunden, Beträge, ungebucht/vorgemerkt/abgerechnet)

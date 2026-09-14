@@ -10388,6 +10388,7 @@ a.stat-chip:hover {
 
 .vault-secret-line,
 .preview-value {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -10400,7 +10401,33 @@ a.stat-chip:hover {
   background: rgba(8, 12, 20, 0.45);
 }
 
-.vault-secret-line > span:first-child,
+.vault-secret-line.is-copied {
+  border-color: transparent;
+  overflow: visible;
+}
+
+.vault-secret-line .vault-entry-icon-btn,
+.vault-secret-line > span {
+  position: relative;
+  z-index: 1;
+}
+
+.vault-secret-line.is-copied .vault-entry-trace path {
+  opacity: 1;
+  stroke: var(--ok, #34d399);
+  animation: vault-border-run 1.2s linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vault-secret-line.is-copied .vault-entry-trace path {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    opacity: 0.95;
+  }
+}
+
+.vault-secret-line > span:first-of-type,
 .preview-value > span:first-child {
   flex: 1;
   min-width: 0;

@@ -1,9 +1,11 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api";
 import { copyToClipboard } from "../lib/clipboard";
 import { formatTotpCode, generateTotp } from "../lib/totp";
 import type { VaultShareOpened, VaultSharePublicStatus } from "../types";
+
+type CopyField = "username" | "password" | "url" | "totp";
 
 /**
  * Öffentliche Einweg-Abrufseite: PIN eingeben → Geheimnis einmal anzeigen.
@@ -17,8 +19,10 @@ export function VaultSharePage() {
   const [busy, setBusy] = useState(false);
   const [opened, setOpened] = useState<VaultShareOpened | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [copyHint, setCopyHint] = useState("");
+  const [copiedField, setCopiedField] = useState<CopyField | null>(null);
+  const [copyError, setCopyError] = useState("");
   const [totpCode, setTotpCode] = useState("");
+  const copyAnimTimer = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +62,12 @@ export function VaultSharePage() {
     };
   }, [opened?.totpSecret]);
 
+  useEffect(() => {
+    return () => {
+      if (copyAnimTimer.current) window.clearTimeout(copyAnimTimer.current);
+    };
+  }, []);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -77,10 +87,20 @@ export function VaultSharePage() {
     }
   }
 
-  async function copyText(value: string, label: string) {
+  async function copyField(field: CopyField, value: string) {
+    setCopyError("");
     const ok = await copyToClipboard(value);
-    setCopyHint(ok ? `${label} kopiert` : "Kopieren fehlgeschlagen");
-    window.setTimeout(() => setCopyHint(""), 2000);
+    if (!ok) {
+      setCopyError("Kopieren fehlgeschlagen");
+      window.setTimeout(() => setCopyError(""), 2000);
+      return;
+    }
+    if (copyAnimTimer.current) window.clearTimeout(copyAnimTimer.current);
+    setCopiedField(null);
+    requestAnimationFrame(() => {
+      setCopiedField(field);
+      copyAnimTimer.current = window.setTimeout(() => setCopiedField(null), 1200);
+    });
   }
 
   const blocked =
@@ -123,19 +143,22 @@ export function VaultSharePage() {
           ) : opened ? (
             <div className="form-stack vault-share-stack vault-share-result">
               <h2>{opened.title || "Zugangsdaten"}</h2>
-              {copyHint ? <p className="form-success">{copyHint}</p> : null}
+              {copyError ? <p className="form-error">{copyError}</p> : null}
               <div className="vault-share-fields">
                 {opened.username ? (
                   <div className="vault-share-field">
                     <span className="label">Benutzer</span>
-                    <div className="vault-secret-line">
+                    <div
+                      className={`vault-secret-line${copiedField === "username" ? " is-copied" : ""}`}
+                    >
+                      <CopyBorderTrace />
                       <span>{opened.username}</span>
                       <button
                         type="button"
                         className="vault-entry-icon-btn"
                         title="Benutzer kopieren"
                         aria-label="Benutzer kopieren"
-                        onClick={() => void copyText(opened.username!, "Benutzer")}
+                        onClick={() => void copyField("username", opened.username!)}
                       >
                         <CopyIcon />
                       </button>
@@ -145,7 +168,10 @@ export function VaultSharePage() {
                 {opened.password ? (
                   <div className="vault-share-field">
                     <span className="label">Passwort</span>
-                    <div className="vault-secret-line">
+                    <div
+                      className={`vault-secret-line${copiedField === "password" ? " is-copied" : ""}`}
+                    >
+                      <CopyBorderTrace />
                       <span className="vault-mono">
                         {showPassword ? opened.password : "••••••••••••"}
                       </span>
@@ -163,7 +189,7 @@ export function VaultSharePage() {
                         className="vault-entry-icon-btn"
                         title="Passwort kopieren"
                         aria-label="Passwort kopieren"
-                        onClick={() => void copyText(opened.password!, "Passwort")}
+                        onClick={() => void copyField("password", opened.password!)}
                       >
                         <CopyIcon />
                       </button>
@@ -173,14 +199,15 @@ export function VaultSharePage() {
                 {opened.url ? (
                   <div className="vault-share-field">
                     <span className="label">URL</span>
-                    <div className="vault-secret-line">
+                    <div className={`vault-secret-line${copiedField === "url" ? " is-copied" : ""}`}>
+                      <CopyBorderTrace />
                       <span>{opened.url}</span>
                       <button
                         type="button"
                         className="vault-entry-icon-btn"
                         title="URL kopieren"
                         aria-label="URL kopieren"
-                        onClick={() => void copyText(opened.url!, "URL")}
+                        onClick={() => void copyField("url", opened.url!)}
                       >
                         <CopyIcon />
                       </button>
@@ -190,14 +217,17 @@ export function VaultSharePage() {
                 {totpCode ? (
                   <div className="vault-share-field">
                     <span className="label">2FA-Code</span>
-                    <div className="vault-secret-line">
+                    <div
+                      className={`vault-secret-line${copiedField === "totp" ? " is-copied" : ""}`}
+                    >
+                      <CopyBorderTrace />
                       <span className="vault-mono vault-totp-code">{totpCode}</span>
                       <button
                         type="button"
                         className="vault-entry-icon-btn"
                         title="2FA-Code kopieren"
                         aria-label="2FA-Code kopieren"
-                        onClick={() => void copyText(totpCode.replace(/\s/g, ""), "2FA-Code")}
+                        onClick={() => void copyField("totp", totpCode.replace(/\s/g, ""))}
                       >
                         <CopyIcon />
                       </button>
@@ -266,6 +296,27 @@ export function VaultSharePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Rahmen-Animation beim Kopieren (wie Vault-Karten). */
+function CopyBorderTrace() {
+  return (
+    <svg className="vault-entry-trace" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden>
+      <path
+        pathLength="1"
+        d="M50 1.35
+           H94.6
+           A4.05 4.05 0 0 1 98.65 5.4
+           V94.6
+           A4.05 4.05 0 0 1 94.6 98.65
+           H5.4
+           A4.05 4.05 0 0 1 1.35 94.6
+           V5.4
+           A4.05 4.05 0 0 1 5.4 1.35
+           Z"
+      />
+    </svg>
   );
 }
 
