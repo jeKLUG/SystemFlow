@@ -45,7 +45,9 @@ Für den sicheren Versand an Kunden (ohne Vault-Passphrase):
 2. Server entschlüsselt einmal mit DEK und verschlüsselt die Payload **neu** mit einem Schlüssel aus **6-stelliger PIN + Salt** (scrypt → AES-256-GCM).
 3. Empfänger öffnet `/share/vault/:token`, gibt die PIN (separat übermittelt) ein und sieht die Daten.
 4. Nach Ablauf oder Erreichen von `maxViews` wird der Ciphertext gelöscht (nicht nur markiert).
-5. TOTP-Secret ist standardmäßig **nicht** enthalten (optional zuschaltbar).
+5. TOTP-Secret ist standardmäßig **nicht** enthalten (nur bei Modus „Alles“ optional).
+6. **Feldauswahl** beim Anlegen: `password` | `credentials` (Benutzer+Passwort) | `full`.
+7. **Abruf-Protokoll** (`vault_share_events`): Zeitpunkt, IP, Outcome (success/wrong_pin/…) – **ohne** Klartext-Geheimnisse.
 
 Rate-Limit wie beim Vault-Unlock bei falschen PINs. Widerruf löscht Payload sofort.
 
@@ -62,8 +64,9 @@ Rate-Limit wie beim Vault-Unlock bei falschen PINs. Widerruf löscht Payload sof
 | Anlegen / Aktualisieren | `POST/PUT /api/vault/entries` – inkl. `category`, `favorite`, `tags` |
 | Anzeigen (Klartext) | `GET /api/vault/entries/:id/reveal` |
 | Löschen | `DELETE /api/vault/entries/:id` |
-| Einweg-Share anlegen | `POST /api/vault/entries/:id/share` – `{ expiresInHours, maxViews, includeNotes?, includeTotp? }` → `{ path, pin, … }` (PIN einmal) |
+| Einweg-Share anlegen | `POST /api/vault/entries/:id/share` – `{ expiresInHours, maxViews, fieldsMode, includeNotes?, includeTotp? }` → `{ path, pin, … }` (PIN einmal) |
 | Shares listen | `GET /api/vault/shares` (nur eigene) |
+| Share-Protokoll | `GET /api/vault/shares/:id/events` – wann, IP, Outcome (ohne Klartext) |
 | Share widerrufen | `DELETE /api/vault/shares/:id` (nur eigene) |
 | Share-Status (öffentlich) | `GET /api/public/vault-shares/:token` (404 wenn unbekannt) |
 | Share öffnen (öffentlich) | `POST /api/public/vault-shares/:token/open` – `{ pin }` |

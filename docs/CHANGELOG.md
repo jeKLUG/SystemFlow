@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.101 – 2026-09-14
+
+- Besuchsblatt: letzte Einsätze, offene Reminder (Garantie/Vertrag/Termin) und Vault-Hinweise ohne Secrets
+
+## 1.5.100 – 2026-09-14
+
+- Vault-Shares: Feldauswahl (nur Passwort / Benutzer+Passwort / Alles) und Abruf-Protokoll (Zeit, IP, Erfolg/Fehlversuch, ohne Klartext)
+
 ## 1.5.99 – 2026-09-14
 
 - Vault-Shares: Liste/Widerruf nur für den Ersteller; öffentlicher Status bei unbekanntem Token liefert 404

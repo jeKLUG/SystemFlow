@@ -10083,15 +10083,143 @@ a.stat-chip:hover {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 0;
+  padding: 0.85rem 0;
   border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
 }
 
 .vault-share-list-main {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.3rem;
   min-width: 0;
+}
+
+.vault-share-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+}
+
+.vault-share-status.is-active {
+  color: var(--ok, #34d399);
+}
+
+.vault-share-status.is-consumed,
+.vault-share-status.is-expired {
+  color: var(--text-muted);
+}
+
+.vault-share-form-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.vault-share-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.vault-share-mode {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.vault-share-mode-btn {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-muted);
+  border-radius: 10px;
+  padding: 0.55rem 0.45rem;
+  font-size: 0.82rem;
+  line-height: 1.25;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.vault-share-mode-btn:hover {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.vault-share-mode-btn.is-active {
+  color: #fff;
+  border-color: rgba(90, 160, 255, 0.55);
+  background: rgba(59, 130, 246, 0.18);
+}
+
+.vault-share-extras {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.vault-share-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.vault-share-log-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 20, 0.35);
+}
+
+.vault-share-log-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-top: 0.45rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+  background: var(--text-muted);
+}
+
+.vault-share-log-item.is-ok .vault-share-log-dot {
+  background: var(--ok, #34d399);
+  box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+
+.vault-share-log-item.is-fail .vault-share-log-dot {
+  background: #f87171;
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.16);
+}
+
+.vault-share-log-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.vault-share-log-main strong {
+  font-size: 0.92rem;
+}
+
+@media (max-width: 560px) {
+  .vault-share-form-row,
+  .vault-share-mode {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-share-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .vault-share-page .login-hero p {

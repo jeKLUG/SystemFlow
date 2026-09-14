@@ -1,5 +1,15 @@
 import PDFDocument from "pdfkit";
-import type { Asset, Customer, Project, Task, TimeEntry } from "../db/schema.js";
+import type {
+  Activity,
+  Appointment,
+  Asset,
+  Contract,
+  Customer,
+  Project,
+  Task,
+  TimeEntry,
+  VaultEntry,
+} from "../db/schema.js";
 import {
   paintPdfFooter,
   paintPdfHeader,
@@ -24,6 +34,9 @@ const SOFT = "#f8fafc";
 const MAX_ASSETS = 40;
 const MAX_TASKS = 25;
 const MAX_TIMES = 30;
+const MAX_ACTIVITIES = 10;
+const MAX_REMINDERS = 20;
+const MAX_VAULT = 30;
 
 const assetKindLabel: Record<string, string> = {
   pc: "PC",
@@ -52,22 +65,58 @@ const ownershipLabel: Record<string, string> = {
   held: "Bei uns",
 };
 
+const vaultCategoryLabel: Record<string, string> = {
+  vpn: "VPN",
+  admin: "Admin",
+  hosting: "Hosting",
+  email: "E-Mail",
+  firewall: "Firewall",
+  remote: "Remote",
+  wifi: "WLAN",
+  database: "Datenbank",
+  cloud: "Cloud",
+  license: "Lizenz",
+  office: "M365",
+  isp: "Provider",
+  other: "Sonstiges",
+};
+
+/** Reminder-Zeile für Besuchsblatt (kein Geheimnis). */
+export type VisitReminderRow = {
+  kind: "warranty" | "contract" | "appointment";
+  title: string;
+  dueDate: string;
+  detail: string;
+};
+
+/** Vault-Hinweis ohne Klartext-Geheimnisse. */
+export type VisitVaultHint = {
+  title: string;
+  category: string;
+  flags: string;
+};
+
 export type VisitPdfInput = {
   customer: Customer;
   assets: Asset[];
   tasks: Task[];
   timeEntries: TimeEntry[];
   projects: Project[];
+  activities: Activity[];
+  reminders: VisitReminderRow[];
+  vaultHints: VisitVaultHint[];
 };
 
 /**
- * Kompaktes Besuchsblatt-PDF: Kontakt, Anlagen, offene Aufgaben, offene Zeiten.
+ * Kompaktes Besuchsblatt-PDF: Kontakt, Anlagen, Einsätze, Reminder, Vault-Hinweise (ohne Secrets),
+ * offene Aufgaben und offene Zeiten.
  */
 export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
   const { customer } = input;
   const customerLabel = customer.company?.trim() || customer.name;
   const headerTitle = "Besuchsblatt";
   const today = new Date();
+  const todayIso = toIsoDate(today);
 
   const assets = input.assets
     .filter((a) => a.status === "active" || a.status === "spare")
@@ -81,6 +130,15 @@ export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
   const times = input.timeEntries
     .filter((t) => t.billable && !t.billed)
     .sort((a, b) => b.workDate.localeCompare(a.workDate));
+  const activities = [...input.activities]
+    .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
+    .slice(0, MAX_ACTIVITIES);
+  const reminders = [...input.reminders]
+    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+    .slice(0, MAX_REMINDERS);
+  const vaultHints = [...input.vaultHints]
+    .sort((a, b) => a.title.localeCompare(b.title, "de"))
+    .slice(0, MAX_VAULT);
   const projectMap = new Map(input.projects.map((p) => [p.id, p.name]));
   const unbilledHours = round2(times.reduce((s, t) => s + (Number(t.hours) || 0), 0));
   const unbilledAmount = round2(
@@ -120,8 +178,8 @@ export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
   drawSummary(doc, {
     assets: assets.length,
     tasks: tasks.length,
-    hours: unbilledHours,
-    amount: unbilledAmount,
+    reminders: reminders.length,
+    vault: vaultHints.length,
   });
 
   drawSection(doc, `Anlagen (${assets.length})`, () => {
@@ -147,6 +205,62 @@ export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
     }
     if (assets.length > shown.length) {
       muted(doc, `+${assets.length - shown.length} weitere Anlagen`);
+    }
+  });
+
+  drawSection(doc, `Letzte Einsätze (${activities.length})`, () => {
+    if (!activities.length) {
+      muted(doc, "Keine Einsätze in der Historie.");
+      return;
+    }
+    const cols = colWidths(doc, [0.22, 0.78]);
+    drawTableHeader(doc, cols, ["Datum", "Einsatz"]);
+    for (const a of activities) {
+      const desc = a.description?.trim();
+      const title = desc ? `${a.title} – ${desc}` : a.title;
+      drawTableRow(doc, cols, [formatDateTime(a.occurredAt), title]);
+    }
+    if (input.activities.length > activities.length) {
+      muted(doc, `Nur die letzten ${MAX_ACTIVITIES} Einsätze`);
+    }
+  });
+
+  drawSection(doc, `Offene Reminder (${reminders.length})`, () => {
+    if (!reminders.length) {
+      muted(doc, "Keine anstehenden Garantien, Verträge oder Termine.");
+      return;
+    }
+    const cols = colWidths(doc, [0.16, 0.18, 0.42, 0.24]);
+    drawTableHeader(doc, cols, ["Datum", "Art", "Titel", "Hinweis"]);
+    for (const r of reminders) {
+      const overdue = r.dueDate < todayIso;
+      drawTableRow(doc, cols, [
+        formatDate(r.dueDate) + (overdue ? " !" : ""),
+        reminderKindLabel(r.kind),
+        r.title,
+        r.detail || "–",
+      ]);
+    }
+  });
+
+  drawSection(doc, `Zugänge / Vault (${vaultHints.length})`, () => {
+    if (!vaultHints.length) {
+      muted(doc, "Keine Vault-Einträge für diesen Kunden (nur Titel/Kategorie, keine Secrets).");
+      return;
+    }
+    muted(doc, "Nur Orientierung – keine Benutzer, Passwörter oder PINs im Blatt.");
+    doc.moveDown(0.2);
+    const cols = colWidths(doc, [0.42, 0.22, 0.36]);
+    drawTableHeader(doc, cols, ["Bezeichnung", "Kategorie", "Enthält"]);
+    for (const v of vaultHints) {
+      drawTableRow(doc, cols, [
+        v.title,
+        vaultCategoryLabel[v.category] ?? v.category,
+        v.flags || "–",
+      ]);
+    }
+    if (input.vaultHints.length > vaultHints.length) {
+      muted(doc, `+${input.vaultHints.length - vaultHints.length} weitere Zugänge`);
     }
   });
 
@@ -212,6 +326,90 @@ export async function buildVisitPdf(input: VisitPdfInput): Promise<Buffer> {
 
   doc.end();
   return done;
+}
+
+/**
+ * Baut Reminder-Zeilen für einen Kunden (Garantie, Vertrag, Termin) – ohne Secrets.
+ */
+export function buildVisitReminders(input: {
+  assets: Asset[];
+  contracts: Contract[];
+  appointments: Appointment[];
+  todayIso: string;
+  windowDays?: number;
+}): VisitReminderRow[] {
+  const windowDays = input.windowDays ?? 90;
+  const to = addDaysIso(input.todayIso, windowDays);
+  const fromOverdue = addDaysIso(input.todayIso, -30);
+  const rows: VisitReminderRow[] = [];
+
+  for (const a of input.assets) {
+    const d = a.warrantyUntil?.trim();
+    if (!d) continue;
+    if (d < fromOverdue || d > to) continue;
+    rows.push({
+      kind: "warranty",
+      title: a.name,
+      dueDate: d,
+      detail: assetKindLabel[a.kind] ?? a.kind,
+    });
+  }
+
+  for (const c of input.contracts) {
+    if (c.status === "cancelled" || c.status === "expired") continue;
+    const d = c.endDate?.trim();
+    if (!d) continue;
+    if (d < fromOverdue || d > to) continue;
+    rows.push({
+      kind: "contract",
+      title: c.title,
+      dueDate: d,
+      detail: c.contractNumber?.trim() || c.status,
+    });
+  }
+
+  for (const ap of input.appointments) {
+    const d = ap.startDate?.trim();
+    if (!d) continue;
+    if (d < input.todayIso || d > to) continue;
+    const time = ap.allDay
+      ? "Ganztägig"
+      : [ap.startTime, ap.endTime].filter(Boolean).join("–") || "Termin";
+    rows.push({
+      kind: "appointment",
+      title: ap.title,
+      dueDate: d,
+      detail: [time, ap.location?.trim()].filter(Boolean).join(" · "),
+    });
+  }
+
+  return rows;
+}
+
+/**
+ * Vault-Metadaten für Besuchsblatt – niemals entschlüsselte Felder.
+ */
+export function buildVisitVaultHints(entries: VaultEntry[]): VisitVaultHint[] {
+  return entries.map((e) => {
+    const parts: string[] = [];
+    if (e.usernameEnc) parts.push("Benutzer");
+    if (e.passwordEnc) parts.push("Passwort");
+    if (e.urlEnc) parts.push("URL");
+    if (e.notesEnc) parts.push("Notizen");
+    if (e.totpSecretEnc) parts.push("2FA");
+    if (e.favorite) parts.push("Favorit");
+    return {
+      title: e.title,
+      category: e.category,
+      flags: parts.join(", "),
+    };
+  });
+}
+
+function reminderKindLabel(kind: VisitReminderRow["kind"]): string {
+  if (kind === "warranty") return "Garantie";
+  if (kind === "contract") return "Vertrag";
+  return "Termin";
 }
 
 function contentTop(doc: PDFKit.PDFDocument): number {
@@ -301,13 +499,13 @@ function drawContact(doc: PDFKit.PDFDocument, customer: Customer) {
 
 function drawSummary(
   doc: PDFKit.PDFDocument,
-  stats: { assets: number; tasks: number; hours: number; amount: number },
+  stats: { assets: number; tasks: number; reminders: number; vault: number },
 ) {
   const items: [string, string][] = [
     ["Anlagen", String(stats.assets)],
     ["Aufgaben offen", String(stats.tasks)],
-    ["Zeiten offen", `${formatHours(stats.hours)} h`],
-    ["Betrag offen", stats.amount > 0 ? formatMoney(stats.amount) : "–"],
+    ["Reminder", String(stats.reminders)],
+    ["Vault-Hinweise", String(stats.vault)],
   ];
   ensureSpace(doc, 58);
   const gap = 8;
@@ -419,4 +617,18 @@ function formatMoney(n: number): string {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysIso(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y!, m! - 1, d!);
+  dt.setDate(dt.getDate() + days);
+  return toIsoDate(dt);
 }

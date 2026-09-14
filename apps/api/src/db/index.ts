@@ -312,10 +312,19 @@ export async function createDb(databasePath: string) {
       max_views INTEGER NOT NULL DEFAULT 1,
       view_count INTEGER NOT NULL DEFAULT 0,
       include_totp INTEGER NOT NULL DEFAULT 0,
+      fields_mode TEXT NOT NULL DEFAULT 'credentials',
       created_by TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       revoked_at INTEGER,
       consumed_at INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS vault_share_events (
+      id TEXT PRIMARY KEY,
+      share_id TEXT NOT NULL,
+      at INTEGER NOT NULL,
+      ip TEXT,
+      outcome TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS file_folders (
@@ -363,6 +372,7 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
     CREATE INDEX IF NOT EXISTS idx_vault_entries_customer ON vault_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_vault_shares_expires ON vault_shares(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_vault_share_events_share ON vault_share_events(share_id);
     CREATE INDEX IF NOT EXISTS idx_customers_name ON customers(name);
     CREATE INDEX IF NOT EXISTS idx_assets_customer ON assets(customer_id);
     CREATE INDEX IF NOT EXISTS idx_network_segments_customer ON network_segments(customer_id);
@@ -426,6 +436,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "vault_entries", "favorite", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "vault_entries", "tags_json", "TEXT NOT NULL DEFAULT '[]'");
   await ensureColumn(client, "vault_entries", "totp_secret_enc", "TEXT");
+  await ensureColumn(client, "vault_shares", "fields_mode", "TEXT NOT NULL DEFAULT 'credentials'");
   await ensureColumn(client, "attachments", "updated_at", "INTEGER");
   await ensureColumn(client, "attachments", "folder_id", "TEXT");
   await ensureColumn(client, "attachments", "description", "TEXT");

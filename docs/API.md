@@ -135,9 +135,10 @@ Siehe auch [SECURITY-VAULT.md](SECURITY-VAULT.md). Freischaltung mit eigener Vau
 | PUT | `/api/vault/entries/:id` | Aktualisieren |
 | GET | `/api/vault/entries/:id/reveal` | Klartext (zeitlich begrenzt in der UI) |
 | DELETE | `/api/vault/entries/:id` | Löschen |
-| POST | `/api/vault/entries/:id/share` | Einweg-Share: `{ expiresInHours: 1\|24\|72\|168, maxViews: 1\|3, includeNotes?, includeTotp? }` → `{ path, pin, expiresAt, … }` (PIN nur einmal) |
-| GET | `/api/vault/shares` | Eigene Shares (ohne Geheimnisse): Status active/expired/consumed |
-| DELETE | `/api/vault/shares/:id` | Eigenen Share widerrufen (Payload löschen) |
+| POST | `/api/vault/entries/:id/share` | Einweg-Share: `{ expiresInHours, maxViews, fieldsMode: password\|credentials\|full, includeNotes?, includeTotp? }` → `{ path, pin, fieldsMode, … }` |
+| GET | `/api/vault/shares` | Eigene Shares (ohne Geheimnisse) |
+| GET | `/api/vault/shares/:id/events` | Abruf-Protokoll: `{ at, ip, outcome }` ohne Klartext |
+| DELETE | `/api/vault/shares/:id` | Eigenen Share widerrufen |
 | GET | `/api/public/vault-shares/:token` | Öffentlich: Status ohne Auth; unbekannt → 404 |
 | POST | `/api/public/vault-shares/:token/open` | Öffentlich: `{ pin }` → Klartext, Abruf zählen; nach maxViews Ciphertext weg |
 
@@ -223,7 +224,7 @@ Body: `title`, `kind` (`customer`\|`internal`\|`personal`\|`other`), `startDate`
 |---------|------|
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
-| GET | `/api/customers/:id/visit/pdf` | Besuchsblatt-PDF: Kontakt, aktive Anlagen, offene Aufgaben, offene/nicht abgerechnete Zeiten |
+| GET | `/api/customers/:id/visit/pdf` | Besuchsblatt-PDF: Kontakt, Anlagen, letzte Einsätze, Reminder (Garantie/Vertrag/Termin), Vault-Hinweise ohne Secrets, offene Aufgaben/Zeiten |
 | GET | `/api/customers/:id/wiki/pdf` | Alle Wiki-Seiten als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl, Bilder) |
 | GET | `/api/documents/:id/pdf` | Eine Wiki-Seite als PDF (gleiches Layout) |
 

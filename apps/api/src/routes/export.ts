@@ -7,6 +7,7 @@ import { PassThrough } from "node:stream";
 import type { Db } from "../db/index.js";
 import {
   activities,
+  appointments,
   assets,
   attachments,
   contracts,
@@ -15,9 +16,14 @@ import {
   projects,
   tasks,
   timeEntries,
+  vaultEntries,
 } from "../db/schema.js";
 import { tiptapToText } from "../lib/tiptap-text.js";
-import { buildVisitPdf } from "../lib/visit-pdf.js";
+import {
+  buildVisitPdf,
+  buildVisitReminders,
+  buildVisitVaultHints,
+} from "../lib/visit-pdf.js";
 import { requireAuth } from "../plugins/auth.js";
 
 function pdfFilename(base: string): string {
@@ -36,14 +42,24 @@ export async function exportRoutes(
   app.addHook("preHandler", requireAuth);
 
   /**
-   * Kompaktes Besuchsblatt (PDF): Kontakt, Anlagen, offene Aufgaben, offene Zeiten.
+   * Besuchsblatt (PDF): Kontakt, Anlagen, letzte Einsätze, Reminder, Vault-Hinweise (ohne Secrets),
+   * offene Aufgaben und offene Zeiten.
    */
   app.get("/api/customers/:customerId/visit/pdf", async (request, reply) => {
     const { customerId } = request.params as { customerId: string };
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    const [assetRows, taskRows, timeRows, projectRows] = await Promise.all([
+    const [
+      assetRows,
+      taskRows,
+      timeRows,
+      projectRows,
+      activityRows,
+      contractRows,
+      appointmentRows,
+      vaultRows,
+    ] = await Promise.all([
       db.select().from(assets).where(eq(assets.customerId, customerId)).all(),
       db.select().from(tasks).where(eq(tasks.customerId, customerId)).all(),
       db
@@ -53,7 +69,33 @@ export async function exportRoutes(
         .orderBy(desc(timeEntries.workDate))
         .all(),
       db.select().from(projects).where(eq(projects.customerId, customerId)).all(),
+      db
+        .select()
+        .from(activities)
+        .where(eq(activities.customerId, customerId))
+        .orderBy(desc(activities.occurredAt))
+        .all(),
+      db.select().from(contracts).where(eq(contracts.customerId, customerId)).all(),
+      db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.customerId, customerId))
+        .orderBy(desc(appointments.startDate))
+        .all(),
+      db
+        .select()
+        .from(vaultEntries)
+        .where(eq(vaultEntries.customerId, customerId))
+        .orderBy(desc(vaultEntries.updatedAt))
+        .all(),
     ]);
+
+    const today = new Date();
+    const todayIso = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, "0"),
+      String(today.getDate()).padStart(2, "0"),
+    ].join("-");
 
     const buffer = await buildVisitPdf({
       customer,
@@ -61,6 +103,14 @@ export async function exportRoutes(
       tasks: taskRows,
       timeEntries: timeRows,
       projects: projectRows,
+      activities: activityRows,
+      reminders: buildVisitReminders({
+        assets: assetRows,
+        contracts: contractRows,
+        appointments: appointmentRows,
+        todayIso,
+      }),
+      vaultHints: buildVisitVaultHints(vaultRows),
     });
 
     const label = (customer.company || customer.name).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 50);

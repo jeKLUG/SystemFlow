@@ -501,6 +501,7 @@ export const api = {
     body: {
       expiresInHours?: 1 | 24 | 72 | 168;
       maxViews?: 1 | 3;
+      fieldsMode?: import("./types").VaultShareFieldsMode;
       includeNotes?: boolean;
       includeTotp?: boolean;
     },
@@ -510,6 +511,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
   vaultShares: () => request<import("./types").VaultShareMeta[]>("/api/vault/shares"),
+  vaultShareEvents: (id: string) =>
+    request<import("./types").VaultShareEventsResponse>(`/api/vault/shares/${id}/events`),
   vaultRevokeShare: (id: string) =>
     request<{ ok: boolean }>(`/api/vault/shares/${id}`, { method: "DELETE" }),
   vaultShareStatus: (token: string) =>

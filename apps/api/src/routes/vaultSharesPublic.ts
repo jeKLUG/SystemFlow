@@ -1,9 +1,10 @@
 import { eq } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { vaultShares } from "../db/schema.js";
 import { decryptSharePayload } from "../lib/vaultShareCrypto.js";
+import { clientIp, logShareEvent } from "../lib/vaultShareLog.js";
 import {
   checkUnlockAllowed,
   clearUnlockFailures,
@@ -27,6 +28,19 @@ function classifyShare(row: {
   return "ok";
 }
 
+async function logIfKnown(
+  db: Db,
+  shareId: string,
+  outcome: "success" | "wrong_pin" | "rate_limited" | "expired" | "consumed" | "revoked",
+  request: FastifyRequest,
+) {
+  try {
+    await logShareEvent(db, shareId, outcome, clientIp(request));
+  } catch {
+    /* Protokollfehler sollen Abruf nicht blockieren */
+  }
+}
+
 /**
  * Öffentliche Endpunkte für Einweg-Vault-Shares (ohne Login).
  */
@@ -38,7 +52,9 @@ export async function vaultSharesPublicRoutes(app: FastifyInstance, db: Db) {
     }
 
     const row = await db.select().from(vaultShares).where(eq(vaultShares.id, token)).get();
-    if (!row) return { status: "not_found" as ShareStatus };
+    if (!row) {
+      return reply.code(404).send({ status: "not_found" as ShareStatus });
+    }
 
     const status = classifyShare(row);
     return {
@@ -59,6 +75,8 @@ export async function vaultSharesPublicRoutes(app: FastifyInstance, db: Db) {
     const failKey = shareFailureKey(token);
     const gate = checkUnlockAllowed(failKey);
     if (gate.locked) {
+      const existing = await db.select().from(vaultShares).where(eq(vaultShares.id, token)).get();
+      if (existing) await logIfKnown(db, token, "rate_limited", request);
       return reply
         .code(429)
         .send({ error: `Zu viele Fehlversuche. Warte ${gate.retryAfterSec}s.` });
@@ -78,12 +96,15 @@ export async function vaultSharesPublicRoutes(app: FastifyInstance, db: Db) {
 
     const status = classifyShare(row);
     if (status === "revoked") {
+      await logIfKnown(db, token, "revoked", request);
       return reply.code(410).send({ error: "Link wurde widerrufen", status });
     }
     if (status === "consumed") {
+      await logIfKnown(db, token, "consumed", request);
       return reply.code(410).send({ error: "Link wurde bereits genutzt", status });
     }
     if (status === "expired") {
+      await logIfKnown(db, token, "expired", request);
       return reply.code(410).send({ error: "Link ist abgelaufen", status });
     }
 
@@ -91,8 +112,10 @@ export async function vaultSharesPublicRoutes(app: FastifyInstance, db: Db) {
     try {
       payload = await decryptSharePayload(parsed.data.pin, row.saltB64, row.payloadEnc);
     } catch {
+      await logIfKnown(db, token, "wrong_pin", request);
       const fail = registerUnlockFailure(failKey);
       if (fail.locked) {
+        await logIfKnown(db, token, "rate_limited", request);
         return reply
           .code(429)
           .send({ error: `Zu viele Fehlversuche. Warte ${fail.retryAfterSec}s.` });
@@ -114,6 +137,8 @@ export async function vaultSharesPublicRoutes(app: FastifyInstance, db: Db) {
         saltB64: exhausted ? "" : row.saltB64,
       })
       .where(eq(vaultShares.id, token));
+
+    await logIfKnown(db, token, "success", request);
 
     return {
       status: "ok" as const,

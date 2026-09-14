@@ -1,8 +1,14 @@
-import { desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { customers, vaultEntries, vaultMeta, vaultShares } from "../db/schema.js";
+import {
+  customers,
+  vaultEntries,
+  vaultMeta,
+  vaultShareEvents,
+  vaultShares,
+} from "../db/schema.js";
 import { createId } from "../lib/id.js";
 import {
   decryptText,
@@ -518,6 +524,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
           .union([z.literal(1), z.literal(24), z.literal(72), z.literal(168)])
           .default(24),
         maxViews: z.union([z.literal(1), z.literal(3)]).default(1),
+        fieldsMode: z.enum(["password", "credentials", "full"]).default("credentials"),
         includeNotes: z.boolean().default(true),
         includeTotp: z.boolean().default(false),
       })
@@ -526,23 +533,35 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Ungültige Share-Optionen" });
     }
 
+    const { fieldsMode } = parsed.data;
+    const includeNotes = fieldsMode === "full" && parsed.data.includeNotes;
+    const includeTotp = fieldsMode === "full" && parsed.data.includeTotp;
+
     let username: string | null = null;
     let password: string | null = null;
     let url: string | null = null;
     let notes: string | null = null;
     let totpSecret: string | null = null;
     try {
-      username = row.usernameEnc ? decryptText(dek, row.usernameEnc) : null;
       password = row.passwordEnc ? decryptText(dek, row.passwordEnc) : null;
-      url = row.urlEnc ? decryptText(dek, row.urlEnc) : null;
-      if (parsed.data.includeNotes) {
-        notes = row.notesEnc ? decryptText(dek, row.notesEnc) : null;
+      if (fieldsMode === "credentials" || fieldsMode === "full") {
+        username = row.usernameEnc ? decryptText(dek, row.usernameEnc) : null;
       }
-      if (parsed.data.includeTotp) {
-        totpSecret = row.totpSecretEnc ? decryptText(dek, row.totpSecretEnc) : null;
+      if (fieldsMode === "full") {
+        url = row.urlEnc ? decryptText(dek, row.urlEnc) : null;
+        if (includeNotes) {
+          notes = row.notesEnc ? decryptText(dek, row.notesEnc) : null;
+        }
+        if (includeTotp) {
+          totpSecret = row.totpSecretEnc ? decryptText(dek, row.totpSecretEnc) : null;
+        }
       }
     } catch {
       return reply.code(500).send({ error: "Entschlüsselung fehlgeschlagen" });
+    }
+
+    if (!password && fieldsMode === "password") {
+      return reply.code(400).send({ error: "Eintrag hat kein Passwort zum Teilen" });
     }
 
     const token = createShareToken();
@@ -567,7 +586,8 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       expiresAt,
       maxViews: parsed.data.maxViews,
       viewCount: 0,
-      includeTotp: parsed.data.includeTotp,
+      includeTotp,
+      fieldsMode,
       createdBy: userId,
       createdAt: now,
       revokedAt: null,
@@ -581,15 +601,17 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
       path,
       expiresAt: expiresAt.toISOString(),
       maxViews: parsed.data.maxViews,
+      fieldsMode,
       title: row.title,
     };
   });
 
-  app.get("/api/vault/shares", async () => {
+  app.get("/api/vault/shares", async (request) => {
+    const userId = requireUserId(request);
     const rows = await db
       .select()
       .from(vaultShares)
-      .where(isNull(vaultShares.revokedAt))
+      .where(and(eq(vaultShares.createdBy, userId), isNull(vaultShares.revokedAt)))
       .orderBy(desc(vaultShares.createdAt))
       .all();
 
@@ -605,6 +627,7 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
         maxViews: r.maxViews,
         viewCount: r.viewCount,
         includeTotp: Boolean(r.includeTotp),
+        fieldsMode: (r.fieldsMode as "password" | "credentials" | "full") || "credentials",
         createdAt: r.createdAt.toISOString(),
         consumedAt: r.consumedAt ? r.consumedAt.toISOString() : null,
         status: consumed ? "consumed" : expired ? "expired" : "active",
@@ -613,10 +636,40 @@ export async function vaultRoutes(app: FastifyInstance, db: Db) {
     });
   });
 
-  app.delete("/api/vault/shares/:id", async (request, reply) => {
+  app.get("/api/vault/shares/:id/events", async (request, reply) => {
+    const userId = requireUserId(request);
     const { id } = request.params as { id: string };
     const row = await db.select().from(vaultShares).where(eq(vaultShares.id, id)).get();
-    if (!row) return reply.code(404).send({ error: "Share nicht gefunden" });
+    if (!row || row.createdBy !== userId) {
+      return reply.code(404).send({ error: "Share nicht gefunden" });
+    }
+
+    const events = await db
+      .select()
+      .from(vaultShareEvents)
+      .where(eq(vaultShareEvents.shareId, id))
+      .orderBy(desc(vaultShareEvents.at))
+      .all();
+
+    return {
+      shareId: id,
+      title: row.title,
+      events: events.map((e) => ({
+        id: e.id,
+        at: e.at.toISOString(),
+        ip: e.ip,
+        outcome: e.outcome,
+      })),
+    };
+  });
+
+  app.delete("/api/vault/shares/:id", async (request, reply) => {
+    const userId = requireUserId(request);
+    const { id } = request.params as { id: string };
+    const row = await db.select().from(vaultShares).where(eq(vaultShares.id, id)).get();
+    if (!row || row.createdBy !== userId) {
+      return reply.code(404).send({ error: "Share nicht gefunden" });
+    }
     if (row.revokedAt) return { ok: true };
 
     await db

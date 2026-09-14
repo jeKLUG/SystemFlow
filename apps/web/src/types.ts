@@ -88,8 +88,19 @@ export interface VaultShareCreated {
   path: string;
   expiresAt: string;
   maxViews: number;
+  fieldsMode: VaultShareFieldsMode;
   title: string;
 }
+
+export type VaultShareFieldsMode = "password" | "credentials" | "full";
+
+export type VaultShareEventOutcome =
+  | "success"
+  | "wrong_pin"
+  | "rate_limited"
+  | "expired"
+  | "consumed"
+  | "revoked";
 
 export interface VaultShareMeta {
   id: string;
@@ -99,10 +110,24 @@ export interface VaultShareMeta {
   maxViews: number;
   viewCount: number;
   includeTotp: boolean;
+  fieldsMode: VaultShareFieldsMode;
   createdAt: string;
   consumedAt: string | null;
   status: "active" | "expired" | "consumed";
   path: string;
+}
+
+export interface VaultShareEvent {
+  id: string;
+  at: string;
+  ip: string | null;
+  outcome: VaultShareEventOutcome | string;
+}
+
+export interface VaultShareEventsResponse {
+  shareId: string;
+  title: string;
+  events: VaultShareEvent[];
 }
 
 export interface VaultSharePublicStatus {

@@ -400,11 +400,41 @@ export const vaultShares = sqliteTable("vault_shares", {
   maxViews: integer("max_views").notNull().default(1),
   viewCount: integer("view_count").notNull().default(0),
   includeTotp: integer("include_totp", { mode: "boolean" }).notNull().default(false),
+  /**
+   * Welche Felder im Share stecken: password | credentials | full
+   * (Klartext-Metadatum, kein Geheimnis).
+   */
+  fieldsMode: text("fields_mode").notNull().default("credentials"),
   createdBy: text("created_by").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   revokedAt: integer("revoked_at", { mode: "timestamp_ms" }),
   consumedAt: integer("consumed_at", { mode: "timestamp_ms" }),
 });
+
+/**
+ * Abruf-Protokoll für Shares: Zeitpunkt, IP, Erfolg/Fehlversuch – ohne Klartext-Geheimnisse.
+ */
+export const vaultShareEvents = sqliteTable("vault_share_events", {
+  id: text("id").primaryKey(),
+  shareId: text("share_id").notNull(),
+  at: integer("at", { mode: "timestamp_ms" }).notNull(),
+  ip: text("ip"),
+  /** success | wrong_pin | rate_limited | expired | consumed | revoked */
+  outcome: text("outcome").notNull(),
+});
+
+export const vaultShareFieldsModes = ["password", "credentials", "full"] as const;
+export type VaultShareFieldsMode = (typeof vaultShareFieldsModes)[number];
+
+export const vaultShareEventOutcomes = [
+  "success",
+  "wrong_pin",
+  "rate_limited",
+  "expired",
+  "consumed",
+  "revoked",
+] as const;
+export type VaultShareEventOutcome = (typeof vaultShareEventOutcomes)[number];
 
 /** Ordner in der Kunden-Dokumentenablage. */
 export const fileFolders = sqliteTable("file_folders", {
@@ -476,6 +506,7 @@ export type PriceItem = typeof priceItems.$inferSelect;
 export type VaultMeta = typeof vaultMeta.$inferSelect;
 export type VaultEntry = typeof vaultEntries.$inferSelect;
 export type VaultShare = typeof vaultShares.$inferSelect;
+export type VaultShareEvent = typeof vaultShareEvents.$inferSelect;
 export type FileFolder = typeof fileFolders.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type CustomerEmail = typeof customerEmails.$inferSelect;

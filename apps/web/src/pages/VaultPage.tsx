@@ -21,6 +21,8 @@ import type {
   VaultEntryMeta,
   VaultEntrySecret,
   VaultShareCreated,
+  VaultShareEvent,
+  VaultShareFieldsMode,
   VaultShareMeta,
   VaultStatus,
 } from "../types";
@@ -101,6 +103,7 @@ export function VaultPage() {
   const [shareEntry, setShareEntry] = useState<VaultEntryMeta | null>(null);
   const [shareExpires, setShareExpires] = useState<1 | 24 | 72 | 168>(24);
   const [shareMaxViews, setShareMaxViews] = useState<1 | 3>(1);
+  const [shareFieldsMode, setShareFieldsMode] = useState<VaultShareFieldsMode>("credentials");
   const [shareIncludeNotes, setShareIncludeNotes] = useState(true);
   const [shareIncludeTotp, setShareIncludeTotp] = useState(false);
   const [shareResult, setShareResult] = useState<VaultShareCreated | null>(null);
@@ -108,6 +111,10 @@ export function VaultPage() {
   const [shareError, setShareError] = useState("");
   const [shareListOpen, setShareListOpen] = useState(false);
   const [shareList, setShareList] = useState<VaultShareMeta[]>([]);
+  const [shareLogOpen, setShareLogOpen] = useState(false);
+  const [shareLogTitle, setShareLogTitle] = useState("");
+  const [shareLogEvents, setShareLogEvents] = useState<VaultShareEvent[]>([]);
+  const [shareLogBusy, setShareLogBusy] = useState(false);
   const secretCache = useRef(new Map<string, { secret: VaultEntrySecret; at: number }>());
   const copyAnimTimer = useRef<number | null>(null);
 
@@ -151,6 +158,7 @@ export function VaultPage() {
     setShareEntry(entry);
     setShareExpires(24);
     setShareMaxViews(1);
+    setShareFieldsMode("credentials");
     setShareIncludeNotes(true);
     setShareIncludeTotp(false);
     setShareResult(null);
@@ -173,6 +181,7 @@ export function VaultPage() {
       const created = await api.vaultCreateShare(shareEntry.id, {
         expiresInHours: shareExpires,
         maxViews: shareMaxViews,
+        fieldsMode: shareFieldsMode,
         includeNotes: shareIncludeNotes,
         includeTotp: shareIncludeTotp,
       });
@@ -197,6 +206,21 @@ export function VaultPage() {
     await loadShareList();
   }
 
+  async function openShareLog(share: VaultShareMeta) {
+    setShareLogTitle(share.title);
+    setShareLogOpen(true);
+    setShareLogBusy(true);
+    setShareLogEvents([]);
+    try {
+      const res = await api.vaultShareEvents(share.id);
+      setShareLogEvents(res.events);
+    } catch {
+      setShareLogEvents([]);
+    } finally {
+      setShareLogBusy(false);
+    }
+  }
+
   async function revokeShare(id: string) {
     try {
       await api.vaultRevokeShare(id);
@@ -209,6 +233,31 @@ export function VaultPage() {
 
   function shareAbsoluteUrl(path: string) {
     return `${window.location.origin}${path}`;
+  }
+
+  function shareFieldsLabel(mode: VaultShareFieldsMode) {
+    if (mode === "password") return "Nur Passwort";
+    if (mode === "credentials") return "Benutzer + Passwort";
+    return "Vollständig";
+  }
+
+  function shareOutcomeLabel(outcome: string) {
+    switch (outcome) {
+      case "success":
+        return "Erfolgreich";
+      case "wrong_pin":
+        return "Falsche PIN";
+      case "rate_limited":
+        return "Gesperrt (zu viele Versuche)";
+      case "expired":
+        return "Abgelaufen";
+      case "consumed":
+        return "Bereits genutzt";
+      case "revoked":
+        return "Widerrufen";
+      default:
+        return outcome;
+    }
   }
 
   function resetForm() {
@@ -1236,46 +1285,80 @@ export function VaultPage() {
             onClose={closeShare}
           >
             {shareEntry && !shareResult ? (
-              <form className="form-stack" onSubmit={createShare}>
-                <p>
+              <form className="form-stack vault-share-form" onSubmit={createShare}>
+                <div className="vault-share-form-head">
                   <strong>{shareEntry.title}</strong>
-                </p>
-                <label className="field">
-                  <span>Gültigkeit</span>
-                  <select
-                    value={shareExpires}
-                    onChange={(e) =>
-                      setShareExpires(Number(e.target.value) as 1 | 24 | 72 | 168)
-                    }
-                  >
-                    <option value={1}>1 Stunde</option>
-                    <option value={24}>24 Stunden</option>
-                    <option value={72}>3 Tage</option>
-                    <option value={168}>7 Tage</option>
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Abrufe</span>
-                  <select
-                    value={shareMaxViews}
-                    onChange={(e) => setShareMaxViews(Number(e.target.value) as 1 | 3)}
-                  >
-                    <option value={1}>1× (Einmal)</option>
-                    <option value={3}>3×</option>
-                  </select>
-                </label>
-                <Checkbox
-                  label="Notizen einschließen"
-                  checked={shareIncludeNotes}
-                  onChange={setShareIncludeNotes}
-                />
-                {shareEntry.hasTotp ? (
-                  <Checkbox
-                    label="2FA-Secret einschließen (sensibel)"
-                    checked={shareIncludeTotp}
-                    onChange={setShareIncludeTotp}
-                  />
+                  <span className="muted">Link und PIN getrennt weitergeben</span>
+                </div>
+
+                <div className="field">
+                  <span>Inhalt</span>
+                  <div className="vault-share-mode" role="radiogroup" aria-label="Share-Inhalt">
+                    {(
+                      [
+                        ["credentials", "Benutzer + Passwort"],
+                        ["password", "Nur Passwort"],
+                        ["full", "Alles"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        role="radio"
+                        aria-checked={shareFieldsMode === mode}
+                        className={`vault-share-mode-btn${shareFieldsMode === mode ? " is-active" : ""}`}
+                        onClick={() => setShareFieldsMode(mode)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="vault-share-form-row">
+                  <label className="field">
+                    <span>Gültigkeit</span>
+                    <select
+                      value={shareExpires}
+                      onChange={(e) =>
+                        setShareExpires(Number(e.target.value) as 1 | 24 | 72 | 168)
+                      }
+                    >
+                      <option value={1}>1 Stunde</option>
+                      <option value={24}>24 Stunden</option>
+                      <option value={72}>3 Tage</option>
+                      <option value={168}>7 Tage</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    <span>Abrufe</span>
+                    <select
+                      value={shareMaxViews}
+                      onChange={(e) => setShareMaxViews(Number(e.target.value) as 1 | 3)}
+                    >
+                      <option value={1}>1× (Einmal)</option>
+                      <option value={3}>3×</option>
+                    </select>
+                  </label>
+                </div>
+
+                {shareFieldsMode === "full" ? (
+                  <div className="vault-share-extras">
+                    <Checkbox
+                      label="Notizen einschließen"
+                      checked={shareIncludeNotes}
+                      onChange={setShareIncludeNotes}
+                    />
+                    {shareEntry.hasTotp ? (
+                      <Checkbox
+                        label="2FA-Secret einschließen (sensibel)"
+                        checked={shareIncludeTotp}
+                        onChange={setShareIncludeTotp}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
+
                 {shareError ? <p className="form-error">{shareError}</p> : null}
                 <div className="form-actions modal-actions">
                   <button type="button" className="btn btn-ghost" onClick={closeShare}>
@@ -1289,7 +1372,7 @@ export function VaultPage() {
             ) : shareResult ? (
               <div className="form-stack vault-share-created">
                 <p className="muted">
-                  Link und PIN getrennt an den Empfänger senden. PIN wird hier nur einmal angezeigt.
+                  Link und PIN getrennt senden. PIN wird hier nur einmal angezeigt.
                 </p>
                 <label className="field">
                   <span>Link</span>
@@ -1320,7 +1403,8 @@ export function VaultPage() {
                   </div>
                 </label>
                 <p className="muted">
-                  Bis {new Date(shareResult.expiresAt).toLocaleString("de-DE")} ·{" "}
+                  {shareFieldsLabel(shareResult.fieldsMode)} · bis{" "}
+                  {new Date(shareResult.expiresAt).toLocaleString("de-DE")} ·{" "}
                   {shareResult.maxViews} Abruf{shareResult.maxViews === 1 ? "" : "e"}
                 </p>
                 <div className="form-actions modal-actions">
@@ -1354,24 +1438,69 @@ export function VaultPage() {
                     <div className="vault-share-list-main">
                       <strong>{s.title}</strong>
                       <span className="muted">
-                        {s.status === "active"
-                          ? "aktiv"
-                          : s.status === "consumed"
-                            ? "genutzt"
-                            : "abgelaufen"}{" "}
-                        · bis {new Date(s.expiresAt).toLocaleString("de-DE")} · {s.viewCount}/
+                        <span
+                          className={`vault-share-status is-${s.status}`}
+                        >
+                          {s.status === "active"
+                            ? "aktiv"
+                            : s.status === "consumed"
+                              ? "genutzt"
+                              : "abgelaufen"}
+                        </span>
+                        {" · "}
+                        {shareFieldsLabel(s.fieldsMode)} · bis{" "}
+                        {new Date(s.expiresAt).toLocaleString("de-DE")} · {s.viewCount}/
                         {s.maxViews} Abrufe
                       </span>
                     </div>
-                    {s.status === "active" ? (
+                    <div className="vault-share-list-actions">
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
-                        onClick={() => void revokeShare(s.id)}
+                        onClick={() => void openShareLog(s)}
                       >
-                        Widerrufen
+                        Protokoll
                       </button>
-                    ) : null}
+                      {s.status === "active" ? (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => void revokeShare(s.id)}
+                        >
+                          Widerrufen
+                        </button>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Modal>
+
+          <Modal
+            open={shareLogOpen}
+            title={`Protokoll · ${shareLogTitle || "Share"}`}
+            onClose={() => setShareLogOpen(false)}
+          >
+            {shareLogBusy ? (
+              <p className="muted">Lade Protokoll…</p>
+            ) : shareLogEvents.length === 0 ? (
+              <p className="muted">Noch keine Abrufe oder Versuche.</p>
+            ) : (
+              <ul className="vault-share-log">
+                {shareLogEvents.map((ev) => (
+                  <li
+                    key={ev.id}
+                    className={`vault-share-log-item is-${ev.outcome === "success" ? "ok" : "fail"}`}
+                  >
+                    <span className="vault-share-log-dot" aria-hidden />
+                    <div className="vault-share-log-main">
+                      <strong>{shareOutcomeLabel(ev.outcome)}</strong>
+                      <span className="muted">
+                        {new Date(ev.at).toLocaleString("de-DE")}
+                        {ev.ip ? ` · ${ev.ip}` : ""}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>

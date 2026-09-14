@@ -39,13 +39,13 @@ Browser (React SPA)
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id`
 - **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`
 - **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage
-- **vault_meta** / **vault_entries** / **vault_shares** – Passworttresor (AES-256-GCM, eigene Passphrase; Einweg-Shares mit PIN; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
+- **vault_meta** / **vault_entries** / **vault_shares** / **vault_share_events** – Passworttresor (AES-256-GCM; Einweg-Shares mit PIN + Abruf-Protokoll; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
 - **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
 
 Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Snapshots zur Vorbereitung.
 
-PDF-Exporte (Wiki, SLA, Besuchsblatt) nutzen gemeinsames Chrome in `apps/api/src/lib/pdf-chrome.ts`. Das Besuchsblatt (`GET /api/customers/:id/visit/pdf`) bündelt Kontakt, aktive Anlagen, offene Aufgaben und nicht abgerechnete Zeiten für den Vor-Ort-Einsatz.
+PDF-Exporte (Wiki, SLA, Besuchsblatt) nutzen gemeinsames Chrome in `apps/api/src/lib/pdf-chrome.ts`. Das Besuchsblatt (`GET /api/customers/:id/visit/pdf`) bündelt Kontakt, aktive Anlagen, letzte Einsätze, offene Reminder (Garantie/Vertrag/Termin), Vault-Hinweise ohne Secrets sowie offene Aufgaben und nicht abgerechnete Zeiten für den Vor-Ort-Einsatz.
 
 ## Kontakte-UI
 
