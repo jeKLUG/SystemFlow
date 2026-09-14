@@ -135,12 +135,12 @@ export function VaultSharePage() {
                 </p>
               )}
               {copyHint ? <p className="form-success">{copyHint}</p> : null}
-              <div className="vault-reveal-grid">
+              <div className="vault-share-fields">
                 {opened.username ? (
-                  <div>
+                  <div className="vault-share-field">
                     <span className="label">Benutzer</span>
-                    <div className="password-field">
-                      <input readOnly value={opened.username} />
+                    <div className="vault-secret-line">
+                      <span>{opened.username}</span>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -152,14 +152,12 @@ export function VaultSharePage() {
                   </div>
                 ) : null}
                 {opened.password ? (
-                  <div>
+                  <div className="vault-share-field">
                     <span className="label">Passwort</span>
-                    <div className="password-field">
-                      <input
-                        readOnly
-                        type={showPassword ? "text" : "password"}
-                        value={opened.password}
-                      />
+                    <div className="vault-secret-line">
+                      <span className="vault-mono">
+                        {showPassword ? opened.password : "••••••••••••"}
+                      </span>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -178,10 +176,10 @@ export function VaultSharePage() {
                   </div>
                 ) : null}
                 {opened.url ? (
-                  <div className="full">
+                  <div className="vault-share-field">
                     <span className="label">URL</span>
-                    <div className="password-field">
-                      <input readOnly value={opened.url} />
+                    <div className="vault-secret-line">
+                      <span>{opened.url}</span>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -193,10 +191,10 @@ export function VaultSharePage() {
                   </div>
                 ) : null}
                 {totpCode ? (
-                  <div>
+                  <div className="vault-share-field">
                     <span className="label">2FA-Code</span>
-                    <div className="password-field">
-                      <input readOnly value={totpCode} />
+                    <div className="vault-secret-line">
+                      <span className="vault-mono vault-totp-code">{totpCode}</span>
                       <button
                         type="button"
                         className="btn btn-ghost btn-sm"
@@ -208,9 +206,9 @@ export function VaultSharePage() {
                   </div>
                 ) : null}
                 {opened.notes ? (
-                  <div className="full">
+                  <div className="vault-share-field">
                     <span className="label">Notizen</span>
-                    <pre className="vault-notes">{opened.notes}</pre>
+                    <pre className="vault-notes vault-share-notes">{opened.notes}</pre>
                   </div>
                 ) : null}
               </div>
