@@ -35,6 +35,7 @@ type FormState = {
   projectId: string;
   lines: FormLine[];
   billable: boolean;
+  readyForInvoice: boolean;
   billed: boolean;
 };
 
@@ -83,6 +84,7 @@ function emptyForm(): FormState {
     projectId: "",
     lines: [],
     billable: true,
+    readyForInvoice: false,
     billed: false,
   };
 }
@@ -121,6 +123,8 @@ export function CustomerTimePage() {
     billableAmount: 0,
     unbilledHours: 0,
     unbilledAmount: 0,
+    readyForInvoiceHours: 0,
+    readyForInvoiceAmount: 0,
     entryCount: 0,
   });
   const [projects, setProjects] = useState<ProjectItem[]>([]);
@@ -132,6 +136,7 @@ export function CustomerTimePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reportBusyMonth, setReportBusyMonth] = useState<string | null>(null);
   const [clockBusy, setClockBusy] = useState(false);
   const [clockNote, setClockNote] = useState("");
   const [clockProjectId, setClockProjectId] = useState("");
@@ -226,6 +231,8 @@ export function CustomerTimePage() {
       billableAmount: time.summary.billableAmount ?? 0,
       unbilledHours: time.summary.unbilledHours ?? 0,
       unbilledAmount: time.summary.unbilledAmount ?? 0,
+      readyForInvoiceHours: time.summary.readyForInvoiceHours ?? 0,
+      readyForInvoiceAmount: time.summary.readyForInvoiceAmount ?? 0,
       entryCount: time.summary.entryCount,
     });
     setProjects(p);
@@ -359,19 +366,65 @@ export function CustomerTimePage() {
       projectId: entry.projectId || "",
       lines: entryLines,
       billable: entry.billable,
+      readyForInvoice: entry.readyForInvoice,
       billed: entry.billed,
     });
     setModalMode("edit");
   }
 
-  async function toggleBilled(entry: TimeEntryItem) {
+  async function cycleBillingStatus(entry: TimeEntryItem) {
+    if (!entry.billable) return;
     setBusyId(entry.id);
     try {
-      await api.updateTimeEntry(entry.id, { billed: !entry.billed });
+      if (entry.billed) {
+        await api.updateTimeEntry(entry.id, { billed: false, readyForInvoice: false });
+      } else if (entry.readyForInvoice) {
+        await api.updateTimeEntry(entry.id, { billed: true, readyForInvoice: true });
+      } else {
+        await api.updateTimeEntry(entry.id, { readyForInvoice: true });
+      }
       await reload();
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function downloadMonthReport(month: string) {
+    setReportBusyMonth(month);
+    setError("");
+    try {
+      await api.exportTimeMonthReport(id, month);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Monatsreport fehlgeschlagen");
+    } finally {
+      setReportBusyMonth(null);
+    }
+  }
+
+  function billingStatusMeta(entry: TimeEntryItem): {
+    label: string;
+    className: string;
+    title: string;
+  } {
+    if (entry.billed) {
+      return {
+        label: "Abgerechnet",
+        className: "is-billed",
+        title: "Als offen markieren",
+      };
+    }
+    if (entry.readyForInvoice) {
+      return {
+        label: "Zur Rechnung",
+        className: "is-ready",
+        title: "Als abgerechnet markieren",
+      };
+    }
+    return {
+      label: "Offen",
+      className: "is-open",
+      title: "Zur Rechnung vormerken",
+    };
   }
 
   function closeModal() {
@@ -441,6 +494,7 @@ export function CustomerTimePage() {
       projectId: form.projectId || null,
       lines: linesPayload,
       billable: form.billable,
+      readyForInvoice: form.readyForInvoice,
       billed: form.billed,
     };
 
@@ -464,6 +518,7 @@ export function CustomerTimePage() {
           endTime: hoursOnly ? f.endTime : addMinutesToTime(f.endTime, 60),
           description: "",
           hoursOverride: "",
+          readyForInvoice: false,
           billed: false,
         }));
       }
@@ -598,6 +653,10 @@ export function CustomerTimePage() {
             <strong>{summary.unbilledHours}</strong>
             <span>Noch offen</span>
           </div>
+          <div className={`stat-chip${summary.readyForInvoiceHours > 0 ? " is-warn" : ""}`}>
+            <strong>{summary.readyForInvoiceHours}</strong>
+            <span>Zur Rechnung</span>
+          </div>
           <div className="stat-chip">
             <strong>
               {summary.unbilledAmount.toLocaleString("de-DE", {
@@ -671,15 +730,26 @@ export function CustomerTimePage() {
             <section key={month.key} className="time-month">
               <header className="time-month-head">
                 <h3>{month.label}</h3>
-                <span>
-                  {formatHours(month.hours)}
-                  <em>
-                    · {month.days.reduce((n, d) => n + d.items.length, 0)}{" "}
-                    {month.days.reduce((n, d) => n + d.items.length, 0) === 1
-                      ? "Buchung"
-                      : "Buchungen"}
-                  </em>
-                </span>
+                <div className="time-month-head-actions">
+                  <span>
+                    {formatHours(month.hours)}
+                    <em>
+                      · {month.days.reduce((n, d) => n + d.items.length, 0)}{" "}
+                      {month.days.reduce((n, d) => n + d.items.length, 0) === 1
+                        ? "Buchung"
+                        : "Buchungen"}
+                    </em>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={reportBusyMonth === month.key}
+                    onClick={() => void downloadMonthReport(month.key)}
+                    title="Monatsreport als PDF"
+                  >
+                    {reportBusyMonth === month.key ? "PDF…" : "Monatsreport"}
+                  </button>
+                </div>
               </header>
               {month.days.map((group) => (
                 <section key={group.date} className="time-day">
@@ -691,7 +761,7 @@ export function CustomerTimePage() {
                     {group.items.map((entry) => (
                       <li
                         key={entry.id}
-                        className={`time-entry${entry.billable ? "" : " is-nonbillable"}${entry.billed ? " is-billed" : ""}`}
+                        className={`time-entry${entry.billable ? "" : " is-nonbillable"}${entry.billed ? " is-billed" : ""}${entry.readyForInvoice && !entry.billed ? " is-ready-invoice" : ""}`}
                       >
                         <div className="time-entry-range">
                           <strong>
@@ -739,19 +809,20 @@ export function CustomerTimePage() {
                             {!entry.billable ? (
                               <span className="time-status is-muted">Nicht abrechenbar</span>
                             ) : (
-                              <button
-                                type="button"
-                                className={`time-status time-billed-toggle ${entry.billed ? "is-billed" : "is-open"}`}
-                                disabled={busyId === entry.id}
-                                title={
-                                  entry.billed
-                                    ? "Als noch nicht abgerechnet markieren"
-                                    : "Als abgerechnet markieren"
-                                }
-                                onClick={() => void toggleBilled(entry)}
-                              >
-                                {entry.billed ? "Abgerechnet" : "Offen"}
-                              </button>
+                              (() => {
+                                const st = billingStatusMeta(entry);
+                                return (
+                                  <button
+                                    type="button"
+                                    className={`time-status time-billed-toggle ${st.className}`}
+                                    disabled={busyId === entry.id}
+                                    title={st.title}
+                                    onClick={() => void cycleBillingStatus(entry)}
+                                  >
+                                    {st.label}
+                                  </button>
+                                );
+                              })()
                             )}
                           </div>
                         </div>
@@ -1026,7 +1097,12 @@ export function CustomerTimePage() {
               value={form.billable ? "yes" : "no"}
               onChange={(e) => {
                 const billable = e.target.value === "yes";
-                setForm({ ...form, billable, billed: billable ? form.billed : false });
+                setForm({
+                  ...form,
+                  billable,
+                  readyForInvoice: billable ? form.readyForInvoice : false,
+                  billed: billable ? form.billed : false,
+                });
               }}
             >
               <option value="yes">Ja</option>
@@ -1034,14 +1110,33 @@ export function CustomerTimePage() {
             </select>
           </label>
           <label className="field">
-            <span>Bereits abgerechnet</span>
+            <span>Rechnungsstatus</span>
             <select
-              value={form.billed ? "yes" : "no"}
+              value={
+                !form.billable
+                  ? "none"
+                  : form.billed
+                    ? "billed"
+                    : form.readyForInvoice
+                      ? "ready"
+                      : "open"
+              }
               disabled={!form.billable}
-              onChange={(e) => setForm({ ...form, billed: e.target.value === "yes" })}
+              onChange={(e) => {
+                const v = e.target.value;
+                setForm({
+                  ...form,
+                  readyForInvoice: v === "ready" || v === "billed",
+                  billed: v === "billed",
+                });
+              }}
             >
-              <option value="yes">Ja</option>
-              <option value="no">Nein</option>
+              <option value="open">Offen</option>
+              <option value="ready">Zur Rechnung vorgemerkt</option>
+              <option value="billed">Abgerechnet</option>
+              <option value="none" disabled>
+                –
+              </option>
             </select>
           </label>
           <label className="field full">

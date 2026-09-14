@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.102 – 2026-09-14
+
+- Zeiterfassung: Status „Zur Rechnung vorgemerkt“ (`readyForInvoice`); Monatsreport-PDF pro Kunde (Stunden, Beträge, ungebucht/vorgemerkt/abgerechnet)
+
 ## 1.5.101 – 2026-09-14
 
 - Besuchsblatt: letzte Einsätze, offene Reminder (Garantie/Vertrag/Termin) und Vault-Hinweise ohne Secrets

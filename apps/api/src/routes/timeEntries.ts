@@ -48,6 +48,7 @@ const entryBody = z
     /** 1–n Katalog-Positionen (Stunden/Pauschale/Stück). */
     lines: z.array(lineInput).max(20).optional(),
     billable: z.boolean().optional(),
+    readyForInvoice: z.boolean().optional(),
     billed: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
@@ -403,6 +404,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         hours: timeEntries.hours,
         description: timeEntries.description,
         billable: timeEntries.billable,
+        readyForInvoice: timeEntries.readyForInvoice,
         billed: timeEntries.billed,
         rateSnapshot: timeEntries.rateSnapshot,
         amountSnapshot: timeEntries.amountSnapshot,
@@ -461,6 +463,12 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     const unbilledAmount = filtered
       .filter((r) => r.billable && !r.billed && r.amountSnapshot != null)
       .reduce((sum, r) => sum + (Number(r.amountSnapshot) || 0), 0);
+    const readyForInvoiceHours = filtered
+      .filter((r) => r.billable && r.readyForInvoice && !r.billed)
+      .reduce((sum, r) => sum + (Number(r.hours) || 0), 0);
+    const readyForInvoiceAmount = filtered
+      .filter((r) => r.billable && r.readyForInvoice && !r.billed && r.amountSnapshot != null)
+      .reduce((sum, r) => sum + (Number(r.amountSnapshot) || 0), 0);
 
     return {
       entries,
@@ -470,6 +478,8 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         billableAmount: Math.round(billableAmount * 100) / 100,
         unbilledHours: Math.round(unbilledHours * 100) / 100,
         unbilledAmount: Math.round(unbilledAmount * 100) / 100,
+        readyForInvoiceHours: Math.round(readyForInvoiceHours * 100) / 100,
+        readyForInvoiceAmount: Math.round(readyForInvoiceAmount * 100) / 100,
         entryCount: filtered.length,
       },
     };
@@ -542,7 +552,14 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const billable = parsed.data.billable ?? true;
-    const billed = parsed.data.billed ?? false;
+    let readyForInvoice = parsed.data.readyForInvoice ?? false;
+    let billed = parsed.data.billed ?? false;
+    if (!billable) {
+      readyForInvoice = false;
+      billed = false;
+    } else if (billed) {
+      readyForInvoice = true;
+    }
     const now = new Date();
     const id = createId("time");
 
@@ -595,6 +612,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       hours: resolved.hours,
       description: emptyToNull(parsed.data.description),
       billable,
+      readyForInvoice,
       billed,
       rateSnapshot,
       amountSnapshot,
@@ -693,6 +711,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       hours: 0,
       description: emptyToNull(body.description),
       billable,
+      readyForInvoice: false,
       billed: false,
       rateSnapshot,
       amountSnapshot,
@@ -814,6 +833,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       priceItemId: z.string().optional().nullable().or(z.literal("")),
       lines: z.array(lineInput).max(20).optional(),
       billable: z.boolean().optional(),
+      readyForInvoice: z.boolean().optional(),
       billed: z.boolean().optional(),
     });
 
@@ -859,7 +879,20 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     }
 
     const billable = parsed.data.billable ?? existing.billable;
-    const billed = parsed.data.billed ?? existing.billed;
+    let readyForInvoice =
+      parsed.data.readyForInvoice !== undefined
+        ? parsed.data.readyForInvoice
+        : existing.readyForInvoice;
+    let billed = parsed.data.billed ?? existing.billed;
+    if (!billable) {
+      readyForInvoice = false;
+      billed = false;
+    } else if (billed) {
+      readyForInvoice = true;
+    } else if (parsed.data.billed === false && parsed.data.readyForInvoice === undefined) {
+      /* Abgerechnet → Offen: auch Vormerkung zurücksetzen */
+      readyForInvoice = false;
+    }
 
     let priceItemId =
       parsed.data.priceItemId !== undefined
@@ -942,6 +975,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       projectId,
       priceItemId,
       billable,
+      readyForInvoice,
       billed,
       rateSnapshot,
       amountSnapshot,

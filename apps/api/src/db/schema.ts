@@ -82,6 +82,8 @@ export const timeEntries = sqliteTable("time_entries", {
   hours: real("hours").notNull(),
   description: text("description"),
   billable: integer("billable", { mode: "boolean" }).notNull().default(true),
+  /** Für Lexware / Rechnung vorgemerkt (noch nicht als abgerechnet markiert). */
+  readyForInvoice: integer("ready_for_invoice", { mode: "boolean" }).notNull().default(false),
   /** Bereits an den Kunden abgerechnet / in Rechnung gestellt. */
   billed: integer("billed", { mode: "boolean" }).notNull().default(false),
   /** Stundensatz zum Buchungszeitpunkt (für Rechnungsvorbereitung). */

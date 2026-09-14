@@ -243,6 +243,8 @@ export interface TimeEntryItem {
   hours: number;
   description: string | null;
   billable: boolean;
+  /** Für Lexware / Rechnung vorgemerkt. */
+  readyForInvoice: boolean;
   /** Bereits abgerechnet. */
   billed: boolean;
   rateSnapshot?: number | null;
@@ -259,6 +261,8 @@ export interface TimeEntriesResponse {
     billableAmount?: number;
     unbilledHours?: number;
     unbilledAmount?: number;
+    readyForInvoiceHours?: number;
+    readyForInvoiceAmount?: number;
     entryCount: number;
   };
 }

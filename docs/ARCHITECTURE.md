@@ -28,7 +28,7 @@ Browser (React SPA)
 - **customers** – Stammdaten
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz
 - **documents** – Wiki/Notizen (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`; `customerId` optional (Schnellnotiz ohne Kunde), optional `projectId`
-- **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot; optional mehrere Positionen in **time_entry_lines** (Snapshots ändern sich nicht nachträglich bei Katalog-/Satzupdates)
+- **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot; `readyForInvoice` (zur Rechnung vorgemerkt) und `billed`; optional mehrere Positionen in **time_entry_lines** (Snapshots ändern sich nicht nachträglich bei Katalog-/Satzupdates)
 - **time_entry_lines** – 1–n Leistungen je Zeiteintrag (Katalog oder virtueller Standard-/Projekt-Stundensatz; Menge, Preis-Snapshot)
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App)
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`; UI: Preise-App unter `/prices`)
@@ -43,7 +43,7 @@ Browser (React SPA)
 - **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)
 
-Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie + Preis-Snapshots zur Vorbereitung.
+Rechnungsstellung bleibt in Lexware; Systemhaus-Ess liefert Historie, Preis-Snapshots, Vormerk-Status und Monatsreport-PDF zur Vorbereitung.
 
 PDF-Exporte (Wiki, SLA, Besuchsblatt) nutzen gemeinsames Chrome in `apps/api/src/lib/pdf-chrome.ts`. Das Besuchsblatt (`GET /api/customers/:id/visit/pdf`) bündelt Kontakt, aktive Anlagen, letzte Einsätze, offene Reminder (Garantie/Vertrag/Termin), Vault-Hinweise ohne Secrets sowie offene Aufgaben und nicht abgerechnete Zeiten für den Vor-Ort-Einsatz.
 

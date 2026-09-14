@@ -13,18 +13,21 @@ import {
   contracts,
   customers,
   documents,
+  orgSettings,
   projects,
   tasks,
   timeEntries,
   vaultEntries,
 } from "../db/schema.js";
 import { tiptapToText } from "../lib/tiptap-text.js";
+import { buildTimeMonthReportPdf } from "../lib/time-month-report-pdf.js";
 import {
   buildVisitPdf,
   buildVisitReminders,
   buildVisitVaultHints,
 } from "../lib/visit-pdf.js";
 import { requireAuth } from "../plugins/auth.js";
+import { z } from "zod";
 
 function pdfFilename(base: string): string {
   const safe = base.replace(/[^\w\-äöüÄÖÜß]+/gi, "_").replace(/_+/g, "_").slice(0, 80);
@@ -120,6 +123,57 @@ export async function exportRoutes(
       .header(
         "Content-Disposition",
         `attachment; filename="${pdfFilename(`Besuch_${label}_${stamp}`)}"`,
+      )
+      .send(buffer);
+  });
+
+  /**
+   * Monatsreport Zeit (PDF): Stunden, Beträge, Status ungebucht/vorgemerkt/abgerechnet.
+   * Query: month=YYYY-MM
+   */
+  app.get("/api/customers/:customerId/time/report.pdf", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const q = z
+      .object({ month: z.string().regex(/^\d{4}-\d{2}$/) })
+      .safeParse(request.query);
+    if (!q.success) {
+      return reply.code(400).send({ error: "Query month=YYYY-MM erforderlich" });
+    }
+    const { month } = q.data;
+    const from = `${month}-01`;
+    const [y, m] = month.split("-").map(Number);
+    const lastDay = new Date(y!, m!, 0).getDate();
+    const to = `${month}-${String(lastDay).padStart(2, "0")}`;
+
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const [entryRows, projectRows, org] = await Promise.all([
+      db
+        .select()
+        .from(timeEntries)
+        .where(eq(timeEntries.customerId, customerId))
+        .orderBy(desc(timeEntries.workDate))
+        .all(),
+      db.select().from(projects).where(eq(projects.customerId, customerId)).all(),
+      db.select().from(orgSettings).limit(1).get(),
+    ]);
+
+    const monthEntries = entryRows.filter((e) => e.workDate >= from && e.workDate <= to);
+    const buffer = await buildTimeMonthReportPdf({
+      customer,
+      month,
+      entries: monthEntries,
+      projects: projectRows,
+      currency: org?.currency || "EUR",
+    });
+
+    const label = (customer.company || customer.name).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 40);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `attachment; filename="${pdfFilename(`Zeit_${label}_${month}`)}"`,
       )
       .send(buffer);
   });

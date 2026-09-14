@@ -579,6 +579,14 @@ export const api = {
     const safe = (label || customerId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 50);
     await downloadPdf(`/api/customers/${customerId}/visit/pdf`, `Besuch_${safe || "Kunde"}.pdf`);
   },
+  /** Monatsreport Zeit (Stunden/Betrag/Status) als PDF. */
+  exportTimeMonthReport: async (customerId: string, month: string, label?: string) => {
+    const safe = (label || customerId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 40);
+    await downloadPdf(
+      `/api/customers/${customerId}/time/report.pdf?month=${encodeURIComponent(month)}`,
+      `Zeit_${safe || "Kunde"}_${month}.pdf`,
+    );
+  },
   /** Meta zur Systemsicherung. */
   backupInfo: () =>
     request<{

@@ -77,8 +77,9 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | POST | `/api/customers/:id/time-clock/out` | Ausstempeln (setzt `endTime`, berechnet Stunden) |
 | PUT | `/api/time-entries/:id` | Aktualisieren (Zeiten/Stunden nachträglich anpassen) |
 | DELETE | `/api/time-entries/:id` | Löschen |
+| GET | `/api/customers/:id/time/report.pdf?month=YYYY-MM` | Monatsreport-PDF (Stunden, Beträge, Status) |
 
-Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `readyForInvoice`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
 
 `lines[].priceItemId` kann eine Katalog-ID sein oder virtuell `__org_hourly__` (Standard-Stundensatz) bzw. `__project_hourly__` (Projekt-Stundensatz, Projekt erforderlich). Ohne `lines` und ohne `priceItemId` entsteht **kein** automatischer Betrag. Legacy: nur `priceItemId` ohne `lines` setzt weiterhin den Katalog-Satz.
 
@@ -88,7 +89,8 @@ Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `
 
 Body (Clock-out): optional `endTime`, `description`, `entryId`. Gleiche Minute wie Start → 1 Minute (nicht 24 h).
 
-`summary` enthält u. a. `unbilledHours` und `unbilledAmount` (abrechenbar, noch nicht abgerechnet).
+`readyForInvoice` = zur Rechnung vorgemerkt (Lexware bleibt extern). `billed` = bereits abgerechnet.
+`summary` enthält u. a. `unbilledHours`/`unbilledAmount` sowie `readyForInvoiceHours`/`readyForInvoiceAmount`.
 
 ## Inventar
 

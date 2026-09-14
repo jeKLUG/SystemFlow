@@ -125,6 +125,7 @@ export async function createDb(databasePath: string) {
       hours REAL NOT NULL,
       description TEXT,
       billable INTEGER NOT NULL DEFAULT 1,
+      ready_for_invoice INTEGER NOT NULL DEFAULT 0,
       billed INTEGER NOT NULL DEFAULT 0,
       rate_snapshot REAL,
       amount_snapshot REAL,
@@ -412,6 +413,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "time_entries", "rate_snapshot", "REAL");
   await ensureColumn(client, "time_entries", "amount_snapshot", "REAL");
   await ensureColumn(client, "time_entries", "billed", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "time_entries", "ready_for_invoice", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "status", "TEXT NOT NULL DEFAULT 'active'");
   await ensureColumn(client, "assets", "segment_id", "TEXT");
   await ensureColumn(client, "assets", "role", "TEXT");

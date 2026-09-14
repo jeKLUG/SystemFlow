@@ -8508,6 +8508,14 @@ a.stat-chip:hover {
   backdrop-filter: blur(8px);
 }
 
+.time-month-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .time-month-head h3 {
   margin: 0;
   font-family: var(--font-display);
@@ -8610,6 +8618,10 @@ a.stat-chip:hover {
 
 .time-entry.is-billed {
   border-left-color: rgba(96, 165, 250, 0.75);
+}
+
+.time-entry.is-ready-invoice {
+  border-left-color: rgba(251, 191, 36, 0.75);
 }
 
 .time-entry-range {
@@ -8744,10 +8756,16 @@ a.stat-chip:hover {
   background: rgba(59, 130, 246, 0.12);
 }
 
-.time-status.time-billed-toggle.is-open {
+.time-status.time-billed-toggle.is-ready {
   color: var(--warn);
-  border-color: rgba(251, 191, 36, 0.35);
-  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.4);
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.time-status.time-billed-toggle.is-open {
+  color: var(--text-muted);
+  border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(148, 163, 184, 0.08);
 }
 
 .time-status.time-billed-toggle:hover:not(:disabled) {
