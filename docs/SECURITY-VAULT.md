@@ -63,7 +63,7 @@ Rate-Limit wie beim Vault-Unlock bei falschen PINs. Widerruf löscht Payload sof
 | Anzeigen (Klartext) | `GET /api/vault/entries/:id/reveal` |
 | Löschen | `DELETE /api/vault/entries/:id` |
 | Einweg-Share anlegen | `POST /api/vault/entries/:id/share` – `{ expiresInHours, maxViews, includeNotes?, includeTotp? }` → `{ path, pin, … }` (PIN einmal) |
-| Shares listen | `GET /api/vault/shares` |
-| Share widerrufen | `DELETE /api/vault/shares/:id` |
-| Share-Status (öffentlich) | `GET /api/public/vault-shares/:token` |
+| Shares listen | `GET /api/vault/shares` (nur eigene) |
+| Share widerrufen | `DELETE /api/vault/shares/:id` (nur eigene) |
+| Share-Status (öffentlich) | `GET /api/public/vault-shares/:token` (404 wenn unbekannt) |
 | Share öffnen (öffentlich) | `POST /api/public/vault-shares/:token/open` – `{ pin }` |

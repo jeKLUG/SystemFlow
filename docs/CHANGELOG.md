@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.99 – 2026-09-14
+
+- Vault-Shares: Liste/Widerruf nur für den Ersteller; öffentlicher Status bei unbekanntem Token liefert 404
+- Besuchsblatt: Aufgaben gleicher Priorität korrekt nach Fälligkeit sortieren
+
 ## 1.5.98 – 2026-09-14
 
 - Vault: Einweg-Share-Links – Eintrag einmal entschlüsseln, neu mit Link-Token + PIN verschlüsseln; Ablauf und Abruf-Limit; öffentliche Seite `/share/vault/:token` ohne Vault-Passphrase
