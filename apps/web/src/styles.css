@@ -3685,6 +3685,15 @@ input[type="checkbox"]:not(.check-input):checked {
   background: rgba(59, 130, 246, 0.14);
 }
 
+.vault-menu button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.vault-menu button:disabled:hover {
+  background: transparent;
+}
+
 .vault-menu button:hover svg,
 .vault-menu a:hover svg {
   opacity: 1;
@@ -4128,6 +4137,59 @@ input[type="checkbox"]:not(.check-input):checked {
   box-shadow: none !important;
   padding-left: 0 !important;
   min-height: 2.4rem;
+}
+
+.editor-title-read {
+  flex: 1 1 220px;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.25;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: center;
+}
+
+.editor-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.editor-customer-read {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  min-height: 2.4rem;
+}
+
+.editor.is-readonly {
+  max-height: none;
+}
+
+.editor.is-readonly .editor-body {
+  max-height: none;
+}
+
+.editor.is-readonly .tiptap-surface {
+  cursor: default;
+}
+
+.editor.is-readonly .tiptap-surface .ProseMirror-focused {
+  outline: none;
 }
 
 .save-state {
@@ -14204,21 +14266,24 @@ summary:focus-visible {
   flex: 1;
 }
 
+.email-list li {
+  position: relative;
+}
+
+.email-list li.is-menu-open {
+  z-index: 6;
+}
+
 .email-row {
-  appearance: none;
-  width: 100%;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.55rem 0.65rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem;
   align-items: start;
-  text-align: left;
-  padding: 0.7rem 0.7rem;
+  padding: 0.55rem 0.45rem 0.55rem 0.55rem;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
   color: inherit;
-  font: inherit;
-  cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
@@ -14229,6 +14294,41 @@ summary:focus-visible {
 .email-row.is-active {
   border-color: rgba(96, 165, 250, 0.35);
   background: rgba(59, 130, 246, 0.1);
+}
+
+.email-row-select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.55rem 0.65rem;
+  align-items: start;
+  text-align: left;
+  padding: 0.15rem 0.25rem;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.email-row-more {
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.email-row-more > .btn-icon {
+  width: 1.85rem;
+  height: 1.85rem;
+  min-width: 1.85rem;
+  opacity: 0.55;
+}
+
+.email-row:hover .email-row-more > .btn-icon,
+.email-row-more.is-open > .btn-icon {
+  opacity: 1;
 }
 
 .email-row-main {

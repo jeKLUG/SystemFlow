@@ -572,6 +572,8 @@ export interface CustomerEmailItem {
   bodyText: string | null;
   notes: string | null;
   attachmentCount?: number;
+  /** ID der Original-.eml-Datei, falls importiert – für Download aus der Übersicht. */
+  emlAttachmentId?: string | null;
   attachments?: AttachmentItem[];
   createdAt: string;
   updatedAt: string;

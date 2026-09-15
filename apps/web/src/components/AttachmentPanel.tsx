@@ -61,10 +61,11 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
       }),
       api.attachments(customerId),
     ]);
-    // Nur Ablage-Dateien (ohne Wiki/Anlage)
-    const vaultOnly = vaultFiles.filter((f) => !f.documentId && !f.assetId);
+    // Nur Ablage-Dateien (ohne Wiki/Anlage/E-Mail)
+    const isVaultFile = (f: AttachmentItem) => !f.documentId && !f.assetId && !f.emailId;
+    const vaultOnly = vaultFiles.filter(isVaultFile);
     setFolders(folderList);
-    setFiles(fileList.filter((f) => !f.documentId && !f.assetId));
+    setFiles(fileList.filter(isVaultFile));
     setAllFiles(vaultOnly);
   }
 

@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { AttachmentPanel } from "../components/AttachmentPanel";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { DocumentEditor } from "../components/DocumentEditor";
+import { EditIcon } from "../components/Icons";
 import { Modal } from "../components/Modal";
 import { documentTypeLabel, formatDate } from "../lib/labels";
 import type { DocumentItem, DocumentType } from "../types";
 
 /**
- * Wiki-/Notiz-Editor inkl. optionaler Kundenzuordnung für Schnellnotizen.
+ * Wiki-/Notiz-Seite: zuerst Lesemodus, Bearbeitung erst nach „Bearbeiten“.
  */
 export function DocumentPage() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [doc, setDoc] = useState<DocumentItem | null>(null);
   const [title, setTitle] = useState("");
   const [type, setType] = useState<DocumentType>("note");
@@ -25,11 +27,21 @@ export function DocumentPage() {
     content: "",
     customerId: "",
   });
+  const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState("");
   const [pdfBusy, setPdfBusy] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteBusy, setDeleteBusy] = useState(false);
+
+  useEffect(() => {
+    const startEditing = new URLSearchParams(window.location.search).get("edit") === "1";
+    setEditing(startEditing);
+    if (!startEditing) return;
+    const next = new URLSearchParams(window.location.search);
+    next.delete("edit");
+    setSearchParams(next, { replace: true });
+  }, [id, setSearchParams]);
 
   useEffect(() => {
     void api
@@ -62,14 +74,38 @@ export function DocumentPage() {
   }, [title, type, content, customerId, savedSnapshot]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || !editing) return;
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-  }, [dirty]);
+  }, [dirty, editing]);
+
+  function revertToSaved() {
+    setTitle(savedSnapshot.title);
+    setType(savedSnapshot.type);
+    setContent(savedSnapshot.content);
+    setCustomerId(savedSnapshot.customerId);
+    setSaveState("idle");
+    setError("");
+  }
+
+  function startEdit() {
+    setEditing(true);
+    setSaveState("idle");
+    setError("");
+  }
+
+  function stopEdit() {
+    if (dirty) {
+      const ok = window.confirm("Ungespeicherte Änderungen verwerfen?");
+      if (!ok) return;
+      revertToSaved();
+    }
+    setEditing(false);
+  }
 
   async function save() {
     if (!doc || !dirty) return;
@@ -113,16 +149,18 @@ export function DocumentPage() {
 
   if (!doc) return <div className="boot">Lade Dokument…</div>;
 
+  const cid = customerId || doc.customerId;
+
   return (
-    <div className="page editor-page">
+    <div className={`page editor-page${editing ? " is-editing" : " is-reading"}`}>
       <div className="breadcrumb">
         {doc.customerId || customerId ? (
           <>
             <Link to="/customers">Kunden</Link>
             <span>/</span>
-            <Link to={`/customers/${customerId || doc.customerId}`}>Kunde</Link>
+            <Link to={`/customers/${cid}`}>Kunde</Link>
             <span>/</span>
-            <Link to={`/customers/${customerId || doc.customerId}/wiki`}>Dokumente</Link>
+            <Link to={`/customers/${cid}/wiki`}>Dokumente</Link>
           </>
         ) : (
           <>
@@ -136,68 +174,121 @@ export function DocumentPage() {
       </div>
 
       <div className="editor-meta">
-        <input
-          className="title-input"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            setSaveState("idle");
-          }}
-          aria-label="Titel"
-        />
-        <select
-          value={type}
-          onChange={(e) => {
-            setType(e.target.value as DocumentType);
-            setSaveState("idle");
-          }}
-          aria-label="Dokumenttyp"
-        >
-          <option value="article">Artikel</option>
-          <option value="documentation">Dokumentation</option>
-          <option value="note">Notiz</option>
-          <option value="workflow">Workflow</option>
-          <option value="protocol">Protokoll</option>
-        </select>
+        {editing ? (
+          <>
+            <input
+              className="title-input"
+              value={title}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setSaveState("idle");
+              }}
+              aria-label="Titel"
+            />
+            <select
+              value={type}
+              onChange={(e) => {
+                setType(e.target.value as DocumentType);
+                setSaveState("idle");
+              }}
+              aria-label="Dokumenttyp"
+            >
+              <option value="article">Artikel</option>
+              <option value="documentation">Dokumentation</option>
+              <option value="note">Notiz</option>
+              <option value="workflow">Workflow</option>
+              <option value="protocol">Protokoll</option>
+            </select>
+          </>
+        ) : (
+          <>
+            <h1 className="editor-title-read">{title || "Ohne Titel"}</h1>
+            <span className="editor-type-badge">{documentTypeLabel[type]}</span>
+          </>
+        )}
         <span className="save-state">
-          {saveState === "saving" && "Speichert…"}
-          {saveState === "saved" && !dirty && `Gespeichert · ${formatDate(doc.updatedAt)}`}
-          {saveState === "error" && "Speichern fehlgeschlagen"}
-          {dirty && saveState !== "saving" && "Ungespeicherte Änderungen"}
-          {!dirty && saveState === "idle" && documentTypeLabel[type]}
+          {editing ? (
+            <>
+              {saveState === "saving" && "Speichert…"}
+              {saveState === "saved" && !dirty && `Gespeichert · ${formatDate(doc.updatedAt)}`}
+              {saveState === "error" && "Speichern fehlgeschlagen"}
+              {dirty && saveState !== "saving" && "Ungespeicherte Änderungen"}
+              {!dirty && saveState === "idle" && documentTypeLabel[type]}
+            </>
+          ) : (
+            `Aktualisiert · ${formatDate(doc.updatedAt)}`
+          )}
         </span>
       </div>
 
       <div className="field editor-customer-field">
         <span className="editor-customer-label">Kunde</span>
         <div className="editor-customer-row">
-          <CustomerPicker
-            value={customerId}
-            onChange={(next) => {
-              setCustomerId(next);
-              setSaveState("idle");
-            }}
-            allowEmpty
-            emptyLabel="Ohne Kunde"
-            placeholder="Kunde zuordnen…"
-          />
+          {editing ? (
+            <CustomerPicker
+              value={customerId}
+              onChange={(next) => {
+                setCustomerId(next);
+                setSaveState("idle");
+              }}
+              allowEmpty
+              emptyLabel="Ohne Kunde"
+              placeholder="Kunde zuordnen…"
+            />
+          ) : (
+            <p className="editor-customer-read">
+              {cid ? (
+                <Link to={`/customers/${cid}`}>Zugeordneter Kunde</Link>
+              ) : (
+                <span className="muted">Ohne Kunde</span>
+              )}
+            </p>
+          )}
           <div className="editor-customer-actions">
-            <button
-              type="button"
-              className="btn btn-primary btn-icon"
-              disabled={!dirty || saveState === "saving"}
-              aria-label={saveState === "saving" ? "Speichert…" : "Speichern"}
-              title={saveState === "saving" ? "Speichert…" : "Speichern"}
-              onClick={() => void save()}
-            >
-              <IconSave />
-            </button>
+            {editing ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-icon"
+                  disabled={!dirty || saveState === "saving"}
+                  aria-label={saveState === "saving" ? "Speichert…" : "Speichern"}
+                  title={saveState === "saving" ? "Speichert…" : "Speichern"}
+                  onClick={() => void save()}
+                >
+                  <IconSave />
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={stopEdit}
+                  title={dirty ? "Bearbeitung beenden (verwerfen?)" : "Lesen"}
+                >
+                  Fertig
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary btn-icon"
+                aria-label="Bearbeiten"
+                title="Bearbeiten"
+                onClick={startEdit}
+              >
+                <EditIcon className="btn-icon-svg" />
+              </button>
+            )}
             <button
               type="button"
               className="btn btn-ghost btn-icon"
-              disabled={pdfBusy || dirty}
+              disabled={pdfBusy || (editing && dirty)}
               aria-label={pdfBusy ? "PDF wird erstellt…" : "Als PDF exportieren"}
-              title={dirty ? "Zuerst speichern" : pdfBusy ? "PDF wird erstellt…" : "Als PDF exportieren"}
+              title={
+                editing && dirty
+                  ? "Zuerst speichern"
+                  : pdfBusy
+                    ? "PDF wird erstellt…"
+                    : "Als PDF exportieren"
+              }
               onClick={() => {
                 setPdfBusy(true);
                 void api
@@ -233,6 +324,7 @@ export function DocumentPage() {
         }}
         customerId={customerId || undefined}
         documentId={doc.id}
+        editable={editing}
       />
 
       {customerId ? (

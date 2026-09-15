@@ -139,14 +139,24 @@ export async function emailRoutes(app: FastifyInstance, db: Db, uploadDir?: stri
       .where(eq(attachments.customerId, customerId))
       .all();
     const countByEmail = new Map<string, number>();
+    const emlByEmail = new Map<string, string>();
     for (const a of allAtt) {
       if (!a.emailId) continue;
       countByEmail.set(a.emailId, (countByEmail.get(a.emailId) ?? 0) + 1);
+      if (a.description === "Original .eml") {
+        emlByEmail.set(a.emailId, a.id);
+      } else if (
+        a.originalName.toLowerCase().endsWith(".eml") &&
+        !emlByEmail.has(a.emailId)
+      ) {
+        emlByEmail.set(a.emailId, a.id);
+      }
     }
 
     return rows.map((r) => ({
       ...r,
       attachmentCount: countByEmail.get(r.id) ?? 0,
+      emlAttachmentId: emlByEmail.get(r.id) ?? null,
     }));
   });
 

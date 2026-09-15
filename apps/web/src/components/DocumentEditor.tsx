@@ -26,17 +26,27 @@ interface Props {
   onChange: (json: string) => void;
   customerId?: string;
   documentId?: string;
+  /** false = Lesemodus ohne Toolbar und ohne Bearbeitung */
+  editable?: boolean;
 }
 
 /**
  * Wiki-Editor mit Toolbar, Blöcke-Dropdown (Panels/Code), Checklisten,
- * Bild-Upload und Tabellen.
+ * Bild-Upload und Tabellen. Optional nur lesen (`editable={false}`).
  */
-export function DocumentEditor({ content, onChange, customerId, documentId }: Props) {
+export function DocumentEditor({
+  content,
+  onChange,
+  customerId,
+  documentId,
+  editable = true,
+}: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const editorRef = useRef<Editor | null>(null);
+  const editableRef = useRef(editable);
+  editableRef.current = editable;
 
   async function uploadAndInsert(editor: Editor, file: File) {
     if (!customerId || !documentId) {
@@ -88,6 +98,7 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
       TableCell,
     ],
     content: safeParse(content),
+    editable,
     onUpdate: ({ editor: ed }) => {
       onChange(JSON.stringify(ed.getJSON()));
     },
@@ -95,9 +106,19 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
       attributes: {
         class: "tiptap-surface",
       },
+      handleDOMEvents: {
+        click(_view, event) {
+          if (editableRef.current) return false;
+          const anchor = (event.target as HTMLElement | null)?.closest?.("a");
+          if (!anchor || !(anchor instanceof HTMLAnchorElement) || !anchor.href) return false;
+          event.preventDefault();
+          window.open(anchor.href, "_blank", "noopener,noreferrer");
+          return true;
+        },
+      },
       handlePaste(_view, event) {
         const ed = editorRef.current;
-        if (!ed || !customerId || !documentId) return false;
+        if (!ed || !editableRef.current || !customerId || !documentId) return false;
         const items = event.clipboardData?.items;
         if (!items) return false;
         const images = [...items].filter((i) => i.type.startsWith("image/"));
@@ -111,7 +132,7 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
       },
       handleDrop(_view, event) {
         const ed = editorRef.current;
-        if (!ed || !customerId || !documentId) return false;
+        if (!ed || !editableRef.current || !customerId || !documentId) return false;
         const files = event.dataTransfer?.files;
         if (!files?.length) return false;
         const images = [...files].filter((f) => f.type.startsWith("image/"));
@@ -127,6 +148,11 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
 
   useEffect(() => {
     if (!editor) return;
+    editor.setEditable(editable);
+  }, [editor, editable]);
+
+  useEffect(() => {
+    if (!editor) return;
     const current = JSON.stringify(editor.getJSON());
     if (current !== content) {
       editor.commands.setContent(safeParse(content), false);
@@ -136,7 +162,8 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
   if (!editor) return null;
 
   return (
-    <div className={`editor${busy ? " is-busy" : ""}`}>
+    <div className={`editor${busy ? " is-busy" : ""}${editable ? "" : " is-readonly"}`}>
+      {editable ? (
       <div className="editor-toolbar" role="toolbar" aria-label="Formatierung">
         <div className="toolbar-group">
           <HeadingMenu editor={editor} />
@@ -227,20 +254,23 @@ export function DocumentEditor({ content, onChange, customerId, documentId }: Pr
           </ToolbarBtn>
         </div>
       </div>
+      ) : null}
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void uploadAndInsert(editor, file);
-        }}
-      />
+      {editable ? (
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void uploadAndInsert(editor, file);
+          }}
+        />
+      ) : null}
 
-      {error ? <p className="form-error editor-upload-error">{error}</p> : null}
-      {busy ? <p className="muted editor-upload-hint">Bild wird hochgeladen…</p> : null}
+      {editable && error ? <p className="form-error editor-upload-error">{error}</p> : null}
+      {editable && busy ? <p className="muted editor-upload-hint">Bild wird hochgeladen…</p> : null}
 
       <div className="editor-body">
         <EditorContent editor={editor} />

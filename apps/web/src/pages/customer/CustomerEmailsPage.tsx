@@ -43,6 +43,7 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
   const [importBusy, setImportBusy] = useState(false);
   const [error, setError] = useState("");
   const [importNotice, setImportNotice] = useState("");
+  const [menuId, setMenuId] = useState<string | null>(null);
 
   async function reload() {
     const rows = await api.emails(id, {
@@ -77,6 +78,15 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
         setFiles([]);
       });
   }, [selectedId]);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      const t = e.target as HTMLElement | null;
+      if (!t?.closest(".email-row-more")) setMenuId(null);
+    }
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, []);
 
   const summary = useMemo(() => {
     const inbound = emails.filter((e) => e.direction === "inbound").length;
@@ -347,36 +357,83 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
                   email.direction === "outbound"
                     ? email.toAddress || "–"
                     : email.fromAddress || "–";
+                const menuOpen = menuId === email.id;
                 return (
-                  <li key={email.id}>
-                    <button
-                      type="button"
-                      className={`email-row${selectedId === email.id ? " is-active" : ""}`}
-                      onClick={() => setSelectedId(email.id)}
-                    >
-                      <span className={`email-dir is-${email.direction}`}>
-                        {emailDirectionLabel[email.direction]}
-                      </span>
-                      <span className="email-row-main">
-                        <strong>{email.subject}</strong>
-                        <span className="email-row-peer">{peer}</span>
-                      </span>
-                      <span className="email-row-side">
-                        <time>{formatDateOnly(email.sentAt)}</time>
-                        {(email.attachmentCount ?? 0) > 0 ? (
-                          <span className="email-attach-badge" title="Anhänge">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-                              <path
-                                d="M8 12.5l6.5-6.5a3 3 0 114.2 4.2L9.5 19.4a4.5 4.5 0 01-6.4-6.4L13 3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            </svg>
-                            {email.attachmentCount}
-                          </span>
+                  <li key={email.id} className={menuOpen ? "is-menu-open" : undefined}>
+                    <div className={`email-row${selectedId === email.id ? " is-active" : ""}`}>
+                      <button
+                        type="button"
+                        className="email-row-select"
+                        onClick={() => setSelectedId(email.id)}
+                      >
+                        <span className={`email-dir is-${email.direction}`}>
+                          {emailDirectionLabel[email.direction]}
+                        </span>
+                        <span className="email-row-main">
+                          <strong>{email.subject}</strong>
+                          <span className="email-row-peer">{peer}</span>
+                        </span>
+                        <span className="email-row-side">
+                          <time>{formatDateOnly(email.sentAt)}</time>
+                          {(email.attachmentCount ?? 0) > 0 ? (
+                            <span className="email-attach-badge" title="Anhänge">
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                aria-hidden
+                              >
+                                <path
+                                  d="M8 12.5l6.5-6.5a3 3 0 114.2 4.2L9.5 19.4a4.5 4.5 0 01-6.4-6.4L13 3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                              {email.attachmentCount}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                      <div className={`vault-more email-row-more${menuOpen ? " is-open" : ""}`}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-icon btn-sm"
+                          aria-label="Aktionen"
+                          aria-expanded={menuOpen}
+                          title="Aktionen"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenuId(menuOpen ? null : email.id);
+                          }}
+                        >
+                          <MoreIcon />
+                        </button>
+                        {menuOpen ? (
+                          <div className="vault-menu" role="menu">
+                            {email.emlAttachmentId ? (
+                              <a
+                                role="menuitem"
+                                href={`/api/attachments/${email.emlAttachmentId}/download`}
+                                download
+                                onClick={() => setMenuId(null)}
+                              >
+                                Herunterladen
+                              </a>
+                            ) : (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled
+                                title="Keine Original-.eml vorhanden"
+                              >
+                                Herunterladen
+                              </button>
+                            )}
+                          </div>
                         ) : null}
-                      </span>
-                    </button>
+                      </div>
+                    </div>
                   </li>
                 );
               })}
@@ -583,5 +640,15 @@ export function CustomerEmailsPage({ embedded = false }: { embedded?: boolean })
         </form>
       </Modal>
     </section>
+  );
+}
+
+function MoreIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" width="1.1rem" height="1.1rem" aria-hidden>
+      <circle cx="12" cy="5" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="12" cy="19" r="1.6" />
+    </svg>
   );
 }

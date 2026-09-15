@@ -183,13 +183,13 @@ Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim An
 
 ## Anhänge / Dokumentenablage
 
-Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-/E-Mail-Anhänge bleiben ohne Ordner.
+Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-/E-Mail-Anhänge bleiben ohne Ordner und erscheinen nicht in der Datei-Ablage.
 
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/folders` |
 | PUT/DELETE | `/api/folders/:id` |
-| GET/POST | `/api/customers/:id/attachments` (`folderId=root`, optional `documentId` / `assetId` / `emailId`) |
+| GET/POST | `/api/customers/:id/attachments` (`folderId=root`, optional `documentId` / `assetId` / `emailId`; ohne `emailId` werden E-Mail-Anhänge ausgeblendet) |
 | PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner) |
 | GET | `/api/attachments/:id/download?inline=1` |
 | DELETE | `/api/attachments/:id` |
@@ -200,7 +200,7 @@ Mailverkehr manuell ablegen oder als `.eml` importieren (kein IMAP). Anhänge ü
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/customers/:id/emails?q=&direction=` | Liste (`inbound`\|`outbound`\|`internal`) |
+| GET | `/api/customers/:id/emails?q=&direction=` | Liste (`inbound`\|`outbound`\|`internal`); inkl. `attachmentCount`, `emlAttachmentId` |
 | POST | `/api/customers/:id/emails` | Ablegen |
 | POST | `/api/customers/:id/emails/import` | Multipart: eine/mehrere `.eml` → Felder + Original + Anhänge |
 | GET/PUT/DELETE | `/api/emails/:id` | Detail (inkl. Anhänge) / ändern / löschen |

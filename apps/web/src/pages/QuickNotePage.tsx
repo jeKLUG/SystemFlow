@@ -53,7 +53,7 @@ export function QuickNotePage() {
         title: title.trim() || "Schnellnotiz",
         content,
       });
-      navigate(`/documents/${doc.id}`);
+      navigate(`/documents/${doc.id}?edit=1`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     } finally {

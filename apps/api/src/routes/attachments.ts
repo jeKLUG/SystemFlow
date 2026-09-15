@@ -49,7 +49,12 @@ export async function attachmentRoutes(
     const conditions = [eq(attachments.customerId, customerId)];
     if (q.documentId) conditions.push(eq(attachments.documentId, q.documentId));
     if (q.assetId) conditions.push(eq(attachments.assetId, q.assetId));
-    if (q.emailId) conditions.push(eq(attachments.emailId, q.emailId));
+    if (q.emailId) {
+      conditions.push(eq(attachments.emailId, q.emailId));
+    } else {
+      // Ablage/Wiki/Anlage: E-Mail-Anhänge nicht mischen
+      conditions.push(isNull(attachments.emailId));
+    }
     if (q.folderId === "root" || q.folderId === "") {
       conditions.push(isNull(attachments.folderId));
     } else if (q.folderId) {

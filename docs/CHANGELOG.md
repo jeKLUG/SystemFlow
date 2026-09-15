@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.5.105 – 2026-09-15
+
+- Datei-Ablage: E-Mail-Anhänge (inkl. Original-.eml) werden nicht mehr unter „Dateien“ gelistet
+- E-Mail-Übersicht: Drei-Punkte-Menü zum Herunterladen der Original-.eml
+
+## 1.5.104 – 2026-09-15
+
+- Wiki-Seiten: Öffnen im Lesemodus; Bearbeitung erst über den Bearbeiten-Button (Stift-Icon); neue Seiten starten direkt im Editor (`?edit=1`)
+
 ## 1.5.103 – 2026-09-14
 
 - Vault-Share-Abruf: Beim Kopieren Rahmen-Animation am Feld statt grüner Toast-Meldung

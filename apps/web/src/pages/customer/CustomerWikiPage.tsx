@@ -133,7 +133,7 @@ export function CustomerWikiPage() {
     if (form.projectId) body.projectId = form.projectId;
     const doc = await api.createDocument(body);
     setCreateOpen(false);
-    navigate(`/documents/${doc.id}`);
+    navigate(`/documents/${doc.id}?edit=1`);
   }
 
   const activeTab = docsTabs.find((t) => t.id === view);
