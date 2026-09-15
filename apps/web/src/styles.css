@@ -4178,14 +4178,20 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .editor.is-readonly {
   max-height: none;
+  overflow: visible;
 }
 
 .editor.is-readonly .editor-body {
+  flex: none;
+  min-height: 0;
   max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
 }
 
 .editor.is-readonly .tiptap-surface {
   cursor: default;
+  min-height: 0;
 }
 
 .editor.is-readonly .tiptap-surface .ProseMirror-focused {
@@ -14278,7 +14284,7 @@ summary:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 0.25rem;
-  align-items: start;
+  align-items: center;
   padding: 0.55rem 0.45rem 0.55rem 0.55rem;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -14316,7 +14322,9 @@ summary:focus-visible {
 
 .email-row-more {
   flex-shrink: 0;
-  margin-top: 0.05rem;
+  align-self: center;
+  display: flex;
+  align-items: center;
 }
 
 .email-row-more > .btn-icon {
@@ -14324,6 +14332,9 @@ summary:focus-visible {
   height: 1.85rem;
   min-width: 1.85rem;
   opacity: 0.55;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .email-row:hover .email-row-more > .btn-icon,
