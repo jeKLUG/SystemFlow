@@ -2,13 +2,16 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../lib/labels";
 import type { ContractItem, ContractStatus } from "../types";
+import { DocumentEditor } from "./DocumentEditor";
 import { Modal } from "./Modal";
+
+const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
 const emptyForm = {
   title: "",
   contractNumber: "",
   status: "active" as ContractStatus,
-  description: "",
+  description: EMPTY_DOC,
   startDate: "",
   endDate: "",
   coverageHours: "Mo–Fr 08:00–17:00",
@@ -67,7 +70,7 @@ function formFromContract(c: ContractItem): typeof emptyForm {
     title: c.title,
     contractNumber: c.contractNumber ?? "",
     status: c.status ?? "active",
-    description: c.description ?? "",
+    description: toEditorContent(c.description),
     startDate: c.startDate ?? "",
     endDate: c.endDate ?? "",
     coverageHours: c.coverageHours ?? "",
@@ -110,7 +113,7 @@ function toBody(form: typeof emptyForm) {
     title: form.title,
     contractNumber: form.contractNumber,
     status: form.status,
-    description: form.description,
+    description: serializeDescription(form.description),
     startDate: form.startDate,
     endDate: form.endDate,
     coverageHours: form.coverageHours,
@@ -135,6 +138,50 @@ function toBody(form: typeof emptyForm) {
     escalationEmail: form.escalationEmail,
     notes: form.notes,
   };
+}
+
+/** TipTap-JSON oder Legacy-Plaintext für den Editor. */
+function toEditorContent(raw: string | null | undefined): string {
+  const t = raw?.trim();
+  if (!t) return EMPTY_DOC;
+  try {
+    const parsed = JSON.parse(t) as { type?: string };
+    if (parsed?.type === "doc") return t;
+  } catch {
+    /* plain text → TipTap-Doc */
+  }
+  return JSON.stringify({
+    type: "doc",
+    content: [{ type: "paragraph", content: [{ type: "text", text: t }] }],
+  });
+}
+
+/** Leeren Rich-Text als leeren String speichern (DB null). */
+function serializeDescription(raw: string): string {
+  if (!richTextHasContent(raw)) return "";
+  return raw;
+}
+
+function richTextHasContent(raw: string | null | undefined): boolean {
+  const t = raw?.trim();
+  if (!t) return false;
+  try {
+    const doc = JSON.parse(t) as { content?: unknown[] };
+    return walkTipTapText(doc.content ?? []).trim().length > 0;
+  } catch {
+    return t.length > 0;
+  }
+}
+
+function walkTipTapText(nodes: unknown[]): string {
+  const parts: string[] = [];
+  for (const node of nodes) {
+    if (!node || typeof node !== "object") continue;
+    const n = node as { type?: string; text?: string; content?: unknown[] };
+    if (n.type === "text" && n.text) parts.push(n.text);
+    else if (n.content?.length) parts.push(walkTipTapText(n.content));
+  }
+  return parts.join("");
 }
 
 /**
@@ -258,7 +305,7 @@ export function CustomerSlaPanel({
               Boolean(c.contactPerson || c.contactPhone || c.contactEmail) ||
               Boolean(c.escalationContact || c.escalationPhone || c.escalationEmail);
             const hasExtraDetails = Boolean(
-              c.description || c.coverageNote || hasContacts || c.notes,
+              richTextHasContent(c.description) || c.coverageNote || hasContacts || c.notes,
             );
             const prioRows = [
               {
@@ -405,10 +452,17 @@ export function CustomerSlaPanel({
 
                 {expanded && hasExtraDetails ? (
                   <div className="sla-details">
-                    {c.description ? (
+                    {richTextHasContent(c.description) ? (
                       <section className="sla-block">
                         <h4>Leistungsumfang</h4>
-                        <p className="sla-scope">{c.description}</p>
+                        <div className="sla-scope">
+                          <DocumentEditor
+                            key={`scope-${c.id}`}
+                            content={toEditorContent(c.description)}
+                            onChange={() => {}}
+                            editable={false}
+                          />
+                        </div>
                       </section>
                     ) : null}
                     {c.coverageNote ? (
@@ -457,7 +511,7 @@ export function CustomerSlaPanel({
         title={editingId ? "SLA bearbeiten" : "Neuen SLA anlegen"}
         onClose={closeModal}
         showCloseButton={false}
-        className="modal-wide"
+        className="modal-wide modal-sla"
       >
         <form className="form-grid sla-form" onSubmit={save}>
           <label className="field">
@@ -583,15 +637,16 @@ export function CustomerSlaPanel({
               placeholder="z. B. ohne gesetzliche Feiertage, Rufbereitschaft Sa 9–13"
             />
           </label>
-          <label className="field full">
+          <div className="field full sla-scope-field">
             <span>Leistungsumfang</span>
-            <textarea
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Was ist im SLA enthalten?"
+            <DocumentEditor
+              key={editingId ?? "new-sla"}
+              content={form.description}
+              onChange={(next) => setForm({ ...form, description: next })}
+              customerId={customerId}
+              editable
             />
-          </label>
+          </div>
 
           <div className="full sla-form-block">
             <h4>Reaktionszeiten (Stunden)</h4>

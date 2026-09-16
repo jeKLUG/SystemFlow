@@ -173,7 +173,7 @@ Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne
 
 ## Verträge / SLA
 
-Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim Anlegen), Servicezeiten, inkl. Stunden/Monat, Preis entweder monatlich oder jährlich (EUR), Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
+Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim Anlegen), Servicezeiten, inkl. Stunden/Monat, Preis entweder monatlich oder jährlich (EUR), Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `description` (Leistungsumfang) speichert TipTap-JSON wie Wiki-Seiten; Legacy-Klartext bleibt kompatibel. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
 
 | Methode | Pfad |
 |---------|------|

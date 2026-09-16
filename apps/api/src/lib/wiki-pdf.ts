@@ -161,6 +161,30 @@ function renderBody(
   renderNodes(doc, nodes, { listDepth: 0, resolveImage, atBlockStart: true });
 }
 
+/**
+ * Rendert TipTap-JSON (oder Plaintext) in ein bestehendes PDFKit-Dokument
+ * an der aktuellen Schreibposition.
+ */
+export function paintTipTapContent(
+  doc: PDFKit.PDFDocument,
+  raw: string,
+  options: { resolveImage?: WikiPdfImageResolver } = {},
+): void {
+  const nodes = trimEmptyNodes(parseTipTap(raw));
+  if (!nodes.length) {
+    doc.font("Helvetica-Oblique").fontSize(10).fillColor(MUTED).text("Kein Inhalt.");
+    return;
+  }
+  const left = doc.page.margins.left;
+  doc.x = left;
+  renderNodes(doc, nodes, {
+    listDepth: 0,
+    resolveImage: options.resolveImage,
+    atBlockStart: true,
+  });
+  doc.x = left;
+}
+
 function parseTipTap(raw: string): TipTapNode[] {
   try {
     const parsed = JSON.parse(raw) as TipTapNode;

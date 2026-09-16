@@ -15,7 +15,7 @@ const contractBody = z
     title: z.string().min(1).max(300),
     contractNumber: optionalText(80),
     status: z.enum(contractStatuses).optional(),
-    description: optionalText(5000),
+    description: z.string().max(200_000).optional().or(z.literal("")),
     startDate: optionalText(40),
     endDate: optionalText(40),
     coverageHours: optionalText(200),

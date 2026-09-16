@@ -7,6 +7,8 @@ import {
   PDF_HEADER_H,
   PDF_MARGIN,
 } from "./pdf-chrome.js";
+import { tiptapToText } from "./tiptap-text.js";
+import { paintTipTapContent } from "./wiki-pdf.js";
 
 const MARGIN = PDF_MARGIN;
 const HEADER_H = PDF_HEADER_H;
@@ -64,10 +66,12 @@ export async function buildContractPdf(customer: Customer, contract: Contract): 
   drawMeta(doc, contract);
   drawParties(doc, customer);
   drawSection(doc, "Leistungsumfang", () => {
-    paragraph(
-      doc,
-      contract.description?.trim() || "Keine Angaben zum Leistungsumfang hinterlegt.",
-    );
+    const raw = contract.description?.trim() ?? "";
+    if (!raw || !tiptapToText(raw).trim()) {
+      paragraph(doc, "Keine Angaben zum Leistungsumfang hinterlegt.");
+      return;
+    }
+    paintTipTapContent(doc, raw);
   });
   drawSection(doc, "Servicezeiten & Abdeckung", () => {
     kv(doc, "Servicezeiten", contract.coverageHours || "–");

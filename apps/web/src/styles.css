@@ -13849,6 +13849,41 @@ a.dash-kpi:hover,
   color: var(--text);
 }
 
+.sla-scope .editor.is-readonly {
+  max-height: none;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.sla-scope .editor.is-readonly .editor-body {
+  overflow: visible;
+}
+
+.sla-scope .editor.is-readonly .tiptap-surface {
+  min-height: 0;
+  padding: 0;
+}
+
+.sla-scope-field > span {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sla-scope-field .editor {
+  max-height: min(42vh, 26rem);
+}
+
+.modal-panel.modal-sla {
+  width: min(100%, 880px);
+}
+
 .sla-contacts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

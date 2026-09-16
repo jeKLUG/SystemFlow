@@ -255,7 +255,7 @@ export const contracts = sqliteTable("contracts", {
   /** Interne Vertrags-/SLA-Nummer. */
   contractNumber: text("contract_number"),
   status: text("status", { enum: contractStatuses }).notNull().default("active"),
-  /** Leistungsumfang / abgedeckte Services. */
+  /** Leistungsumfang / abgedeckte Services (TipTap-JSON oder Legacy-Klartext). */
   description: text("description"),
   startDate: text("start_date"),
   endDate: text("end_date"),

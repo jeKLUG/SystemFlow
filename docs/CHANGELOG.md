@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.106 – 2026-09-16
+
+- SLA Leistungsumfang: TipTap-Editor wie bei Wiki-Dokumenten; Formatierung erscheint auch im SLA-PDF (bestehende Klartexte bleiben lesbar)
+
 ## 1.5.105 – 2026-09-15
 
 - Datei-Ablage: E-Mail-Anhänge (inkl. Original-.eml) werden nicht mehr unter „Dateien“ gelistet
