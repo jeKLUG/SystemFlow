@@ -585,17 +585,29 @@ function renderList(
     const indent = MARGIN + depth * 14;
     const bullet = ordered ? `${index}.` : "•";
     const y = doc.y;
+    const textX = indent + 16;
+    const textW = doc.page.width - textX - MARGIN;
     doc.font("Helvetica").fontSize(10.5).fillColor(TEXT);
+    // Bullet ohne Zeilenvorschub; Text auf derselben Baseline
     doc.text(bullet, indent, y, { width: 16, lineBreak: false });
-    doc.x = indent + 16;
+    doc.x = textX;
+    doc.y = y;
+    let wrote = false;
     for (const child of item.content ?? []) {
       if (child.type === "paragraph") {
         const text = collectText(child.content ?? []);
         if (!text) continue;
+        if (wrote) {
+          doc.x = textX;
+        } else {
+          doc.x = textX;
+          doc.y = y;
+        }
         renderInline(doc, child.content ?? [], {
-          width: doc.page.width - indent - 16 - MARGIN,
+          width: textW,
           size: 10.5,
         });
+        wrote = true;
         doc.moveDown(0.15);
       } else if (child.type === "bulletList" || child.type === "orderedList") {
         renderList(doc, child.content ?? [], child.type === "orderedList", {
@@ -627,6 +639,8 @@ function renderTaskList(
     const indent = MARGIN + depth * 14;
     const checked = Boolean(item.attrs?.checked);
     const y = doc.y;
+    const textX = indent + 14;
+    const textW = doc.page.width - textX - MARGIN;
     doc
       .save()
       .strokeColor(checked ? ACCENT : RULE)
@@ -643,16 +657,21 @@ function renderTaskList(
         .stroke();
     }
     doc.restore();
-    doc.x = indent + 14;
+    doc.x = textX;
+    doc.y = y;
     doc.font("Helvetica").fontSize(10.5).fillColor(checked ? MUTED : TEXT);
+    let wrote = false;
     for (const child of item.content ?? []) {
       if (child.type === "paragraph") {
         const text = collectText(child.content ?? []);
         if (!text) continue;
+        doc.x = textX;
+        if (!wrote) doc.y = y;
         renderInline(doc, child.content ?? [], {
-          width: doc.page.width - indent - 14 - MARGIN,
+          width: textW,
           size: 10.5,
         });
+        wrote = true;
         doc.moveDown(0.12);
       } else if (child.type === "taskList") {
         renderTaskList(doc, child.content ?? [], {
