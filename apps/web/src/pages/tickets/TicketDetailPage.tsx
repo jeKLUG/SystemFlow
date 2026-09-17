@@ -7,7 +7,6 @@ import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { TicketComposer, TicketFileDrop, TicketBrief, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
-import { formatBytes } from "../../lib/files";
 import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
 import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
 import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
@@ -242,18 +241,12 @@ export function TicketDetailPage() {
             resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
             now={clockNow}
           />
-          {files.length ? (
-            <ul className="portal-file-chips">
-              {files.map((f) => (
-                <li key={f.id}>
-                  <a href={`/api/tickets/${ticket.id}/attachments/${f.id}/download`} download>
-                    {f.originalName} <em>{formatBytes(f.size)}</em>
-                  </a>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
+          <TicketFileDrop
+            busy={busy === "file"}
+            attachments={files}
+            hrefFor={(f) => `/api/tickets/${ticket.id}/attachments/${f.id}/download`}
+            onFiles={onFiles}
+          />
           <TicketComposer
             staffModes
             busy={busy === "msg"}

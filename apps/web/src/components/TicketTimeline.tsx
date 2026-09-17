@@ -1,8 +1,10 @@
 import { DocumentEditor } from "./DocumentEditor";
+import { FileGlyph } from "./FileGlyphs";
+import { fileKind, formatBytes } from "../lib/files";
 import { formatDate } from "../lib/labels";
 import { EMPTY_DOC, richTextHasContent, richTextPlain, toEditorContent } from "../lib/richtext";
 import { formatTimeAgo } from "../lib/tickets";
-import type { TicketMessageItem } from "../types";
+import type { AttachmentItem, TicketMessageItem } from "../types";
 import { useRef, useState, type DragEvent, type ReactNode } from "react";
 
 type TimelineProps = {
@@ -34,10 +36,10 @@ export function TicketTimeline({ messages, now, staffView = false, emptyHint, ti
           ? staff
             ? internal
               ? "Intern"
-              : "Systemhaus"
+              : "Systemhaus-Ess"
             : "Kunde"
           : staff
-            ? "Systemhaus"
+            ? "Systemhaus-Ess"
             : "Sie";
         return (
           <li
@@ -235,17 +237,22 @@ export function TicketComposer({
 }
 
 /**
- * Datei-Dropzone für Ticket-Anhänge (Staff und Portal).
+ * Datei-Dropzone für Ticket-Anhänge; vorhandene Dateien als Kacheln im selben Bereich.
  */
 export function TicketFileDrop({
   busy = false,
   onFiles,
+  attachments = [],
+  hrefFor,
 }: {
   busy?: boolean;
-  onFiles: (files: FileList | File[]) => void;
+  onFiles?: (files: FileList | File[]) => void;
+  attachments?: AttachmentItem[];
+  hrefFor: (file: AttachmentItem) => string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const canUpload = Boolean(onFiles);
 
   function onDrag(e: DragEvent, over: boolean) {
     e.preventDefault();
@@ -256,33 +263,57 @@ export function TicketFileDrop({
   return (
     <div className="field ticket-file-drop-field">
       <span className="field-label">Anhänge</span>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        hidden
-        disabled={busy}
-        onChange={(e) => {
-          if (e.target.files?.length) onFiles(e.target.files);
-          e.target.value = "";
-        }}
-      />
-      <button
-        type="button"
-        className={`portal-ticket-drop${dragOver ? " is-over" : ""}`}
-        disabled={busy}
-        onClick={() => inputRef.current?.click()}
-        onDragEnter={(e) => onDrag(e, true)}
-        onDragOver={(e) => onDrag(e, true)}
-        onDragLeave={(e) => onDrag(e, false)}
-        onDrop={(e) => {
-          onDrag(e, false);
-          if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
-        }}
-      >
-        <strong>{busy ? "Wird hochgeladen…" : "Dateien hierher ziehen oder auswählen"}</strong>
-        <span className="muted">Screenshots, PDF oder Office-Dateien</span>
-      </button>
+      {attachments.length ? (
+        <ul className="ticket-attach-board">
+          {attachments.map((file) => {
+            const kind = fileKind(file.mimeType, file.originalName);
+            return (
+              <li key={file.id}>
+                <a className="ticket-attach-card" href={hrefFor(file)} download>
+                  <span className={`ticket-attach-preview kind-${kind}`}>
+                    <FileGlyph kind={kind} />
+                  </span>
+                  <strong title={file.originalName}>{file.originalName}</strong>
+                  <span className="muted">{formatBytes(file.size)}</span>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      ) : !canUpload ? (
+        <p className="muted ticket-attach-empty">Noch keine Dateien.</p>
+      ) : null}
+      {canUpload ? (
+        <>
+          <input
+            ref={inputRef}
+            type="file"
+            multiple
+            hidden
+            disabled={busy}
+            onChange={(e) => {
+              if (e.target.files?.length) onFiles?.(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            className={`portal-ticket-drop${dragOver ? " is-over" : ""}`}
+            disabled={busy}
+            onClick={() => inputRef.current?.click()}
+            onDragEnter={(e) => onDrag(e, true)}
+            onDragOver={(e) => onDrag(e, true)}
+            onDragLeave={(e) => onDrag(e, false)}
+            onDrop={(e) => {
+              onDrag(e, false);
+              if (e.dataTransfer.files.length) onFiles?.(e.dataTransfer.files);
+            }}
+          >
+            <strong>{busy ? "Wird hochgeladen…" : "Dateien hierher ziehen oder auswählen"}</strong>
+            <span className="muted">Screenshots, PDF oder Office-Dateien</span>
+          </button>
+        </>
+      ) : null}
     </div>
   );
 }

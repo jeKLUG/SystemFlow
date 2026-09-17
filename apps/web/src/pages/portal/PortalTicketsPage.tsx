@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } 
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
+import { HelpHint } from "../../components/HelpHint";
 import { Modal } from "../../components/Modal";
 import { TicketPriorityPicker } from "../../components/TicketPriorityPicker";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
@@ -161,9 +162,9 @@ export function PortalTicketsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <div>
+        <div className="page-head-title">
           <h2>Tickets</h2>
-          <p className="muted">Anfragen an Ihr Systemhaus – wir antworten im Ticket.</p>
+          <HelpHint text="Anfragen an Ihr Systemhaus – wir antworten im Ticket." />
         </div>
         <button type="button" className="btn btn-primary" onClick={openCreate}>
           Neues Ticket

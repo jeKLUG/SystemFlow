@@ -3,7 +3,6 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { TicketComposer, TicketBrief, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
-import { formatBytes } from "../../lib/files";
 import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
 import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
 import type { TicketItem } from "../../types";
@@ -163,22 +162,22 @@ export function PortalTicketDetailPage() {
           resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
           now={clockNow}
         />
-        {(ticket.attachments ?? []).length ? (
-          <ul className="portal-file-chips">
-            {(ticket.attachments ?? []).map((f) => (
-              <li key={f.id}>
-                <a href={`/api/portal/attachments/${f.id}/download`} download>
-                  {f.originalName} <em>{formatBytes(f.size)}</em>
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : null}
         {closed ? (
-          <p className="muted">Dieses Ticket ist geschlossen.</p>
+          <>
+            <TicketFileDrop
+              attachments={ticket.attachments ?? []}
+              hrefFor={(f) => `/api/portal/attachments/${f.id}/download`}
+            />
+            <p className="muted">Dieses Ticket ist geschlossen.</p>
+          </>
         ) : (
           <>
-            <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
+            <TicketFileDrop
+              busy={busy === "file"}
+              attachments={ticket.attachments ?? []}
+              hrefFor={(f) => `/api/portal/attachments/${f.id}/download`}
+              onFiles={onFiles}
+            />
             <TicketComposer
               label="Antwort"
               placeholder="Ihre Nachricht an das Systemhaus…"

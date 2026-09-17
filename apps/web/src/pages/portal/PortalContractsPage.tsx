@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
+import { HelpHint } from "../../components/HelpHint";
 import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../../lib/labels";
 import type { ContractItem, ContractStatus } from "../../types";
 
@@ -83,9 +84,9 @@ export function PortalContractsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <div>
+        <div className="page-head-title">
           <h2>Verträge & SLA</h2>
-          <p className="muted">Servicezeiten, Prioritäten und Leistungsumfang.</p>
+          <HelpHint text="Servicezeiten, Prioritäten und Leistungsumfang." />
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}

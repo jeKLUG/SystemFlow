@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.129 – 2026-09-17
+
+- Tickets: hochgeladene Dateien als Kacheln im Anhang-Bereich; Kommentare von Staff heißen „Systemhaus-Ess“
+
+## 1.5.128 – 2026-09-17
+
+- Kundenportal: Hilfetext unter der Überschrift als Hover-Hinweis am Kreis-Icon
+
 ## 1.5.127 – 2026-09-17
 
 - Tickets: Anhänge und Kommentarfeld stehen über dem Verlauf (Staff und Kundenportal)

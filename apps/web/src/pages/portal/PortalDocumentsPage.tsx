@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { FileGlyph, FolderGlyph } from "../../components/FileGlyphs";
+import { HelpHint } from "../../components/HelpHint";
 import { fileKind, fileKindLabel, formatBytes } from "../../lib/files";
 import { documentTypeLabel, formatDate } from "../../lib/labels";
 import type { AttachmentItem, DocumentItem, DocumentType, FileFolderItem } from "../../types";
@@ -138,9 +139,9 @@ export function PortalDocumentsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <div>
+        <div className="page-head-title">
           <h2>Dokumente</h2>
-          <p className="muted">Freigegebene Seiten, Ordner und Dateien zum Lesen und Herunterladen.</p>
+          <HelpHint text="Freigegebene Seiten, Ordner und Dateien zum Lesen und Herunterladen." />
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}

@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
 import { api } from "../../api";
 import { AssetFacts } from "../../components/AssetFacts";
+import { HelpHint } from "../../components/HelpHint";
 import {
   assetKindLabel,
   assetOwnershipLabel,
@@ -83,9 +84,9 @@ export function PortalAssetsPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <div>
+        <div className="page-head-title">
           <h2>Inventar</h2>
-          <p className="muted">Freigegebene Geräte, Lizenzen und Software.</p>
+          <HelpHint text="Freigegebene Geräte, Lizenzen und Software." />
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}
