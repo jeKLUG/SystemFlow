@@ -1,10 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
+import { api } from "../api";
 import { useAuth } from "../auth";
 import { GlobalSearch } from "./GlobalSearch";
 import { OfflineBanner } from "./OfflineBanner";
 
-type NavItem = { to: string; label: string; end?: boolean; icon: ReactNode };
+type NavItem = { to: string; label: string; end?: boolean; icon: ReactNode; badge?: number };
 
 const icon = {
   home: (
@@ -60,6 +61,13 @@ const icon = {
       <path d="M12 3.5v2.2M12 18.3V20.5M3.5 12h2.2M18.3 12H20.5M6.1 6.1l1.6 1.6M16.3 16.3l1.6 1.6M17.9 6.1l-1.6 1.6M7.7 16.3l-1.6 1.6" />
     </svg>
   ),
+  tickets: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4.5 8.5h15v9a2 2 0 01-2 2h-11a2 2 0 01-2-2v-9Z" />
+      <path d="M8 8.5V6.5A2.5 2.5 0 0110.5 4h3A2.5 2.5 0 0116 6.5v2" />
+      <path d="M8.5 13h7M8.5 16h4" strokeLinecap="round" />
+    </svg>
+  ),
   menu: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
@@ -75,6 +83,7 @@ const icon = {
 const primaryNav: NavItem[] = [
   { to: "/", label: "Übersicht", end: true, icon: icon.home },
   { to: "/customers", label: "Kontakte", icon: icon.customers },
+  { to: "/tickets", label: "Tickets", icon: icon.tickets },
   { to: "/calendar", label: "Kalender", icon: icon.calendar },
   { to: "/vault", label: "Tresor", icon: icon.vault },
 ];
@@ -109,6 +118,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
         >
           {item.icon}
           <span>{item.label}</span>
+          {item.badge ? <em className="nav-count">{item.badge > 99 ? "99+" : item.badge}</em> : null}
         </NavLink>
       ))}
     </div>
@@ -122,10 +132,15 @@ export function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [ticketOpen, setTicketOpen] = useState(0);
   const closeMobile = () => setMobileOpen(false);
 
   useEffect(() => {
     setMobileOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    void api.ticketStats().then((s) => setTicketOpen(s.openCount)).catch(() => setTicketOpen(0));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -158,7 +173,13 @@ export function Layout() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
-          <NavGroup title="Arbeitsplatz" items={primaryNav} onNavigate={closeMobile} />
+          <NavGroup
+            title="Arbeitsplatz"
+            items={primaryNav.map((item) =>
+              item.to === "/tickets" ? { ...item, badge: ticketOpen || undefined } : item,
+            )}
+            onNavigate={closeMobile}
+          />
           <NavGroup title="Werkzeuge" items={secondaryNav} onNavigate={closeMobile} />
         </nav>
 
@@ -225,6 +246,10 @@ export function Layout() {
             <strong>Systemhaus-Ess</strong>
           </div>
           <div className="app-topbar-actions">
+            <NavLink to="/tickets" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Tickets">
+              {icon.tickets}
+              {ticketOpen > 0 ? <span className="nav-badge">{ticketOpen > 99 ? "99+" : ticketOpen}</span> : null}
+            </NavLink>
             <NavLink to="/tasks" className="btn btn-ghost btn-icon app-topbar-search" aria-label="Aufgaben">
               {icon.reminders}
             </NavLink>

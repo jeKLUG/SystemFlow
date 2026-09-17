@@ -39,6 +39,7 @@ export async function attachmentRoutes(
         documentId: z.string().optional(),
         assetId: z.string().optional(),
         emailId: z.string().optional(),
+        ticketId: z.string().optional(),
         folderId: z.string().optional(),
       })
       .parse(request.query);
@@ -51,9 +52,12 @@ export async function attachmentRoutes(
     if (q.assetId) conditions.push(eq(attachments.assetId, q.assetId));
     if (q.emailId) {
       conditions.push(eq(attachments.emailId, q.emailId));
+    } else if (q.ticketId) {
+      conditions.push(eq(attachments.ticketId, q.ticketId));
     } else {
-      // Ablage/Wiki/Anlage: E-Mail-Anhänge nicht mischen
+      // Ablage/Wiki/Anlage: E-Mail- und Ticket-Anhänge nicht mischen
       conditions.push(isNull(attachments.emailId));
+      conditions.push(isNull(attachments.ticketId));
     }
     if (q.folderId === "root" || q.folderId === "") {
       conditions.push(isNull(attachments.folderId));
@@ -144,6 +148,8 @@ export async function attachmentRoutes(
       documentId,
       assetId,
       emailId,
+      ticketId: null,
+      ticketMessageId: null,
       originalName: uploaded.filename,
       storedName: uploaded.storedName,
       mimeType: uploaded.mimetype || null,

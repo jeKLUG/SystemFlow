@@ -50,6 +50,7 @@ const entryBody = z
     billable: z.boolean().optional(),
     readyForInvoice: z.boolean().optional(),
     billed: z.boolean().optional(),
+    ticketId: z.string().optional().nullable().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (data.running) {
@@ -408,6 +409,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         billed: timeEntries.billed,
         rateSnapshot: timeEntries.rateSnapshot,
         amountSnapshot: timeEntries.amountSnapshot,
+        ticketId: timeEntries.ticketId,
         createdAt: timeEntries.createdAt,
         updatedAt: timeEntries.updatedAt,
       })
@@ -616,6 +618,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       billed,
       rateSnapshot,
       amountSnapshot,
+      ticketId: emptyToNull(parsed.data.ticketId),
       createdAt: now,
       updatedAt: now,
     };

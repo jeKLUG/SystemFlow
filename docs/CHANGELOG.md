@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.107 – 2026-09-17
+
+- Kundenportal: Login `/portal/login` (ein Zugang je Kundenakte, in der Übersicht gesetzt)
+- Tickets: Staff-App `/tickets` (Queue, Dialog, interne Notizen, Anhänge, SLA, Aufgabe/Zeit); Kunden erstellen und beantworten Tickets im Portal
+- Wiki/Inventar: Schalter „Im Kundenportal zeigen“ (`portalVisible`)
+
 ## 1.5.106 – 2026-09-16
 
 - SLA Leistungsumfang: TipTap-Editor wie bei Wiki-Dokumenten; Formatierung erscheint auch im SLA-PDF (bestehende Klartexte bleiben lesbar)

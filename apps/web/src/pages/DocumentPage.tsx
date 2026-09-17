@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { AttachmentPanel } from "../components/AttachmentPanel";
+import { Checkbox } from "../components/Checkbox";
 import { CustomerPicker } from "../components/CustomerPicker";
 import { DocumentEditor } from "../components/DocumentEditor";
 import { EditIcon } from "../components/Icons";
@@ -21,11 +22,13 @@ export function DocumentPage() {
   const [type, setType] = useState<DocumentType>("note");
   const [content, setContent] = useState("");
   const [customerId, setCustomerId] = useState("");
+  const [portalVisible, setPortalVisible] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState({
     title: "",
     type: "note" as DocumentType,
     content: "",
     customerId: "",
+    portalVisible: false,
   });
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -52,11 +55,13 @@ export function DocumentPage() {
         setType(d.type);
         setContent(d.content);
         setCustomerId(d.customerId ?? "");
+        setPortalVisible(Boolean(d.portalVisible));
         setSavedSnapshot({
           title: d.title,
           type: d.type,
           content: d.content,
           customerId: d.customerId ?? "",
+          portalVisible: Boolean(d.portalVisible),
         });
         setSaveState("idle");
         setError("");
@@ -69,9 +74,10 @@ export function DocumentPage() {
       title !== savedSnapshot.title ||
       type !== savedSnapshot.type ||
       content !== savedSnapshot.content ||
-      customerId !== savedSnapshot.customerId
+      customerId !== savedSnapshot.customerId ||
+      portalVisible !== savedSnapshot.portalVisible
     );
-  }, [title, type, content, customerId, savedSnapshot]);
+  }, [title, type, content, customerId, portalVisible, savedSnapshot]);
 
   useEffect(() => {
     if (!dirty || !editing) return;
@@ -117,14 +123,17 @@ export function DocumentPage() {
         type,
         content,
         customerId: customerId || null,
+        portalVisible,
       });
       setDoc(updated);
       setCustomerId(updated.customerId ?? "");
+      setPortalVisible(Boolean(updated.portalVisible));
       setSavedSnapshot({
         title,
         type,
         content,
         customerId: updated.customerId ?? "",
+        portalVisible: Boolean(updated.portalVisible),
       });
       setSaveState("saved");
     } catch (err) {
@@ -313,6 +322,30 @@ export function DocumentPage() {
           </div>
         </div>
       </div>
+
+      {customerId ? (
+        <div className="editor-portal-toggle">
+          <Checkbox
+            label="Im Kundenportal zeigen"
+            checked={portalVisible}
+            onChange={(next) => {
+              setPortalVisible(next);
+              if (editing) {
+                setSaveState("idle");
+                return;
+              }
+              void api
+                .updateDocument(id, { portalVisible: next })
+                .then((updated) => {
+                  setDoc(updated);
+                  setPortalVisible(Boolean(updated.portalVisible));
+                  setSavedSnapshot((s) => ({ ...s, portalVisible: Boolean(updated.portalVisible) }));
+                })
+                .catch((err) => setError(err instanceof Error ? err.message : "Portal-Sichtbarkeit fehlgeschlagen"));
+            }}
+          />
+        </div>
+      ) : null}
 
       {error ? <p className="form-error">{error}</p> : null}
 

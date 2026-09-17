@@ -30,6 +30,8 @@ export function DashboardPage() {
   const [openTasks, setOpenTasks] = useState<TaskItem[]>([]);
   const [reminders, setReminders] = useState<Reminders | null>(null);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
+  const [ticketOpen, setTicketOpen] = useState(0);
+  const [ticketSla, setTicketSla] = useState(0);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
@@ -44,14 +46,17 @@ export function DashboardPage() {
         api.openTasks(),
         api.reminders(30),
         api.appointments({ from: todayIso, to: weekEnd }),
+        api.ticketStats(),
       ]),
     )
       .then(({ data, fromCache: cached }) => {
-        const [s, t, rem, appts] = data;
+        const [s, t, rem, appts, tstats] = data;
         setStats(s);
         setOpenTasks(sortTasks(t, "due"));
         setReminders(rem);
         setAppointments(appts);
+        setTicketOpen(tstats.openCount);
+        setTicketSla(tstats.slaBreachedCount);
         setFromCache(cached);
       })
       .finally(() => setLoading(false));
@@ -180,6 +185,13 @@ export function DashboardPage() {
             {summary.overdue > 0 ? `${summary.overdue} überfällig` : "Aufgaben"}
           </span>
         </div>
+        <Link className="dash-kpi" to="/tickets">
+          <span className="dash-kpi-label">Tickets</span>
+          <strong>{loading ? "–" : ticketOpen}</strong>
+          <span className="dash-kpi-meta">
+            {ticketSla > 0 ? `${ticketSla} SLA überfällig` : "offen"}
+          </span>
+        </Link>
         <Link className="dash-kpi" to="/calendar">
           <span className="dash-kpi-label">Termine</span>
           <strong>{loading ? "–" : todayAppts.length}</strong>

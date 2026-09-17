@@ -60,6 +60,13 @@ const tabIcon = {
       <path d="M5 18h14" strokeLinecap="round" />
     </svg>
   ),
+  tickets: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4.5 8.5h15v9a2 2 0 01-2 2h-11a2 2 0 01-2-2v-9Z" />
+      <path d="M8 8.5V6.5A2.5 2.5 0 0110.5 4h3A2.5 2.5 0 0116 6.5v2" />
+      <path d="M8.5 13h7M8.5 16h4" strokeLinecap="round" />
+    </svg>
+  ),
 };
 
 const tabs: Tab[] = [
@@ -67,6 +74,7 @@ const tabs: Tab[] = [
   { to: "wiki", label: "Dokumente", short: "Docs", icon: tabIcon.docs },
   { to: "projects", label: "Projekte", short: "Proj.", icon: tabIcon.projects },
   { to: "tasks", label: "Aufgaben", short: "Tasks", icon: tabIcon.tasks },
+  { to: "tickets", label: "Tickets", short: "Tick.", icon: tabIcon.tickets },
   { to: "time", label: "Zeiten", short: "Zeit", icon: tabIcon.time },
   { to: "assets", label: "Inventar", short: "Inv.", icon: tabIcon.assets },
   { to: "ops", label: "Protokoll", short: "Prot.", icon: tabIcon.ops },

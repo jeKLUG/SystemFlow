@@ -64,6 +64,8 @@ export const documents = sqliteTable("documents", {
   }).notNull(),
   title: text("title").notNull(),
   content: text("content").notNull().default("{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\"}]}"),
+  /** Kundenportal: Wiki-Seite sichtbar, Default aus. */
+  portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -90,6 +92,8 @@ export const timeEntries = sqliteTable("time_entries", {
   rateSnapshot: real("rate_snapshot"),
   /** Nettobetrag Stunden × Satz bzw. Summe der Katalog-Positionen. */
   amountSnapshot: real("amount_snapshot"),
+  /** Optional aus einem Support-Ticket erzeugt. */
+  ticketId: text("ticket_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -196,6 +200,8 @@ export const assets = sqliteTable("assets", {
   responsiblePerson: text("responsible_person"),
   warrantyUntil: text("warranty_until"),
   notes: text("notes"),
+  /** Kundenportal: Inventar sichtbar, Default aus. */
+  portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -237,6 +243,8 @@ export const tasks = sqliteTable("tasks", {
   priority: integer("priority").notNull().default(4),
   sortOrder: integer("sort_order").notNull().default(0),
   done: integer("done", { mode: "boolean" }).notNull().default(false),
+  /** Optional aus einem Support-Ticket erzeugt. */
+  ticketId: text("ticket_id"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -460,6 +468,8 @@ export const attachments = sqliteTable("attachments", {
   documentId: text("document_id"),
   assetId: text("asset_id"),
   emailId: text("email_id"),
+  ticketId: text("ticket_id"),
+  ticketMessageId: text("ticket_message_id"),
   originalName: text("original_name").notNull(),
   storedName: text("stored_name").notNull(),
   mimeType: text("mime_type"),
@@ -490,6 +500,79 @@ export const customerEmails = sqliteTable("customer_emails", {
 export const emailDirections = ["inbound", "outbound", "internal"] as const;
 export type EmailDirection = (typeof emailDirections)[number];
 
+export const ticketStatuses = [
+  "open",
+  "in_progress",
+  "waiting_customer",
+  "resolved",
+  "closed",
+] as const;
+export type TicketStatus = (typeof ticketStatuses)[number];
+
+export const ticketPriorities = ["low", "normal", "high", "critical"] as const;
+export type TicketPriority = (typeof ticketPriorities)[number];
+
+export const ticketSources = ["portal", "staff"] as const;
+export type TicketSource = (typeof ticketSources)[number];
+
+export const ticketMessageVisibilities = ["public", "internal"] as const;
+export type TicketMessageVisibility = (typeof ticketMessageVisibilities)[number];
+
+export const authRoles = ["admin", "customer"] as const;
+export type AuthRole = (typeof authRoles)[number];
+
+/** Ein Portal-Login pro Kundenakte (V1). */
+export const customerUsers = sqliteTable("customer_users", {
+  id: text("id").primaryKey(),
+  customerId: text("customer_id")
+    .notNull()
+    .unique()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  username: text("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Support-Tickets (Portal + Staff). */
+export const tickets = sqliteTable("tickets", {
+  id: text("id").primaryKey(),
+  number: text("number").notNull().unique(),
+  customerId: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  status: text("status", { enum: ticketStatuses }).notNull().default("open"),
+  priority: text("priority", { enum: ticketPriorities }).notNull().default("normal"),
+  source: text("source", { enum: ticketSources }).notNull().default("portal"),
+  contractId: text("contract_id"),
+  createdByRole: text("created_by_role", { enum: authRoles }).notNull(),
+  createdByUserId: text("created_by_user_id").notNull(),
+  firstResponseAt: integer("first_response_at", { mode: "timestamp_ms" }),
+  resolvedAt: integer("resolved_at", { mode: "timestamp_ms" }),
+  closedAt: integer("closed_at", { mode: "timestamp_ms" }),
+  slaResponseDueAt: integer("sla_response_due_at", { mode: "timestamp_ms" }),
+  slaResolveDueAt: integer("sla_resolve_due_at", { mode: "timestamp_ms" }),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Nachrichten im Ticket-Thread (öffentlich oder intern). */
+export const ticketMessages = sqliteTable("ticket_messages", {
+  id: text("id").primaryKey(),
+  ticketId: text("ticket_id")
+    .notNull()
+    .references(() => tickets.id, { onDelete: "cascade" }),
+  visibility: text("visibility", { enum: ticketMessageVisibilities }).notNull().default("public"),
+  authorRole: text("author_role", { enum: authRoles }).notNull(),
+  authorUserId: text("author_user_id").notNull(),
+  body: text("body").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -512,3 +595,6 @@ export type VaultShareEvent = typeof vaultShareEvents.$inferSelect;
 export type FileFolder = typeof fileFolders.$inferSelect;
 export type Attachment = typeof attachments.$inferSelect;
 export type CustomerEmail = typeof customerEmails.$inferSelect;
+export type CustomerUser = typeof customerUsers.$inferSelect;
+export type Ticket = typeof tickets.$inferSelect;
+export type TicketMessage = typeof ticketMessages.$inferSelect;

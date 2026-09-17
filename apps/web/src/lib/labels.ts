@@ -7,6 +7,8 @@ import type {
   DocumentType,
   EmailDirection,
   ProjectStatus,
+  TicketPriority,
+  TicketStatus,
   VaultCategory,
 } from "../types";
 import { parseDateOnly } from "./dates";
@@ -113,6 +115,21 @@ export const assetStatusLabel: Record<AssetStatus, string> = {
   active: "Aktiv",
   spare: "Ersatz / Lager",
   retired: "Außer Betrieb",
+};
+
+export const ticketStatusLabel: Record<TicketStatus, string> = {
+  open: "Offen",
+  in_progress: "In Bearbeitung",
+  waiting_customer: "Wartet auf Kunde",
+  resolved: "Gelöst",
+  closed: "Geschlossen",
+};
+
+export const ticketPriorityLabel: Record<TicketPriority, string> = {
+  low: "Niedrig",
+  normal: "Normal",
+  high: "Hoch",
+  critical: "Kritisch",
 };
 
 export function formatDate(value: string | Date) {

@@ -27,6 +27,7 @@ const createBody = z.object({
   templateId: z.string().optional(),
   projectId: z.string().optional().nullable().or(z.literal("")),
   assetId: z.string().optional().nullable().or(z.literal("")),
+  portalVisible: z.boolean().optional(),
 });
 
 const updateBody = z.object({
@@ -36,6 +37,7 @@ const updateBody = z.object({
   customerId: z.string().optional().nullable().or(z.literal("")),
   projectId: z.string().optional().nullable().or(z.literal("")),
   assetId: z.string().optional().nullable().or(z.literal("")),
+  portalVisible: z.boolean().optional(),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -259,6 +261,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
       type,
       title,
       content,
+      portalVisible: parsed.data.portalVisible ?? false,
       createdAt: now,
       updatedAt: now,
     };
@@ -310,6 +313,7 @@ export async function documentRoutes(app: FastifyInstance, db: Db, uploadDir: st
           : existing.projectId,
       assetId:
         parsed.data.assetId !== undefined ? emptyToNull(parsed.data.assetId) : existing.assetId,
+      portalVisible: parsed.data.portalVisible ?? existing.portalVisible,
       updatedAt: new Date(),
     };
 

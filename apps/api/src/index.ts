@@ -17,6 +17,10 @@ import { networkRoutes } from "./routes/network.js";
 import { attachmentRoutes } from "./routes/attachments.js";
 import { folderRoutes } from "./routes/folders.js";
 import { authRoutes } from "./routes/auth.js";
+import { portalAuthRoutes } from "./routes/portalAuth.js";
+import { portalUserRoutes } from "./routes/portalUsers.js";
+import { portalRoutes } from "./routes/portal.js";
+import { ticketRoutes } from "./routes/tickets.js";
 import { contractRoutes } from "./routes/contracts.js";
 import { customerRoutes } from "./routes/customers.js";
 import { documentRoutes } from "./routes/documents.js";
@@ -74,6 +78,7 @@ async function main() {
   });
 
   await authRoutes(app, db);
+  await portalAuthRoutes(app, db);
   /** Öffentliche Einweg-Shares ohne Auth (PIN schützt den Inhalt). */
   await vaultSharesPublicRoutes(app, db);
   await app.register(async (scoped) => customerRoutes(scoped, db));
@@ -96,6 +101,9 @@ async function main() {
   await app.register(async (scoped) => exportRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => backupRoutes(scoped, config.databasePath, config.uploadDir));
   await app.register(async (scoped) => emailRoutes(scoped, db, config.uploadDir));
+  await app.register(async (scoped) => portalUserRoutes(scoped, db));
+  await app.register(async (scoped) => ticketRoutes(scoped, db, config.uploadDir));
+  await app.register(async (scoped) => portalRoutes(scoped, db, config.uploadDir));
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 

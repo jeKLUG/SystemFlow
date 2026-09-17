@@ -73,7 +73,7 @@ export function CustomerWikiPage() {
     setDocs(d);
     setProjects(p);
     setTemplates(t);
-    setFiles(attachments.filter((f) => !f.documentId && !f.assetId && !f.emailId));
+    setFiles(attachments.filter((f) => !f.documentId && !f.assetId && !f.emailId && !f.ticketId));
     setFolderCount(folders.length);
     setEmailCount(mails.length);
     setContracts(contractRows);
@@ -293,6 +293,7 @@ export function CustomerWikiPage() {
                               {doc.projectId
                                 ? projects.find((p) => p.id === doc.projectId)?.name ?? "Projekt"
                                 : "Kein Projekt"}
+                              {doc.portalVisible ? " · Portal" : ""}
                             </span>
                           </span>
                           <time className="muted">{formatDate(doc.updatedAt)}</time>

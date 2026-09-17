@@ -153,6 +153,9 @@ export interface VaultShareOpened {
 export interface User {
   id: string;
   username: string;
+  role: "admin" | "customer";
+  customerId?: string | null;
+  customerName?: string | null;
 }
 
 export interface CustomerListResponse {
@@ -191,6 +194,7 @@ export interface DocumentItem {
   type: DocumentType;
   title: string;
   content: string;
+  portalVisible?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -249,6 +253,7 @@ export interface TimeEntryItem {
   billed: boolean;
   rateSnapshot?: number | null;
   amountSnapshot?: number | null;
+  ticketId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -330,6 +335,7 @@ export interface Asset {
   responsiblePerson: string | null;
   warrantyUntil: string | null;
   notes: string | null;
+  portalVisible?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -480,6 +486,7 @@ export interface TaskItem {
   priority: TaskPriority | number;
   sortOrder: number;
   done: boolean;
+  ticketId?: string | null;
   createdAt: string;
   updatedAt: string;
   customerName?: string | null;
@@ -548,6 +555,8 @@ export interface AttachmentItem {
   documentId: string | null;
   assetId: string | null;
   emailId?: string | null;
+  ticketId?: string | null;
+  ticketMessageId?: string | null;
   originalName: string;
   storedName: string;
   mimeType: string | null;
@@ -653,3 +662,77 @@ export const emptyCustomerForm: {
   kind: "contact",
   status: "active",
 };
+
+export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
+export type TicketPriority = "low" | "normal" | "high" | "critical";
+export type TicketSource = "portal" | "staff";
+export type TicketMessageVisibility = "public" | "internal";
+
+export interface TicketMessageItem {
+  id: string;
+  ticketId: string;
+  visibility: TicketMessageVisibility;
+  authorRole: "admin" | "customer";
+  authorUserId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface TicketItem {
+  id: string;
+  number: string;
+  customerId: string;
+  customerName?: string | null;
+  customerCompany?: string | null;
+  title: string;
+  description: string | null;
+  status: TicketStatus;
+  priority: TicketPriority;
+  source: TicketSource;
+  contractId: string | null;
+  createdByRole: "admin" | "customer";
+  createdByUserId: string;
+  firstResponseAt: string | null;
+  resolvedAt: string | null;
+  closedAt: string | null;
+  slaResponseDueAt: string | null;
+  slaResolveDueAt: string | null;
+  responseBreached?: boolean;
+  resolveBreached?: boolean;
+  slaBreached?: boolean;
+  messages?: TicketMessageItem[];
+  attachments?: AttachmentItem[];
+  linkedTaskCount?: number;
+  linkedTimeCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TicketStats {
+  openCount: number;
+  waitingCount: number;
+  slaBreachedCount: number;
+}
+
+export interface PortalUser {
+  id: string;
+  customerId: string;
+  username: string;
+  enabled: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PortalOverview {
+  customerName: string;
+  contactPerson: string | null;
+  email: string | null;
+  phone: string | null;
+  openTicketCount: number;
+  waitingOnCustomer: number;
+  slaBreachedCount: number;
+  documentCount: number;
+  assetCount: number;
+  contractCount: number;
+}

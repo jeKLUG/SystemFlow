@@ -31,16 +31,140 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const api = {
   login: (username: string, password: string, rememberMe = true) =>
-    request<{ user: { id: string; username: string } }>("/api/auth/login", {
+    request<{ user: import("./types").User }>("/api/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password, rememberMe }),
     }),
   logout: () => request<{ ok: boolean }>("/api/auth/logout", { method: "POST" }),
-  me: () => request<{ user: { id: string; username: string } }>("/api/auth/me"),
+  me: () => request<{ user: import("./types").User }>("/api/auth/me"),
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ ok: boolean }>("/api/auth/change-password", {
       method: "POST",
       body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  portalLogin: (username: string, password: string, rememberMe = true) =>
+    request<{ user: import("./types").User }>("/api/portal/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password, rememberMe }),
+    }),
+  portalLogout: () => request<{ ok: boolean }>("/api/portal/auth/logout", { method: "POST" }),
+  portalMe: () => request<{ user: import("./types").User }>("/api/portal/auth/me"),
+  portalChangePassword: (currentPassword: string, newPassword: string) =>
+    request<{ ok: boolean }>("/api/portal/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
+  portalOverview: () => request<import("./types").PortalOverview>("/api/portal/overview"),
+  portalTickets: () => request<import("./types").TicketItem[]>("/api/portal/tickets"),
+  portalTicket: (id: string) => request<import("./types").TicketItem>(`/api/portal/tickets/${id}`),
+  createPortalTicket: (body: Record<string, unknown>) =>
+    request<import("./types").TicketItem>("/api/portal/tickets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  addPortalTicketMessage: (id: string, body: string) =>
+    request<import("./types").TicketMessageItem>(`/api/portal/tickets/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body }),
+    }),
+  uploadPortalTicketAttachment: async (id: string, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch(`/api/portal/tickets/${id}/attachments`, {
+      method: "POST",
+      credentials: "include",
+      body,
+    });
+    if (!res.ok) {
+      let message = "Upload fehlgeschlagen";
+      try {
+        const data = (await res.json()) as { error?: string };
+        if (data.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return (await res.json()) as import("./types").AttachmentItem;
+  },
+  portalContracts: () => request<import("./types").ContractItem[]>("/api/portal/contracts"),
+  portalDocuments: () => request<import("./types").DocumentItem[]>("/api/portal/documents"),
+  portalDocument: (id: string) =>
+    request<import("./types").DocumentItem>(`/api/portal/documents/${id}`),
+  portalAssets: () => request<import("./types").Asset[]>("/api/portal/assets"),
+  portalUser: (customerId: string) =>
+    request<{ portalUser: import("./types").PortalUser | null; kind: string }>(
+      `/api/customers/${customerId}/portal-user`,
+    ),
+  upsertPortalUser: (customerId: string, body: Record<string, unknown>) =>
+    request<{ portalUser: import("./types").PortalUser }>(
+      `/api/customers/${customerId}/portal-user`,
+      { method: "PUT", body: JSON.stringify(body) },
+    ),
+  deletePortalUser: (customerId: string) =>
+    request<{ ok: boolean }>(`/api/customers/${customerId}/portal-user`, { method: "DELETE" }),
+  ticketStats: () => request<import("./types").TicketStats>("/api/tickets/stats"),
+  tickets: (opts?: {
+    customerId?: string;
+    status?: string;
+    priority?: string;
+    slaBreached?: boolean;
+    limit?: number;
+  }) => {
+    const params = new URLSearchParams();
+    if (opts?.customerId) params.set("customerId", opts.customerId);
+    if (opts?.status) params.set("status", opts.status);
+    if (opts?.priority) params.set("priority", opts.priority);
+    if (opts?.slaBreached) params.set("slaBreached", "1");
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<import("./types").TicketItem[]>(`/api/tickets${qs ? `?${qs}` : ""}`);
+  },
+  ticket: (id: string) => request<import("./types").TicketItem>(`/api/tickets/${id}`),
+  createTicket: (body: Record<string, unknown>) =>
+    request<import("./types").TicketItem>("/api/tickets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateTicket: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").TicketItem>(`/api/tickets/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  addTicketMessage: (id: string, body: string, visibility?: "public" | "internal") =>
+    request<import("./types").TicketMessageItem>(`/api/tickets/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ body, visibility }),
+    }),
+  uploadTicketAttachment: async (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`/api/tickets/${id}/attachments`, {
+      method: "POST",
+      credentials: "include",
+      body: form,
+    });
+    if (!res.ok) {
+      let message = "Upload fehlgeschlagen";
+      try {
+        const data = (await res.json()) as { error?: string };
+        if (data.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return (await res.json()) as import("./types").AttachmentItem;
+  },
+  createTaskFromTicket: (id: string, body?: Record<string, unknown>) =>
+    request<import("./types").TaskItem>(`/api/tickets/${id}/task`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+  createTimeFromTicket: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").TimeEntryItem>(`/api/tickets/${id}/time-entry`, {
+      method: "POST",
+      body: JSON.stringify(body),
     }),
   stats: () => request<import("./types").Stats>("/api/stats"),
   customers: (opts?: {

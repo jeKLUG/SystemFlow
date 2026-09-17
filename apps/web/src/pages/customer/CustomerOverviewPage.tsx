@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { Checkbox } from "../../components/Checkbox";
 import { CustomerFields } from "../../components/CustomerFields";
 import { customerAddressLine } from "../../lib/customer";
 import { emptyCustomerForm, type Customer } from "../../types";
@@ -26,6 +27,7 @@ export function CustomerOverviewPage() {
     projects: 0,
     hours: 0,
     openTasks: 0,
+    openTickets: 0,
   });
 
   useEffect(() => {
@@ -54,12 +56,14 @@ export function CustomerOverviewPage() {
       api.projects(id),
       api.timeEntries(id),
       api.tasks(id),
-    ]).then(([docs, projects, time, tasks]) => {
+      api.tickets({ customerId: id, status: "open_any" }),
+    ]).then(([docs, projects, time, tasks, ticketRows]) => {
       setStats({
         wiki: docs.length,
         projects: projects.length,
         hours: time.summary.totalHours,
         openTasks: tasks.filter((t) => !t.done).length,
+        openTickets: ticketRows.length,
       });
     });
   }, [id]);
@@ -116,6 +120,10 @@ export function CustomerOverviewPage() {
         <Link className="stat-chip" to="time">
           <strong>{stats.hours}</strong>
           <span>Stunden gesamt</span>
+        </Link>
+        <Link className="stat-chip" to="tickets">
+          <strong>{stats.openTickets}</strong>
+          <span>Offene Tickets</span>
         </Link>
         <Link className="stat-chip" to="tasks">
           <strong>{stats.openTasks}</strong>
@@ -243,7 +251,87 @@ export function CustomerOverviewPage() {
           )}
         </div>
       </section>
+
+      {isCustomer ? <PortalAccessPanel customerId={id} email={customer.email} /> : null}
     </>
+  );
+}
+
+function PortalAccessPanel({ customerId, email }: { customerId: string; email: string | null }) {
+  const [username, setUsername] = useState(email?.split("@")[0] ?? "");
+  const [password, setPassword] = useState("");
+  const [enabled, setEnabled] = useState(true);
+  const [exists, setExists] = useState(false);
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    void api.portalUser(customerId).then((res) => {
+      if (res.portalUser) {
+        setExists(true);
+        setUsername(res.portalUser.username);
+        setEnabled(res.portalUser.enabled);
+      } else {
+        setExists(false);
+        setUsername(email?.split("@")[0] ?? "");
+        setEnabled(true);
+      }
+    });
+  }, [customerId, email]);
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    setOk("");
+    try {
+      const body: Record<string, unknown> = { username, enabled };
+      if (password) body.password = password;
+      await api.upsertPortalUser(customerId, body);
+      setExists(true);
+      setPassword("");
+      setOk(password ? "Zugang gespeichert. Passwort dem Kunden mitteilen." : "Zugang gespeichert.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="section">
+      <div className="panel">
+        <h2>Portal-Zugang</h2>
+        <p className="muted">
+          Login unter <code>/portal/login</code>. Ein Benutzer pro Kunde. Passwort nur hier setzen, nicht per
+          E-Mail.
+        </p>
+        <form className="stack-form" onSubmit={(e) => void save(e)}>
+          <label className="field">
+            <span>Benutzername</span>
+            <input required value={username} onChange={(e) => setUsername(e.target.value)} />
+          </label>
+          <label className="field">
+            <span>{exists ? "Neues Passwort (leer = unverändert)" : "Passwort (mind. 8 Zeichen)"}</span>
+            <input
+              type="password"
+              minLength={exists ? undefined : 8}
+              required={!exists}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <Checkbox label="Zugang aktiv" checked={enabled} onChange={setEnabled} />
+          {error ? <p className="form-error">{error}</p> : null}
+          {ok ? <p className="muted">{ok}</p> : null}
+          <button className="btn btn-primary" type="submit" disabled={busy}>
+            {busy ? "Speichern…" : exists ? "Zugang aktualisieren" : "Zugang anlegen"}
+          </button>
+        </form>
+      </div>
+    </section>
   );
 }
 

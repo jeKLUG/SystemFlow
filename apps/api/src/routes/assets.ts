@@ -60,6 +60,7 @@ const assetBody = z.object({
   responsiblePerson: z.string().max(200).optional().or(z.literal("")),
   warrantyUntil: z.string().max(40).optional().or(z.literal("")),
   notes: z.string().max(10000).optional().or(z.literal("")),
+  portalVisible: z.boolean().optional(),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -75,7 +76,13 @@ function toNumberOrNull(value: number | string | null | undefined) {
 
 function mapAssetFields(
   data: z.infer<typeof assetBody>,
-  existing?: { kind: string; status: string; ownership: string; segmentId: string | null },
+  existing?: {
+    kind: string;
+    status: string;
+    ownership: string;
+    segmentId: string | null;
+    portalVisible?: boolean;
+  },
 ) {
   return {
     name: data.name.trim(),
@@ -113,6 +120,7 @@ function mapAssetFields(
     responsiblePerson: emptyToNull(data.responsiblePerson),
     warrantyUntil: emptyToNull(data.warrantyUntil),
     notes: emptyToNull(data.notes),
+    portalVisible: data.portalVisible ?? existing?.portalVisible ?? false,
   };
 }
 
@@ -198,6 +206,7 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
       status: existing.status,
       ownership: existing.ownership ?? "customer",
       segmentId: existing.segmentId,
+      portalVisible: existing.portalVisible,
     });
     if (fields.segmentId) {
       const seg = await db

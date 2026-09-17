@@ -1,14 +1,14 @@
 # API
 
-Alle geschützten Routen erfordern eine gültige Session (Cookie). Basis: `/api`.
+Alle **Staff**-Routen erfordern eine Admin-Session. Portal-Routen liegen unter `/api/portal/*`. Basis: `/api`.
 
 ## Auth
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| POST | `/api/auth/login` | `{ username, password, rememberMe? }` – Session 30 Tage (oder 12 h ohne „Angemeldet bleiben“) |
+| POST | `/api/auth/login` | Staff `{ username, password, rememberMe? }` – Session 30 Tage (oder 12 h ohne „Angemeldet bleiben“) |
 | POST | `/api/auth/logout` | Session beenden |
-| GET | `/api/auth/me` | Aktueller Benutzer |
+| GET | `/api/auth/me` | Aktueller Staff-Benutzer (`role: admin`) |
 | POST | `/api/auth/change-password` | `{ currentPassword, newPassword }` |
 
 ## Preise (Rechnungsvorbereitung)
@@ -40,6 +40,44 @@ Feld `kind`: `contact` (einfacher Kontakt) oder `customer` (Kunde). Bestehende D
 
 Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `website`, `notes`, `status` (`active`\|`inactive`).
 
+## Tickets (Staff)
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/tickets/stats` | `{ openCount, waitingCount, slaBreachedCount }` |
+| GET | `/api/tickets?customerId=&status=&priority=&slaBreached=` | Queue; `status=open_any` = offen/in Bearbeitung/wartet |
+| POST | `/api/tickets` | Anlegen (`customerId`, `title`, `description?`, `priority?`, `contractId?`) |
+| GET/PUT | `/api/tickets/:id` | Detail inkl. Thread/Anhängen; Status/Priorität |
+| POST | `/api/tickets/:id/messages` | `{ body, visibility: public\|internal }` |
+| POST | `/api/tickets/:id/attachments` | Multipart-Upload |
+| GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
+| POST | `/api/tickets/:id/task` | Aufgabe aus Ticket |
+| POST | `/api/tickets/:id/time-entry` | `{ hours, workDate? }` Zeitbuchung |
+| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`) |
+
+Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
+
+## Kundenportal
+
+Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| POST | `/api/portal/auth/login` | `{ username, password, rememberMe? }` |
+| POST | `/api/portal/auth/logout` | Session beenden |
+| GET | `/api/portal/auth/me` | Portal-Benutzer |
+| POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
+| GET | `/api/portal/overview` | Kennzahlen |
+| GET/POST | `/api/portal/tickets` | Eigene Tickets |
+| GET | `/api/portal/tickets/:id` | Nur öffentliche Nachrichten |
+| POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort |
+| POST | `/api/portal/tickets/:id/attachments` | Anhang |
+| GET | `/api/portal/attachments/:id/download` | Ticket- oder freigegebene Wiki-/Inventar-Datei |
+| GET | `/api/portal/contracts` | Aktive/pausierte Verträge ohne `notes` |
+| GET | `/api/portal/documents` | Nur `portalVisible` |
+| GET | `/api/portal/documents/:id` | Read-only |
+| GET | `/api/portal/assets` | Nur `portalVisible`, ohne `notes` |
+
 ## Wiki / Dokumente
 
 Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optional `projectId`.  
@@ -51,7 +89,7 @@ Typen: `article` \| `documentation` \| `note` \| `workflow` \| `protocol`. Optio
 | GET | `/api/documents/recent` | Zuletzt bearbeitet (inkl. ohne Kunde) |
 | GET | `/api/documents/:id` | Detail inkl. TipTap-JSON |
 | POST | `/api/documents` | Anlegen (`templateId` optional; `customerId` optional) |
-| PUT | `/api/documents/:id` | Titel/Typ/Inhalt/Projekt/`customerId` |
+| PUT | `/api/documents/:id` | Titel/Typ/Inhalt/Projekt/`customerId`/`portalVisible` |
 | DELETE | `/api/documents/:id` | Löschen |
 
 ## Projekte
@@ -100,7 +138,7 @@ Typen (`kind`): `pc` · `laptop` · `tablet` · `server` · `firewall` · `switc
 
 Zuordnung (`ownership`): `customer` · `loaned` · `held` (Standard: `customer`).
 
-Status: `active` · `spare` · `retired`.
+Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus) für das Kundenportal.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|

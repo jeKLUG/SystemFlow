@@ -17,6 +17,7 @@ const taskBody = z.object({
   priority: z.number().int().min(1).max(4).optional(),
   sortOrder: z.number().int().optional(),
   done: z.boolean().optional(),
+  ticketId: z.string().optional().nullable().or(z.literal("")),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -38,6 +39,7 @@ function selectTaskFields() {
     priority: tasks.priority,
     sortOrder: tasks.sortOrder,
     done: tasks.done,
+    ticketId: tasks.ticketId,
     createdAt: tasks.createdAt,
     updatedAt: tasks.updatedAt,
   };
@@ -177,6 +179,7 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       priority: parsed.data.priority ?? 4,
       sortOrder: parsed.data.sortOrder ?? 0,
       done: parsed.data.done ?? false,
+      ticketId: emptyToNull(parsed.data.ticketId),
       createdAt: now,
       updatedAt: now,
     };
@@ -273,6 +276,7 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       priority: parsed.data.priority ?? 4,
       sortOrder: parsed.data.sortOrder ?? 0,
       done: parsed.data.done ?? false,
+      ticketId: emptyToNull(parsed.data.ticketId),
       createdAt: now,
       updatedAt: now,
     };
@@ -339,6 +343,8 @@ export async function taskRoutes(app: FastifyInstance, db: Db) {
       priority: parsed.data.priority ?? existing.priority,
       sortOrder: parsed.data.sortOrder ?? existing.sortOrder,
       done: parsed.data.done ?? existing.done,
+      ticketId:
+        parsed.data.ticketId !== undefined ? emptyToNull(parsed.data.ticketId) : existing.ticketId,
       updatedAt: new Date(),
     };
     await db.update(tasks).set(updated).where(eq(tasks.id, id));

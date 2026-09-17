@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
+import { Checkbox } from "../../components/Checkbox";
 import { Modal } from "../../components/Modal";
 import {
   assetKindLabel,
@@ -28,6 +29,7 @@ type AssetForm = {
   managementUrl: string;
   warrantyUntil: string;
   notes: string;
+  portalVisible: boolean;
 };
 
 const emptyAsset: AssetForm = {
@@ -47,6 +49,7 @@ const emptyAsset: AssetForm = {
   managementUrl: "",
   warrantyUntil: "",
   notes: "",
+  portalVisible: false,
 };
 
 function assetToForm(asset: Asset): AssetForm {
@@ -67,6 +70,7 @@ function assetToForm(asset: Asset): AssetForm {
     managementUrl: asset.managementUrl ?? "",
     warrantyUntil: asset.warrantyUntil ?? "",
     notes: asset.notes ?? "",
+    portalVisible: Boolean(asset.portalVisible),
   };
 }
 
@@ -694,6 +698,13 @@ export function CustomerAssetsPage() {
                   placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
                 />
               </label>
+              <div className="asset-form-span-2">
+                <Checkbox
+                  label="Im Kundenportal zeigen"
+                  checked={assetForm.portalVisible}
+                  onChange={(checked) => setAssetForm({ ...assetForm, portalVisible: checked })}
+                />
+              </div>
             </div>
           </section>
 

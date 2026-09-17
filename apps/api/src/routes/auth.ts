@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { users } from "../db/schema.js";
 import { clearVaultDek } from "../lib/vaultSession.js";
-import { requireAuth } from "../plugins/auth.js";
+import { applySessionTtl, requireAdmin } from "../plugins/auth.js";
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -19,11 +19,8 @@ const passwordSchema = z.object({
   newPassword: z.string().min(8).max(200),
 });
 
-const SESSION_LONG_SEC = 60 * 60 * 24 * 30;
-const SESSION_SHORT_SEC = 60 * 60 * 12;
-
 /**
- * Registriert Auth-Routen (Login, Logout, Session, Passwort ändern).
+ * Registriert Staff-Auth-Routen (Login, Logout, Session, Passwort ändern).
  */
 export async function authRoutes(app: FastifyInstance, db: Db) {
   app.post("/api/auth/login", async (request, reply) => {
@@ -46,37 +43,35 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
     request.session.set("userId", user.id);
     request.session.set("username", user.username);
     request.session.set("rememberMe", rememberMe ? "1" : "0");
-    request.session.options({
-      maxAge: rememberMe ? SESSION_LONG_SEC : SESSION_SHORT_SEC,
-    });
+    request.session.set("role", "admin");
+    request.session.set("customerId", "");
+    applySessionTtl(request, rememberMe);
 
-    return { user: { id: user.id, username: user.username } };
+    return { user: { id: user.id, username: user.username, role: "admin" as const } };
   });
 
   app.post("/api/auth/logout", async (request) => {
     const userId = request.session.get("userId");
-    if (userId) clearVaultDek(userId);
+    if (userId && request.session.get("role") !== "customer") clearVaultDek(userId);
     request.session.delete();
     return { ok: true };
   });
 
-  app.get("/api/auth/me", { preHandler: requireAuth }, async (request) => {
-    // Cookie-Ablauf bei Nutzung verlängern (Sliding)
+  app.get("/api/auth/me", { preHandler: requireAdmin }, async (request) => {
     const remember = request.session.get("rememberMe") !== "0";
-    request.session.options({
-      maxAge: remember ? SESSION_LONG_SEC : SESSION_SHORT_SEC,
-    });
+    applySessionTtl(request, remember);
     request.session.touch();
 
     return {
       user: {
         id: request.session.get("userId"),
         username: request.session.get("username"),
+        role: "admin" as const,
       },
     };
   });
 
-  app.post("/api/auth/change-password", { preHandler: requireAuth }, async (request, reply) => {
+  app.post("/api/auth/change-password", { preHandler: requireAdmin }, async (request, reply) => {
     const parsed = passwordSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({
@@ -99,7 +94,6 @@ export async function authRoutes(app: FastifyInstance, db: Db) {
     const passwordHash = await bcrypt.hash(parsed.data.newPassword, 12);
     await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
 
-    // Session behalten – eingeloggt bleiben
     return { ok: true };
   });
 }

@@ -368,6 +368,48 @@ export async function createDb(databasePath: string) {
       updated_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS customer_users (
+      id TEXT PRIMARY KEY,
+      customer_id TEXT NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+      username TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      last_login_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS tickets (
+      id TEXT PRIMARY KEY,
+      number TEXT NOT NULL UNIQUE,
+      customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'open',
+      priority TEXT NOT NULL DEFAULT 'normal',
+      source TEXT NOT NULL DEFAULT 'portal',
+      contract_id TEXT,
+      created_by_role TEXT NOT NULL,
+      created_by_user_id TEXT NOT NULL,
+      first_response_at INTEGER,
+      resolved_at INTEGER,
+      closed_at INTEGER,
+      sla_response_due_at INTEGER,
+      sla_resolve_due_at INTEGER,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS ticket_messages (
+      id TEXT PRIMARY KEY,
+      ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+      visibility TEXT NOT NULL DEFAULT 'public',
+      author_role TEXT NOT NULL,
+      author_user_id TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
     CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
     CREATE INDEX IF NOT EXISTS idx_appointments_start ON appointments(start_date);
     CREATE INDEX IF NOT EXISTS idx_appointments_customer ON appointments(customer_id);
@@ -390,6 +432,10 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_time_entries_customer ON time_entries(customer_id);
     CREATE INDEX IF NOT EXISTS idx_time_entries_work_date ON time_entries(work_date);
     CREATE INDEX IF NOT EXISTS idx_time_entry_lines_entry ON time_entry_lines(time_entry_id);
+    CREATE INDEX IF NOT EXISTS idx_customer_users_username ON customer_users(username);
+    CREATE INDEX IF NOT EXISTS idx_tickets_customer ON tickets(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
+    CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder
@@ -443,6 +489,12 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "attachments", "folder_id", "TEXT");
   await ensureColumn(client, "attachments", "description", "TEXT");
   await ensureColumn(client, "attachments", "email_id", "TEXT");
+  await ensureColumn(client, "attachments", "ticket_id", "TEXT");
+  await ensureColumn(client, "attachments", "ticket_message_id", "TEXT");
+  await ensureColumn(client, "documents", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "assets", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "tasks", "ticket_id", "TEXT");
+  await ensureColumn(client, "time_entries", "ticket_id", "TEXT");
   await ensureColumn(client, "contracts", "contract_number", "TEXT");
   await ensureColumn(client, "contracts", "status", "TEXT NOT NULL DEFAULT 'active'");
   await ensureColumn(client, "contracts", "description", "TEXT");
@@ -485,6 +537,15 @@ export async function createDb(databasePath: string) {
   );
   await client.execute(
     `CREATE INDEX IF NOT EXISTS idx_customer_emails_customer ON customer_emails(customer_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_attachments_ticket ON attachments(ticket_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_tasks_ticket ON tasks(ticket_id)`,
+  );
+  await client.execute(
+    `CREATE INDEX IF NOT EXISTS idx_time_entries_ticket ON time_entries(ticket_id)`,
   );
 
   await migrateTasksCustomerOptional(client);
