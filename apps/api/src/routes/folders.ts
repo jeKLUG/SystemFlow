@@ -11,6 +11,12 @@ const folderBody = z.object({
   parentId: z.string().optional().nullable().or(z.literal("")),
 });
 
+const folderPatch = z.object({
+  name: z.string().min(1).max(120).optional(),
+  parentId: z.string().optional().nullable().or(z.literal("")),
+  portalVisible: z.boolean().optional(),
+});
+
 function emptyToNull(value: string | null | undefined) {
   if (!value || !value.trim()) return null;
   return value.trim();
@@ -59,6 +65,7 @@ export async function folderRoutes(app: FastifyInstance, db: Db) {
       customerId,
       parentId,
       name: parsed.data.name.trim(),
+      portalVisible: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -71,7 +78,7 @@ export async function folderRoutes(app: FastifyInstance, db: Db) {
     const existing = await db.select().from(fileFolders).where(eq(fileFolders.id, id)).get();
     if (!existing) return reply.code(404).send({ error: "Ordner nicht gefunden" });
 
-    const parsed = folderBody.partial().safeParse(request.body);
+    const parsed = folderPatch.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
@@ -93,6 +100,7 @@ export async function folderRoutes(app: FastifyInstance, db: Db) {
     const updated = {
       name: parsed.data.name?.trim() ?? existing.name,
       parentId,
+      portalVisible: parsed.data.portalVisible ?? existing.portalVisible,
       updatedAt: new Date(),
     };
     await db.update(fileFolders).set(updated).where(eq(fileFolders.id, id));

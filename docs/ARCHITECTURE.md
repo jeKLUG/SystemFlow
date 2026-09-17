@@ -38,10 +38,10 @@ Browser (React SPA)
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen; optional Preis monatlich/jährlich in EUR; Leistungsumfang als TipTap-JSON)
-- **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id` / `ticket_id`; `portal_visible` gibt Ablage-Dateien im Kundenportal frei
+- **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id` / `ticket_id`; `portal_visible` gibt einzelne Ablage-Dateien im Kundenportal frei
 - **documents** / **assets** – optional `portal_visible` (Default aus): Freigabe für das Kundenportal
 - **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`
-- **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage
+- **file_folders** – Ordnerhierarchie der Kunden-Dokumentenablage; `portal_visible` gibt den Ordner inkl. Unterordner und Dateien im Kundenportal frei
 - **vault_meta** / **vault_entries** / **vault_shares** / **vault_share_events** – Passworttresor (AES-256-GCM; Einweg-Shares mit PIN + Abruf-Protokoll; siehe [SECURITY-VAULT.md](SECURITY-VAULT.md))
 - **appointments** – Termine (Kunde / intern / persönlich)
 - **Vorlagen** – fest im Code (`apps/api/src/lib/templates.ts`)

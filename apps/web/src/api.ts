@@ -92,6 +92,8 @@ export const api = {
   portalDocument: (id: string) =>
     request<import("./types").DocumentItem>(`/api/portal/documents/${id}`),
   portalFiles: () => request<import("./types").AttachmentItem[]>("/api/portal/files"),
+  /** Freigegebene Ablage-Ordner inklusive Unterordner. */
+  portalFolders: () => request<import("./types").FileFolderItem[]>("/api/portal/folders"),
   portalAssets: () => request<import("./types").Asset[]>("/api/portal/assets"),
   portalUser: (customerId: string) =>
     request<{ portalUser: import("./types").PortalUser | null; kind: string }>(
@@ -530,7 +532,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  updateFolder: (id: string, body: { name?: string; parentId?: string | null }) =>
+  updateFolder: (id: string, body: { name?: string; parentId?: string | null; portalVisible?: boolean }) =>
     request<import("./types").FileFolderItem>(`/api/folders/${id}`, {
       method: "PUT",
       body: JSON.stringify(body),

@@ -72,11 +72,12 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |
 | POST | `/api/portal/tickets/:id/attachments` | Anhang (multipart `file`); Portal-UI hängt Dateien direkt nach dem Anlegen an |
-| GET | `/api/portal/attachments/:id/download` | Ticket-, Wiki-/Inventar- oder explizit freigegebene Datei (`portalVisible`) |
+| GET | `/api/portal/attachments/:id/download` | Ticket-, Wiki-/Inventar-Datei, explizit `portalVisible` oder Datei in einem freigegebenen Ordner |
 | GET | `/api/portal/contracts` | Aktive/pausierte Verträge ohne `notes` |
 | GET | `/api/portal/documents` | Nur `portalVisible` Wiki-Seiten |
 | GET | `/api/portal/documents/:id` | Read-only |
-| GET | `/api/portal/files` | Freigegebene Dateien (ohne `storedName`) |
+| GET | `/api/portal/files` | Freigegebene Dateien (einzeln oder über Ordner; ohne `storedName`, mit `folderId`) |
+| GET | `/api/portal/folders` | Freigegebene Ordner inkl. Unterordner |
 | GET | `/api/portal/assets` | Nur `portalVisible`, ohne `notes` |
 
 ## Wiki / Dokumente
@@ -222,12 +223,12 @@ Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim An
 
 ## Anhänge / Dokumentenablage
 
-Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-/E-Mail-Anhänge bleiben ohne Ordner und erscheinen nicht in der Datei-Ablage.
+Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; Wiki-/Anlagen-/E-Mail-Anhänge bleiben ohne Ordner und erscheinen nicht in der Datei-Ablage. `portalVisible` an einem Ordner gibt ihn samt Inhalt und Unterordnern im Kundenportal frei (ohne das Flag auf Kinder zu kopieren).
 
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/folders` |
-| PUT/DELETE | `/api/folders/:id` |
+| PUT | `/api/folders/:id` (Name, Elternordner, `portalVisible`) |
 | GET/POST | `/api/customers/:id/attachments` (`folderId=root`, optional `documentId` / `assetId` / `emailId`; ohne `emailId` werden E-Mail-Anhänge ausgeblendet) |
 | PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner, `portalVisible`) |
 | GET | `/api/attachments/:id/download?inline=1` |

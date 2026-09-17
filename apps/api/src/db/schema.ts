@@ -454,6 +454,8 @@ export const fileFolders = sqliteTable("file_folders", {
     .references(() => customers.id, { onDelete: "cascade" }),
   parentId: text("parent_id"),
   name: text("name").notNull(),
+  /** Kundenportal: Ordner samt Inhalt/Unterordner, Default aus. */
+  portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });

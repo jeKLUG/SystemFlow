@@ -10,12 +10,14 @@ import {
   contracts,
   customers,
   documents,
+  fileFolders,
   ticketMessages,
   tickets,
   ticketPriorities,
   type TicketStatus,
 } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { isVaultFile, publicFolder, sharedFolderIds } from "../lib/portalVault.js";
 import {
   findActiveContract,
   nextTicketNumber,
@@ -56,6 +58,7 @@ function publicFile(row: typeof attachments.$inferSelect) {
   return {
     id: row.id,
     customerId: row.customerId,
+    folderId: row.folderId,
     originalName: row.originalName,
     mimeType: row.mimeType,
     size: row.size,
@@ -105,19 +108,17 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
         .all()
     ).length;
 
-    const fileCount = (
+    const vaultFolders = await db.select().from(fileFolders).where(eq(fileFolders.customerId, customerId)).all();
+    const sharedFolders = sharedFolderIds(vaultFolders);
+    const vaultFiles = (
       await db
         .select()
         .from(attachments)
-        .where(
-          and(
-            eq(attachments.customerId, customerId),
-            eq(attachments.portalVisible, true),
-            isNull(attachments.emailId),
-            isNull(attachments.ticketId),
-          ),
-        )
+        .where(and(eq(attachments.customerId, customerId), isNull(attachments.emailId), isNull(attachments.ticketId)))
         .all()
+    ).filter(isVaultFile);
+    const fileCount = vaultFiles.filter(
+      (f) => f.portalVisible || (f.folderId ? sharedFolders.has(f.folderId) : false),
     ).length;
 
     return {
@@ -314,6 +315,9 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     } else if (!allowed && row.assetId) {
       const asset = await db.select().from(assets).where(eq(assets.id, row.assetId)).get();
       allowed = Boolean(asset && asset.customerId === customerId && asset.portalVisible);
+    } else if (!allowed && row.folderId && isVaultFile(row)) {
+      const folders = await db.select().from(fileFolders).where(eq(fileFolders.customerId, customerId)).all();
+      allowed = sharedFolderIds(folders).has(row.folderId);
     }
     if (!allowed) return reply.code(404).send({ error: "Anhang nicht gefunden" });
 
@@ -363,20 +367,29 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
 
   app.get("/api/portal/files", async (request) => {
     const { customerId } = request.portal!;
+    const folders = await db.select().from(fileFolders).where(eq(fileFolders.customerId, customerId)).all();
+    const shared = sharedFolderIds(folders);
     const rows = await db
       .select()
       .from(attachments)
-      .where(
-        and(
-          eq(attachments.customerId, customerId),
-          eq(attachments.portalVisible, true),
-          isNull(attachments.emailId),
-          isNull(attachments.ticketId),
-        ),
-      )
+      .where(and(eq(attachments.customerId, customerId), isNull(attachments.emailId), isNull(attachments.ticketId)))
       .orderBy(desc(attachments.updatedAt))
       .all();
-    return rows.map(publicFile);
+    return rows
+      .filter((row) => row.portalVisible || (isVaultFile(row) && row.folderId != null && shared.has(row.folderId)))
+      .map(publicFile);
+  });
+
+  app.get("/api/portal/folders", async (request) => {
+    const { customerId } = request.portal!;
+    const folders = await db
+      .select()
+      .from(fileFolders)
+      .where(eq(fileFolders.customerId, customerId))
+      .orderBy(asc(fileFolders.name))
+      .all();
+    const shared = sharedFolderIds(folders);
+    return folders.filter((folder) => shared.has(folder.id)).map(publicFolder);
   });
 
   app.get("/api/portal/assets", async (request) => {

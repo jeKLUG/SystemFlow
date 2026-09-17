@@ -333,6 +333,7 @@ export async function createDb(databasePath: string) {
       customer_id TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
       parent_id TEXT,
       name TEXT NOT NULL,
+      portal_visible INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -494,6 +495,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "documents", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "attachments", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "file_folders", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "tickets", "resolution", "TEXT");
   await ensureColumn(client, "ticket_messages", "kind", "TEXT NOT NULL DEFAULT 'comment'");
   await ensureColumn(client, "tasks", "ticket_id", "TEXT");

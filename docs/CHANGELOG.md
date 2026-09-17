@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.115 – 2026-09-17
+
+- Kundenportal Dokumente: Ordner können wie Dateien freigegeben werden (inkl. Unterordner und Inhalt); Suche und Typ-Reiter ohne Überlappung
+- Datei-Ablage: Weltkugel-Schalter an Ordnern für die Portal-Freigabe
+
 ## 1.5.114 – 2026-09-17
 
 - Kundenportal Neues Ticket: Beschreibung mit Editor; Dialog nur über Abbrechen/Senden schließbar (kein X, kein Klick daneben)

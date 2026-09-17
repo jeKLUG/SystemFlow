@@ -594,6 +594,7 @@ export interface FileFolderItem {
   customerId: string;
   parentId: string | null;
   name: string;
+  portalVisible?: boolean;
   createdAt: string;
   updatedAt: string;
 }

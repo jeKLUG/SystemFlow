@@ -591,10 +591,12 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
           <div className={`vault-board is-${layout}`}>
             {filteredFolders.map((folder) => {
               const count = folderCounts.get(folder.id) ?? 0;
+              const inheritedPortal = folderInheritedPortal(folder, folders);
+              const portalOn = Boolean(folder.portalVisible);
               return (
                 <article
                   key={folder.id}
-                  className={`vault-card is-folder${dropFolderId === folder.id ? " is-drop-target" : ""}${menuId === folder.id ? " is-menu-open" : ""}`}
+                  className={`vault-card is-folder${folder.portalVisible || inheritedPortal ? " is-portal" : ""}${dropFolderId === folder.id ? " is-drop-target" : ""}${menuId === folder.id ? " is-menu-open" : ""}`}
                   onDragEnter={(e) => onFolderDragOver(e, folder.id)}
                   onDragOver={(e) => onFolderDragOver(e, folder.id)}
                   onDragLeave={(e) => {
@@ -617,10 +619,42 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       <strong title={folder.name}>{folder.name}</strong>
                       <span className="muted">
                         {count} Einträg{count === 1 ? "" : "e"}
+                        {portalOn ? " · Portal" : inheritedPortal ? " · Portal (Ordner)" : ""}
                       </span>
                     </span>
                   </button>
                   <div className={`vault-card-toolbar${menuId === folder.id ? " is-open" : ""}`}>
+                    <button
+                      type="button"
+                      className={`vault-card-menu-btn${portalOn ? " is-portal-on" : ""}`}
+                      title={
+                        portalOn
+                          ? "Im Portal sichtbar – Ordnerfreigabe aufheben"
+                          : inheritedPortal
+                            ? "Bereits über übergeordneten Ordner im Portal – zusätzlich selbst freigeben"
+                            : "Ordner inkl. Inhalt im Kundenportal zeigen"
+                      }
+                      aria-label={
+                        portalOn
+                          ? "Portal-Freigabe des Ordners aufheben"
+                          : "Ordner im Kundenportal zeigen"
+                      }
+                      aria-pressed={portalOn}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void api
+                          .updateFolder(folder.id, { portalVisible: !portalOn })
+                          .then(() => reload())
+                          .catch((err) =>
+                            setError(err instanceof Error ? err.message : "Portal-Freigabe fehlgeschlagen"),
+                          );
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" strokeLinecap="round" />
+                      </svg>
+                    </button>
                     <div className={`vault-more${menuId === folder.id ? " is-open" : ""}`}>
                       <button
                         type="button"
@@ -952,6 +986,19 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
       </Modal>
     </div>
   );
+}
+
+/** True, wenn ein Vorfahr bereits fürs Portal freigegeben ist. */
+function folderInheritedPortal(folder: FileFolderItem, all: FileFolderItem[]) {
+  const byId = new Map(all.map((item) => [item.id, item]));
+  let id = folder.parentId;
+  while (id) {
+    const parent = byId.get(id);
+    if (!parent) break;
+    if (parent.portalVisible) return true;
+    id = parent.parentId;
+  }
+  return false;
 }
 
 function folderPathLabel(folders: FileFolderItem[], id: string): string {
