@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.143 – 2026-09-17
+
+- Monitoring: Staff-Dashboard, Windows-/Linux-Agent (Minuten-Heartbeat), Inventar-Zuordnung, Warnungen mit Auto-Ticket
+
 ## 1.5.142 – 2026-09-17
 
 - Kundenakte Portal-Zugang: Untertitel und Hinweise im Leerzustand entfernt

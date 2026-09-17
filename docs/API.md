@@ -55,7 +55,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | POST | `/api/tickets/:id/time-entry` | `{ hours, workDate? }` Zeitbuchung |
 | GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`); GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
 
-Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
+Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Quelle: `portal` \| `staff` \| `monitoring`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
 
 ## Kundenportal
 
@@ -142,18 +142,45 @@ Typen (`kind`): `pc` · `laptop` · `tablet` · `server` · `firewall` · `switc
 
 Zuordnung (`ownership`): `customer` · `loaned` · `held` (Standard: `customer`).
 
-Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus) für das Kundenportal.
+Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus) für das Kundenportal. Optional `monitoringEnabled` / `monitoringAlertEnabled` für den Staff-Agent.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/customers/:id/assets` | Inventarliste |
+| GET | `/api/customers/:id/assets` | Inventarliste (inkl. Monitoring-Status, falls Agent gekoppelt) |
 | POST | `/api/customers/:id/assets` | Eintrag anlegen |
 | PUT | `/api/assets/:id` | Aktualisieren |
 | DELETE | `/api/assets/:id` | Löschen |
 
-Body: `name`, optional `kind`, `ownership`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`.
+Body: `name`, optional `kind`, `ownership`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`, `monitoringEnabled`, `monitoringAlertEnabled`.
 
 Suche findet auch Hostname, IP, MAC und Standort.
+
+## Monitoring
+
+Staff-UI `/monitoring`. Agenten ohne Session, mit Enrollment-Key bzw. Geräte-Token. Heartbeat-Takt 1 Minute, offline nach 2 Minuten. Verlauf 30 Tage.
+
+Agent (öffentlich):
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/Disks/NICs/Prozesse/Updates/Events. Speichert Sample + Snapshot |
+
+Staff:
+
+| Methode | Pfad | Beschreibung |
+|---------|------|--------------|
+| GET | `/api/monitoring/settings` | `{ enrollmentKey }` |
+| POST | `/api/monitoring/settings/rotate-key` | Neuen Enrollment-Key erzeugen |
+| GET | `/api/monitoring/stats` | `{ warningCount, pendingCount }` (Navbar-Badge) |
+| GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste |
+| GET | `/api/monitoring/pending` | Unzugeordnete Agenten + zuordbare Assets |
+| POST | `/api/monitoring/pending/:id/assign` | `{ assetId }` – Asset muss `monitoringEnabled` haben und frei sein |
+| GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden |
+| GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms) |
+| PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlertEnabled? }` |
+
+Ticket-Quelle zusätzlich `monitoring`. Bei aktiver Warnung höchstens ein offenes Ticket, Auto-Close mit Lösungstext wenn das Gerät wieder ok ist.
 
 ## Historie
 

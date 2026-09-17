@@ -4,7 +4,7 @@ import { api } from "../api";
 import { PasswordField, PasswordMatchHint } from "../components/PasswordField";
 
 /**
- * Konto: Passwort ändern und Datensicherung.
+ * Konto: Passwort, Monitoring-Agent und Datensicherung.
  */
 export function SettingsPage() {
   const { user, changePassword } = useAuth();
@@ -25,11 +25,20 @@ export function SettingsPage() {
     hint: string;
   } | null>(null);
 
+  const [enrollKey, setEnrollKey] = useState("");
+  const [enrollMsg, setEnrollMsg] = useState("");
+  const [enrollBusy, setEnrollBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
+
   useEffect(() => {
     void api
       .backupInfo()
       .then((info) => setBackupInfo(info))
       .catch(() => setBackupInfo(null));
+    void api
+      .monitoringSettings()
+      .then((s) => setEnrollKey(s.enrollmentKey))
+      .catch(() => setEnrollKey(""));
   }, []);
 
   async function downloadBackup() {
@@ -103,7 +112,7 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h2>Einstellungen</h2>
-          <p className="muted">Konto und Sicherung · {user?.username}</p>
+          <p className="muted">Konto, Monitoring-Agent und Sicherung · {user?.username}</p>
         </div>
       </div>
 
@@ -156,6 +165,80 @@ export function SettingsPage() {
             </button>
           </div>
         </form>
+      </section>
+
+      <section className="panel settings-card">
+        <header className="settings-card-head">
+          <div>
+            <p className="eyebrow">Monitoring</p>
+            <h3>Agent-Enrollment</h3>
+          </div>
+        </header>
+        <p className="settings-card-lead muted">
+          Diesen Schlüssel und die Server-URL beim Installieren des Windows- oder Linux-Agenten
+          angeben. Die Clients müssen den Server per HTTPS erreichen können (Firewall beim Kunden
+          nach außen). Nach 2 Minuten ohne Heartbeat gilt ein Gerät als offline.
+        </p>
+        {enrollKey ? (
+          <p className="settings-enroll-key">
+            <code>{enrollKey}</code>
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              onClick={() => {
+                void navigator.clipboard.writeText(enrollKey).then(() => {
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 1500);
+                });
+              }}
+            >
+              {copied ? "Kopiert" : "Kopieren"}
+            </button>
+          </p>
+        ) : (
+          <p className="muted">Schlüssel wird geladen…</p>
+        )}
+        <div className="settings-backup-actions">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={enrollBusy}
+            onClick={() => {
+              if (
+                !window.confirm(
+                  "Neuen Enrollment-Key erzeugen? Bereits installierte Agenten bleiben gültig, neue Installationen brauchen den neuen Schlüssel.",
+                )
+              ) {
+                return;
+              }
+              setEnrollBusy(true);
+              setEnrollMsg("");
+              void api
+                .rotateMonitoringKey()
+                .then((s) => {
+                  setEnrollKey(s.enrollmentKey);
+                  setEnrollMsg("Neuer Schlüssel erzeugt.");
+                })
+                .catch((err) => {
+                  setEnrollMsg(err instanceof Error ? err.message : "Fehler");
+                })
+                .finally(() => setEnrollBusy(false));
+            }}
+          >
+            Schlüssel neu erzeugen
+          </button>
+        </div>
+        {enrollMsg ? (
+          <p className={enrollMsg.includes("Fehler") || enrollMsg.toLowerCase().includes("fehl") ? "form-error" : "form-success"}>
+            {enrollMsg}
+          </p>
+        ) : null}
+        <p className="settings-card-note muted">
+          Windows: <code>systemhaus-agent.exe install --server https://… --key {enrollKey || "enr_…"}</code>
+          <br />
+          Linux: Installationsskript mit denselben Parametern, danach systemd-Dienst{" "}
+          <code>systemhaus-agent</code>.
+        </p>
       </section>
 
       <section className="panel settings-card">

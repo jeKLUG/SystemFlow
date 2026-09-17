@@ -10,4 +10,6 @@
 | [BACKUP.md](BACKUP.md) | Systemsicherung Download/Restore |
 | [ANDROID.md](ANDROID.md) | Android-WebView-App / APK |
 
-Systemhaus-Ess ist die interne App für Kontakte/Kundenstammdaten, Wiki, E-Mail-Archiv, Projekte/Budget, Zeiterfassung, Inventar, Einsatz-Historie, Tickets/Helpdesk und Vorlagen/Suche. Kunden nutzen das Portal unter `/portal`. Lexware bleibt extern für Rechnungen.
+Der Windows-/Linux-Monitoring-Agent liegt unter `apps/agent` (Build: `.github/workflows/monitoring-agent.yml`).
+
+Systemhaus-Ess ist die interne App für Kontakte/Kundenstammdaten, Wiki, E-Mail-Archiv, Projekte/Budget, Zeiterfassung, Inventar, Einsatz-Historie, Tickets/Helpdesk, **Geräte-Monitoring** und Vorlagen/Suche. Kunden nutzen das Portal unter `/portal`. Lexware bleibt extern für Rechnungen.

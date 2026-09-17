@@ -16,8 +16,9 @@ Browser (React SPA)
 
 | Komponente | Pfad | Rolle |
 |------------|------|-------|
-| API | `apps/api` | Auth, Kunden, Dokumente |
+| API | `apps/api` | Auth, Kunden, Dokumente, Monitoring-Ingest |
 | Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten) |
+| Agent | `apps/agent` | Windows-/Linux-Dienst, Heartbeat |
 | Android | `apps/android-app` | WebView-Hülle (APK) |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
 | Compose | `docker-compose.yml` | Container + Volume |
@@ -32,9 +33,10 @@ Browser (React SPA)
 - **documents** – Wiki/Notizen (TipTap-JSON), Typ `article` \| `documentation` \| `note` \| `workflow` \| `protocol`; `customerId` optional (Schnellnotiz ohne Kunde), optional `projectId`
 - **time_entries** – Zeiteinträge inkl. optionalem Preiskatalog-Satz und Betrags-Snapshot; `readyForInvoice` (zur Rechnung vorgemerkt) und `billed`; optional `ticket_id` (Verknüpfung mit Support-Ticket); optional mehrere Positionen in **time_entry_lines** (Snapshots ändern sich nicht nachträglich bei Katalog-/Satzupdates)
 - **time_entry_lines** – 1–n Leistungen je Zeiteintrag (Katalog oder virtueller Standard-/Projekt-Stundensatz; Menge, Preis-Snapshot)
-- **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App)
+- **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App); `monitoringEnrollmentKey` für Agent-Anmeldung
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`; UI: Preise-App unter `/prices`)
-- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
+- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie; optional Monitoring/Warnung). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
+- **monitoring_agents** / **monitoring_samples** – Live-Agenten (Windows/Linux) mit Heartbeat, Inventar-Zuordnung und 30-Tage-Verlauf
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
 - **contracts** – Verträge/SLA (keine Rechnungen; optional Preis monatlich/jährlich in EUR; Leistungsumfang als TipTap-JSON)
@@ -63,8 +65,9 @@ Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
 Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Anlegen wie im Kundenportal (Editor, Priorität mit SLA-Zeiten, Anhänge) plus Kundenwahl. Ticketdetail: Kopf mit Status/Priorität als Badges und Zeiten als Kacheln; rechte Leiste gegliedert in Steuerung, Zeiten und Arbeit. Anhänge und Kommentarfeld über dem Verlauf (neueste Kommentare zuerst; Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`): Ticketkarten mit Status, Priorität, Zeiten und SLA; beim Anlegen zeigt jede Priorität Reaktions-/Lösungszeit aus dem Vertrag.
+Nav „Monitoring“ (`/monitoring`): Flotte, Warnungen, Agent-Zuordnung, Kundendetail. Konto (`/settings`) enthält Enrollment-Key und Installationshinweis.
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
-Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält nur Passwort und Sicherung.
+Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Passwort, Monitoring-Enrollment und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
 
 ## Zeitzone
@@ -92,3 +95,26 @@ deploy.sh
 ```
 
 Daten liegen im Volume `systemhaus-data` und überleben Updates. Systemsicherung (Download/Restore) siehe [BACKUP.md](BACKUP.md).
+
+## Monitoring
+
+Staff-Nav **Monitoring** (`/monitoring`): Flotten-Dashboard, Zuordnung unzugeordneter Agenten zum Inventar, Kunden-/Gerätedetail mit Verlauf (30 Tage). Kundenportal hat in V1 keine Monitoring-Ansicht.
+
+- **Inventar:** Am Asset `monitoringEnabled` (Zuordnungsziel) und `monitoringAlertEnabled` (Warnung + Ticket). Ohne Warnung-Flag bleibt ein PC nach Feierabend still – nur Anzeige online/offline.
+- **Agent** (`apps/agent`, Go): Windows-Dienst `SystemhausAgent` bzw. Linux-systemd `systemhaus-agent`. Push jede Minute an `POST /api/monitoring/heartbeat`. Enrollment mit Schlüssel aus Konto-Einstellungen (`POST /api/monitoring/enroll`). Gleiche Machine-ID (`MachineGuid` / `/etc/machine-id`) erzeugt keinen zweiten Pending-Eintrag.
+- **Offline:** kein Heartbeat > 2 Minuten.
+- **Schwellwerte (V1 fest):** Disk < 10 % frei; CPU/RAM > 90 % über 5 Minuten; Event-Log/Journal-Fehler; ausstehende Updates. Tickets nur bei aktiver Warnung: max. ein offenes Ticket, automatisch geschlossen wenn wieder ok. Quelle `monitoring`.
+- **Speicher:** letzter Voll-Snapshot am Agenten; numerische Minuten-Samples 30 Tage (`monitoring_samples`). API-Prozess prüft alle 30 s Offline und räumt alte Samples stündlich.
+- **Erreichbarkeit:** Agenten brauchen HTTPS zum Server (Kunden-Firewall nach außen). Enrollment-Key in `/settings`.
+
+Installation:
+
+```
+# Windows (als Administrator)
+systemhaus-agent.exe install --server https://ess.example.de --key enr_…
+
+# Linux
+./systemhaus-agent install --server https://ess.example.de --key enr_…
+```
+
+Config: Windows `%ProgramData%\SystemhausEss\agent.json`, Linux `/etc/systemhaus-agent/agent.json`. CI: `.github/workflows/monitoring-agent.yml`.

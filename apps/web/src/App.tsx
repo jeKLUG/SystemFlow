@@ -32,6 +32,7 @@ import { PricesPage } from "./pages/PricesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
 import { VaultSharePage } from "./pages/VaultSharePage";
+import { MonitoringPage } from "./pages/monitoring/MonitoringPage";
 
 /** Alte URL `/customers/:id/emails` → Dokumente-Hub mit E-Mail-Ansicht. */
 function CustomerEmailsRedirect() {
@@ -108,6 +109,7 @@ export default function App() {
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tickets" element={<TicketsPage />} />
         <Route path="tickets/:ticketId" element={<TicketDetailPage />} />
+        <Route path="monitoring" element={<MonitoringPage />} />
         <Route path="customers" element={<CustomersPage />} />
         <Route path="customers/:id" element={<CustomerLayout />}>
           <Route index element={<CustomerOverviewPage />} />

@@ -152,6 +152,7 @@ export async function createDb(databasePath: string) {
       currency TEXT NOT NULL DEFAULT 'EUR',
       default_vat_percent REAL,
       invoice_note TEXT,
+      monitoring_enrollment_key TEXT,
       updated_at INTEGER NOT NULL
     );
 
@@ -200,6 +201,9 @@ export async function createDb(databasePath: string) {
       responsible_person TEXT,
       warranty_until TEXT,
       notes TEXT,
+      portal_visible INTEGER NOT NULL DEFAULT 0,
+      monitoring_enabled INTEGER NOT NULL DEFAULT 0,
+      monitoring_alert_enabled INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -437,6 +441,44 @@ export async function createDb(databasePath: string) {
     CREATE INDEX IF NOT EXISTS idx_tickets_customer ON tickets(customer_id);
     CREATE INDEX IF NOT EXISTS idx_tickets_status ON tickets(status);
     CREATE INDEX IF NOT EXISTS idx_ticket_messages_ticket ON ticket_messages(ticket_id);
+
+    CREATE TABLE IF NOT EXISTS monitoring_agents (
+      id TEXT PRIMARY KEY,
+      machine_id TEXT NOT NULL UNIQUE,
+      token_hash TEXT NOT NULL,
+      asset_id TEXT REFERENCES assets(id) ON DELETE SET NULL,
+      customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+      hostname TEXT,
+      os TEXT,
+      os_version TEXT,
+      ip_address TEXT,
+      agent_version TEXT,
+      last_seen_at INTEGER,
+      last_snapshot_json TEXT,
+      current_issues_json TEXT NOT NULL DEFAULT '[]',
+      open_ticket_id TEXT,
+      cpu_high_streak INTEGER NOT NULL DEFAULT 0,
+      ram_high_streak INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS monitoring_samples (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES monitoring_agents(id) ON DELETE CASCADE,
+      ts INTEGER NOT NULL,
+      cpu_pct REAL,
+      ram_pct REAL,
+      disk_used_pct REAL,
+      net_rx_bytes INTEGER,
+      net_tx_bytes INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_monitoring_agents_asset ON monitoring_agents(asset_id);
+    CREATE INDEX IF NOT EXISTS idx_monitoring_agents_customer ON monitoring_agents(customer_id);
+    CREATE INDEX IF NOT EXISTS idx_monitoring_agents_machine ON monitoring_agents(machine_id);
+    CREATE INDEX IF NOT EXISTS idx_monitoring_agents_token ON monitoring_agents(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_monitoring_samples_agent_ts ON monitoring_samples(agent_id, ts);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder
@@ -494,6 +536,9 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "attachments", "ticket_message_id", "TEXT");
   await ensureColumn(client, "documents", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "assets", "monitoring_enabled", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "assets", "monitoring_alert_enabled", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "org_settings", "monitoring_enrollment_key", "TEXT");
   await ensureColumn(client, "attachments", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "file_folders", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "tickets", "resolution", "TEXT");

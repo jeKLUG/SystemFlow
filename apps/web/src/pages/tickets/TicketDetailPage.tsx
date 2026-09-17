@@ -207,7 +207,13 @@ export function TicketDetailPage() {
             </div>
             <div>
               <dt>Quelle</dt>
-              <dd>{ticket.source === "portal" ? "Kundenportal" : "Intern angelegt"}</dd>
+              <dd>
+                {ticket.source === "portal"
+                  ? "Kundenportal"
+                  : ticket.source === "monitoring"
+                    ? "Monitoring"
+                    : "Intern angelegt"}
+              </dd>
             </div>
             <TicketTimeFact label="Eingegangen" at={ticket.createdAt} now={clockNow} />
           </>

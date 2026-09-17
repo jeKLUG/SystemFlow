@@ -2,8 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { assets, customers, networkSegments } from "../db/schema.js";
+import { assets, customers, monitoringAgents, networkSegments } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { isAgentOnline } from "../lib/monitoring.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -61,6 +62,8 @@ const assetBody = z.object({
   warrantyUntil: z.string().max(40).optional().or(z.literal("")),
   notes: z.string().max(10000).optional().or(z.literal("")),
   portalVisible: z.boolean().optional(),
+  monitoringEnabled: z.boolean().optional(),
+  monitoringAlertEnabled: z.boolean().optional(),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -82,6 +85,8 @@ function mapAssetFields(
     ownership: string;
     segmentId: string | null;
     portalVisible?: boolean;
+    monitoringEnabled?: boolean;
+    monitoringAlertEnabled?: boolean;
   },
 ) {
   return {
@@ -121,7 +126,25 @@ function mapAssetFields(
     warrantyUntil: emptyToNull(data.warrantyUntil),
     notes: emptyToNull(data.notes),
     portalVisible: data.portalVisible ?? existing?.portalVisible ?? false,
+    monitoringEnabled: data.monitoringEnabled ?? existing?.monitoringEnabled ?? false,
+    monitoringAlertEnabled: data.monitoringAlertEnabled ?? existing?.monitoringAlertEnabled ?? false,
   };
+}
+
+async function withMonitoring(db: Db, rows: (typeof assets.$inferSelect)[]) {
+  if (rows.length === 0) return rows;
+  const agents = await db.select().from(monitoringAgents).all();
+  const byAsset = new Map(agents.filter((a) => a.assetId).map((a) => [a.assetId as string, a]));
+  const now = new Date();
+  return rows.map((row) => {
+    const agent = byAsset.get(row.id);
+    return {
+      ...row,
+      monitoringAgentId: agent?.id ?? null,
+      monitoringOnline: agent ? isAgentOnline(agent.lastSeenAt, now) : null,
+      monitoringLastSeenAt: agent?.lastSeenAt ?? null,
+    };
+  });
 }
 
 /**
@@ -135,19 +158,21 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    return await db
+    const rows = await db
       .select()
       .from(assets)
       .where(eq(assets.customerId, customerId))
       .orderBy(desc(assets.updatedAt))
       .all();
+    return withMonitoring(db, rows);
   });
 
   app.get("/api/assets/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const row = await db.select().from(assets).where(eq(assets.id, id)).get();
     if (!row) return reply.code(404).send({ error: "Inventar-Eintrag nicht gefunden" });
-    return row;
+    const [enriched] = await withMonitoring(db, [row]);
+    return enriched;
   });
 
   app.post("/api/customers/:customerId/assets", async (request, reply) => {
@@ -207,6 +232,8 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
       ownership: existing.ownership ?? "customer",
       segmentId: existing.segmentId,
       portalVisible: existing.portalVisible,
+      monitoringEnabled: existing.monitoringEnabled,
+      monitoringAlertEnabled: existing.monitoringAlertEnabled,
     });
     if (fields.segmentId) {
       const seg = await db

@@ -68,6 +68,13 @@ const icon = {
       <path d="M8.5 13h7M8.5 16h4" strokeLinecap="round" />
     </svg>
   ),
+  monitoring: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <rect x="3.5" y="4.5" width="17" height="12" rx="2" />
+      <path d="M8 20h8M12 16.5V20" strokeLinecap="round" />
+      <path d="M7 12.5l3-3 2.5 2.5 4-4.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   menu: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
       <path d="M4 7h16M4 12h16M4 17h16" strokeLinecap="round" />
@@ -84,6 +91,7 @@ const primaryNav: NavItem[] = [
   { to: "/", label: "Übersicht", end: true, icon: icon.home },
   { to: "/customers", label: "Kontakte", icon: icon.customers },
   { to: "/tickets", label: "Tickets", icon: icon.tickets },
+  { to: "/monitoring", label: "Monitoring", icon: icon.monitoring },
   { to: "/calendar", label: "Kalender", icon: icon.calendar },
   { to: "/vault", label: "Tresor", icon: icon.vault },
 ];
@@ -133,6 +141,7 @@ export function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(0);
+  const [monWarn, setMonWarn] = useState(0);
   const closeMobile = () => setMobileOpen(false);
 
   useEffect(() => {
@@ -141,6 +150,7 @@ export function Layout() {
 
   useEffect(() => {
     void api.ticketStats().then((s) => setTicketOpen(s.openCount)).catch(() => setTicketOpen(0));
+    void api.monitoringStats().then((s) => setMonWarn(s.warningCount)).catch(() => setMonWarn(0));
   }, [location.pathname]);
 
   useEffect(() => {
@@ -175,9 +185,11 @@ export function Layout() {
         <nav className="sidebar-nav" aria-label="Hauptnavigation">
           <NavGroup
             title="Arbeitsplatz"
-            items={primaryNav.map((item) =>
-              item.to === "/tickets" ? { ...item, badge: ticketOpen || undefined } : item,
-            )}
+            items={primaryNav.map((item) => {
+              if (item.to === "/tickets") return { ...item, badge: ticketOpen || undefined };
+              if (item.to === "/monitoring") return { ...item, badge: monWarn || undefined };
+              return item;
+            })}
             onNavigate={closeMobile}
           />
           <NavGroup title="Werkzeuge" items={secondaryNav} onNavigate={closeMobile} />

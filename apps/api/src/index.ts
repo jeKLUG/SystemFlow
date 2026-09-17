@@ -36,6 +36,8 @@ import { vaultRoutes } from "./routes/vault.js";
 import { vaultSharesPublicRoutes } from "./routes/vaultSharesPublic.js";
 import { backupRoutes } from "./routes/backup.js";
 import { emailRoutes } from "./routes/emails.js";
+import { monitoringRoutes } from "./routes/monitoring.js";
+import { startMonitoringLoop } from "./lib/monitoringLoop.js";
 
 /**
  * Startet die Systemhaus-Ess API und liefert optional das Frontend aus.
@@ -104,6 +106,9 @@ async function main() {
   await app.register(async (scoped) => portalUserRoutes(scoped, db));
   await app.register(async (scoped) => ticketRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => portalRoutes(scoped, db, config.uploadDir));
+  await monitoringRoutes(app, db);
+
+  startMonitoringLoop(db);
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 

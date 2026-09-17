@@ -202,6 +202,12 @@ export const assets = sqliteTable("assets", {
   notes: text("notes"),
   /** Kundenportal: Inventar sichtbar, Default aus. */
   portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
+  /** Gerät ist Ziel für einen Monitoring-Agenten. */
+  monitoringEnabled: integer("monitoring_enabled", { mode: "boolean" }).notNull().default(false),
+  /** Bei Problemen Warnung im Dashboard und Ticket anlegen. */
+  monitoringAlertEnabled: integer("monitoring_alert_enabled", { mode: "boolean" })
+    .notNull()
+    .default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -337,6 +343,8 @@ export const orgSettings = sqliteTable("org_settings", {
   currency: text("currency").notNull().default("EUR"),
   defaultVatPercent: real("default_vat_percent"),
   invoiceNote: text("invoice_note"),
+  /** Gemeinsamer Schlüssel, mit dem Agenten sich anmelden (Klartext, nur Staff). */
+  monitoringEnrollmentKey: text("monitoring_enrollment_key"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
@@ -516,7 +524,7 @@ export type TicketStatus = (typeof ticketStatuses)[number];
 export const ticketPriorities = ["low", "normal", "high", "critical"] as const;
 export type TicketPriority = (typeof ticketPriorities)[number];
 
-export const ticketSources = ["portal", "staff"] as const;
+export const ticketSources = ["portal", "staff", "monitoring"] as const;
 export type TicketSource = (typeof ticketSources)[number];
 
 export const ticketMessageVisibilities = ["public", "internal"] as const;
@@ -583,6 +591,52 @@ export const ticketMessages = sqliteTable("ticket_messages", {
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+export const monitoringIssueKinds = [
+  "offline",
+  "disk",
+  "cpu",
+  "ram",
+  "eventlog",
+  "updates",
+] as const;
+export type MonitoringIssueKind = (typeof monitoringIssueKinds)[number];
+
+/** Installierter Agent auf einem Kunden-PC (optional einem Inventar-Asset zugeordnet). */
+export const monitoringAgents = sqliteTable("monitoring_agents", {
+  id: text("id").primaryKey(),
+  machineId: text("machine_id").notNull().unique(),
+  tokenHash: text("token_hash").notNull(),
+  assetId: text("asset_id").references(() => assets.id, { onDelete: "set null" }),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  hostname: text("hostname"),
+  os: text("os"),
+  osVersion: text("os_version"),
+  ipAddress: text("ip_address"),
+  agentVersion: text("agent_version"),
+  lastSeenAt: integer("last_seen_at", { mode: "timestamp_ms" }),
+  lastSnapshotJson: text("last_snapshot_json"),
+  currentIssuesJson: text("current_issues_json").notNull().default("[]"),
+  openTicketId: text("open_ticket_id"),
+  cpuHighStreak: integer("cpu_high_streak").notNull().default(0),
+  ramHighStreak: integer("ram_high_streak").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Minuten-Samples für Diagramme (30 Tage). */
+export const monitoringSamples = sqliteTable("monitoring_samples", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+  ts: integer("ts", { mode: "timestamp_ms" }).notNull(),
+  cpuPct: real("cpu_pct"),
+  ramPct: real("ram_pct"),
+  diskUsedPct: real("disk_used_pct"),
+  netRxBytes: integer("net_rx_bytes"),
+  netTxBytes: integer("net_tx_bytes"),
+});
+
 export type User = typeof users.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
 export type Project = typeof projects.$inferSelect;
@@ -608,3 +662,5 @@ export type CustomerEmail = typeof customerEmails.$inferSelect;
 export type CustomerUser = typeof customerUsers.$inferSelect;
 export type Ticket = typeof tickets.$inferSelect;
 export type TicketMessage = typeof ticketMessages.$inferSelect;
+export type MonitoringAgent = typeof monitoringAgents.$inferSelect;
+export type MonitoringSample = typeof monitoringSamples.$inferSelect;

@@ -52,7 +52,12 @@ function publicContract(row: typeof contracts.$inferSelect) {
 }
 
 function publicAsset(row: typeof assets.$inferSelect) {
-  const { notes: _notes, ...rest } = row;
+  const {
+    notes: _notes,
+    monitoringEnabled: _me,
+    monitoringAlertEnabled: _ma,
+    ...rest
+  } = row;
   return rest;
 }
 

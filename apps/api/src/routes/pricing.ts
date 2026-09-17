@@ -62,6 +62,7 @@ async function ensureSettings(db: Db) {
     currency: "EUR",
     defaultVatPercent: 19 as number | null,
     invoiceNote: null as string | null,
+    monitoringEnrollmentKey: null as string | null,
     updatedAt: now,
   };
   await db.insert(orgSettings).values(row);

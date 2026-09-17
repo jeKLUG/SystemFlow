@@ -31,6 +31,8 @@ type AssetForm = {
   warrantyUntil: string;
   notes: string;
   portalVisible: boolean;
+  monitoringEnabled: boolean;
+  monitoringAlertEnabled: boolean;
 };
 
 const emptyAsset: AssetForm = {
@@ -51,6 +53,8 @@ const emptyAsset: AssetForm = {
   warrantyUntil: "",
   notes: "",
   portalVisible: false,
+  monitoringEnabled: false,
+  monitoringAlertEnabled: false,
 };
 
 function assetToForm(asset: Asset): AssetForm {
@@ -72,6 +76,8 @@ function assetToForm(asset: Asset): AssetForm {
     warrantyUntil: asset.warrantyUntil ?? "",
     notes: asset.notes ?? "",
     portalVisible: Boolean(asset.portalVisible),
+    monitoringEnabled: Boolean(asset.monitoringEnabled),
+    monitoringAlertEnabled: Boolean(asset.monitoringAlertEnabled),
   };
 }
 
@@ -430,6 +436,18 @@ export function CustomerAssetsPage() {
                           {!groupByKind ? (
                             <span className="badge badge-kind">{assetKindLabel[asset.kind]}</span>
                           ) : null}
+                          {asset.monitoringEnabled ? (
+                            <span
+                              className={`mon-inline-dot${asset.monitoringOnline ? " is-on" : asset.monitoringAgentId ? " is-off" : ""}`}
+                              title={
+                                asset.monitoringOnline
+                                  ? "Monitoring online"
+                                  : asset.monitoringAgentId
+                                    ? "Monitoring offline"
+                                    : "Monitoring aktiv, kein Agent"
+                              }
+                            />
+                          ) : null}
                         </div>
                         <AssetFacts asset={asset} />
                       </button>
@@ -474,6 +492,17 @@ export function CustomerAssetsPage() {
               <span className={`badge badge-asset-${previewStatus}`}>
                 {assetStatusLabel[previewStatus]}
               </span>
+              {preview.monitoringEnabled ? (
+                <span className="badge">
+                  Monitoring{" "}
+                  {preview.monitoringOnline
+                    ? "online"
+                    : preview.monitoringAgentId
+                      ? "offline"
+                      : "ohne Agent"}
+                  {preview.monitoringAlertEnabled ? " · Warnung an" : ""}
+                </span>
+              ) : null}
             </div>
 
             {previewRows.length ? (
@@ -696,6 +725,32 @@ export function CustomerAssetsPage() {
                   label="Im Kundenportal zeigen"
                   checked={assetForm.portalVisible}
                   onChange={(checked) => setAssetForm({ ...assetForm, portalVisible: checked })}
+                />
+              </div>
+              <div className="asset-form-span-2">
+                <Checkbox
+                  label="Monitoring aktivieren (Agent kann diesem Eintrag zugeordnet werden)"
+                  checked={assetForm.monitoringEnabled}
+                  onChange={(checked) =>
+                    setAssetForm({
+                      ...assetForm,
+                      monitoringEnabled: checked,
+                      monitoringAlertEnabled: checked ? assetForm.monitoringAlertEnabled : false,
+                    })
+                  }
+                />
+              </div>
+              <div className="asset-form-span-2">
+                <Checkbox
+                  label="Warnung (Ticket bei Offline/Schwellwert — z. B. Server, nicht Feierabend-PC)"
+                  checked={assetForm.monitoringAlertEnabled}
+                  onChange={(checked) =>
+                    setAssetForm({
+                      ...assetForm,
+                      monitoringAlertEnabled: checked,
+                      monitoringEnabled: checked ? true : assetForm.monitoringEnabled,
+                    })
+                  }
                 />
               </div>
             </div>

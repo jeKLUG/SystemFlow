@@ -763,6 +763,43 @@ export const api = {
     if (!res.ok) throw new Error(data.error || "Restore fehlgeschlagen");
     return data;
   },
+  monitoringStats: () =>
+    request<{ warningCount: number; pendingCount: number }>("/api/monitoring/stats"),
+  monitoringOverview: () => request<import("./types").MonitoringOverview>("/api/monitoring/overview"),
+  monitoringPending: () =>
+    request<{
+      agents: import("./types").MonitoringPendingAgent[];
+      assets: import("./types").MonitoringAssignableAsset[];
+    }>("/api/monitoring/pending"),
+  assignMonitoringAgent: (id: string, assetId: string) =>
+    request<{ ok: boolean; assetId: string; customerId: string }>(
+      `/api/monitoring/pending/${id}/assign`,
+      { method: "POST", body: JSON.stringify({ assetId }) },
+    ),
+  monitoringCustomer: (customerId: string) =>
+    request<{
+      customerId: string;
+      customerName: string;
+      devices: import("./types").MonitoringDeviceSummary[];
+      waitingAssets: { id: string; name: string; hostname: string | null }[];
+    }>(`/api/monitoring/customers/${customerId}`),
+  monitoringDevice: (assetId: string, range?: { from?: number; to?: number }) => {
+    const q = new URLSearchParams();
+    if (range?.from) q.set("from", String(range.from));
+    if (range?.to) q.set("to", String(range.to));
+    const suffix = q.toString() ? `?${q.toString()}` : "";
+    return request<import("./types").MonitoringDeviceDetail>(
+      `/api/monitoring/devices/${assetId}${suffix}`,
+    );
+  },
+  patchMonitoringDevice: (assetId: string, body: Record<string, unknown>) =>
+    request<import("./types").Asset>(`/api/monitoring/devices/${assetId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  monitoringSettings: () => request<{ enrollmentKey: string }>("/api/monitoring/settings"),
+  rotateMonitoringKey: () =>
+    request<{ enrollmentKey: string }>("/api/monitoring/settings/rotate-key", { method: "POST" }),
 };
 
 async function downloadPdf(url: string, fallbackName: string) {

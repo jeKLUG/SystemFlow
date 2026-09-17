@@ -17708,3 +17708,296 @@ button.portal-doc-card {
   }
 }
 
+.monitoring-page .dashboard-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.monitoring-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.mon-panel .section-head p,
+.mon-detail .section-head p {
+  margin: 0.15rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.mon-problem-list,
+.mon-pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.mon-problem-list li,
+.mon-pending-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.2rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mon-problem-open {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  background: none;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.mon-problem-open p,
+.mon-pending-list p {
+  margin: 0.1rem 0 0;
+}
+
+.mon-pending-actions {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mon-pending-actions select,
+.mon-customer-select {
+  min-width: 16rem;
+  max-width: 100%;
+}
+
+.mon-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.45);
+  flex-shrink: 0;
+}
+
+.mon-dot.is-on {
+  background: #34d399;
+  box-shadow: 0 0 0 4px rgba(52, 211, 153, 0.18);
+}
+
+.mon-dot.is-off {
+  background: #94a3b8;
+}
+
+.mon-dot.is-warn {
+  background: #f87171;
+  box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.2);
+}
+
+.mon-inline-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.5);
+  display: inline-block;
+}
+
+.mon-inline-dot.is-on {
+  background: #34d399;
+}
+
+.mon-inline-dot.is-off {
+  background: #f87171;
+}
+
+.mon-device-grid {
+  list-style: none;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.7rem;
+}
+
+.mon-device-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.25);
+  color: inherit;
+  cursor: pointer;
+}
+
+.mon-device-card.is-waiting {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.mon-device-card.is-active {
+  border-color: rgba(96, 165, 250, 0.55);
+}
+
+.mon-device-card.is-warn {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.mon-device-metrics {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.mon-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.mon-detail-actions,
+.mon-detail-toggles,
+.mon-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.mon-detail-toggles {
+  justify-content: space-between;
+}
+
+.mon-warn-banner {
+  margin: 0;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(248, 113, 113, 0.12);
+  color: #fecaca;
+}
+
+.mon-kpis-mini {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+
+.mon-kpis-mini div {
+  padding: 0.55rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.mon-kpis-mini span {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.mon-kpis-mini strong {
+  font-size: 1.15rem;
+}
+
+.mon-linechart svg {
+  width: 100%;
+  height: auto;
+}
+
+.mon-linechart-tick {
+  fill: rgba(148, 163, 184, 0.75);
+  font-size: 10px;
+}
+
+.mon-linechart-legend {
+  list-style: none;
+  display: flex;
+  gap: 1rem;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+.mon-linechart-legend i {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  margin-right: 0.35rem;
+}
+
+.mon-block h3 {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.mon-disk-list,
+.mon-event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.mon-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.mon-table th,
+.mon-table td {
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mon-os-line {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.settings-enroll-key {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.settings-enroll-key code {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+@media (max-width: 720px) {
+  .mon-kpis-mini {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mon-pending-list li,
+  .mon-problem-list li {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mon-pending-actions select,
+  .mon-customer-select {
+    min-width: 0;
+    width: 100%;
+  }
+}
+

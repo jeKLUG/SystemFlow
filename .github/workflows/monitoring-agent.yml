@@ -1,0 +1,40 @@
+name: Monitoring Agent
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "apps/agent/**"
+      - ".github/workflows/monitoring-agent.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: windows
+            goarch: amd64
+            ext: .exe
+          - goos: linux
+            goarch: amd64
+            ext: ""
+          - goos: linux
+            goarch: arm64
+            ext: ""
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Build
+        working-directory: apps/agent
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: "0"
+        run: go mod tidy && go build -ldflags "-s -w" -o "systemhaus-agent${{ matrix.ext }}" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: systemhaus-agent-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: apps/agent/systemhaus-agent${{ matrix.ext }}

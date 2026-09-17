@@ -339,6 +339,11 @@ export interface Asset {
   warrantyUntil: string | null;
   notes: string | null;
   portalVisible?: boolean;
+  monitoringEnabled?: boolean;
+  monitoringAlertEnabled?: boolean;
+  monitoringAgentId?: string | null;
+  monitoringOnline?: boolean | null;
+  monitoringLastSeenAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -670,7 +675,7 @@ export const emptyCustomerForm: {
 
 export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
 export type TicketPriority = "low" | "normal" | "high" | "critical";
-export type TicketSource = "portal" | "staff";
+export type TicketSource = "portal" | "staff" | "monitoring";
 export type TicketMessageVisibility = "public" | "internal";
 export type TicketMessageKind = "comment" | "resolution" | "opener";
 
@@ -756,4 +761,103 @@ export interface PortalOverview {
     priority: TicketPriority;
     updatedAt: string;
   }[];
+}
+
+export type MonitoringIssueKind = "offline" | "disk" | "cpu" | "ram" | "eventlog" | "updates";
+
+export interface MonitoringDeviceSummary {
+  agentId: string;
+  assetId: string | null;
+  assetName: string;
+  customerId: string | null;
+  customerName: string | null;
+  hostname: string | null;
+  os: string | null;
+  osVersion: string | null;
+  ipAddress: string | null;
+  lastSeenAt: string | null;
+  status: "online" | "offline" | "pending";
+  online: boolean;
+  alertEnabled: boolean;
+  monitoringEnabled: boolean;
+  warning: boolean;
+  issues: MonitoringIssueKind[];
+  ticketId: string | null;
+  ticketNumber: string | null;
+  cpuPercent: number | null;
+  ramPercent: number | null;
+  diskUsedPct: number | null;
+  uptimeSec: number | null;
+}
+
+export interface MonitoringOverview {
+  online: number;
+  offline: number;
+  warning: number;
+  pending: number;
+  assigned: number;
+  problems: MonitoringDeviceSummary[];
+  byCustomer: {
+    customerId: string;
+    customerName: string;
+    online: number;
+    offline: number;
+    warning: number;
+  }[];
+  customers: { id: string; name: string }[];
+}
+
+export interface MonitoringPendingAgent {
+  id: string;
+  machineId: string;
+  hostname: string | null;
+  os: string | null;
+  osVersion: string | null;
+  ipAddress: string | null;
+  agentVersion: string | null;
+  lastSeenAt: string | null;
+  createdAt: string;
+}
+
+export interface MonitoringAssignableAsset {
+  id: string;
+  name: string;
+  hostname: string | null;
+  customerId: string;
+  customerName: string;
+}
+
+export interface MonitoringSample {
+  ts: string;
+  cpuPct: number | null;
+  ramPct: number | null;
+  diskUsedPct: number | null;
+  netRxBytes: number | null;
+  netTxBytes: number | null;
+}
+
+export interface MonitoringSnapshot {
+  hostname?: string;
+  os?: string;
+  osVersion?: string;
+  arch?: string;
+  uptimeSec?: number;
+  agentVersion?: string;
+  ip?: string;
+  ips?: string[];
+  mac?: string;
+  cpuPercent?: number | null;
+  ramUsedBytes?: number | null;
+  ramTotalBytes?: number | null;
+  disks?: { name: string; totalBytes: number; usedBytes: number; freeBytes: number }[];
+  nics?: { name: string; bytesRecv: number; bytesSent: number; up?: boolean }[];
+  processes?: { name: string; cpuPercent?: number; rssBytes?: number }[];
+  updates?: { pendingCount?: number; lastInstalled?: string | null };
+  events?: { source?: string; level?: string; time?: string; message: string }[];
+}
+
+export interface MonitoringDeviceDetail {
+  device: MonitoringDeviceSummary;
+  snapshot: MonitoringSnapshot | null;
+  samples: MonitoringSample[];
 }

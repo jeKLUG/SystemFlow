@@ -13,3 +13,6 @@ Thumbs.db
 .vscode/
 apps/web/dist/
 apps/api/dist/
+apps/agent/systemhaus-agent
+apps/agent/systemhaus-agent.exe
+apps/agent/*.exe

@@ -166,3 +166,101 @@ export function ChartLegend({ slices }: { slices: Slice[] }) {
     </ul>
   );
 }
+
+type LinePoint = { t: number; v: number | null };
+
+/**
+ * Einfaches SVG-Liniendiagramm ohne Chart-Bibliothek.
+ */
+export function LineChart({
+  series,
+  height = 148,
+  yMax,
+  ySuffix = "",
+}: {
+  series: { label: string; color: string; points: LinePoint[] }[];
+  height?: number;
+  yMax?: number;
+  ySuffix?: string;
+}) {
+  const width = 640;
+  const padL = 36;
+  const padR = 8;
+  const padT = 10;
+  const padB = 22;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+
+  const all = series.flatMap((s) => s.points);
+  const times = all.map((p) => p.t);
+  const tMin = times.length ? Math.min(...times) : 0;
+  const tMax = times.length ? Math.max(...times) : 1;
+  const span = Math.max(1, tMax - tMin);
+  const values = all.map((p) => p.v).filter((v): v is number => v != null && Number.isFinite(v));
+  const peak = yMax ?? Math.max(1, ...values, 0);
+  const nicePeak = peak <= 100 ? 100 : Math.ceil(peak / 10) * 10;
+
+  function xOf(t: number) {
+    return padL + ((t - tMin) / span) * innerW;
+  }
+  function yOf(v: number) {
+    return padT + innerH - (Math.max(0, Math.min(nicePeak, v)) / nicePeak) * innerH;
+  }
+
+  function pathFor(points: LinePoint[]) {
+    const usable = downsample(points, 120).filter((p) => p.v != null) as { t: number; v: number }[];
+    if (usable.length < 2) return "";
+    return usable.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(" ");
+  }
+
+  const ticks = [0, 0.5, 1].map((f) => Math.round(nicePeak * f));
+
+  return (
+    <div className="mon-linechart">
+      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Verlauf">
+        {ticks.map((tick) => (
+          <g key={tick}>
+            <line
+              x1={padL}
+              x2={width - padR}
+              y1={yOf(tick)}
+              y2={yOf(tick)}
+              stroke="rgba(148,163,184,0.16)"
+              strokeWidth="1"
+            />
+            <text x={padL - 6} y={yOf(tick) + 3} textAnchor="end" className="mon-linechart-tick">
+              {tick}
+              {ySuffix}
+            </text>
+          </g>
+        ))}
+        {series.map((s) => (
+          <path key={s.label} d={pathFor(s.points)} fill="none" stroke={s.color} strokeWidth="2.2" strokeLinejoin="round" />
+        ))}
+      </svg>
+      <ul className="mon-linechart-legend">
+        {series.map((s) => (
+          <li key={s.label}>
+            <i style={{ background: s.color }} aria-hidden />
+            {s.label}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function downsample(points: LinePoint[], max: number): LinePoint[] {
+  if (points.length <= max) return points;
+  const bucket = points.length / max;
+  const out: LinePoint[] = [];
+  for (let i = 0; i < max; i++) {
+    const start = Math.floor(i * bucket);
+    const end = Math.floor((i + 1) * bucket);
+    const slice = points.slice(start, Math.max(start + 1, end));
+    const vals = slice.map((p) => p.v).filter((v): v is number => v != null);
+    const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+    out.push({ t: slice[0]?.t ?? 0, v: avg });
+  }
+  return out;
+}
