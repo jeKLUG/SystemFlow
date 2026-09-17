@@ -19,8 +19,7 @@ export function PortalAccountPage() {
 
   const username = user?.username ?? "";
   const displayName = user?.customerName || username || "Konto";
-  const usernameLine =
-    username && displayName !== username ? `Benutzername ${username}` : "Portal-Benutzer";
+  const showUsernameChip = Boolean(username && displayName !== username);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -60,9 +59,25 @@ export function PortalAccountPage() {
           <span className="avatar" aria-hidden>
             {(username || "?").slice(0, 1).toUpperCase()}
           </span>
-          <span className="user-card-meta">
-            <strong>{displayName}</strong>
-            <span className="muted">{usernameLine}</span>
+          <span className="portal-account-who-meta">
+            <strong className="portal-account-who-name">{displayName}</strong>
+            {showUsernameChip ? (
+              <span className="portal-account-handle">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                  <path
+                    d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span className="portal-account-handle-k">Benutzername</span>
+                <span className="portal-account-handle-v">{username}</span>
+              </span>
+            ) : (
+              <span className="portal-account-handle is-plain">Portal-Benutzer</span>
+            )}
           </span>
         </section>
         <section className="panel settings-card portal-account-card">

@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api";
 import { customerDisplayName } from "../lib/customer";
 import { getRecentCustomerIds, pushRecentCustomer } from "../lib/recentCustomers";
@@ -34,12 +35,15 @@ export function CustomerPicker({
 }: Props) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const controlRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Customer[]>([]);
   const [selected, setSelected] = useState<Customer | null>(null);
   const [highlight, setHighlight] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [listStyle, setListStyle] = useState<CSSProperties>({});
 
   useEffect(() => {
     if (!value) {
@@ -87,9 +91,49 @@ export function CustomerPicker({
     return () => window.clearTimeout(t);
   }, [query, open, activeOnly]);
 
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const el = controlRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const gap = 6;
+      const maxH = 280;
+      const pad = 8;
+      const below = window.innerHeight - r.bottom - gap - pad;
+      const above = r.top - gap - pad;
+      const openUp = below < 140 && above > below;
+      const height = Math.min(maxH, Math.max(120, openUp ? above : below));
+      setListStyle(
+        openUp
+          ? {
+              left: r.left,
+              width: r.width,
+              bottom: window.innerHeight - r.top + gap,
+              maxHeight: height,
+            }
+          : {
+              left: r.left,
+              width: r.width,
+              top: r.bottom + gap,
+              maxHeight: height,
+            },
+      );
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, results.length, loading]);
+
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (rootRef.current?.contains(t) || listRef.current?.contains(t)) return;
+      setOpen(false);
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
@@ -140,7 +184,7 @@ export function CustomerPicker({
       className={`customer-picker${compact ? " is-compact" : ""}${selected && !open ? " has-value" : ""}${className ? ` ${className}` : ""}`}
       ref={rootRef}
     >
-      <div className="customer-picker-control">
+      <div className="customer-picker-control" ref={controlRef}>
         <input
           className="customer-picker-input"
           role="combobox"
@@ -180,64 +224,73 @@ export function CustomerPicker({
         </span>
       ) : null}
 
-      {open ? (
-        <ul id={listId} className="customer-picker-list" role="listbox">
-          {loading ? <li className="customer-picker-empty">Suche…</li> : null}
-          {!loading && options.length === 0 ? (
-            <li className="customer-picker-empty">Keine Treffer</li>
-          ) : null}
-          {!loading &&
-            options.map((item, index) => {
-              if (item === null) {
-                return (
-                  <li key="__empty">
-                    <button
-                      type="button"
-                      role="option"
-                      className={
-                        highlight === index
-                          ? "customer-picker-option is-active"
-                          : "customer-picker-option"
-                      }
-                      onMouseEnter={() => setHighlight(index)}
-                      onClick={() => choose(null)}
-                    >
-                      {emptyLabel}
-                    </button>
-                  </li>
-                );
-              }
-              return (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={value === item.id}
-                    className={[
-                      "customer-picker-option",
-                      highlight === index ? "is-active" : "",
-                      value === item.id ? "is-selected" : "",
-                    ]
-                      .filter(Boolean)
-                      .join(" ")}
-                    onMouseEnter={() => setHighlight(index)}
-                    onClick={() => choose(item)}
-                  >
-                    <strong>{customerDisplayName(item)}</strong>
-                    <span>
-                      {[item.contactPerson, item.city, item.status === "inactive" ? "Inaktiv" : ""]
-                        .filter(Boolean)
-                        .join(" · ") || item.name}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          {!loading && !query.trim() && getRecentCustomerIds().length > 0 ? (
-            <li className="customer-picker-hint">Zuletzt verwendet</li>
-          ) : null}
-        </ul>
-      ) : null}
+      {open
+        ? createPortal(
+            <ul
+              id={listId}
+              ref={listRef}
+              className="customer-picker-list is-floating"
+              role="listbox"
+              style={listStyle}
+            >
+              {loading ? <li className="customer-picker-empty">Suche…</li> : null}
+              {!loading && options.length === 0 ? (
+                <li className="customer-picker-empty">Keine Treffer</li>
+              ) : null}
+              {!loading &&
+                options.map((item, index) => {
+                  if (item === null) {
+                    return (
+                      <li key="__empty">
+                        <button
+                          type="button"
+                          role="option"
+                          className={
+                            highlight === index
+                              ? "customer-picker-option is-active"
+                              : "customer-picker-option"
+                          }
+                          onMouseEnter={() => setHighlight(index)}
+                          onClick={() => choose(null)}
+                        >
+                          {emptyLabel}
+                        </button>
+                      </li>
+                    );
+                  }
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        role="option"
+                        aria-selected={value === item.id}
+                        className={[
+                          "customer-picker-option",
+                          highlight === index ? "is-active" : "",
+                          value === item.id ? "is-selected" : "",
+                        ]
+                          .filter(Boolean)
+                          .join(" ")}
+                        onMouseEnter={() => setHighlight(index)}
+                        onClick={() => choose(item)}
+                      >
+                        <strong>{customerDisplayName(item)}</strong>
+                        <span>
+                          {[item.contactPerson, item.city, item.status === "inactive" ? "Inaktiv" : ""]
+                            .filter(Boolean)
+                            .join(" · ") || item.name}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              {!loading && !query.trim() && getRecentCustomerIds().length > 0 ? (
+                <li className="customer-picker-hint">Zuletzt verwendet</li>
+              ) : null}
+            </ul>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

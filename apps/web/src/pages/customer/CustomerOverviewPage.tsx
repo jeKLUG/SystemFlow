@@ -383,11 +383,9 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     ? `${formatTimeAgo(portal.lastLoginAt)} · ${formatDate(portal.lastLoginAt)}`
     : "Noch nie angemeldet";
   const statusLabel = !exists ? "Nicht eingerichtet" : enabled ? "Aktiv" : "Deaktiviert";
-  const statusHint = !exists
-    ? "Einschalten, um Benutzername und Passwort zu setzen."
-    : enabled
-      ? "Der Kunde kann sich unter /portal/login anmelden."
-      : "Zugang gesperrt. Der Kunde kann sich nicht anmelden.";
+  const statusHint = enabled
+    ? "Der Kunde kann sich unter /portal/login anmelden."
+    : "Zugang gesperrt. Der Kunde kann sich nicht anmelden.";
 
   return (
     <section className="section">
@@ -395,7 +393,6 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
         <div className="portal-access-head">
           <div>
             <h2>Portal-Zugang</h2>
-            <p className="muted">Ein Login je Kunde, Passwort nur hier setzen.</p>
           </div>
           <div className="portal-access-head-actions">
             {exists && !showFields ? (
@@ -427,7 +424,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
               >
                 {statusLabel}
               </span>
-              <p className="muted">{statusHint}</p>
+              {exists ? <p className="muted">{statusHint}</p> : null}
             </div>
 
             {exists && !showFields ? (
@@ -436,12 +433,6 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
                 <FactRow label="Passwort" value="Gesetzt" />
                 <FactRow label="Letzte Anmeldung" value={lastLogin} wide />
               </dl>
-            ) : null}
-
-            {!exists && !showFields ? (
-              <p className="muted portal-access-empty">
-                Kein Zugang angelegt. Schalter auf Aktiv stellen, dann Benutzername und Passwort vergeben.
-              </p>
             ) : null}
 
             {showFields ? (

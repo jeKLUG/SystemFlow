@@ -7,6 +7,7 @@ import {
   orgSettings,
   priceItems,
   projects,
+  tickets,
   timeEntries,
   timeEntryLines,
 } from "../db/schema.js";
@@ -95,6 +96,23 @@ const entryBody = z
 function emptyToNull(value: string | null | undefined) {
   if (!value || !value.trim()) return null;
   return value.trim();
+}
+
+/**
+ * Optional Ticket-ID: leer oder Ticket desselben Kunden.
+ */
+async function ticketIdForCustomer(
+  db: Db,
+  customerId: string,
+  raw: string | null | undefined,
+): Promise<{ id: string | null; error?: string }> {
+  const id = emptyToNull(raw);
+  if (!id) return { id: null };
+  const ticket = await db.select().from(tickets).where(eq(tickets.id, id)).get();
+  if (!ticket || ticket.customerId !== customerId) {
+    return { id: null, error: "Ticket gehört nicht zu diesem Kunden" };
+  }
+  return { id: ticket.id };
 }
 
 function resolveHours(data: {
@@ -410,12 +428,15 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         rateSnapshot: timeEntries.rateSnapshot,
         amountSnapshot: timeEntries.amountSnapshot,
         ticketId: timeEntries.ticketId,
+        ticketNumber: tickets.number,
+        ticketTitle: tickets.title,
         createdAt: timeEntries.createdAt,
         updatedAt: timeEntries.updatedAt,
       })
       .from(timeEntries)
       .leftJoin(projects, eq(timeEntries.projectId, projects.id))
       .leftJoin(priceItems, eq(timeEntries.priceItemId, priceItems.id))
+      .leftJoin(tickets, eq(timeEntries.ticketId, tickets.id))
       .where(eq(timeEntries.customerId, customerId))
       .orderBy(desc(timeEntries.workDate), desc(timeEntries.createdAt))
       .all();
@@ -553,6 +574,10 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       if (!project) return reply.code(400).send({ error: "Projekt gehört nicht zu diesem Kunden" });
     }
 
+    const ticketResolved = await ticketIdForCustomer(db, customerId, parsed.data.ticketId);
+    if (ticketResolved.error) return reply.code(400).send({ error: ticketResolved.error });
+    const ticketId = ticketResolved.id;
+
     const billable = parsed.data.billable ?? true;
     let readyForInvoice = parsed.data.readyForInvoice ?? false;
     let billed = parsed.data.billed ?? false;
@@ -618,7 +643,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       billed,
       rateSnapshot,
       amountSnapshot,
-      ticketId: emptyToNull(parsed.data.ticketId),
+      ticketId,
       createdAt: now,
       updatedAt: now,
     };
@@ -657,6 +682,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         projectId: z.string().optional().nullable().or(z.literal("")),
         priceItemId: z.string().optional().nullable().or(z.literal("")),
         billable: z.boolean().optional(),
+        ticketId: z.string().optional().nullable().or(z.literal("")),
       })
       .parse(request.body ?? {});
 
@@ -689,6 +715,10 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       if (!project) return reply.code(400).send({ error: "Projekt gehört nicht zu diesem Kunden" });
     }
 
+    const ticketResolved = await ticketIdForCustomer(db, customerId, body.ticketId);
+    if (ticketResolved.error) return reply.code(400).send({ error: ticketResolved.error });
+    const ticketId = ticketResolved.id;
+
     const priceItemId = emptyToNull(body.priceItemId);
     const billable = body.billable ?? true;
     // Stempeluhr startet ohne Betrag; Sätze beim Bearbeiten/Ausstempeln über Positionen
@@ -718,6 +748,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       billed: false,
       rateSnapshot,
       amountSnapshot,
+      ticketId,
       createdAt: now,
       updatedAt: now,
     };
@@ -736,6 +767,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
         endTime: timeStr.optional(),
         description: z.string().max(5000).optional().or(z.literal("")),
         entryId: z.string().optional(),
+        ticketId: z.string().optional().nullable().or(z.literal("")),
       })
       .parse(request.body ?? {});
 
@@ -795,6 +827,13 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
     const description =
       body.description !== undefined ? emptyToNull(body.description) : open.description;
 
+    let ticketId = open.ticketId;
+    if (body.ticketId !== undefined) {
+      const ticketResolved = await ticketIdForCustomer(db, customerId, body.ticketId);
+      if (ticketResolved.error) return reply.code(400).send({ error: ticketResolved.error });
+      ticketId = ticketResolved.id;
+    }
+
     const updated = {
       endTime,
       hours,
@@ -802,6 +841,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       priceItemId,
       rateSnapshot,
       amountSnapshot,
+      ticketId,
       updatedAt: now,
     };
     await db.update(timeEntries).set(updated).where(eq(timeEntries.id, open.id));
@@ -838,6 +878,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       billable: z.boolean().optional(),
       readyForInvoice: z.boolean().optional(),
       billed: z.boolean().optional(),
+      ticketId: z.string().optional().nullable().or(z.literal("")),
     });
 
     const parsed = updateBody.safeParse(request.body);
@@ -858,6 +899,17 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
           return reply.code(400).send({ error: "Projekt gehört nicht zu diesem Kunden" });
         }
       }
+    }
+
+    let ticketId = existing.ticketId;
+    if (parsed.data.ticketId !== undefined) {
+      const ticketResolved = await ticketIdForCustomer(
+        db,
+        existing.customerId,
+        parsed.data.ticketId,
+      );
+      if (ticketResolved.error) return reply.code(400).send({ error: ticketResolved.error });
+      ticketId = ticketResolved.id;
     }
 
     const startTime =
@@ -982,6 +1034,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       billed,
       rateSnapshot,
       amountSnapshot,
+      ticketId,
       updatedAt: new Date(),
     };
 

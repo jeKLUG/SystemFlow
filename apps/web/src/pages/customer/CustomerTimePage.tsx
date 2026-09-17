@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { DeleteIcon, EditIcon } from "../../components/Icons";
 import { Modal } from "../../components/Modal";
 import { addMinutesToTime, localNowTime, localTodayIso, parseDateOnly } from "../../lib/dates";
-import { formatDateOnly } from "../../lib/labels";
+import { formatDateOnly, ticketStatusLabel } from "../../lib/labels";
 import { formatHours, hoursFromRange } from "../../lib/time";
-import type { PriceItem, ProjectItem, TimeEntryItem } from "../../types";
+import type { PriceItem, ProjectItem, TicketItem, TimeEntryItem } from "../../types";
 
 /** Virtuelle Positions-IDs (API: Standard-/Projekt-Stundensatz). */
 const RATE_LINE_ORG = "__org_hourly__";
@@ -33,6 +33,7 @@ type FormState = {
   hoursOverride: string;
   description: string;
   projectId: string;
+  ticketId: string;
   lines: FormLine[];
   billable: boolean;
   readyForInvoice: boolean;
@@ -82,6 +83,7 @@ function emptyForm(): FormState {
     hoursOverride: "",
     description: "",
     projectId: "",
+    ticketId: "",
     lines: [],
     billable: true,
     readyForInvoice: false,
@@ -103,6 +105,22 @@ function sanitizeHoursInput(raw: string): string {
   const frac = match[3] ?? "";
   if (!sep) return intPart;
   return `${intPart}${sep}${frac}`;
+}
+
+const OPEN_TICKET = new Set(["open", "in_progress", "waiting_customer"]);
+
+function ticketChoiceLabel(ticket: TicketItem) {
+  const closed = !OPEN_TICKET.has(ticket.status);
+  return `${ticket.number} · ${ticket.title}${closed ? ` (${ticketStatusLabel[ticket.status]})` : ""}`;
+}
+
+function sortTickets(tickets: TicketItem[]) {
+  return [...tickets].sort((a, b) => {
+    const ao = OPEN_TICKET.has(a.status) ? 0 : 1;
+    const bo = OPEN_TICKET.has(b.status) ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return b.updatedAt.localeCompare(a.updatedAt);
+  });
 }
 
 const kindShort: Record<string, string> = {
@@ -128,6 +146,7 @@ export function CustomerTimePage() {
     entryCount: 0,
   });
   const [projects, setProjects] = useState<ProjectItem[]>([]);
+  const [tickets, setTickets] = useState<TicketItem[]>([]);
   const [priceItems, setPriceItems] = useState<PriceItem[]>([]);
   const [currency, setCurrency] = useState("EUR");
   const [defaultHourlyRate, setDefaultHourlyRate] = useState<number | null>(null);
@@ -140,6 +159,7 @@ export function CustomerTimePage() {
   const [clockBusy, setClockBusy] = useState(false);
   const [clockNote, setClockNote] = useState("");
   const [clockProjectId, setClockProjectId] = useState("");
+  const [clockTicketId, setClockTicketId] = useState("");
   const [elapsedLabel, setElapsedLabel] = useState("0min");
   const [form, setForm] = useState<FormState>(emptyForm);
   const [hoursManualOpen, setHoursManualOpen] = useState(false);
@@ -211,10 +231,11 @@ export function CustomerTimePage() {
   const running = useMemo(() => entries.find(isRunningEntry) ?? null, [entries]);
 
   async function reload() {
-    const [time, allForClock, p, prices, org] = await Promise.all([
+    const [time, allForClock, p, ticketRows, prices, org] = await Promise.all([
       api.timeEntries(id, filterProject ? { projectId: filterProject } : undefined),
       filterProject ? api.timeEntries(id) : Promise.resolve(null),
       api.projects(id),
+      api.tickets({ customerId: id, limit: 200 }),
       api.priceItems({ activeOnly: true }),
       api.orgSettings(),
     ]);
@@ -236,6 +257,7 @@ export function CustomerTimePage() {
       entryCount: time.summary.entryCount,
     });
     setProjects(p);
+    setTickets(sortTickets(ticketRows));
     setPriceItems(prices);
     setCurrency(org.currency || "EUR");
     setDefaultHourlyRate(org.defaultHourlyRate ?? null);
@@ -258,6 +280,10 @@ export function CustomerTimePage() {
     const timer = window.setInterval(tick, 15_000);
     return () => window.clearInterval(timer);
   }, [running?.id, running?.startTime]);
+
+  useEffect(() => {
+    if (running) setClockTicketId(running.ticketId || "");
+  }, [running?.id]);
 
   const finishedEntries = useMemo(
     () => entries.filter((e) => !isRunningEntry(e)),
@@ -332,6 +358,7 @@ export function CustomerTimePage() {
       startTime: localNowTime(),
       endTime: addMinutesToTime(localNowTime(), 60),
       projectId: clockProjectId,
+      ticketId: clockTicketId,
     });
     setModalMode("create");
   }
@@ -364,6 +391,7 @@ export function CustomerTimePage() {
       hoursOverride,
       description: entry.description || "",
       projectId: entry.projectId || "",
+      ticketId: entry.ticketId || "",
       lines: entryLines,
       billable: entry.billable,
       readyForInvoice: entry.readyForInvoice,
@@ -441,6 +469,7 @@ export function CustomerTimePage() {
         startTime: localNowTime(),
         workDate: localTodayIso(),
         projectId: clockProjectId || null,
+        ticketId: clockTicketId || null,
         description: clockNote.trim() || undefined,
       });
       setClockNote("");
@@ -460,6 +489,7 @@ export function CustomerTimePage() {
         endTime: localNowTime(),
         description: clockNote.trim() || undefined,
         entryId: running?.id,
+        ticketId: clockTicketId || null,
       });
       setClockNote("");
       await reload();
@@ -492,6 +522,7 @@ export function CustomerTimePage() {
       workDate: form.workDate,
       description: form.description,
       projectId: form.projectId || null,
+      ticketId: form.ticketId || null,
       lines: linesPayload,
       billable: form.billable,
       readyForInvoice: form.readyForInvoice,
@@ -543,8 +574,13 @@ export function CustomerTimePage() {
                 <p className="time-clock-status">Eingestempelt seit {running.startTime}</p>
                 <p className="time-clock-elapsed">{elapsedLabel}</p>
                 <p className="muted time-clock-hint">
-                  {running.description || "Kein Hinweis hinterlegt"} ·{" "}
-                  {running.projectName || "Ohne Projekt"}
+                  {[
+                    running.description || "Kein Hinweis hinterlegt",
+                    running.projectName || "Ohne Projekt",
+                    running.ticketNumber ? running.ticketNumber : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </p>
               </>
             ) : (
@@ -566,6 +602,20 @@ export function CustomerTimePage() {
                     {projects.map((p) => (
                       <option key={p.id} value={p.id}>
                         {p.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field time-clock-field">
+                  <span>Ticket (optional)</span>
+                  <select
+                    value={clockTicketId}
+                    onChange={(e) => setClockTicketId(e.target.value)}
+                  >
+                    <option value="">Kein Ticket</option>
+                    {tickets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {ticketChoiceLabel(t)}
                       </option>
                     ))}
                   </select>
@@ -603,6 +653,20 @@ export function CustomerTimePage() {
               </>
             ) : (
               <>
+                <label className="field time-clock-field">
+                  <span>Ticket (optional)</span>
+                  <select
+                    value={clockTicketId}
+                    onChange={(e) => setClockTicketId(e.target.value)}
+                  >
+                    <option value="">Kein Ticket</option>
+                    {tickets.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {ticketChoiceLabel(t)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <label className="field time-clock-field">
                   <span>Notiz beim Ausstempeln</span>
                   <input
@@ -806,6 +870,15 @@ export function CustomerTimePage() {
                                 .filter(Boolean)
                                 .join(" · ")}
                             </span>
+                            {entry.ticketId && entry.ticketNumber ? (
+                              <Link
+                                className="time-ticket-chip"
+                                to={`/tickets/${entry.ticketId}`}
+                                title={entry.ticketTitle || entry.ticketNumber}
+                              >
+                                {entry.ticketNumber}
+                              </Link>
+                            ) : null}
                             {!entry.billable ? (
                               <span className="time-status is-muted">Nicht abrechenbar</span>
                             ) : (
@@ -982,6 +1055,20 @@ export function CustomerTimePage() {
                 <option key={p.id} value={p.id}>
                   {p.name}
                   {p.hourlyRate != null ? ` · ${p.hourlyRate} ${currency}/h` : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            <span>Ticket (optional)</span>
+            <select
+              value={form.ticketId}
+              onChange={(e) => setForm({ ...form, ticketId: e.target.value })}
+            >
+              <option value="">Kein Ticket</option>
+              {tickets.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {ticketChoiceLabel(t)}
                 </option>
               ))}
             </select>

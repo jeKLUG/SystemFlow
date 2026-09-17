@@ -1,10 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
-import { TicketComposer, TicketBrief, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import {
+  TicketBrief,
+  TicketComposer,
+  TicketFileDrop,
+  TicketSolutionCard,
+  TicketTimeFact,
+  TicketTimeline,
+} from "../../components/TicketTimeline";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
-import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
-import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
+import { portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
+import { useSlaNow } from "../../lib/tickets";
 import type { TicketItem } from "../../types";
 
 /**
@@ -94,37 +101,26 @@ export function PortalTicketDetailPage() {
         }
         meta={
           <>
-            <div>
-              <dt>Aktueller Status</dt>
-              <dd>{portalTicketStatusLabel[ticket.status]}</dd>
-            </div>
-            <div>
-              <dt>Priorität</dt>
-              <dd>{ticketPriorityLabel[ticket.priority]}</dd>
-            </div>
-            <div>
-              <dt>Eingegangen</dt>
-              <dd>
-                {formatTimeAgo(ticket.createdAt, clockNow)} · {formatDate(ticket.createdAt)}
-              </dd>
-            </div>
-            <div>
-              <dt>Aktualisiert</dt>
-              <dd>
-                {formatTimeAgo(ticket.updatedAt, clockNow)} · {formatDate(ticket.updatedAt)}
-              </dd>
-            </div>
+            <TicketTimeFact label="Eingegangen" at={ticket.createdAt} now={clockNow} />
+            {Math.abs(new Date(ticket.updatedAt).getTime() - new Date(ticket.createdAt).getTime()) > 60_000 ? (
+              <TicketTimeFact label="Aktualisiert" at={ticket.updatedAt} now={clockNow} />
+            ) : null}
             {ticket.firstResponseAt ? (
+              <TicketTimeFact label="Erste Antwort" at={ticket.firstResponseAt} now={clockNow} />
+            ) : ticket.status === "open" || ticket.status === "in_progress" || ticket.status === "waiting_customer" ? (
               <div>
                 <dt>Erste Antwort</dt>
-                <dd>{formatDate(ticket.firstResponseAt)}</dd>
+                <dd>
+                  <strong>steht aus</strong>
+                </dd>
               </div>
             ) : null}
             {ticket.resolvedAt || ticket.closedAt ? (
-              <div>
-                <dt>{ticket.status === "closed" ? "Geschlossen" : "Gelöst"}</dt>
-                <dd>{formatDate(ticket.resolvedAt || ticket.closedAt || "")}</dd>
-              </div>
+              <TicketTimeFact
+                label={ticket.status === "closed" ? "Geschlossen" : "Gelöst"}
+                at={ticket.resolvedAt || ticket.closedAt || ""}
+                now={clockNow}
+              />
             ) : null}
           </>
         }

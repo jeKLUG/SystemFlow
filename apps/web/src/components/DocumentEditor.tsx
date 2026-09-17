@@ -21,6 +21,18 @@ import { api } from "../api";
 import { Callout } from "./editor/callout";
 import { CodeBlockWithChrome } from "./editor/CodeBlockComponent";
 
+/** Nächsten scrollbaren Vorfahren finden (Seite, Dialog, App-Content). */
+function nearestScrollParent(from: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = from.parentElement;
+  while (node) {
+    const { overflowY } = getComputedStyle(node);
+    const scrollable = overflowY === "auto" || overflowY === "scroll";
+    if (scrollable && node.scrollHeight > node.clientHeight + 1) return node;
+    node = node.parentElement;
+  }
+  return null;
+}
+
 interface Props {
   content: string;
   onChange: (json: string) => void;
@@ -47,12 +59,29 @@ export function DocumentEditor({
   placeholder = "Schreibe hier – Text, Bilder, Listen, Tabellen…",
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fieldActive, setFieldActive] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const editableRef = useRef(editable);
+  const fieldActiveRef = useRef(false);
   editableRef.current = editable;
+  fieldActiveRef.current = fieldActive;
+
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const onWheel = (event: WheelEvent) => {
+      if (editableRef.current && fieldActiveRef.current) return;
+      event.preventDefault();
+      const scroller = nearestScrollParent(root);
+      if (scroller) scroller.scrollTop += event.deltaY;
+      else window.scrollBy(event.deltaX, event.deltaY);
+    };
+    root.addEventListener("wheel", onWheel, { passive: false, capture: true });
+    return () => root.removeEventListener("wheel", onWheel, { capture: true });
+  }, []);
 
   async function uploadAndInsert(editor: Editor, file: File) {
     if (!customerId || !documentId) {
@@ -168,7 +197,10 @@ export function DocumentEditor({
   if (!editor) return null;
 
   return (
-    <div className={`editor${busy ? " is-busy" : ""}${editable ? "" : " is-readonly"}${variant === "comment" ? " is-comment" : ""}`}>
+    <div
+      ref={rootRef}
+      className={`editor${busy ? " is-busy" : ""}${editable ? "" : " is-readonly"}${variant === "comment" ? " is-comment" : ""}`}
+    >
       {editable ? (
       <div className="editor-toolbar" role="toolbar" aria-label="Formatierung">
         {variant === "full" ? (

@@ -74,6 +74,31 @@ function isTimelineComment(message: TicketMessageItem, ticketCreatedAt?: string)
 }
 
 /**
+ * Relative Zeit plus Datum in der Ticket-Kopfzeile.
+ */
+export function TicketTimeFact({
+  label,
+  at,
+  now,
+}: {
+  label: string;
+  at: string;
+  now: Date;
+}) {
+  const ago = formatTimeAgo(at, now);
+  const abs = formatDate(at);
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {ago ? <strong>{ago}</strong> : null}
+        {abs && abs !== ago ? <span className="muted">{abs}</span> : null}
+      </dd>
+    </div>
+  );
+}
+
+/**
  * Ticketkopf: Nummer, Titel und Beschreibung getrennt vom Verlauf.
  */
 export function TicketBrief({

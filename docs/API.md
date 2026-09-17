@@ -115,19 +115,21 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | POST | `/api/customers/:id/time-entries` | Buchen |
 | POST | `/api/customers/:id/time-clock/in` | Einstempeln (laufender Eintrag: `startTime`, `endTime` leer, `hours` 0) |
 | POST | `/api/customers/:id/time-clock/out` | Ausstempeln (setzt `endTime`, berechnet Stunden) |
-| PUT | `/api/time-entries/:id` | Aktualisieren (Zeiten/Stunden nachträglich anpassen) |
+| PUT | `/api/time-entries/:id` | Aktualisieren (Zeiten/Stunden nachträglich anpassen, optional `ticketId`) |
 | DELETE | `/api/time-entries/:id` | Löschen |
 | GET | `/api/customers/:id/time/report.pdf?month=YYYY-MM` | Monatsreport-PDF (Stunden, Beträge, Status) |
 
-Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `readyForInvoice`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `ticketId` (Ticket desselben Kunden), `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `readyForInvoice`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
 
 `lines[].priceItemId` kann eine Katalog-ID sein oder virtuell `__org_hourly__` (Standard-Stundensatz) bzw. `__project_hourly__` (Projekt-Stundensatz, Projekt erforderlich). Ohne `lines` und ohne `priceItemId` entsteht **kein** automatischer Betrag. Legacy: nur `priceItemId` ohne `lines` setzt weiterhin den Katalog-Satz.
 
 Antworten enthalten `lines` mit Snapshots (`nameSnapshot`, `kindSnapshot`, `quantity`, `unitPriceSnapshot`, `amountSnapshot`).
 
-Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `priceItemId`, `billable`. Ohne `priceItemId` kein Stundensatz-Snapshot. Ohne Zeiten: App-Zeitzone (`APP_TIMEZONE`, Standard `Europe/Berlin`). Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
+Body (Clock-in): optional `startTime`, `workDate`, `description`, `projectId`, `ticketId`, `priceItemId`, `billable`. Ohne `priceItemId` kein Stundensatz-Snapshot. Ohne Zeiten: App-Zeitzone (`APP_TIMEZONE`, Standard `Europe/Berlin`). Pro Kunde nur eine laufende Stempeluhr (409 bei Konflikt).
 
-Body (Clock-out): optional `endTime`, `description`, `entryId`. Gleiche Minute wie Start → 1 Minute (nicht 24 h).
+Body (Clock-out): optional `endTime`, `description`, `entryId`, `ticketId`. Gleiche Minute wie Start → 1 Minute (nicht 24 h).
+
+Antworten der Zeitliste enthalten optional `ticketNumber` und `ticketTitle`.
 
 `readyForInvoice` = zur Rechnung vorgemerkt (Lexware bleibt extern). `billed` = bereits abgerechnet.
 `summary` enthält u. a. `unbilledHours`/`unbilledAmount` sowie `readyForInvoiceHours`/`readyForInvoiceAmount`.

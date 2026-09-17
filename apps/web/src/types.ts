@@ -253,7 +253,10 @@ export interface TimeEntryItem {
   billed: boolean;
   rateSnapshot?: number | null;
   amountSnapshot?: number | null;
+  /** Verknüpftes Support-Ticket. */
   ticketId?: string | null;
+  ticketNumber?: string | null;
+  ticketTitle?: string | null;
   createdAt: string;
   updatedAt: string;
 }

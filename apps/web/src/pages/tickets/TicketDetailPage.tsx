@@ -4,12 +4,19 @@ import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
-import { TicketComposer, TicketFileDrop, TicketBrief, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import {
+  TicketBrief,
+  TicketComposer,
+  TicketFileDrop,
+  TicketSolutionCard,
+  TicketTimeFact,
+  TicketTimeline,
+} from "../../components/TicketTimeline";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
-import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
+import { ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
 import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
-import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
+import { useSlaNow } from "../../lib/tickets";
 import type { TicketItem, TicketPriority, TicketStatus } from "../../types";
 
 /**
@@ -202,13 +209,7 @@ export function TicketDetailPage() {
               <dt>Quelle</dt>
               <dd>{ticket.source === "portal" ? "Kundenportal" : "Intern angelegt"}</dd>
             </div>
-            <div>
-              <dt>Eingegangen</dt>
-              <dd>
-                {formatTimeAgo(ticket.createdAt, clockNow)}
-                <span className="muted"> · {formatDate(ticket.createdAt)}</span>
-              </dd>
-            </div>
+            <TicketTimeFact label="Eingegangen" at={ticket.createdAt} now={clockNow} />
           </>
         }
       />
@@ -263,77 +264,92 @@ export function TicketDetailPage() {
         </section>
 
         <aside className="panel ticket-side">
-          <label className="field">
-            <span>Status</span>
-            <select
-              value={ticket.status}
-              disabled={busy === "patch"}
-              onChange={(e) => onStatusChange(e.target.value as TicketStatus)}
-            >
-              {(Object.keys(ticketStatusLabel) as TicketStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {ticketStatusLabel[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Priorität</span>
-            <select
-              value={ticket.priority}
-              disabled={busy === "patch"}
-              onChange={(e) => void patch({ priority: e.target.value as TicketPriority })}
-            >
-              {(Object.keys(ticketPriorityLabel) as TicketPriority[]).map((p) => (
-                <option key={p} value={p}>
-                  {ticketPriorityLabel[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <dl className="ticket-sla">
-            <div>
-              <dt>Eingegangen</dt>
-              <dd>
-                {formatDate(ticket.createdAt)}
-                <span className="muted"> · {formatTimeAgo(ticket.createdAt, clockNow)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Letzte Änderung</dt>
-              <dd>
-                {formatDate(ticket.updatedAt)}
-                <span className="muted"> · {formatTimeAgo(ticket.updatedAt, clockNow)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Erste Reaktion</dt>
-              <dd>
-                {ticket.firstResponseAt
-                  ? `${formatDate(ticket.firstResponseAt)} · ${formatTimeAgo(ticket.firstResponseAt, clockNow)}`
-                  : "steht noch aus"}
-              </dd>
-            </div>
-            <div>
-              <dt>Verknüpft</dt>
-              <dd>
-                {ticket.linkedTaskCount ?? 0} Aufgaben · {ticket.linkedTimeCount ?? 0} Zeiten
-              </dd>
-            </div>
-          </dl>
-          <button type="button" className="btn btn-ghost" onClick={() => void makeTask()} disabled={busy === "task"}>
-            {busy === "task" ? "…" : "Aufgabe anlegen"}
-          </button>
-          <form className="stack-form" onSubmit={(e) => void makeTime(e)}>
-            <label className="field">
-              <span>Zeit buchen (Stunden)</span>
-              <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" />
+          <section className="ticket-side-block">
+            <p className="eyebrow">Steuerung</p>
+            <label className={`field ticket-side-status is-${ticket.status}`}>
+              <span>Status</span>
+              <select
+                value={ticket.status}
+                disabled={busy === "patch"}
+                onChange={(e) => onStatusChange(e.target.value as TicketStatus)}
+              >
+                {(Object.keys(ticketStatusLabel) as TicketStatus[]).map((s) => (
+                  <option key={s} value={s}>
+                    {ticketStatusLabel[s]}
+                  </option>
+                ))}
+              </select>
             </label>
-            <button className="btn btn-ghost" type="submit" disabled={busy === "time"}>
-              {busy === "time" ? "…" : "Zeit speichern"}
+            <label className={`field ticket-side-prio is-${ticket.priority}`}>
+              <span>Priorität</span>
+              <select
+                value={ticket.priority}
+                disabled={busy === "patch"}
+                onChange={(e) => void patch({ priority: e.target.value as TicketPriority })}
+              >
+                {(Object.keys(ticketPriorityLabel) as TicketPriority[]).map((p) => (
+                  <option key={p} value={p}>
+                    {ticketPriorityLabel[p]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+
+          <section className="ticket-side-block">
+            <p className="eyebrow">Zeiten</p>
+            <dl className="ticket-side-facts">
+              <TicketTimeFact label="Eingegangen" at={ticket.createdAt} now={clockNow} />
+              {Math.abs(new Date(ticket.updatedAt).getTime() - new Date(ticket.createdAt).getTime()) > 60_000 ? (
+                <TicketTimeFact label="Aktualisiert" at={ticket.updatedAt} now={clockNow} />
+              ) : null}
+              {ticket.firstResponseAt ? (
+                <TicketTimeFact label="Erste Reaktion" at={ticket.firstResponseAt} now={clockNow} />
+              ) : (
+                <div>
+                  <dt>Erste Reaktion</dt>
+                  <dd>
+                    <strong>steht aus</strong>
+                  </dd>
+                </div>
+              )}
+              {ticket.resolvedAt || ticket.closedAt ? (
+                <TicketTimeFact
+                  label={ticket.status === "closed" ? "Geschlossen" : "Gelöst"}
+                  at={ticket.resolvedAt || ticket.closedAt || ""}
+                  now={clockNow}
+                />
+              ) : null}
+            </dl>
+          </section>
+
+          <section className="ticket-side-block">
+            <p className="eyebrow">Arbeit</p>
+            <ul className="ticket-side-counts">
+              <li>
+                <strong>{ticket.linkedTaskCount ?? 0}</strong>
+                <span>Aufgaben</span>
+              </li>
+              <li>
+                <strong>{ticket.linkedTimeCount ?? 0}</strong>
+                <span>Zeiten</span>
+              </li>
+            </ul>
+            <button type="button" className="btn btn-ghost" onClick={() => void makeTask()} disabled={busy === "task"}>
+              {busy === "task" ? "…" : "Aufgabe anlegen"}
             </button>
-          </form>
-          <Link className="btn btn-ghost" to={`/customers/${ticket.customerId}`}>
+            <form className="ticket-side-time" onSubmit={(e) => void makeTime(e)}>
+              <label className="field">
+                <span>Stunden</span>
+                <input value={hours} onChange={(e) => setHours(e.target.value)} inputMode="decimal" />
+              </label>
+              <button className="btn btn-ghost" type="submit" disabled={busy === "time"}>
+                {busy === "time" ? "…" : "Buchen"}
+              </button>
+            </form>
+          </section>
+
+          <Link className="btn btn-ghost ticket-side-customer" to={`/customers/${ticket.customerId}`}>
             Zur Kundenakte
           </Link>
         </aside>

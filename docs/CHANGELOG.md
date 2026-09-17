@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.5.142 – 2026-09-17
+
+- Kundenakte Portal-Zugang: Untertitel und Hinweise im Leerzustand entfernt
+
+## 1.5.141 – 2026-09-17
+
+- Globale Suche: eckiger Fokusrahmen im Eingabefeld entfernt
+
+## 1.5.140 – 2026-09-17
+
+- Kundenauswahl: Trefferliste liegt über Modal, Editor und restlichem Formular
+
+## 1.5.139 – 2026-09-17
+
+- Tickets: Status- und Prioritäts-Badge gleich breit (Detailkopf und Queue)
+
+## 1.5.138 – 2026-09-17
+
+- Zeiterfassung: optional Ticket beim Stempeln und manuellen Buchen; Einträge zeigen die Ticketnummer
+
+## 1.5.137 – 2026-09-17
+
+- Staff-Ticketdetail: Seitenleiste in Steuerung, Zeiten und Arbeit gegliedert
+
+## 1.5.136 – 2026-09-17
+
+- Kommentar-Editor: Mausrad scrollt die Seite, bis das Feld angeklickt ist
+
+## 1.5.135 – 2026-09-17
+
+- Ticketdetail: Status/Priorität nur als Badges; Zeiten als kompakte Kacheln (relativ + Datum)
+
+## 1.5.134 – 2026-09-17
+
+- Dokumentenkacheln: Ansehen- und Download-Icons nur noch beim Hover (bzw. Fokus)
+
+## 1.5.133 – 2026-09-17
+
+- Kundenportal Konto: Benutzername als beschrifteter Chip unter der Firma
+
 ## 1.5.132 – 2026-09-17
 
 - Kundenportal Konto: Firma und Benutzername als Profilkarte; Passworthinweis am Hilfe-Kreis neben „Passwort ändern“
