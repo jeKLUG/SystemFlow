@@ -53,7 +53,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
 | POST | `/api/tickets/:id/task` | Aufgabe aus Ticket |
 | POST | `/api/tickets/:id/time-entry` | `{ hours, workDate? }` Zeitbuchung |
-| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`) |
+| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`); GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
 
 Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
 

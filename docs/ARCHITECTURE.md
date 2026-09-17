@@ -25,7 +25,7 @@ Browser (React SPA)
 ## Datenmodell
 
 - **users** – Admin (V1: ein Benutzer aus Env)
-- **customer_users** – ein Portal-Login pro Kundenakte (bcrypt; getrennt von Admin-`users`)
+- **customer_users** – ein Portal-Login pro Kundenakte (bcrypt; getrennt von Admin-`users`; `lastLoginAt` bei Anmeldung)
 - **customers** – Stammdaten
 - **tickets** / **ticket_messages** – Helpdesk (Status, Priorität, öffentlicher Dialog, interne Notizen, öffentliche Lösung `resolution` als TipTap-JSON; Nachrichten `kind` `comment` \| `resolution`)
 - **projects** – Projekte inkl. Status, Zeitraum, Budget (Stunden/Euro), Stundensatz

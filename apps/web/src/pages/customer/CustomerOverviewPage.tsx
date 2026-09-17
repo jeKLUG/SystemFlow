@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../../api";
-import { Checkbox } from "../../components/Checkbox";
 import { CustomerFields } from "../../components/CustomerFields";
 import { customerAddressLine } from "../../lib/customer";
-import { emptyCustomerForm, type Customer } from "../../types";
+import { formatDate } from "../../lib/labels";
+import { formatTimeAgo } from "../../lib/tickets";
+import { emptyCustomerForm, type Customer, type PortalUser } from "../../types";
 
 type OutletCtx = {
   customer: Customer;
@@ -257,79 +258,208 @@ export function CustomerOverviewPage() {
   );
 }
 
+/**
+ * Portal-Login je Kundenakte: aktivieren/deaktivieren, Zugangsdaten nur im Bearbeiten-Modus.
+ */
 function PortalAccessPanel({ customerId, email }: { customerId: string; email: string | null }) {
+  const [portal, setPortal] = useState<PortalUser | null>(null);
   const [username, setUsername] = useState(email?.split("@")[0] ?? "");
   const [password, setPassword] = useState("");
-  const [enabled, setEnabled] = useState(true);
-  const [exists, setExists] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState("");
+
+  const exists = Boolean(portal);
+  const showFields = editing || (!exists && enabled);
+
+  function applyPortal(row: PortalUser | null) {
+    setPortal(row);
+    setEnabled(Boolean(row?.enabled));
+    setUsername(row?.username || email?.split("@")[0] || "");
+    setPassword("");
+  }
 
   useEffect(() => {
-    void api.portalUser(customerId).then((res) => {
-      if (res.portalUser) {
-        setExists(true);
-        setUsername(res.portalUser.username);
-        setEnabled(res.portalUser.enabled);
-      } else {
-        setExists(false);
-        setUsername(email?.split("@")[0] ?? "");
-        setEnabled(true);
-      }
-    });
-  }, [customerId, email]);
-
-  async function save(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
+    setLoaded(false);
+    setEditing(false);
     setError("");
     setOk("");
+    void api
+      .portalUser(customerId)
+      .then((res) => applyPortal(res.portalUser))
+      .catch((err) => setError(err instanceof Error ? err.message : "Laden fehlgeschlagen"))
+      .finally(() => setLoaded(true));
+  }, [customerId, email]);
+
+  async function setAccessEnabled(next: boolean) {
+    setError("");
+    setOk("");
+    if (!exists) {
+      setEnabled(next);
+      if (!next) {
+        setEditing(false);
+        setPassword("");
+      }
+      return;
+    }
+    setBusy("toggle");
     try {
-      const body: Record<string, unknown> = { username, enabled };
-      if (password) body.password = password;
-      await api.upsertPortalUser(customerId, body);
-      setExists(true);
-      setPassword("");
-      setOk(password ? "Zugang gespeichert. Passwort dem Kunden mitteilen." : "Zugang gespeichert.");
+      const res = await api.upsertPortalUser(customerId, { enabled: next });
+      applyPortal(res.portalUser);
+      setEditing(false);
+      setOk(next ? "Zugang ist aktiv." : "Zugang deaktiviert. Der Kunde kann sich nicht anmelden.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     } finally {
-      setBusy(false);
+      setBusy("");
     }
   }
 
+  async function saveCredentials(e: FormEvent) {
+    e.preventDefault();
+    setBusy("save");
+    setError("");
+    setOk("");
+    try {
+      const body: Record<string, unknown> = { username, enabled: exists ? enabled : true };
+      if (password) body.password = password;
+      const res = await api.upsertPortalUser(customerId, body);
+      applyPortal(res.portalUser);
+      setEditing(false);
+      setOk(
+        password
+          ? "Zugangsdaten gespeichert. Passwort dem Kunden mitteilen – es wird nicht per E-Mail versendet."
+          : "Benutzername gespeichert.",
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function startEdit() {
+    setEditing(true);
+    setOk("");
+    setError("");
+    setPassword("");
+    setUsername(portal?.username || email?.split("@")[0] || "");
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setPassword("");
+    setUsername(portal?.username || email?.split("@")[0] || "");
+    setError("");
+    if (!exists) setEnabled(false);
+  }
+
+  const lastLogin = portal?.lastLoginAt
+    ? `${formatTimeAgo(portal.lastLoginAt)} · ${formatDate(portal.lastLoginAt)}`
+    : "Noch nie angemeldet";
+  const statusLabel = !exists ? "Nicht eingerichtet" : enabled ? "Aktiv" : "Deaktiviert";
+  const statusHint = !exists
+    ? "Einschalten, um Benutzername und Passwort zu setzen."
+    : enabled
+      ? "Der Kunde kann sich unter /portal/login anmelden."
+      : "Zugang gesperrt. Der Kunde kann sich nicht anmelden.";
+
   return (
     <section className="section">
-      <div className="panel">
-        <h2>Portal-Zugang</h2>
-        <p className="muted">
-          Login unter <code>/portal/login</code>. Ein Benutzer pro Kunde. Passwort nur hier setzen, nicht per
-          E-Mail.
-        </p>
-        <form className="stack-form" onSubmit={(e) => void save(e)}>
-          <label className="field">
-            <span>Benutzername</span>
-            <input required value={username} onChange={(e) => setUsername(e.target.value)} />
-          </label>
-          <label className="field">
-            <span>{exists ? "Neues Passwort (leer = unverändert)" : "Passwort (mind. 8 Zeichen)"}</span>
-            <input
-              type="password"
-              minLength={exists ? undefined : 8}
-              required={!exists}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="new-password"
-            />
-          </label>
-          <Checkbox label="Zugang aktiv" checked={enabled} onChange={setEnabled} />
-          {error ? <p className="form-error">{error}</p> : null}
-          {ok ? <p className="muted">{ok}</p> : null}
-          <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? "Speichern…" : exists ? "Zugang aktualisieren" : "Zugang anlegen"}
-          </button>
-        </form>
+      <div className={`panel portal-access-panel${!exists ? " is-empty" : ""}${enabled ? " is-on" : ""}`}>
+        <div className="portal-access-head">
+          <div>
+            <h2>Portal-Zugang</h2>
+            <p className="muted">Ein Login je Kunde, Passwort nur hier setzen.</p>
+          </div>
+          <div className="portal-access-head-actions">
+            {exists && !showFields ? (
+              <button type="button" className="btn btn-ghost btn-sm" onClick={startEdit} disabled={Boolean(busy)}>
+                Bearbeiten
+              </button>
+            ) : null}
+            <label className={`portal-access-switch${enabled ? " is-on" : ""}`}>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={enabled}
+                disabled={!loaded || busy === "toggle"}
+                onChange={(e) => void setAccessEnabled(e.target.checked)}
+              />
+              <span className="portal-access-track" aria-hidden />
+              <span className="portal-access-switch-label">{enabled ? "Aktiv" : "Aus"}</span>
+            </label>
+          </div>
+        </div>
+
+        {!loaded ? (
+          <p className="muted portal-access-body">Lade Zugang…</p>
+        ) : (
+          <div className="portal-access-body">
+            <div className="portal-access-status">
+              <span
+                className={`portal-access-badge${exists && enabled ? " is-active" : exists ? " is-off" : ""}`}
+              >
+                {statusLabel}
+              </span>
+              <p className="muted">{statusHint}</p>
+            </div>
+
+            {exists && !showFields ? (
+              <dl className="stammdaten-facts portal-access-facts">
+                <FactRow label="Benutzername" value={portal?.username ?? null} />
+                <FactRow label="Passwort" value="Gesetzt" />
+                <FactRow label="Letzte Anmeldung" value={lastLogin} wide />
+              </dl>
+            ) : null}
+
+            {!exists && !showFields ? (
+              <p className="muted portal-access-empty">
+                Kein Zugang angelegt. Schalter auf Aktiv stellen, dann Benutzername und Passwort vergeben.
+              </p>
+            ) : null}
+
+            {showFields ? (
+              <form className="stack-form portal-access-form" onSubmit={(e) => void saveCredentials(e)}>
+                <label className="field">
+                  <span>Benutzername</span>
+                  <input
+                    required
+                    minLength={2}
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="field">
+                  <span>{exists ? "Neues Passwort (leer = unverändert)" : "Passwort (mind. 8 Zeichen)"}</span>
+                  <input
+                    type="password"
+                    minLength={exists ? undefined : 8}
+                    required={!exists}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                  />
+                </label>
+                <div className="stammdaten-form-actions">
+                  <button className="btn btn-primary" type="submit" disabled={Boolean(busy)}>
+                    {busy === "save" ? "Speichern…" : exists ? "Zugangsdaten speichern" : "Zugang anlegen"}
+                  </button>
+                  <button type="button" className="btn btn-ghost" onClick={cancelEdit} disabled={Boolean(busy)}>
+                    Abbrechen
+                  </button>
+                </div>
+              </form>
+            ) : null}
+
+            {error ? <p className="form-error">{error}</p> : null}
+            {ok ? <p className="muted portal-access-ok">{ok}</p> : null}
+          </div>
+        )}
       </div>
     </section>
   );

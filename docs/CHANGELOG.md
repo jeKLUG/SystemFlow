@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.111 – 2026-09-17
+
+- Kundenakte Portal-Zugang: Schalter aktiv/aus, Zugangsdaten nur beim Einrichten oder über Bearbeiten, letzte Anmeldung sichtbar
+
+## 1.5.110 – 2026-09-17
+
+- Staff-Tickets: Prioritäten-Filter als farbige Chips statt nativem Select
+
 ## 1.5.109 – 2026-09-17
 
 - Tickets (Staff und Portal): Verlauf als Timeline, Kommentare mit TipTap-Editor

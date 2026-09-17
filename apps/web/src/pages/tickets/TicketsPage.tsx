@@ -19,6 +19,14 @@ const statusFilters: { id: string; label: string }[] = [
   { id: "all", label: "Alle" },
 ];
 
+const priorityFilters: { id: "" | TicketPriority; label: string }[] = [
+  { id: "", label: "Alle" },
+  { id: "low", label: ticketPriorityLabel.low },
+  { id: "normal", label: ticketPriorityLabel.normal },
+  { id: "high", label: ticketPriorityLabel.high },
+  { id: "critical", label: ticketPriorityLabel.critical },
+];
+
 /**
  * Staff-Ticket-Queue (global oder je Kunde).
  */
@@ -138,18 +146,20 @@ export function TicketsPage() {
             </button>
           ))}
         </div>
-        <select
-          value={priority}
-          onChange={(e) => setFilter("priority", e.target.value)}
-          aria-label="Priorität"
-        >
-          <option value="">Alle Prioritäten</option>
-          {(Object.keys(ticketPriorityLabel) as TicketPriority[]).map((p) => (
-            <option key={p} value={p}>
-              {ticketPriorityLabel[p]}
-            </option>
+        <div className="tickets-prio-seg" role="group" aria-label="Priorität">
+          {priorityFilters.map((p) => (
+            <button
+              key={p.id || "all"}
+              type="button"
+              className={`${p.id ? `is-prio-${p.id}` : "is-all"}${priority === p.id ? " is-active" : ""}`}
+              aria-pressed={priority === p.id}
+              onClick={() => setFilter("priority", p.id)}
+            >
+              {p.id ? <i aria-hidden /> : null}
+              {p.label}
+            </button>
           ))}
-        </select>
+        </div>
         <label className="check tickets-sla-filter">
           <input
             type="checkbox"
