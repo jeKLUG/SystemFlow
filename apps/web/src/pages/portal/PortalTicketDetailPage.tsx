@@ -136,9 +136,7 @@ export function PortalTicketDetailPage() {
         <p className="portal-ticket-banner panel">
           <strong>Ihre Rückmeldung ist gefragt.</strong> {portalTicketStatusHint.waiting_customer}
         </p>
-      ) : (
-        <p className="muted portal-ticket-status-line">{portalTicketStatusHint[ticket.status]}</p>
-      )}
+      ) : null}
       {uploadWarn ? (
         <div className="form-error">
           Das Ticket ist angelegt, aber nicht alle Anhänge konnten hochgeladen werden. Bitte Dateien hier nachreichen.

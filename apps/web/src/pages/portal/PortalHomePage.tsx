@@ -4,7 +4,6 @@ import { api } from "../../api";
 import { ChartLegend, ColumnChart, DonutChart, HBarChart } from "../../components/DashCharts";
 import {
   formatDate,
-  portalTicketStatusHint,
   portalTicketStatusLabel,
   ticketPriorityLabel,
 } from "../../lib/labels";
@@ -231,7 +230,6 @@ export function PortalHomePage() {
                         </span>
                       </div>
                       <strong>{ticket.title}</strong>
-                      <p className="muted">{portalTicketStatusHint[ticket.status]}</p>
                       <dl className="portal-ticket-facts">
                         <div>
                           <dt>Priorität</dt>

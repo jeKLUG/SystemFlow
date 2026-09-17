@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.131 – 2026-09-17
+
+- Formulare: Mausrad über Editor/Textfeld scrollt die Seite bzw. den Dialog, solange das Feld nicht aktiv ist
+
+## 1.5.130 – 2026-09-17
+
+- Kundenportal Tickets: Hinweis „Wir kümmern uns darum.“ unter Titel und im Detail entfernt
+
 ## 1.5.129 – 2026-09-17
 
 - Tickets: hochgeladene Dateien als Kacheln im Anhang-Bereich; Kommentare von Staff heißen „Systemhaus-Ess“

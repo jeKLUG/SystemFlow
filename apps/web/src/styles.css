@@ -939,6 +939,11 @@ a.btn-danger:hover {
 .field textarea {
   min-height: 5.5rem;
   resize: vertical;
+  overflow: hidden;
+}
+
+.field textarea:focus {
+  overflow: auto;
 }
 
 .field select {
@@ -4633,10 +4638,19 @@ input[type="checkbox"]:not(.check-input):checked {
 .editor-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   overscroll-behavior: contain;
   border-radius: 0 0 13px 13px;
   background: var(--surface);
+}
+
+.editor-body.is-focused {
+  overflow: auto;
+}
+
+.editor.is-readonly .editor-body,
+.editor.is-readonly .editor-body.is-focused {
+  overflow: visible;
 }
 
 .editor-hint {
@@ -11498,6 +11512,11 @@ a.stat-chip:hover {
 .modal-body textarea {
   max-height: min(40vh, 16rem);
   resize: vertical;
+  overflow: hidden;
+}
+
+.modal-body textarea:focus {
+  overflow: auto;
 }
 
 @keyframes fade-in {

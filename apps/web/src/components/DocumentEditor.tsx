@@ -49,6 +49,7 @@ export function DocumentEditor({
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [fieldActive, setFieldActive] = useState(false);
   const editorRef = useRef<Editor | null>(null);
   const editableRef = useRef(editable);
   editableRef.current = editable;
@@ -285,7 +286,14 @@ export function DocumentEditor({
       {editable && error ? <p className="form-error editor-upload-error">{error}</p> : null}
       {editable && busy ? <p className="muted editor-upload-hint">Bild wird hochgeladen…</p> : null}
 
-      <div className="editor-body">
+      <div
+        className={`editor-body${fieldActive ? " is-focused" : ""}`}
+        onFocusCapture={() => setFieldActive(true)}
+        onBlurCapture={(event) => {
+          const next = event.relatedTarget as Node | null;
+          if (!event.currentTarget.contains(next)) setFieldActive(false);
+        }}
+      >
         <EditorContent editor={editor} />
       </div>
     </div>

@@ -9,7 +9,6 @@ import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { formatBytes } from "../../lib/files";
 import {
   formatDate,
-  portalTicketStatusHint,
   portalTicketStatusLabel,
   ticketPriorityLabel,
 } from "../../lib/labels";
@@ -404,7 +403,6 @@ function PortalTicketCard({
         </dl>
         <div className="portal-ticket-main">
           <strong>{ticket.title}</strong>
-          <p className="muted">{portalTicketStatusHint[ticket.status]}</p>
         </div>
         <dl className="portal-ticket-facts">
           {facts.map((fact) => (
