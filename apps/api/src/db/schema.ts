@@ -567,7 +567,7 @@ export const tickets = sqliteTable("tickets", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-/** Nachrichten im Ticket-Thread (öffentlich oder intern). */
+/** Nachrichten im Ticket-Thread (öffentlich oder intern; `kind` comment \| resolution). */
 export const ticketMessages = sqliteTable("ticket_messages", {
   id: text("id").primaryKey(),
   ticketId: text("ticket_id")

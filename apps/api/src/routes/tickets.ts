@@ -29,6 +29,7 @@ import {
   timestampsForStatus,
 } from "../lib/tickets.js";
 import { richTextHasContent } from "../lib/richtext.js";
+import { saveFirstUpload } from "../lib/uploads.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 

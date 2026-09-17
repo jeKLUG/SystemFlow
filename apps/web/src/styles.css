@@ -15805,10 +15805,13 @@ a.tasks-hub-chip:hover {
 }
 
 .ticket-rich .editor-body,
-.ticket-rich .editor.is-readonly .editor-body {
+.ticket-rich .editor.is-readonly .editor-body,
+.ticket-rich .editor.is-comment .editor-body {
   padding: 0;
   min-height: 0;
   max-height: none;
+  overflow: visible;
+  background: transparent;
 }
 
 .ticket-rich .tiptap-surface {
@@ -15832,6 +15835,12 @@ a.tasks-hub-chip:hover {
 .editor.is-comment .tiptap-surface {
   min-height: 5.75rem;
   padding: 0.7rem 0.85rem 0.9rem;
+}
+
+.ticket-rich .editor.is-comment .editor-body,
+.ticket-rich .editor.is-comment .tiptap-surface {
+  min-height: 0;
+  padding: 0;
 }
 
 .ticket-composer {
