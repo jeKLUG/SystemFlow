@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../../auth";
+import { HelpHint } from "../../components/HelpHint";
 import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
 
 /**
- * Portal-Konto: Passwort ändern.
+ * Portal-Konto: Profil und Passwort ändern.
  */
 export function PortalAccountPage() {
   const { user, changePassword, logout } = useAuth();
@@ -15,6 +16,11 @@ export function PortalAccountPage() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const username = user?.username ?? "";
+  const displayName = user?.customerName || username || "Konto";
+  const usernameLine =
+    username && displayName !== username ? `Benutzername ${username}` : "Portal-Benutzer";
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -47,66 +53,74 @@ export function PortalAccountPage() {
   return (
     <div className="page">
       <header className="page-head">
-        <div>
-          <h2>Konto</h2>
-          <p className="muted">{user?.username}</p>
-        </div>
+        <h2>Konto</h2>
       </header>
-      <section className="panel settings-card portal-account-card">
-        <header className="settings-card-head">
-          <div>
-            <p className="eyebrow">Sicherheit</p>
-            <h3>Passwort ändern</h3>
-          </div>
-        </header>
-        <p className="settings-card-lead muted">
-          Mindestens 8 Zeichen, zur Kontrolle zweimal eingeben. Mit dem Auge kannst du mitlesen, was du tippst.
-        </p>
-        <form className="stack-form" onSubmit={(e) => void onSubmit(e)}>
-          <PasswordField
-            label="Aktuelles Passwort"
-            value={currentPassword}
-            onChange={setCurrentPassword}
-            revealed={showCurrent}
-            onToggleReveal={() => setShowCurrent((v) => !v)}
-            autoComplete="current-password"
-            required
-          />
-          <PasswordField
-            label="Neues Passwort"
-            value={newPassword}
-            onChange={setNewPassword}
-            revealed={showNew}
-            onToggleReveal={() => setShowNew((v) => !v)}
-            autoComplete="new-password"
-            required
-            minLength={8}
-          />
-          <PasswordField
-            label="Neues Passwort wiederholen"
-            value={confirmPassword}
-            onChange={setConfirmPassword}
-            revealed={showNew}
-            onToggleReveal={() => setShowNew((v) => !v)}
-            autoComplete="new-password"
-            required
-            minLength={8}
-          />
-          <PasswordMatchHint value={newPassword} confirm={confirmPassword} />
-          {error ? <p className="form-error">{error}</p> : null}
-          {ok ? <p className="form-success">{ok}</p> : null}
-          <button className="btn btn-primary" type="submit" disabled={busy}>
-            {busy ? "Speichern…" : "Passwort speichern"}
+      <div className="portal-account-stack">
+        <section className="panel portal-account-who" aria-label="Angemeldet">
+          <span className="avatar" aria-hidden>
+            {(username || "?").slice(0, 1).toUpperCase()}
+          </span>
+          <span className="user-card-meta">
+            <strong>{displayName}</strong>
+            <span className="muted">{usernameLine}</span>
+          </span>
+        </section>
+        <section className="panel settings-card portal-account-card">
+          <header className="settings-card-head">
+            <div>
+              <p className="eyebrow">Sicherheit</p>
+              <div className="page-head-title">
+                <h3>Passwort ändern</h3>
+                <HelpHint text="Mindestens 8 Zeichen, zur Kontrolle zweimal eingeben. Mit dem Auge kannst du mitlesen, was du tippst." />
+              </div>
+            </div>
+          </header>
+          <form className="stack-form" onSubmit={(e) => void onSubmit(e)}>
+            <PasswordField
+              label="Aktuelles Passwort"
+              value={currentPassword}
+              onChange={setCurrentPassword}
+              revealed={showCurrent}
+              onToggleReveal={() => setShowCurrent((v) => !v)}
+              autoComplete="current-password"
+              required
+            />
+            <PasswordField
+              label="Neues Passwort"
+              value={newPassword}
+              onChange={setNewPassword}
+              revealed={showNew}
+              onToggleReveal={() => setShowNew((v) => !v)}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            <PasswordField
+              label="Neues Passwort wiederholen"
+              value={confirmPassword}
+              onChange={setConfirmPassword}
+              revealed={showNew}
+              onToggleReveal={() => setShowNew((v) => !v)}
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            <PasswordMatchHint value={newPassword} confirm={confirmPassword} />
+            {error ? <p className="form-error">{error}</p> : null}
+            {ok ? <p className="form-success">{ok}</p> : null}
+            <button className="btn btn-primary" type="submit" disabled={busy}>
+              {busy ? "Speichern…" : "Passwort speichern"}
+            </button>
+          </form>
+          <button
+            type="button"
+            className="btn btn-ghost portal-account-logout"
+            onClick={() => void logout()}
+          >
+            Abmelden
           </button>
-        </form>
-        <button
-          type="button"
-          className="btn btn-ghost portal-account-logout"
-          onClick={() => void logout()}
-        >
-          Abmelden
-        </button>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }

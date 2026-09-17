@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.132 – 2026-09-17
+
+- Kundenportal Konto: Firma und Benutzername als Profilkarte; Passworthinweis am Hilfe-Kreis neben „Passwort ändern“
+
 ## 1.5.131 – 2026-09-17
 
 - Formulare: Mausrad über Editor/Textfeld scrollt die Seite bzw. den Dialog, solange das Feld nicht aktiv ist

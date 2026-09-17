@@ -76,7 +76,7 @@ Kalendertage (`YYYY-MM-DD`) und „heute“ laufen über `Europe/Berlin` (API: E
 Session-Cookie (`systemhaus_session`) via `@fastify/secure-session` (Cookie + Session-`expiry` 30 Tage bei „Angemeldet bleiben“, sonst 12 h; Sliding über `/api/auth/me` bzw. `/api/portal/auth/me`). Passwort mit bcrypt.
 
 - **Staff:** `users`, Login `/login`, APIs mit `requireAdmin` (bestehende `/api/*`). Session `role=admin`.
-- **Kundenportal:** `customer_users` (ein Login je Kunde, in der Kundenakte gesetzt), Login `/portal/login`, APIs unter `/api/portal/*` mit `requirePortal`. Session `role=customer` + `customerId`. Startseite `/portal` mit Kennzahlen und Diagrammen aus `GET /api/portal/overview`. Kein Zugriff auf Tresor, Preise, Zeiten, Backup, andere Kunden. Interne Ticket-Notizen, `notes` (Kunde/Vertrag/Inventar) werden nicht ausgeliefert.
+- **Kundenportal:** `customer_users` (ein Login je Kunde, in der Kundenakte gesetzt), Login `/portal/login`, APIs unter `/api/portal/*` mit `requirePortal`. Session `role=customer` + `customerId`. Startseite `/portal` mit Kennzahlen und Diagrammen aus `GET /api/portal/overview`. Konto `/portal/account`: Profilkarte (Firma, Benutzername) und Passwort ändern (Hinweis am Hilfe-Kreis). Kein Zugriff auf Tresor, Preise, Zeiten, Backup, andere Kunden. Interne Ticket-Notizen, `notes` (Kunde/Vertrag/Inventar) werden nicht ausgeliefert.
 
 Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.
 

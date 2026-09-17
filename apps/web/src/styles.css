@@ -1121,6 +1121,14 @@ a.list-row {
   margin: 0;
 }
 
+.settings-card-head .page-head-title {
+  margin-top: 0.15rem;
+}
+
+.settings-card-head .page-head-title h3 {
+  margin: 0;
+}
+
 .settings-card-head .muted {
   margin: 0.2rem 0 0;
   font-size: 0.88rem;
@@ -4297,12 +4305,52 @@ input[type="checkbox"]:not(.check-input):checked {
   margin: 0;
 }
 
-.portal-account-card {
+.portal-account-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
   max-width: 28rem;
 }
 
+.portal-account-stack .panel {
+  margin-bottom: 0;
+}
+
+.portal-account-who {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1rem 1.15rem;
+}
+
+.portal-account-who .avatar {
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 12px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+
+.portal-account-who .user-card-meta strong {
+  font-size: 1.02rem;
+}
+
+.portal-account-who .user-card-meta .muted {
+  display: block;
+  margin: 0.12rem 0 0;
+  font-size: 0.8rem;
+}
+
+.portal-account-card {
+  max-width: none;
+  overflow: visible;
+}
+
 .portal-account-card h3 {
-  margin: 0.15rem 0 0;
+  margin: 0;
 }
 
 .portal-account-logout {
@@ -15644,7 +15692,8 @@ a.tasks-hub-chip:hover {
   min-width: 0;
 }
 
-.page-head-title h2 {
+.page-head-title h2,
+.page-head-title h3 {
   min-width: 0;
 }
 
