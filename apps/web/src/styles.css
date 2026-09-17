@@ -5635,7 +5635,6 @@ input[type="checkbox"]:not(.check-input):checked {
   margin-top: 0.45rem;
   font-size: 0.8rem;
 }
-}
 
 .asset-meta {
   display: flex;

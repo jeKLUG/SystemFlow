@@ -3,6 +3,7 @@
 ## 1.5.107 – 2026-09-17
 
 - Kundenportal Sidebar: Name als Button, Abmelden-Icon erst nach Klick
+- Build: überflüssige Klammer in `styles.css` (Vite/PostCSS)
 - Kundenportal Tickets: Filter (Laufend / Rückmeldung / Erledigt), Karten mit Hinweistext; Anlegen-Dialog mit Prioritätswahl und Anhängen (Dropzone)
 - Kundenportal Inventar: aufklappbare Gerätedetails (ohne interne Notizen)
 - Kundenportal Verträge: gleiche SLA-Karte wie intern (Laufzeit, Preis, Prio-Matrix, Details ohne interne Notizen)
