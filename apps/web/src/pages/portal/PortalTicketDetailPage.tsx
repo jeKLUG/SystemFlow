@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
+import { TicketComposer, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { formatBytes } from "../../lib/files";
 import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
+import { useSlaNow } from "../../lib/tickets";
 import type { TicketItem } from "../../types";
 
 /**
@@ -13,10 +15,10 @@ export function PortalTicketDetailPage() {
   const [params, setParams] = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [ticket, setTicket] = useState<TicketItem | null>(null);
-  const [body, setBody] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [dragOver, setDragOver] = useState(false);
+  const now = useSlaNow();
   const uploadWarn = params.get("anhang") === "teilweise";
 
   async function reload() {
@@ -27,16 +29,16 @@ export function PortalTicketDetailPage() {
     void reload().catch((err) => setError(err instanceof Error ? err.message : "Nicht gefunden"));
   }, [ticketId]);
 
-  async function reply(e: FormEvent) {
-    e.preventDefault();
-    if (!ticket || !body.trim()) return;
+  async function reply(body: string) {
+    if (!ticket) return;
     setBusy("msg");
+    setError("");
     try {
-      await api.addPortalTicketMessage(ticket.id, body.trim());
-      setBody("");
+      await api.addPortalTicketMessage(ticket.id, body);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Senden fehlgeschlagen");
+      throw err;
     } finally {
       setBusy("");
     }
@@ -79,6 +81,7 @@ export function PortalTicketDetailPage() {
 
   const closed = ticket.status === "closed";
   const waiting = ticket.status === "waiting_customer";
+  const clockNow = new Date(now);
 
   return (
     <div className="page ticket-detail-page">
@@ -124,21 +127,16 @@ export function PortalTicketDetailPage() {
       {error ? <p className="form-error">{error}</p> : null}
       <section className="panel ticket-thread">
         <h3>Verlauf</h3>
-        {(ticket.messages ?? []).length ? (
-          <ol className="ticket-messages">
-            {(ticket.messages ?? []).map((m) => (
-              <li key={m.id} className={`ticket-msg ${m.authorRole === "admin" ? "is-staff" : "is-customer"}`}>
-                <header>
-                  <strong>{m.authorRole === "admin" ? "Systemhaus" : "Sie"}</strong>
-                  <time>{formatDate(m.createdAt)}</time>
-                </header>
-                <p>{m.body}</p>
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <p className="muted">Noch keine Nachrichten – sobald wir antworten, erscheint es hier.</p>
-        )}
+        <TicketSolutionCard
+          resolution={ticket.resolution}
+          resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
+          now={clockNow}
+        />
+        <TicketTimeline
+          messages={ticket.messages ?? []}
+          now={clockNow}
+          emptyHint="Noch keine Nachrichten – sobald wir antworten, erscheint es hier."
+        />
         {(ticket.attachments ?? []).length ? (
           <ul className="portal-file-chips">
             {(ticket.attachments ?? []).map((f) => (
@@ -151,24 +149,16 @@ export function PortalTicketDetailPage() {
           </ul>
         ) : null}
         {closed ? (
-          <p className="muted">Dieses Ticket ist {ticket.status === "resolved" ? "gelöst" : "geschlossen"}.</p>
+          <p className="muted">Dieses Ticket ist geschlossen.</p>
         ) : (
           <>
-            <form className="stack-form" onSubmit={(e) => void reply(e)}>
-              <label className="field">
-                <span>Antwort</span>
-                <textarea
-                  rows={4}
-                  placeholder="Ihre Nachricht an das Systemhaus"
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  required
-                />
-              </label>
-              <button className="btn btn-primary" type="submit" disabled={busy === "msg"}>
-                {busy === "msg" ? "Senden…" : "Antwort senden"}
-              </button>
-            </form>
+            <TicketComposer
+              label="Antwort"
+              placeholder="Ihre Nachricht an das Systemhaus…"
+              submitLabel="Antwort senden"
+              busy={busy === "msg"}
+              onSubmit={reply}
+            />
             <div className="field">
               <span>Weitere Dateien</span>
               <input

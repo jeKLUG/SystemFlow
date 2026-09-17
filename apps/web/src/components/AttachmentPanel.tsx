@@ -693,7 +693,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
               return (
                 <article
                   key={file.id}
-                  className={`vault-card is-file kind-${kind}${dragFileId === file.id ? " is-dragging" : ""}${menuId === file.id ? " is-menu-open" : ""}`}
+                  className={`vault-card is-file kind-${kind}${file.portalVisible ? " is-portal" : ""}${dragFileId === file.id ? " is-dragging" : ""}${menuId === file.id ? " is-menu-open" : ""}`}
                   draggable={!scoped}
                   onDragStart={(e) => onFileDragStart(e, file)}
                   onDragEnd={onFileDragEnd}
@@ -725,6 +725,7 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                       <strong title={file.originalName}>{file.originalName}</strong>
                       <span className="muted">
                         {formatBytes(file.size)} · {formatDate(file.createdAt)}
+                        {file.portalVisible ? " · Portal" : ""}
                       </span>
                       {file.description ? (
                         <span className="vault-card-desc">{file.description}</span>
@@ -732,6 +733,27 @@ export function AttachmentPanel({ customerId, documentId, assetId, embedded = fa
                     </span>
                   </button>
                   <div className={`vault-card-toolbar${menuId === file.id ? " is-open" : ""}`}>
+                    <button
+                      type="button"
+                      className={`vault-card-menu-btn${file.portalVisible ? " is-portal-on" : ""}`}
+                      title={file.portalVisible ? "Im Portal sichtbar – ausblenden" : "Im Kundenportal zeigen"}
+                      aria-label={file.portalVisible ? "Portal-Freigabe aufheben" : "Im Kundenportal zeigen"}
+                      aria-pressed={Boolean(file.portalVisible)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void api
+                          .updateAttachment(file.id, { portalVisible: !file.portalVisible })
+                          .then(() => reload())
+                          .catch((err) =>
+                            setError(err instanceof Error ? err.message : "Portal-Freigabe fehlgeschlagen"),
+                          );
+                      }}
+                    >
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M3 12h18M12 3a14 14 0 010 18M12 3a14 14 0 000 18" strokeLinecap="round" />
+                      </svg>
+                    </button>
                     <a
                       className="vault-card-menu-btn"
                       href={`/api/attachments/${file.id}/download`}

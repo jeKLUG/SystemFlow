@@ -558,10 +558,11 @@ export interface AttachmentItem {
   ticketId?: string | null;
   ticketMessageId?: string | null;
   originalName: string;
-  storedName: string;
+  storedName?: string;
   mimeType: string | null;
   size: number;
   description?: string | null;
+  portalVisible?: boolean;
   createdAt: string;
   updatedAt?: string;
 }
@@ -667,11 +668,13 @@ export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolv
 export type TicketPriority = "low" | "normal" | "high" | "critical";
 export type TicketSource = "portal" | "staff";
 export type TicketMessageVisibility = "public" | "internal";
+export type TicketMessageKind = "comment" | "resolution";
 
 export interface TicketMessageItem {
   id: string;
   ticketId: string;
   visibility: TicketMessageVisibility;
+  kind?: TicketMessageKind;
   authorRole: "admin" | "customer";
   authorUserId: string;
   body: string;
@@ -697,6 +700,7 @@ export interface TicketItem {
   closedAt: string | null;
   slaResponseDueAt: string | null;
   slaResolveDueAt: string | null;
+  resolution?: string | null;
   responseBreached?: boolean;
   resolveBreached?: boolean;
   slaBreached?: boolean;

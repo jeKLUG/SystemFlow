@@ -475,6 +475,8 @@ export const attachments = sqliteTable("attachments", {
   mimeType: text("mime_type"),
   size: integer("size").notNull().default(0),
   description: text("description"),
+  /** Kundenportal: Datei zum Ansehen/Download, Default aus. */
+  portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -518,6 +520,9 @@ export type TicketSource = (typeof ticketSources)[number];
 export const ticketMessageVisibilities = ["public", "internal"] as const;
 export type TicketMessageVisibility = (typeof ticketMessageVisibilities)[number];
 
+export const ticketMessageKinds = ["comment", "resolution"] as const;
+export type TicketMessageKind = (typeof ticketMessageKinds)[number];
+
 export const authRoles = ["admin", "customer"] as const;
 export type AuthRole = (typeof authRoles)[number];
 
@@ -556,6 +561,8 @@ export const tickets = sqliteTable("tickets", {
   closedAt: integer("closed_at", { mode: "timestamp_ms" }),
   slaResponseDueAt: integer("sla_response_due_at", { mode: "timestamp_ms" }),
   slaResolveDueAt: integer("sla_resolve_due_at", { mode: "timestamp_ms" }),
+  /** Öffentliche Lösung (TipTap-JSON), Pflicht beim Schließen/Lösen. */
+  resolution: text("resolution"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -567,6 +574,7 @@ export const ticketMessages = sqliteTable("ticket_messages", {
     .notNull()
     .references(() => tickets.id, { onDelete: "cascade" }),
   visibility: text("visibility", { enum: ticketMessageVisibilities }).notNull().default("public"),
+  kind: text("kind", { enum: ticketMessageKinds }).notNull().default("comment"),
   authorRole: text("author_role", { enum: authRoles }).notNull(),
   authorUserId: text("author_user_id").notNull(),
   body: text("body").notNull(),

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
@@ -23,6 +23,7 @@ import {
   slaFromContract,
 } from "../lib/tickets.js";
 import { saveFirstUpload } from "../lib/uploads.js";
+import { richTextHasContent } from "../lib/richtext.js";
 import { requirePortal } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -33,7 +34,7 @@ const createBody = z.object({
 });
 
 const messageBody = z.object({
-  body: z.string().min(1).max(20000),
+  body: z.string().min(1).max(50000),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -49,6 +50,19 @@ function publicContract(row: typeof contracts.$inferSelect) {
 function publicAsset(row: typeof assets.$inferSelect) {
   const { notes: _notes, ...rest } = row;
   return rest;
+}
+
+function publicFile(row: typeof attachments.$inferSelect) {
+  return {
+    id: row.id,
+    customerId: row.customerId,
+    originalName: row.originalName,
+    mimeType: row.mimeType,
+    size: row.size,
+    description: row.description,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }
 
 /**
@@ -91,6 +105,21 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
         .all()
     ).length;
 
+    const fileCount = (
+      await db
+        .select()
+        .from(attachments)
+        .where(
+          and(
+            eq(attachments.customerId, customerId),
+            eq(attachments.portalVisible, true),
+            isNull(attachments.emailId),
+            isNull(attachments.ticketId),
+          ),
+        )
+        .all()
+    ).length;
+
     return {
       customerName: customer?.company || customer?.name || "",
       contactPerson: customer?.contactPerson ?? null,
@@ -99,7 +128,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       openTicketCount: openTickets.length,
       waitingOnCustomer,
       slaBreachedCount: slaBreached,
-      documentCount: docCount,
+      documentCount: docCount + fileCount,
       assetCount,
       contractCount,
     };
@@ -168,6 +197,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       closedAt: null,
       slaResponseDueAt: sla.slaResponseDueAt,
       slaResolveDueAt: sla.slaResolveDueAt,
+      resolution: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -178,6 +208,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
         id: createId("tmsg"),
         ticketId: row.id,
         visibility: "public",
+        kind: "comment",
         authorRole: "customer",
         authorUserId: userId,
         body: description,
@@ -204,12 +235,16 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     if (!parsed.success) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
+    if (!richTextHasContent(parsed.data.body)) {
+      return reply.code(400).send({ error: "Nachricht darf nicht leer sein" });
+    }
 
     const now = new Date();
     const message = {
       id: createId("tmsg"),
       ticketId: ticket.id,
       visibility: "public" as const,
+      kind: "comment" as const,
       authorRole: "customer" as const,
       authorUserId: userId,
       body: parsed.data.body.trim(),
@@ -263,6 +298,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       mimeType: uploaded.mimetype,
       size: uploaded.bytesRead,
       description: null,
+      portalVisible: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -279,14 +315,14 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       return reply.code(404).send({ error: "Anhang nicht gefunden" });
     }
 
-    let allowed = false;
-    if (row.ticketId) {
+    let allowed = Boolean(row.portalVisible);
+    if (!allowed && row.ticketId) {
       const ticket = await db.select().from(tickets).where(eq(tickets.id, row.ticketId)).get();
       allowed = Boolean(ticket && ticket.customerId === customerId);
-    } else if (row.documentId) {
+    } else if (!allowed && row.documentId) {
       const doc = await db.select().from(documents).where(eq(documents.id, row.documentId)).get();
       allowed = Boolean(doc && doc.customerId === customerId && doc.portalVisible);
-    } else if (row.assetId) {
+    } else if (!allowed && row.assetId) {
       const asset = await db.select().from(assets).where(eq(assets.id, row.assetId)).get();
       allowed = Boolean(asset && asset.customerId === customerId && asset.portalVisible);
     }
@@ -334,6 +370,24 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       ...row,
       content: row.content.replaceAll("/api/attachments/", "/api/portal/attachments/"),
     };
+  });
+
+  app.get("/api/portal/files", async (request) => {
+    const { customerId } = request.portal!;
+    const rows = await db
+      .select()
+      .from(attachments)
+      .where(
+        and(
+          eq(attachments.customerId, customerId),
+          eq(attachments.portalVisible, true),
+          isNull(attachments.emailId),
+          isNull(attachments.ticketId),
+        ),
+      )
+      .orderBy(desc(attachments.updatedAt))
+      .all();
+    return rows.map(publicFile);
   });
 
   app.get("/api/portal/assets", async (request) => {

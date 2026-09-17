@@ -28,6 +28,9 @@ interface Props {
   documentId?: string;
   /** false = Lesemodus ohne Toolbar und ohne Bearbeitung */
   editable?: boolean;
+  /** Kommentare: schlanke Toolbar ohne Wiki-Blöcke. */
+  variant?: "full" | "comment";
+  placeholder?: string;
 }
 
 /**
@@ -40,6 +43,8 @@ export function DocumentEditor({
   customerId,
   documentId,
   editable = true,
+  variant = "full",
+  placeholder = "Schreibe hier – Text, Bilder, Listen, Tabellen…",
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -84,7 +89,7 @@ export function DocumentEditor({
       Underline,
       Link.configure({ openOnClick: false }),
       Placeholder.configure({
-        placeholder: "Schreibe hier – Text, Bilder, Listen, Tabellen…",
+        placeholder,
       }),
       ImageResize.configure({
         inline: true,
@@ -162,12 +167,14 @@ export function DocumentEditor({
   if (!editor) return null;
 
   return (
-    <div className={`editor${busy ? " is-busy" : ""}${editable ? "" : " is-readonly"}`}>
+    <div className={`editor${busy ? " is-busy" : ""}${editable ? "" : " is-readonly"}${variant === "comment" ? " is-comment" : ""}`}>
       {editable ? (
       <div className="editor-toolbar" role="toolbar" aria-label="Formatierung">
+        {variant === "full" ? (
         <div className="toolbar-group">
           <HeadingMenu editor={editor} />
         </div>
+        ) : null}
 
         <div className="toolbar-group">
           <ToolbarBtn
@@ -208,6 +215,7 @@ export function DocumentEditor({
           >
             <IconOrdered />
           </ToolbarBtn>
+          {variant === "full" ? (
           <ToolbarBtn
             title="Checkliste"
             active={editor.isActive("taskList")}
@@ -215,6 +223,7 @@ export function DocumentEditor({
           >
             <IconChecklist />
           </ToolbarBtn>
+          ) : null}
           <ToolbarBtn
             title="Zitat"
             active={editor.isActive("blockquote")}
@@ -222,6 +231,7 @@ export function DocumentEditor({
           >
             <IconQuote />
           </ToolbarBtn>
+          {variant === "full" ? (
           <ToolbarBtn
             title="Tabelle"
             active={editor.isActive("table")}
@@ -231,8 +241,10 @@ export function DocumentEditor({
           >
             <IconTable />
           </ToolbarBtn>
+          ) : null}
         </div>
 
+        {variant === "full" ? (
         <div className="toolbar-group">
           <BlocksMenu editor={editor} />
           <ToolbarBtn
@@ -244,6 +256,7 @@ export function DocumentEditor({
             <IconImage />
           </ToolbarBtn>
         </div>
+        ) : null}
 
         <div className="toolbar-group toolbar-group-end">
           <ToolbarBtn title="Rückgängig" onClick={() => editor.chain().focus().undo().run()}>

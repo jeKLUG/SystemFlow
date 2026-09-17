@@ -493,6 +493,9 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "attachments", "ticket_message_id", "TEXT");
   await ensureColumn(client, "documents", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "attachments", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "tickets", "resolution", "TEXT");
+  await ensureColumn(client, "ticket_messages", "kind", "TEXT NOT NULL DEFAULT 'comment'");
   await ensureColumn(client, "tasks", "ticket_id", "TEXT");
   await ensureColumn(client, "time_entries", "ticket_id", "TEXT");
   await ensureColumn(client, "contracts", "contract_number", "TEXT");

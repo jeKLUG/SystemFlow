@@ -1,7 +1,13 @@
 # Changelog
 
+## 1.5.109 – 2026-09-17
+
+- Tickets (Staff und Portal): Verlauf als Timeline, Kommentare mit TipTap-Editor
+- Tickets: Beim Lösen/Schließen ist eine öffentliche Lösung Pflicht; der Kunde sieht sie im Portal
+
 ## 1.5.108 – 2026-09-17
 
+- Kundenportal Dokumente: Suche, Typ-Reiter, freigegebene Dateien zum Ansehen/Download; Staff-Dateien: Schalter „Im Kundenportal zeigen“
 - Kundenportal: Navigationsleiste bleibt stehen, Inhalt (z. B. Dokumente) scrollt daneben
 - Staff-Tickets: Restzeit für Reaktion und Lösung in Queue und Detail, Eingangszeit relativ und absolut
 

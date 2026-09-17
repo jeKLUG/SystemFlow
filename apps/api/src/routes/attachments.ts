@@ -14,6 +14,7 @@ const patchBody = z.object({
   originalName: z.string().min(1).max(300).optional(),
   description: z.string().max(2000).optional().nullable().or(z.literal("")),
   folderId: z.string().optional().nullable().or(z.literal("")),
+  portalVisible: z.boolean().optional(),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -155,6 +156,7 @@ export async function attachmentRoutes(
       mimeType: uploaded.mimetype || null,
       size: uploaded.bytesRead,
       description,
+      portalVisible: false,
       createdAt: now,
       updatedAt: now,
     };
@@ -190,6 +192,7 @@ export async function attachmentRoutes(
           ? emptyToNull(parsed.data.description)
           : existing.description,
       folderId: existing.documentId || existing.assetId || existing.emailId ? null : folderId,
+      portalVisible: parsed.data.portalVisible ?? existing.portalVisible,
       updatedAt: new Date(),
     };
     await db.update(attachments).set(updated).where(eq(attachments.id, id));

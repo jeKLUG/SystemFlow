@@ -91,6 +91,7 @@ export const api = {
   portalDocuments: () => request<import("./types").DocumentItem[]>("/api/portal/documents"),
   portalDocument: (id: string) =>
     request<import("./types").DocumentItem>(`/api/portal/documents/${id}`),
+  portalFiles: () => request<import("./types").AttachmentItem[]>("/api/portal/files"),
   portalAssets: () => request<import("./types").Asset[]>("/api/portal/assets"),
   portalUser: (customerId: string) =>
     request<{ portalUser: import("./types").PortalUser | null; kind: string }>(
@@ -574,7 +575,12 @@ export const api = {
   },
   updateAttachment: (
     id: string,
-    body: { originalName?: string; description?: string | null; folderId?: string | null },
+    body: {
+      originalName?: string;
+      description?: string | null;
+      folderId?: string | null;
+      portalVisible?: boolean;
+    },
   ) =>
     request<import("./types").AttachmentItem>(`/api/attachments/${id}`, {
       method: "PUT",

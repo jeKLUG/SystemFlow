@@ -28,7 +28,7 @@ import {
   slaFromContract,
   timestampsForStatus,
 } from "../lib/tickets.js";
-import { saveFirstUpload } from "../lib/uploads.js";
+import { richTextHasContent } from "../lib/richtext.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -46,10 +46,11 @@ const patchBody = z.object({
   status: z.enum(ticketStatuses).optional(),
   priority: z.enum(ticketPriorities).optional(),
   contractId: z.string().optional().nullable().or(z.literal("")),
+  resolution: z.string().max(50000).optional().nullable().or(z.literal("")),
 });
 
 const messageBody = z.object({
-  body: z.string().min(1).max(20000),
+  body: z.string().min(1).max(50000),
   visibility: z.enum(["public", "internal"]).optional(),
 });
 
@@ -240,6 +241,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       closedAt: null,
       slaResponseDueAt: sla.slaResponseDueAt,
       slaResolveDueAt: sla.slaResolveDueAt,
+      resolution: null,
       createdAt: now,
       updatedAt: now,
     };
@@ -250,6 +252,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
         id: createId("tmsg"),
         ticketId: row.id,
         visibility: "public",
+        kind: "comment",
         authorRole: "admin",
         authorUserId: userId,
         body: description,
@@ -275,6 +278,16 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     const status = parsed.data.status ?? existing.status;
     const priority = parsed.data.priority ?? existing.priority;
     const times = timestampsForStatus(status, existing, now);
+    const resolution =
+      parsed.data.resolution !== undefined ? emptyToNull(parsed.data.resolution) : existing.resolution;
+
+    if (
+      (status === "closed" || status === "resolved") &&
+      existing.status !== status &&
+      !richTextHasContent(resolution)
+    ) {
+      return reply.code(400).send({ error: "Bitte die Lösung dokumentieren, bevor das Ticket geschlossen wird." });
+    }
 
     let slaResponseDueAt = existing.slaResponseDueAt;
     let slaResolveDueAt = existing.slaResolveDueAt;
@@ -303,6 +316,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       slaResolveDueAt,
       resolvedAt: times.resolvedAt,
       closedAt: times.closedAt,
+      resolution,
       updatedAt: now,
     };
     await db.update(tickets).set(updated).where(eq(tickets.id, id));
@@ -311,6 +325,18 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       (status === "closed" || status === "resolved") &&
       existing.status !== status
     ) {
+      if (richTextHasContent(resolution) && resolution !== existing.resolution) {
+        await db.insert(ticketMessages).values({
+          id: createId("tmsg"),
+          ticketId: existing.id,
+          visibility: "public",
+          kind: "resolution",
+          authorRole: "admin",
+          authorUserId: request.session.get("userId")!,
+          body: resolution as string,
+          createdAt: now,
+        });
+      }
       await addActivity(
         db,
         existing.customerId,
@@ -333,6 +359,9 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     if (!parsed.success) {
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
+    if (!richTextHasContent(parsed.data.body)) {
+      return reply.code(400).send({ error: "Nachricht darf nicht leer sein" });
+    }
 
     const userId = request.session.get("userId")!;
     const now = new Date();
@@ -341,6 +370,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       id: createId("tmsg"),
       ticketId: ticket.id,
       visibility,
+      kind: "comment" as const,
       authorRole: "admin" as const,
       authorUserId: userId,
       body: parsed.data.body.trim(),
@@ -387,6 +417,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       mimeType: uploaded.mimetype,
       size: uploaded.bytesRead,
       description: emptyToNull(fields.description),
+      portalVisible: false,
       createdAt: now,
       updatedAt: now,
     };

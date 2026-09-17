@@ -47,8 +47,8 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | GET | `/api/tickets/stats` | `{ openCount, waitingCount, slaBreachedCount }` |
 | GET | `/api/tickets?customerId=&status=&priority=&slaBreached=` | Queue; `status=open_any` = offen/in Bearbeitung/wartet |
 | POST | `/api/tickets` | Anlegen (`customerId`, `title`, `description?`, `priority?`, `contractId?`) |
-| GET/PUT | `/api/tickets/:id` | Detail inkl. Thread/Anhängen; Status/Priorität |
-| POST | `/api/tickets/:id/messages` | `{ body, visibility: public\|internal }` |
+| GET/PUT | `/api/tickets/:id` | Detail inkl. Thread/Anhängen; Status/Priorität; beim Wechsel auf `resolved`/`closed` ist `resolution` (TipTap-JSON) Pflicht |
+| POST | `/api/tickets/:id/messages` | `{ body, visibility }` – `body` TipTap-JSON oder Klartext, `visibility` public/internal |
 | POST | `/api/tickets/:id/attachments` | Multipart-Upload |
 | GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
 | POST | `/api/tickets/:id/task` | Aufgabe aus Ticket |
@@ -69,13 +69,14 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
 | GET | `/api/portal/overview` | Kennzahlen |
 | GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung, Priorität) |
-| GET | `/api/portal/tickets/:id` | Nur öffentliche Nachrichten |
-| POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort |
+| GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
+| POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |
 | POST | `/api/portal/tickets/:id/attachments` | Anhang (multipart `file`); Portal-UI hängt Dateien direkt nach dem Anlegen an |
-| GET | `/api/portal/attachments/:id/download` | Ticket- oder freigegebene Wiki-/Inventar-Datei |
+| GET | `/api/portal/attachments/:id/download` | Ticket-, Wiki-/Inventar- oder explizit freigegebene Datei (`portalVisible`) |
 | GET | `/api/portal/contracts` | Aktive/pausierte Verträge ohne `notes` |
-| GET | `/api/portal/documents` | Nur `portalVisible` |
+| GET | `/api/portal/documents` | Nur `portalVisible` Wiki-Seiten |
 | GET | `/api/portal/documents/:id` | Read-only |
+| GET | `/api/portal/files` | Freigegebene Dateien (ohne `storedName`) |
 | GET | `/api/portal/assets` | Nur `portalVisible`, ohne `notes` |
 
 ## Wiki / Dokumente
@@ -228,7 +229,7 @@ Ordnerhierarchie pro Kunde (`file_folders`). Dateien können in Ordnern liegen; 
 | GET/POST | `/api/customers/:id/folders` |
 | PUT/DELETE | `/api/folders/:id` |
 | GET/POST | `/api/customers/:id/attachments` (`folderId=root`, optional `documentId` / `assetId` / `emailId`; ohne `emailId` werden E-Mail-Anhänge ausgeblendet) |
-| PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner) |
+| PUT | `/api/attachments/:id` (Name, Beschreibung, Ordner, `portalVisible`) |
 | GET | `/api/attachments/:id/download?inline=1` |
 | DELETE | `/api/attachments/:id` |
 

@@ -1,11 +1,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { DocumentEditor } from "../../components/DocumentEditor";
+import { Modal } from "../../components/Modal";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
+import { TicketComposer, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
 import { formatBytes } from "../../lib/files";
 import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
+import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
 import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
 import type { TicketItem, TicketPriority, TicketStatus } from "../../types";
 
@@ -17,10 +21,12 @@ export function TicketDetailPage() {
   const navigate = useNavigate();
   const [ticket, setTicket] = useState<TicketItem | null>(null);
   const [error, setError] = useState("");
-  const [publicBody, setPublicBody] = useState("");
-  const [internalBody, setInternalBody] = useState("");
   const [busy, setBusy] = useState("");
   const [hours, setHours] = useState("1");
+  const [pendingStatus, setPendingStatus] = useState<TicketStatus | null>(null);
+  const [resolutionDraft, setResolutionDraft] = useState(EMPTY_DOC);
+  const [resolutionKey, setResolutionKey] = useState(0);
+  const [resolutionError, setResolutionError] = useState("");
   const now = useSlaNow();
 
   async function reload() {
@@ -48,20 +54,46 @@ export function TicketDetailPage() {
     }
   }
 
-  async function send(visibility: "public" | "internal", e: FormEvent) {
-    e.preventDefault();
+  async function send(visibility: "public" | "internal", body: string) {
     if (!ticket) return;
-    const body = visibility === "public" ? publicBody : internalBody;
-    if (!body.trim()) return;
     setBusy(visibility);
     setError("");
     try {
-      await api.addTicketMessage(ticket.id, body.trim(), visibility);
-      if (visibility === "public") setPublicBody("");
-      else setInternalBody("");
+      await api.addTicketMessage(ticket.id, body, visibility);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Senden fehlgeschlagen");
+      throw err;
+    } finally {
+      setBusy("");
+    }
+  }
+
+  function onStatusChange(next: TicketStatus) {
+    if (!ticket) return;
+    if ((next === "closed" || next === "resolved") && ticket.status !== next) {
+      setPendingStatus(next);
+      setResolutionDraft(ticket.resolution || EMPTY_DOC);
+      setResolutionKey((n) => n + 1);
+      setResolutionError("");
+      return;
+    }
+    void patch({ status: next });
+  }
+
+  async function confirmClose() {
+    if (!pendingStatus || !richTextHasContent(resolutionDraft)) {
+      setResolutionError("Bitte die Lösung dokumentieren.");
+      return;
+    }
+    setBusy("patch");
+    setError("");
+    setResolutionError("");
+    try {
+      setTicket(await api.updateTicket(ticket!.id, { status: pendingStatus, resolution: resolutionDraft }));
+      setPendingStatus(null);
+    } catch (err) {
+      setResolutionError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     } finally {
       setBusy("");
     }
@@ -165,31 +197,17 @@ export function TicketDetailPage() {
       <div className="ticket-detail-grid">
         <section className="panel ticket-thread">
           <h3>Verlauf</h3>
-          {messages.length === 0 ? (
-            <p className="muted">{ticket.description || "Noch keine Nachrichten."}</p>
-          ) : (
-            <ol className="ticket-messages">
-              {messages.map((m) => (
-                <li
-                  key={m.id}
-                  className={`ticket-msg${m.visibility === "internal" ? " is-internal" : ""}${
-                    m.authorRole === "admin" ? " is-staff" : " is-customer"
-                  }`}
-                >
-                  <header>
-                    <strong>
-                      {m.authorRole === "admin" ? "Systemhaus" : "Kunde"}
-                      {m.visibility === "internal" ? " · intern" : ""}
-                    </strong>
-                    <time>
-                      {formatTimeAgo(m.createdAt, clockNow)} · {formatDate(m.createdAt)}
-                    </time>
-                  </header>
-                  <p>{m.body}</p>
-                </li>
-              ))}
-            </ol>
-          )}
+          <TicketSolutionCard
+            resolution={ticket.resolution}
+            resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
+            now={clockNow}
+          />
+          <TicketTimeline
+            messages={messages}
+            now={clockNow}
+            staffView
+            emptyHint={ticket.description || "Noch keine Nachrichten."}
+          />
 
           {files.length ? (
             <ul className="portal-file-chips">
@@ -203,35 +221,21 @@ export function TicketDetailPage() {
             </ul>
           ) : null}
 
-          <form className="stack-form" onSubmit={(e) => void send("public", e)}>
-            <label className="field">
-              <span>Antwort an den Kunden</span>
-              <textarea
-                rows={4}
-                value={publicBody}
-                onChange={(e) => setPublicBody(e.target.value)}
-                required
-              />
-            </label>
-            <button className="btn btn-primary" type="submit" disabled={busy === "public"}>
-              {busy === "public" ? "Senden…" : "Antwort senden"}
-            </button>
-          </form>
-
-          <form className="stack-form" onSubmit={(e) => void send("internal", e)}>
-            <label className="field">
-              <span>Interne Notiz (nicht im Portal)</span>
-              <textarea
-                rows={3}
-                value={internalBody}
-                onChange={(e) => setInternalBody(e.target.value)}
-                required
-              />
-            </label>
-            <button className="btn btn-ghost" type="submit" disabled={busy === "internal"}>
-              {busy === "internal" ? "Speichern…" : "Notiz speichern"}
-            </button>
-          </form>
+          <TicketComposer
+            label="Antwort an den Kunden"
+            placeholder="Ihre Antwort an den Kunden…"
+            submitLabel="Antwort senden"
+            busy={busy === "public"}
+            onSubmit={(body) => send("public", body)}
+          />
+          <TicketComposer
+            label="Interne Notiz (nicht im Portal)"
+            placeholder="Nur intern sichtbar…"
+            submitLabel="Notiz speichern"
+            tone="ghost"
+            busy={busy === "internal"}
+            onSubmit={(body) => send("internal", body)}
+          />
 
           <label className="field">
             <span>Anhang</span>
@@ -249,7 +253,7 @@ export function TicketDetailPage() {
             <select
               value={ticket.status}
               disabled={busy === "patch"}
-              onChange={(e) => void patch({ status: e.target.value as TicketStatus })}
+              onChange={(e) => onStatusChange(e.target.value as TicketStatus)}
             >
               {(Object.keys(ticketStatusLabel) as TicketStatus[]).map((s) => (
                 <option key={s} value={s}>
@@ -319,6 +323,42 @@ export function TicketDetailPage() {
           </Link>
         </aside>
       </div>
+
+      <Modal
+        open={pendingStatus !== null}
+        title="Lösung dokumentieren"
+        onClose={() => setPendingStatus(null)}
+        className="modal-wide"
+      >
+        <p className="muted ticket-resolution-hint">
+          Beim Schließen oder Lösen muss eine Lösung festgehalten werden. Der Kunde sieht sie im Portal.
+        </p>
+        {resolutionError ? <p className="form-error">{resolutionError}</p> : null}
+        <DocumentEditor
+          key={resolutionKey}
+          content={resolutionDraft}
+          onChange={setResolutionDraft}
+          variant="comment"
+          placeholder="Was war die Ursache, was wurde gemacht, wie ist der Stand?"
+        />
+        <div className="modal-actions">
+          <button type="button" className="btn btn-ghost" onClick={() => setPendingStatus(null)}>
+            Abbrechen
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={busy === "patch" || !richTextHasContent(resolutionDraft)}
+            onClick={() => void confirmClose()}
+          >
+            {busy === "patch"
+              ? "Speichern…"
+              : pendingStatus === "closed"
+                ? "Lösung speichern und schließen"
+                : "Lösung speichern und lösen"}
+          </button>
+        </div>
+      </Modal>
     </div>
   );
 }

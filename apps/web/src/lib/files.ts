@@ -42,6 +42,15 @@ export function formatBytes(size: number): string {
 
 export type VaultSort = "name" | "date" | "size";
 
+export const fileKindLabel: Record<FileKind, string> = {
+  image: "Bild",
+  pdf: "PDF",
+  office: "Office",
+  archive: "Archiv",
+  text: "Text",
+  other: "Datei",
+};
+
 export function sortByName<T extends { name?: string; originalName?: string }>(a: T, b: T) {
   const an = (a.name ?? a.originalName ?? "").toLocaleLowerCase("de");
   const bn = (b.name ?? b.originalName ?? "").toLocaleLowerCase("de");

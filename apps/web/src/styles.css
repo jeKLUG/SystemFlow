@@ -3485,6 +3485,7 @@ input[type="checkbox"]:not(.check-input):checked {
 
 .vault-card:hover .vault-card-toolbar,
 .vault-card.is-menu-open .vault-card-toolbar,
+.vault-card.is-portal .vault-card-toolbar,
 .vault-card-toolbar.is-open {
   opacity: 1;
   pointer-events: auto;
@@ -3510,6 +3511,11 @@ input[type="checkbox"]:not(.check-input):checked {
 .vault-card-menu-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
+}
+
+.vault-card-menu-btn.is-portal-on {
+  color: var(--accent-bright);
+  background: var(--accent-soft);
 }
 
 .vault-card-menu-btn svg {
@@ -15659,6 +15665,194 @@ a.tasks-hub-chip:hover {
   border-color: rgba(52, 211, 153, 0.22);
 }
 
+.ticket-timeline {
+  --ticket-tl-rail: 1.35rem;
+  list-style: none;
+  margin: 0 0 1.15rem;
+  padding: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.ticket-timeline::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: calc(var(--ticket-tl-rail) / 2);
+  top: 0.55rem;
+  bottom: 0.55rem;
+  width: 2px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    rgba(96, 165, 250, 0.45),
+    rgba(148, 163, 184, 0.16) 55%,
+    transparent
+  );
+  pointer-events: none;
+}
+
+.ticket-tl-item {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--ticket-tl-rail) minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-bottom: 0.95rem;
+}
+
+.ticket-tl-item:last-child {
+  padding-bottom: 0.15rem;
+}
+
+.ticket-tl-dot {
+  width: 0.72rem;
+  height: 0.72rem;
+  margin: 0.55rem auto 0;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 2px solid rgba(148, 163, 184, 0.55);
+  box-shadow: 0 0 0 4px var(--surface);
+}
+
+.ticket-tl-item.is-staff .ticket-tl-dot {
+  border-color: rgba(96, 165, 250, 0.85);
+  background: #60a5fa;
+}
+
+.ticket-tl-item.is-customer .ticket-tl-dot {
+  border-color: rgba(52, 211, 153, 0.85);
+  background: #34d399;
+}
+
+.ticket-tl-item.is-internal .ticket-tl-dot {
+  border-color: rgba(251, 191, 36, 0.9);
+  background: #fbbf24;
+}
+
+.ticket-tl-card {
+  min-width: 0;
+  padding: 0.7rem 0.85rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ticket-tl-card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.ticket-tl-card header time {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.ticket-tl-item.is-staff .ticket-tl-card {
+  border-color: rgba(96, 165, 250, 0.22);
+}
+
+.ticket-tl-item.is-customer .ticket-tl-card {
+  border-color: rgba(52, 211, 153, 0.2);
+}
+
+.ticket-tl-item.is-internal .ticket-tl-card {
+  border-style: dashed;
+  background: rgba(251, 191, 36, 0.06);
+  border-color: rgba(251, 191, 36, 0.28);
+}
+
+.ticket-solution {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border-color: rgba(52, 211, 153, 0.32);
+  background:
+    linear-gradient(180deg, rgba(52, 211, 153, 0.1), rgba(52, 211, 153, 0.03));
+}
+
+.ticket-solution header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.ticket-solution header strong {
+  color: #6ee7b7;
+}
+
+.ticket-solution header time {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.ticket-rich .editor,
+.ticket-rich .editor.is-comment,
+.ticket-rich .editor.is-readonly {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  max-height: none;
+  border-radius: 0;
+}
+
+.ticket-rich .editor-body,
+.ticket-rich .editor.is-readonly .editor-body {
+  padding: 0;
+  min-height: 0;
+  max-height: none;
+}
+
+.ticket-rich .tiptap-surface {
+  min-height: 0;
+  padding: 0;
+}
+
+.editor.is-comment {
+  max-height: none;
+}
+
+.editor.is-comment .editor-toolbar {
+  flex-wrap: wrap;
+  padding: 0.35rem 0.4rem;
+}
+
+.editor.is-comment .editor-body {
+  min-height: 6.5rem;
+}
+
+.editor.is-comment .tiptap-surface {
+  min-height: 5.75rem;
+  padding: 0.7rem 0.85rem 0.9rem;
+}
+
+.ticket-composer {
+  margin: 0 0 1rem;
+}
+
+.ticket-composer.is-internal {
+  padding: 0.75rem 0.8rem 0.85rem;
+  border: 1px dashed rgba(251, 191, 36, 0.28);
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.04);
+}
+
+.ticket-resolution-hint {
+  margin: 0 0 0.85rem;
+}
+
+.modal-panel .editor.is-comment {
+  max-height: 22rem;
+}
+
 .ticket-files {
   list-style: none;
   padding: 0;
@@ -15894,6 +16088,74 @@ a.tasks-hub-chip:hover {
   color: #c4b5fd;
 }
 
+.portal-docs-board {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.portal-docs-section h3 {
+  margin: 0 0 0.55rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+}
+
+.portal-docs-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.portal-doc-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 0.9rem 1.05rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.portal-doc-card:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.portal-doc-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.portal-doc-main strong {
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-doc-cta {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-bright);
+}
+
+.portal-doc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.docs-type-badge.type-file {
+  color: #93c5fd;
+  border-color: rgba(147, 197, 253, 0.35);
+}
+
 .portal-ticket-form-lead {
   margin: 0 0 0.35rem;
 }
@@ -16078,6 +16340,16 @@ a.tasks-hub-chip:hover {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-start;
+  }
+
+  .portal-doc-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .portal-doc-cta,
+  .portal-doc-actions {
+    grid-column: 1 / -1;
     justify-content: flex-start;
   }
 

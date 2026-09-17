@@ -51,6 +51,7 @@ async function storeEmailAttachment(
     mimeType: opts.mimeType || null,
     size: opts.content.length,
     description: opts.description ?? null,
+    portalVisible: false,
     createdAt: now,
     updatedAt: now,
   };
