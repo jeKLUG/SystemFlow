@@ -46,7 +46,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 |---------|------|--------------|
 | GET | `/api/tickets/stats` | `{ openCount, waitingCount, slaBreachedCount }` |
 | GET | `/api/tickets?customerId=&status=&priority=&slaBreached=` | Queue; `status=open_any` = offen/in Bearbeitung/wartet |
-| POST | `/api/tickets` | Anlegen (`customerId`, `title`, `description?`, `priority?`, `contractId?`) |
+| POST | `/api/tickets` | Anlegen (`customerId`, `title`, `description?` TipTap-JSON, `priority?`, `contractId?`); UI hängt Dateien direkt nach dem Anlegen an |
 | GET/PUT | `/api/tickets/:id` | Detail inkl. Thread/Anhängen; Status/Priorität; beim Wechsel auf `resolved`/`closed` ist `resolution` (TipTap-JSON) Pflicht |
 | POST | `/api/tickets/:id/messages` | `{ body, visibility }` – `body` TipTap-JSON oder Klartext, `visibility` public/internal |
 | POST | `/api/tickets/:id/attachments` | Multipart-Upload |

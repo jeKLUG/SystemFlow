@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.127 – 2026-09-17
+
+- Tickets: Anhänge und Kommentarfeld stehen über dem Verlauf (Staff und Kundenportal)
+
+## 1.5.126 – 2026-09-17
+
+- Tickets: neueste Kommentare im Verlauf zuerst (Staff und Kundenportal)
+
+## 1.5.125 – 2026-09-17
+
+- Kundenportal: Markenname oben „Systemhaus-Ess“ statt „Kundenportal“
+
+## 1.5.124 – 2026-09-17
+
+- Staff Neues Ticket: gleiches Formular wie im Kundenportal (Editor, Priorität mit SLA, Anhänge), zusätzlich Kundenwahl
+
+## 1.5.123 – 2026-09-17
+
+- Kundenportal Neues Ticket: kompaktere Prioritäten mit Reaktions- und Lösungszeit aus dem Vertrag
+
 ## 1.5.122 – 2026-09-17
 
 - Kundenportal Tickets: Karten mit Status, Priorität, Zeiten und SLA statt schmaler Zeile

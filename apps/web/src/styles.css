@@ -16928,32 +16928,34 @@ button.portal-doc-card {
   margin: 0 0 0.35rem;
 }
 
-.portal-prio-fieldset {
+.ticket-prio-picker {
   border: 0;
   margin: 0;
   padding: 0;
 }
 
-.portal-prio-fieldset legend {
-  margin-bottom: 0.45rem;
+.ticket-prio-picker legend {
+  margin-bottom: 0.4rem;
   font-size: 0.82rem;
 }
 
-.portal-prio-grid {
+.ticket-prio-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.4rem;
 }
 
-.portal-prio-chip {
+.ticket-prio-chip {
   appearance: none;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.15rem;
-  padding: 0.7rem 0.8rem;
-  border-radius: 12px;
+  gap: 0.08rem;
+  min-height: 0;
+  padding: 0.42rem 0.58rem 0.46rem;
+  border-radius: 10px;
   border: 1px solid var(--border);
+  border-left-width: 3px;
   background: rgba(0, 0, 0, 0.15);
   color: inherit;
   font: inherit;
@@ -16961,18 +16963,59 @@ button.portal-doc-card {
   cursor: pointer;
 }
 
-.portal-prio-chip strong {
-  font-size: 0.88rem;
+.ticket-prio-chip.is-low { border-left-color: #64748b; }
+.ticket-prio-chip.is-normal { border-left-color: #60a5fa; }
+.ticket-prio-chip.is-high { border-left-color: #fb923c; }
+.ticket-prio-chip.is-critical { border-left-color: #f87171; }
+
+.ticket-prio-chip:hover {
+  border-color: rgba(96, 165, 250, 0.32);
 }
 
-.portal-prio-chip span {
-  font-size: 0.75rem;
+.ticket-prio-chip strong {
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+
+.ticket-prio-hint {
+  font-size: 0.68rem;
+  line-height: 1.25;
   color: var(--text-muted);
 }
 
-.portal-prio-chip.is-active {
-  border-color: rgba(96, 165, 250, 0.55);
-  background: var(--accent-soft);
+.ticket-prio-sla {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.55rem;
+  margin-top: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.ticket-prio-chip.is-low .ticket-prio-sla { color: #94a3b8; }
+.ticket-prio-chip.is-normal .ticket-prio-sla { color: #93c5fd; }
+.ticket-prio-chip.is-high .ticket-prio-sla { color: #fb923c; }
+.ticket-prio-chip.is-critical .ticket-prio-sla { color: #f87171; }
+
+.ticket-prio-chip.is-active {
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+.ticket-prio-chip.is-low.is-active {
+  background: rgba(100, 116, 139, 0.16);
+}
+
+.ticket-prio-chip.is-normal.is-active {
+  background: rgba(96, 165, 250, 0.16);
+}
+
+.ticket-prio-chip.is-high.is-active {
+  background: rgba(251, 146, 60, 0.14);
+}
+
+.ticket-prio-chip.is-critical.is-active {
+  background: rgba(248, 113, 113, 0.14);
 }
 
 .portal-ticket-drop {
@@ -17068,7 +17111,7 @@ button.portal-doc-card {
 
 .portal-ticket-intro h3,
 .ticket-thread h3 {
-  margin: 0 0 0.55rem;
+  margin: 1.15rem 0 0.55rem;
   font-family: var(--font-display);
   font-size: 0.92rem;
 }
@@ -17146,8 +17189,8 @@ button.portal-doc-card {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .portal-prio-grid {
-    grid-template-columns: 1fr;
+  .ticket-prio-grid {
+    grid-template-columns: 1fr 1fr;
   }
 
   .portal-ticket-kpis {

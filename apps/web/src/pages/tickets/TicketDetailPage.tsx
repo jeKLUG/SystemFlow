@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
@@ -19,6 +19,7 @@ import type { TicketItem, TicketPriority, TicketStatus } from "../../types";
 export function TicketDetailPage() {
   const { ticketId = "" } = useParams();
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [ticket, setTicket] = useState<TicketItem | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -168,6 +169,7 @@ export function TicketDetailPage() {
     company: ticket.customerCompany ?? null,
   });
   const clockNow = new Date(now);
+  const uploadWarn = params.get("anhang") === "teilweise";
 
   return (
     <div className="page ticket-detail-page">
@@ -212,26 +214,34 @@ export function TicketDetailPage() {
         }
       />
 
+      {uploadWarn ? (
+        <div className="form-error">
+          Das Ticket ist angelegt, aber nicht alle Anhänge konnten hochgeladen werden. Bitte Dateien hier nachreichen.
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              const next = new URLSearchParams(params);
+              next.delete("anhang");
+              setParams(next, { replace: true });
+            }}
+          >
+            Hinweis schließen
+          </button>
+        </div>
+      ) : null}
+
       <TicketSlaClocks ticket={ticket} now={now} />
 
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className="ticket-detail-grid">
         <section className="panel ticket-thread">
-          <h3>Verlauf</h3>
           <TicketSolutionCard
             resolution={ticket.resolution}
             resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
             now={clockNow}
           />
-          <TicketTimeline
-            messages={messages}
-            now={clockNow}
-            staffView
-            ticketCreatedAt={ticket.createdAt}
-            emptyHint="Noch keine Kommentare."
-          />
-
           {files.length ? (
             <ul className="portal-file-chips">
               {files.map((f) => (
@@ -243,13 +253,20 @@ export function TicketDetailPage() {
               ))}
             </ul>
           ) : null}
-
+          <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
           <TicketComposer
             staffModes
             busy={busy === "msg"}
             onSubmit={(body, visibility) => send(visibility, body)}
           />
-          <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
+          <h3>Verlauf</h3>
+          <TicketTimeline
+            messages={messages}
+            now={clockNow}
+            staffView
+            ticketCreatedAt={ticket.createdAt}
+            emptyHint="Noch keine Kommentare."
+          />
         </section>
 
         <aside className="panel ticket-side">

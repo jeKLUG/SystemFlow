@@ -1,13 +1,19 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerPicker } from "../../components/CustomerPicker";
+import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
+import { TicketPriorityPicker } from "../../components/TicketPriorityPicker";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { customerDisplayName } from "../../lib/customer";
+import { formatBytes } from "../../lib/files";
 import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
-import { formatTimeAgo, ticketSlaTone, useSlaNow } from "../../lib/tickets";
-import type { TicketItem, TicketPriority } from "../../types";
+import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
+import { formatTimeAgo, pickSlaContract, ticketSlaTone, useSlaNow } from "../../lib/tickets";
+import type { ContractItem, TicketItem, TicketPriority } from "../../types";
+
+const MAX_CREATE_FILES = 10;
 
 const statusFilters: { id: string; label: string }[] = [
   { id: "open_any", label: "Offen" },
@@ -38,12 +44,18 @@ export function TicketsPage() {
   const [rows, setRows] = useState<TicketItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [formError, setFormError] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [files, setFiles] = useState<File[]>([]);
+  const [slaContract, setSlaContract] = useState<ContractItem | null>(null);
+  const [editorKey, setEditorKey] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     customerId: customerId,
     title: "",
-    description: "",
+    description: EMPTY_DOC,
     priority: "normal" as TicketPriority,
   });
 
@@ -56,6 +68,25 @@ export function TicketsPage() {
   useEffect(() => {
     setForm((f) => ({ ...f, customerId: customerId || f.customerId }));
   }, [customerId]);
+
+  useEffect(() => {
+    if (!createOpen || !form.customerId) {
+      if (!form.customerId) setSlaContract(null);
+      return;
+    }
+    let cancelled = false;
+    void api
+      .contracts(form.customerId)
+      .then((rows) => {
+        if (!cancelled) setSlaContract(pickSlaContract(rows));
+      })
+      .catch(() => {
+        if (!cancelled) setSlaContract(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [createOpen, form.customerId]);
 
   useEffect(() => {
     setLoading(true);
@@ -88,29 +119,69 @@ export function TicketsPage() {
     [rows, now],
   );
 
+  function openCreate() {
+    setForm({
+      customerId: customerId,
+      title: "",
+      description: EMPTY_DOC,
+      priority: "normal",
+    });
+    setFiles([]);
+    setFormError("");
+    setDragOver(false);
+    setEditorKey((n) => n + 1);
+    setCreateOpen(true);
+  }
+
+  function addFiles(list: FileList | File[] | null) {
+    if (!list) return;
+    setFiles((prev) => {
+      const next = [...prev];
+      for (const file of Array.from(list)) {
+        if (next.length >= MAX_CREATE_FILES) break;
+        const dup = next.some(
+          (item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified,
+        );
+        if (!dup) next.push(file);
+      }
+      return next;
+    });
+  }
+
+  function onDrag(e: DragEvent, over: boolean) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(over);
+  }
+
+  function onDrop(e: DragEvent) {
+    onDrag(e, false);
+    addFiles(e.dataTransfer.files);
+  }
+
   async function createTicket(e: FormEvent) {
     e.preventDefault();
     if (!form.customerId) {
-      setError("Kunde wählen");
+      setFormError("Kunde wählen");
       return;
     }
     setBusy(true);
-    setError("");
+    setFormError("");
     try {
       const created = await api.createTicket({
         customerId: form.customerId,
-        title: form.title,
-        description: form.description,
+        title: form.title.trim(),
+        description: richTextHasContent(form.description) ? form.description : null,
         priority: form.priority,
       });
+      const uploads = await Promise.allSettled(
+        files.map((file) => api.uploadTicketAttachment(created.id, file)),
+      );
+      const failed = uploads.filter((r) => r.status === "rejected").length;
       setCreateOpen(false);
-      setForm({ customerId: customerId || form.customerId, title: "", description: "", priority: "normal" });
-      navigate(customerId ? `/customers/${customerId}/tickets` : `/tickets/${created.id}`);
-      if (customerId) {
-        setRows((prev) => [created, ...prev]);
-      }
+      navigate(`/tickets/${created.id}${failed ? "?anhang=teilweise" : ""}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Anlegen fehlgeschlagen");
+      setFormError(err instanceof Error ? err.message : "Anlegen fehlgeschlagen");
     } finally {
       setBusy(false);
     }
@@ -128,7 +199,7 @@ export function TicketsPage() {
               : `${openCount} offen${overdueCount ? ` · ${overdueCount} überfällig` : ""}`}
           </p>
         </div>
-        <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
+        <button type="button" className="btn btn-primary" onClick={openCreate}>
           Neues Ticket
         </button>
       </header>
@@ -226,8 +297,18 @@ export function TicketsPage() {
         </ul>
       )}
 
-      <Modal open={createOpen} title="Neues Ticket" onClose={() => setCreateOpen(false)}>
-        <form className="stack-form" onSubmit={createTicket}>
+      <Modal
+        open={createOpen}
+        title="Neues Ticket"
+        onClose={() => setCreateOpen(false)}
+        className="modal-wide"
+        showCloseButton={false}
+        closeOnBackdrop={false}
+      >
+        <form className="stack-form portal-ticket-form" onSubmit={(e) => void createTicket(e)}>
+          <p className="muted portal-ticket-form-lead">
+            Beschreiben Sie das Anliegen. Screenshots oder Dateien können Sie direkt anhängen.
+          </p>
           {!customerId ? (
             <label className="field">
               <span>Kunde</span>
@@ -240,41 +321,81 @@ export function TicketsPage() {
             </label>
           ) : null}
           <label className="field">
-            <span>Titel</span>
+            <span>Betreff</span>
             <input
               required
+              autoComplete="off"
+              placeholder="z. B. Drucker im Büro 2 druckt nicht"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </label>
-          <label className="field">
+          <div className="field">
             <span>Beschreibung</span>
-            <textarea
-              rows={5}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            <DocumentEditor
+              key={editorKey}
+              content={form.description}
+              onChange={(description) => setForm((prev) => ({ ...prev, description }))}
+              variant="comment"
+              placeholder="Was ist passiert? Seit wann? Was haben Sie schon versucht?"
             />
-          </label>
-          <label className="field">
-            <span>Priorität</span>
-            <select
-              value={form.priority}
-              onChange={(e) => setForm({ ...form, priority: e.target.value as TicketPriority })}
+          </div>
+          <TicketPriorityPicker
+            value={form.priority}
+            onChange={(priority) => setForm({ ...form, priority })}
+            contract={slaContract}
+          />
+          <div className="field">
+            <span>Anhänge</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              hidden
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              className={`portal-ticket-drop${dragOver ? " is-over" : ""}`}
+              onClick={() => fileInputRef.current?.click()}
+              onDragEnter={(e) => onDrag(e, true)}
+              onDragOver={(e) => onDrag(e, true)}
+              onDragLeave={(e) => onDrag(e, false)}
+              onDrop={onDrop}
             >
-              {(Object.keys(ticketPriorityLabel) as TicketPriority[]).map((p) => (
-                <option key={p} value={p}>
-                  {ticketPriorityLabel[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-          {error ? <p className="form-error">{error}</p> : null}
-          <div className="form-actions">
-            <button className="btn btn-primary" type="submit" disabled={busy}>
-              {busy ? "Anlegen…" : "Ticket anlegen"}
+              <strong>Dateien hierher ziehen oder auswählen</strong>
+              <span className="muted">Bis zu {MAX_CREATE_FILES} Dateien, z. B. Screenshots, PDF oder Office</span>
             </button>
-            <button type="button" className="btn btn-ghost" onClick={() => setCreateOpen(false)}>
+            {files.length ? (
+              <ul className="portal-file-chips">
+                {files.map((file, index) => (
+                  <li key={`${file.name}-${file.lastModified}-${index}`}>
+                    <span>
+                      {file.name} <em>{formatBytes(file.size)}</em>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      aria-label={`${file.name} entfernen`}
+                      onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+          {formError ? <p className="form-error">{formError}</p> : null}
+          <div className="form-actions modal-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => setCreateOpen(false)} disabled={busy}>
               Abbrechen
+            </button>
+            <button className="btn btn-primary" type="submit" disabled={busy}>
+              {busy ? (files.length ? "Anlegen und anhängen…" : "Anlegen…") : "Ticket anlegen"}
             </button>
           </div>
         </form>

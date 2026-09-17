@@ -158,17 +158,10 @@ export function PortalTicketDetailPage() {
       ) : null}
       {error ? <p className="form-error">{error}</p> : null}
       <section className="panel ticket-thread">
-        <h3>Verlauf</h3>
         <TicketSolutionCard
           resolution={ticket.resolution}
           resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
           now={clockNow}
-        />
-        <TicketTimeline
-          messages={ticket.messages ?? []}
-          now={clockNow}
-          ticketCreatedAt={ticket.createdAt}
-          emptyHint="Noch keine Kommentare – sobald wir antworten, erscheint es hier."
         />
         {(ticket.attachments ?? []).length ? (
           <ul className="portal-file-chips">
@@ -185,6 +178,7 @@ export function PortalTicketDetailPage() {
           <p className="muted">Dieses Ticket ist geschlossen.</p>
         ) : (
           <>
+            <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
             <TicketComposer
               label="Antwort"
               placeholder="Ihre Nachricht an das Systemhaus…"
@@ -192,9 +186,15 @@ export function PortalTicketDetailPage() {
               busy={busy === "msg"}
               onSubmit={reply}
             />
-            <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
           </>
         )}
+        <h3>Verlauf</h3>
+        <TicketTimeline
+          messages={ticket.messages ?? []}
+          now={clockNow}
+          ticketCreatedAt={ticket.createdAt}
+          emptyHint="Noch keine Kommentare – sobald wir antworten, erscheint es hier."
+        />
       </section>
     </div>
   );

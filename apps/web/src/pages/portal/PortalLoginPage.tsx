@@ -40,7 +40,7 @@ export function PortalLoginPage() {
         <section className="login-hero">
           <div className="sidebar-brand" style={{ border: 0, padding: 0, marginBottom: "1rem" }}>
             <img className="brand-mark" src="/logo.png" alt="" width={40} height={40} />
-            <strong>Kundenportal</strong>
+            <strong>Systemhaus-Ess</strong>
           </div>
           <h1>Tickets, Verträge und Dokumente – an einem Ort.</h1>
         </section>

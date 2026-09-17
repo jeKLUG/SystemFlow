@@ -3,20 +3,19 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
+import { TicketPriorityPicker } from "../../components/TicketPriorityPicker";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { formatBytes } from "../../lib/files";
 import {
   formatDate,
-  portalTicketPriorityHint,
   portalTicketStatusHint,
   portalTicketStatusLabel,
   ticketPriorityLabel,
 } from "../../lib/labels";
 import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
-import { formatTimeAgo, ticketSlaTone, useSlaNow } from "../../lib/tickets";
-import type { TicketItem, TicketPriority } from "../../types";
+import { formatTimeAgo, pickSlaContract, ticketSlaTone, useSlaNow } from "../../lib/tickets";
+import type { ContractItem, TicketItem, TicketPriority } from "../../types";
 
-const PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
 const MAX_CREATE_FILES = 10;
 
 type TicketFilter = "all" | "open" | "waiting" | "done";
@@ -48,6 +47,7 @@ export function PortalTicketsPage() {
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState({ title: "", description: EMPTY_DOC, priority: "normal" as TicketPriority });
+  const [slaContract, setSlaContract] = useState<ContractItem | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const filter = parseFilter(params.get("filter"));
   const now = useSlaNow();
@@ -68,7 +68,12 @@ export function PortalTicketsPage() {
   const done = visible.filter((t) => t.status === "resolved" || t.status === "closed");
 
   async function reload() {
-    setRows(await api.portalTickets());
+    const [tickets, contracts] = await Promise.all([
+      api.portalTickets(),
+      api.portalContracts().catch(() => [] as ContractItem[]),
+    ]);
+    setRows(tickets);
+    setSlaContract(pickSlaContract(contracts));
   }
 
   useEffect(() => {
@@ -270,22 +275,11 @@ export function PortalTicketsPage() {
               placeholder="Was ist passiert? Seit wann? Was haben Sie schon versucht?"
             />
           </div>
-          <fieldset className="field portal-prio-fieldset">
-            <legend>Wie dringend ist es?</legend>
-            <div className="portal-prio-grid">
-              {PRIORITIES.map((priority) => (
-                <button
-                  key={priority}
-                  type="button"
-                  className={`portal-prio-chip badge-prio-${priority}${form.priority === priority ? " is-active" : ""}`}
-                  onClick={() => setForm({ ...form, priority })}
-                >
-                  <strong>{ticketPriorityLabel[priority]}</strong>
-                  <span>{portalTicketPriorityHint[priority]}</span>
-                </button>
-              ))}
-            </div>
-          </fieldset>
+          <TicketPriorityPicker
+            value={form.priority}
+            onChange={(priority) => setForm({ ...form, priority })}
+            contract={slaContract}
+          />
           <div className="field">
             <span>Anhänge</span>
             <input

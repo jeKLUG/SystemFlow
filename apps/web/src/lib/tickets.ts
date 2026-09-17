@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { TicketItem } from "../types";
+import type { ContractItem, TicketItem, TicketPriority } from "../types";
 
 export type SlaTone = "none" | "ok" | "soon" | "urgent" | "overdue" | "met";
 
@@ -180,4 +180,41 @@ function toDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function positiveHours(value: number | null | undefined): number | null {
+  return value != null && Number.isFinite(value) && value > 0 ? value : null;
+}
+
+/**
+ * Aktiver Vertrag zuerst, sonst pausierter – wie beim Ticket-Anlegen in der API.
+ */
+export function pickSlaContract(rows: ContractItem[]): ContractItem | null {
+  return rows.find((c) => c.status === "active") ?? rows.find((c) => c.status === "paused") ?? null;
+}
+
+/**
+ * Reaktions- und Lösungsstunden einer Priorität aus dem Vertrag.
+ */
+export function contractSlaHours(
+  contract: ContractItem | null | undefined,
+  priority: TicketPriority,
+): { responseHours: number | null; resolveHours: number | null } {
+  if (!contract) return { responseHours: null, resolveHours: null };
+  const response: Record<TicketPriority, number | null> = {
+    critical: contract.responseCriticalHours,
+    high: contract.responseHighHours,
+    normal: contract.responseNormalHours ?? contract.slaResponseHours,
+    low: contract.responseLowHours,
+  };
+  const resolve: Record<TicketPriority, number | null> = {
+    critical: contract.resolveCriticalHours,
+    high: contract.resolveHighHours,
+    normal: contract.resolveNormalHours,
+    low: contract.resolveLowHours,
+  };
+  return {
+    responseHours: positiveHours(response[priority]),
+    resolveHours: positiveHours(resolve[priority]),
+  };
 }

@@ -62,7 +62,7 @@ Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, 
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
-Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Ticketdetail als Timeline (Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`): Ticketkarten mit Status, Priorität, Zeiten und SLA.
+Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Anlegen wie im Kundenportal (Editor, Priorität mit SLA-Zeiten, Anhänge) plus Kundenwahl. Ticketdetail: Anhänge und Kommentarfeld über dem Verlauf (neueste Kommentare zuerst; Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`): Ticketkarten mit Status, Priorität, Zeiten und SLA; beim Anlegen zeigt jede Priorität Reaktions-/Lösungszeit aus dem Vertrag.
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält nur Passwort und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.

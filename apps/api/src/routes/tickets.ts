@@ -36,14 +36,14 @@ import { addActivity } from "./activities.js";
 const createBody = z.object({
   customerId: z.string().min(1),
   title: z.string().min(1).max(300),
-  description: z.string().max(20000).optional().nullable().or(z.literal("")),
+  description: z.string().max(50000).optional().nullable().or(z.literal("")),
   priority: z.enum(ticketPriorities).optional(),
   contractId: z.string().optional().nullable().or(z.literal("")),
 });
 
 const patchBody = z.object({
   title: z.string().min(1).max(300).optional(),
-  description: z.string().max(20000).optional().nullable().or(z.literal("")),
+  description: z.string().max(50000).optional().nullable().or(z.literal("")),
   status: z.enum(ticketStatuses).optional(),
   priority: z.enum(ticketPriorities).optional(),
   contractId: z.string().optional().nullable().or(z.literal("")),

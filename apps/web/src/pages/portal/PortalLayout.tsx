@@ -42,7 +42,7 @@ export function PortalLayout() {
       <aside className="sidebar is-open portal-sidebar">
         <div className="sidebar-brand">
           <img className="brand-mark" src="/logo.png" alt="" width={36} height={36} />
-          <strong>Kundenportal</strong>
+          <strong>Systemhaus-Ess</strong>
         </div>
         <nav className="sidebar-nav" aria-label="Portal">
           <div className="nav-section">

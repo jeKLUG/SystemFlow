@@ -15,10 +15,12 @@ type TimelineProps = {
 };
 
 /**
- * Ticket-Verlauf als vertikale Timeline (Staff und Portal).
+ * Ticket-Verlauf als vertikale Timeline, neueste Kommentare zuerst (Staff und Portal).
  */
 export function TicketTimeline({ messages, now, staffView = false, emptyHint, ticketCreatedAt }: TimelineProps) {
-  const comments = messages.filter((m) => isTimelineComment(m, ticketCreatedAt));
+  const comments = messages
+    .filter((m) => isTimelineComment(m, ticketCreatedAt))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   if (comments.length === 0) {
     return <p className="muted">{emptyHint ?? "Noch keine Kommentare."}</p>;
   }
