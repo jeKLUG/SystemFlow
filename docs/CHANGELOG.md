@@ -2,6 +2,8 @@
 
 ## 1.5.107 – 2026-09-17
 
+- Kundenportal Inventar: aufklappbare Gerätedetails (ohne interne Notizen)
+- Kundenportal Verträge: gleiche SLA-Karte wie intern (Laufzeit, Preis, Prio-Matrix, Details ohne interne Notizen)
 - Kundenportal: Login `/portal/login` (ein Zugang je Kundenakte, in der Übersicht gesetzt)
 - Tickets: Staff-App `/tickets` (Queue, Dialog, interne Notizen, Anhänge, SLA, Aufgabe/Zeit); Kunden erstellen und beantworten Tickets im Portal
 - Wiki/Inventar: Schalter „Im Kundenportal zeigen“ (`portalVisible`)
