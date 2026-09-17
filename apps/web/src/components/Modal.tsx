@@ -8,12 +8,14 @@ type Props = {
   children: ReactNode;
   /** Zusätzliche Klasse auf dem Dialog-Panel */
   className?: string;
-  /** X-Button oben rechts (Standard: an). Abbrechen bleibt über Backdrop/Escape. */
+  /** X-Button oben rechts (Standard: an). */
   showCloseButton?: boolean;
+  /** Klick auf den dunklen Hintergrund schließt den Dialog (Standard: an). */
+  closeOnBackdrop?: boolean;
 };
 
 /**
- * Modal-Overlay (Portal auf `document.body`) mit Escape, Backdrop-Klick und Fokusfang.
+ * Modal-Overlay (Portal auf `document.body`) mit Escape, optional Backdrop-Klick und Fokusfang.
  * Panel bleibt im Viewport; bei viel Inhalt scrollt der Body – Aktionsleisten bleiben erreichbar.
  */
 export function Modal({
@@ -23,6 +25,7 @@ export function Modal({
   children,
   className = "",
   showCloseButton = true,
+  closeOnBackdrop = true,
 }: Props) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -55,7 +58,11 @@ export function Modal({
 
   return createPortal(
     <div className="modal-root" role="presentation">
-      <button type="button" className="modal-backdrop" aria-label="Schließen" onClick={onClose} />
+      {closeOnBackdrop ? (
+        <button type="button" className="modal-backdrop" aria-label="Schließen" onClick={onClose} />
+      ) : (
+        <div className="modal-backdrop" />
+      )}
       <div
         ref={panelRef}
         className={`modal-panel ${className}`.trim()}

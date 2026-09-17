@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.114 – 2026-09-17
+
+- Kundenportal Neues Ticket: Beschreibung mit Editor; Dialog nur über Abbrechen/Senden schließbar (kein X, kein Klick daneben)
+
+## 1.5.113 – 2026-09-17
+
+- Tickets: Timeline nur Kommentare; die Ticket-Anlage erscheint nicht als Nachricht
+
+## 1.5.112 – 2026-09-17
+
+- Staff-Tickets: ein Kommentar-Editor mit Umschalter Kunde/intern; Anhänge per Dropzone
+
 ## 1.5.111 – 2026-09-17
 
 - Kundenakte Portal-Zugang: Schalter aktiv/aus, Zugangsdaten nur beim Einrichten oder über Bearbeiten, letzte Anmeldung sichtbar

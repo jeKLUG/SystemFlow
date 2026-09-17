@@ -30,17 +30,22 @@ function walkTipTapText(nodes: unknown[]): string {
   return parts.join("");
 }
 
-/** Ob TipTap-JSON oder Klartext sichtbaren Inhalt hat. */
-export function richTextHasContent(raw: string | null | undefined): boolean {
+/** Sichtbarer Klartext aus TipTap-JSON oder Rohtext. */
+export function richTextPlain(raw: string | null | undefined): string {
   const t = raw?.trim();
-  if (!t) return false;
+  if (!t) return "";
   try {
     const doc = JSON.parse(t) as { type?: string; content?: unknown[] };
     if (doc?.type === "doc" || Array.isArray(doc?.content)) {
-      return walkTipTapText(doc.content ?? []).trim().length > 0;
+      return walkTipTapText(doc.content ?? []).trim();
     }
   } catch {
     /* Klartext */
   }
-  return t.length > 0;
+  return t;
+}
+
+/** Ob TipTap-JSON oder Klartext sichtbaren Inhalt hat. */
+export function richTextHasContent(raw: string | null | undefined): boolean {
+  return richTextPlain(raw).length > 0;
 }

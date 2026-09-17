@@ -668,7 +668,7 @@ export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolv
 export type TicketPriority = "low" | "normal" | "high" | "critical";
 export type TicketSource = "portal" | "staff";
 export type TicketMessageVisibility = "public" | "internal";
-export type TicketMessageKind = "comment" | "resolution";
+export type TicketMessageKind = "comment" | "resolution" | "opener";
 
 export interface TicketMessageItem {
   id: string;

@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
-import { TicketComposer, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import { TicketComposer, TicketDescription, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { formatBytes } from "../../lib/files";
 import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
 import { useSlaNow } from "../../lib/tickets";
@@ -13,11 +13,9 @@ import type { TicketItem } from "../../types";
 export function PortalTicketDetailPage() {
   const { ticketId = "" } = useParams();
   const [params, setParams] = useSearchParams();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [ticket, setTicket] = useState<TicketItem | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
-  const [dragOver, setDragOver] = useState(false);
   const now = useSlaNow();
   const uploadWarn = params.get("anhang") === "teilweise";
 
@@ -61,12 +59,6 @@ export function PortalTicketDetailPage() {
     } finally {
       setBusy("");
     }
-  }
-
-  function onDrag(e: DragEvent, over: boolean) {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(over);
   }
 
   if (!ticket && !error) return <p className="empty">Lade Ticket…</p>;
@@ -127,6 +119,7 @@ export function PortalTicketDetailPage() {
       {error ? <p className="form-error">{error}</p> : null}
       <section className="panel ticket-thread">
         <h3>Verlauf</h3>
+        <TicketDescription content={ticket.description} title={ticket.title} />
         <TicketSolutionCard
           resolution={ticket.resolution}
           resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
@@ -135,7 +128,8 @@ export function PortalTicketDetailPage() {
         <TicketTimeline
           messages={ticket.messages ?? []}
           now={clockNow}
-          emptyHint="Noch keine Nachrichten – sobald wir antworten, erscheint es hier."
+          ticketCreatedAt={ticket.createdAt}
+          emptyHint="Noch keine Kommentare – sobald wir antworten, erscheint es hier."
         />
         {(ticket.attachments ?? []).length ? (
           <ul className="portal-file-chips">
@@ -159,36 +153,7 @@ export function PortalTicketDetailPage() {
               busy={busy === "msg"}
               onSubmit={reply}
             />
-            <div className="field">
-              <span>Weitere Dateien</span>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                hidden
-                disabled={busy === "file"}
-                onChange={(e) => {
-                  void onFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                className={`portal-ticket-drop${dragOver ? " is-over" : ""}`}
-                disabled={busy === "file"}
-                onClick={() => fileInputRef.current?.click()}
-                onDragEnter={(e) => onDrag(e, true)}
-                onDragOver={(e) => onDrag(e, true)}
-                onDragLeave={(e) => onDrag(e, false)}
-                onDrop={(e) => {
-                  onDrag(e, false);
-                  void onFiles(e.dataTransfer.files);
-                }}
-              >
-                <strong>{busy === "file" ? "Wird hochgeladen…" : "Dateien hierher ziehen oder auswählen"}</strong>
-                <span className="muted">Screenshots, PDF oder Office-Dateien</span>
-              </button>
-            </div>
+            <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
           </>
         )}
       </section>

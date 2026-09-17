@@ -29,7 +29,7 @@ import { addActivity } from "./activities.js";
 
 const createBody = z.object({
   title: z.string().min(1).max(300),
-  description: z.string().max(20000).optional().nullable().or(z.literal("")),
+  description: z.string().max(50000).optional().nullable().or(z.literal("")),
   priority: z.enum(ticketPriorities).optional(),
 });
 
@@ -178,7 +178,9 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     const priority = parsed.data.priority ?? "normal";
     const contract = await findActiveContract(db, customerId, null);
     const sla = slaFromContract(contract, priority, now);
-    const description = emptyToNull(parsed.data.description);
+    const description = richTextHasContent(parsed.data.description)
+      ? emptyToNull(parsed.data.description)
+      : null;
 
     const row = {
       id: createId("tkt"),
@@ -202,19 +204,6 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       updatedAt: now,
     };
     await db.insert(tickets).values(row);
-
-    if (description) {
-      await db.insert(ticketMessages).values({
-        id: createId("tmsg"),
-        ticketId: row.id,
-        visibility: "public",
-        kind: "comment",
-        authorRole: "customer",
-        authorUserId: userId,
-        body: description,
-        createdAt: now,
-      });
-    }
 
     await addActivity(db, customerId, `Ticket ${row.number} vom Portal`, row.title, now);
     return reply.code(201).send({ ...row, ...slaFlags(row), messages: [], attachments: [] });

@@ -248,19 +248,6 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     };
     await db.insert(tickets).values(row);
 
-    if (description) {
-      await db.insert(ticketMessages).values({
-        id: createId("tmsg"),
-        ticketId: row.id,
-        visibility: "public",
-        kind: "comment",
-        authorRole: "admin",
-        authorUserId: userId,
-        body: description,
-        createdAt: now,
-      });
-    }
-
     await addActivity(db, customer.id, `Ticket ${row.number} angelegt`, row.title, now);
     return reply.code(201).send(await loadTicketExtras(db, row, true));
   });

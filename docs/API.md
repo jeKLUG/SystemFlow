@@ -68,7 +68,7 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | GET | `/api/portal/auth/me` | Portal-Benutzer |
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
 | GET | `/api/portal/overview` | Kennzahlen |
-| GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung, Priorität) |
+| GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung als TipTap-JSON, Priorität) |
 | GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |
 | POST | `/api/portal/tickets/:id/attachments` | Anhang (multipart `file`); Portal-UI hängt Dateien direkt nach dem Anlegen an |

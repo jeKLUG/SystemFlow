@@ -16111,11 +16111,75 @@ a.tasks-hub-chip:hover {
   margin: 0 0 1rem;
 }
 
+.ticket-composer-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.ticket-composer-hint {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.ticket-vis-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+  padding: 0.15rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+  width: fit-content;
+}
+
+.ticket-vis-seg button {
+  appearance: none;
+  min-height: 1.85rem;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ticket-vis-seg button:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ticket-vis-seg button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ticket-vis-seg button.is-active {
+  background: var(--accent-soft);
+  color: var(--accent-bright);
+}
+
+.ticket-vis-seg button.is-internal.is-active {
+  background: rgba(251, 191, 36, 0.16);
+  color: #fbbf24;
+}
+
 .ticket-composer.is-internal {
   padding: 0.75rem 0.8rem 0.85rem;
   border: 1px dashed rgba(251, 191, 36, 0.28);
   border-radius: 12px;
   background: rgba(251, 191, 36, 0.04);
+}
+
+.ticket-file-drop-field {
+  margin: 0 0 0.25rem;
+}
+
+.ticket-file-drop-field .field-label {
+  margin-bottom: 0.4rem;
 }
 
 .ticket-resolution-hint {
@@ -16565,6 +16629,13 @@ a.tasks-hub-chip:hover {
 
 .portal-ticket-intro {
   margin: 0 0 1rem;
+}
+
+.ticket-opener {
+  margin: 0 0 1rem;
+  padding: 0 0 0.9rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  color: var(--text-muted);
 }
 
 .portal-ticket-intro h3,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type DragEvent, type FormEvent } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
+import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
 import { formatBytes } from "../../lib/files";
 import {
@@ -10,6 +11,7 @@ import {
   portalTicketStatusLabel,
   ticketPriorityLabel,
 } from "../../lib/labels";
+import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
 import type { TicketItem, TicketPriority } from "../../types";
 
 const PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
@@ -43,7 +45,8 @@ export function PortalTicketsPage() {
   const [formError, setFormError] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
-  const [form, setForm] = useState({ title: "", description: "", priority: "normal" as TicketPriority });
+  const [form, setForm] = useState({ title: "", description: EMPTY_DOC, priority: "normal" as TicketPriority });
+  const [editorKey, setEditorKey] = useState(0);
   const filter = parseFilter(params.get("filter"));
 
   const counts = useMemo(
@@ -71,10 +74,11 @@ export function PortalTicketsPage() {
 
   useEffect(() => {
     if (params.get("neu") !== "1") return;
-    setForm({ title: "", description: "", priority: "normal" });
+    setForm({ title: "", description: EMPTY_DOC, priority: "normal" });
     setFiles([]);
     setFormError("");
     setDragOver(false);
+    setEditorKey((n) => n + 1);
     setOpen(true);
     const next = new URLSearchParams(params);
     next.delete("neu");
@@ -89,10 +93,11 @@ export function PortalTicketsPage() {
   }
 
   function openCreate() {
-    setForm({ title: "", description: "", priority: "normal" });
+    setForm({ title: "", description: EMPTY_DOC, priority: "normal" });
     setFiles([]);
     setFormError("");
     setDragOver(false);
+    setEditorKey((n) => n + 1);
     setOpen(true);
   }
 
@@ -129,7 +134,7 @@ export function PortalTicketsPage() {
     try {
       const created = await api.createPortalTicket({
         title: form.title.trim(),
-        description: form.description.trim() || null,
+        description: richTextHasContent(form.description) ? form.description : null,
         priority: form.priority,
       });
       const uploads = await Promise.allSettled(
@@ -230,7 +235,14 @@ export function PortalTicketsPage() {
         </div>
       )}
 
-      <Modal open={open} title="Neues Ticket" onClose={() => setOpen(false)} className="modal-wide">
+      <Modal
+        open={open}
+        title="Neues Ticket"
+        onClose={() => setOpen(false)}
+        className="modal-wide"
+        showCloseButton={false}
+        closeOnBackdrop={false}
+      >
         <form className="stack-form portal-ticket-form" onSubmit={(e) => void create(e)}>
           <p className="muted portal-ticket-form-lead">
             Schildern Sie kurz, was nicht funktioniert. Screenshots oder Dateien helfen uns, schneller zu helfen.
@@ -245,15 +257,16 @@ export function PortalTicketsPage() {
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </label>
-          <label className="field">
+          <div className="field">
             <span>Beschreibung</span>
-            <textarea
-              rows={6}
+            <DocumentEditor
+              key={editorKey}
+              content={form.description}
+              onChange={(description) => setForm((prev) => ({ ...prev, description }))}
+              variant="comment"
               placeholder="Was ist passiert? Seit wann? Was haben Sie schon versucht?"
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
-          </label>
+          </div>
           <fieldset className="field portal-prio-fieldset">
             <legend>Wie dringend ist es?</legend>
             <div className="portal-prio-grid">

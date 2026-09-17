@@ -4,7 +4,7 @@ import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
-import { TicketComposer, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import { TicketComposer, TicketFileDrop, TicketDescription, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
 import { formatBytes } from "../../lib/files";
@@ -56,7 +56,7 @@ export function TicketDetailPage() {
 
   async function send(visibility: "public" | "internal", body: string) {
     if (!ticket) return;
-    setBusy(visibility);
+    setBusy("msg");
     setError("");
     try {
       await api.addTicketMessage(ticket.id, body, visibility);
@@ -99,11 +99,17 @@ export function TicketDetailPage() {
     }
   }
 
-  async function onFile(file: File | undefined) {
-    if (!ticket || !file) return;
+  async function onFiles(list: FileList | File[] | null) {
+    if (!ticket || !list?.length) return;
     setBusy("file");
+    setError("");
     try {
-      await api.uploadTicketAttachment(ticket.id, file);
+      const results = await Promise.allSettled(
+        Array.from(list).map((file) => api.uploadTicketAttachment(ticket.id, file)),
+      );
+      if (results.some((r) => r.status === "rejected")) {
+        setError("Mindestens ein Anhang konnte nicht hochgeladen werden.");
+      }
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload fehlgeschlagen");
@@ -197,6 +203,7 @@ export function TicketDetailPage() {
       <div className="ticket-detail-grid">
         <section className="panel ticket-thread">
           <h3>Verlauf</h3>
+          <TicketDescription content={ticket.description} title={ticket.title} />
           <TicketSolutionCard
             resolution={ticket.resolution}
             resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
@@ -206,7 +213,8 @@ export function TicketDetailPage() {
             messages={messages}
             now={clockNow}
             staffView
-            emptyHint={ticket.description || "Noch keine Nachrichten."}
+            ticketCreatedAt={ticket.createdAt}
+            emptyHint="Noch keine Kommentare."
           />
 
           {files.length ? (
@@ -222,29 +230,11 @@ export function TicketDetailPage() {
           ) : null}
 
           <TicketComposer
-            label="Antwort an den Kunden"
-            placeholder="Ihre Antwort an den Kunden…"
-            submitLabel="Antwort senden"
-            busy={busy === "public"}
-            onSubmit={(body) => send("public", body)}
+            staffModes
+            busy={busy === "msg"}
+            onSubmit={(body, visibility) => send(visibility, body)}
           />
-          <TicketComposer
-            label="Interne Notiz (nicht im Portal)"
-            placeholder="Nur intern sichtbar…"
-            submitLabel="Notiz speichern"
-            tone="ghost"
-            busy={busy === "internal"}
-            onSubmit={(body) => send("internal", body)}
-          />
-
-          <label className="field">
-            <span>Anhang</span>
-            <input
-              type="file"
-              onChange={(e) => void onFile(e.target.files?.[0])}
-              disabled={busy === "file"}
-            />
-          </label>
+          <TicketFileDrop busy={busy === "file"} onFiles={onFiles} />
         </section>
 
         <aside className="panel ticket-side">

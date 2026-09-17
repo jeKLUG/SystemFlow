@@ -1,24 +1,26 @@
 import { DocumentEditor } from "./DocumentEditor";
 import { formatDate } from "../lib/labels";
-import { EMPTY_DOC, richTextHasContent, toEditorContent } from "../lib/richtext";
+import { EMPTY_DOC, richTextHasContent, richTextPlain, toEditorContent } from "../lib/richtext";
 import { formatTimeAgo } from "../lib/tickets";
 import type { TicketMessageItem } from "../types";
-import { useState } from "react";
+import { useRef, useState, type DragEvent } from "react";
 
 type TimelineProps = {
   messages: TicketMessageItem[];
   now?: Date;
   staffView?: boolean;
   emptyHint?: string;
+  /** Ticket-Anlagezeit: die erste Nachricht dazu ist die Beschreibung, kein Kommentar. */
+  ticketCreatedAt?: string;
 };
 
 /**
  * Ticket-Verlauf als vertikale Timeline (Staff und Portal).
  */
-export function TicketTimeline({ messages, now, staffView = false, emptyHint }: TimelineProps) {
-  const comments = messages.filter((m) => (m.kind ?? "comment") !== "resolution");
+export function TicketTimeline({ messages, now, staffView = false, emptyHint, ticketCreatedAt }: TimelineProps) {
+  const comments = messages.filter((m) => isTimelineComment(m, ticketCreatedAt));
   if (comments.length === 0) {
-    return <p className="muted">{emptyHint ?? "Noch keine Nachrichten."}</p>;
+    return <p className="muted">{emptyHint ?? "Noch keine Kommentare."}</p>;
   }
   const clock = now ?? new Date();
   return (
@@ -57,6 +59,35 @@ export function TicketTimeline({ messages, now, staffView = false, emptyHint }: 
   );
 }
 
+function isTimelineComment(message: TicketMessageItem, ticketCreatedAt?: string) {
+  const kind = message.kind ?? "comment";
+  if (kind === "resolution" || kind === "opener") return false;
+  if (kind !== "comment" || message.visibility !== "public" || !ticketCreatedAt) return true;
+  const created = new Date(message.createdAt).getTime();
+  const opened = new Date(ticketCreatedAt).getTime();
+  if (!Number.isFinite(created) || !Number.isFinite(opened)) return true;
+  return Math.abs(created - opened) > 2000;
+}
+
+/**
+ * Anfragetext des Tickets (kein Timeline-Eintrag).
+ */
+export function TicketDescription({
+  content,
+  title,
+}: {
+  content: string | null | undefined;
+  title?: string;
+}) {
+  if (!richTextHasContent(content)) return null;
+  if (title && richTextPlain(content) === title.trim()) return null;
+  return (
+    <div className="ticket-opener">
+      <TicketRichBody content={content} />
+    </div>
+  );
+}
+
 /**
  * Gepinnte öffentliche Lösung (sichtbar für Kunden).
  */
@@ -87,54 +118,140 @@ export function TicketSolutionCard({
 }
 
 /**
- * Kommentar-Editor mit TipTap.
+ * Kommentar-Editor mit TipTap. Staff: Umschalter Kunde / intern.
  */
 export function TicketComposer({
   label,
   placeholder,
   submitLabel,
   busy = false,
-  tone = "primary",
+  staffModes = false,
   onSubmit,
 }: {
-  label: string;
-  placeholder: string;
-  submitLabel: string;
+  label?: string;
+  placeholder?: string;
+  submitLabel?: string;
   busy?: boolean;
-  tone?: "primary" | "ghost";
-  onSubmit: (json: string) => Promise<void>;
+  staffModes?: boolean;
+  onSubmit: (json: string, visibility: "public" | "internal") => Promise<void>;
 }) {
   const [content, setContent] = useState(EMPTY_DOC);
   const [key, setKey] = useState(0);
+  const [visibility, setVisibility] = useState<"public" | "internal">("public");
+  const internal = staffModes && visibility === "internal";
+  const hint = placeholder ?? (internal ? "Nur intern sichtbar…" : "Ihre Antwort an den Kunden…");
+  const action = submitLabel ?? (internal ? "Notiz speichern" : "Antwort senden");
+  const heading = label ?? (internal ? "Interne Notiz" : "Antwort an den Kunden");
 
   return (
     <form
-      className={`stack-form ticket-composer${tone === "ghost" ? " is-internal" : ""}`}
+      className={`stack-form ticket-composer${internal ? " is-internal" : ""}`}
       onSubmit={(e) => {
         e.preventDefault();
         if (!richTextHasContent(content) || busy) return;
-        void onSubmit(content).then(() => {
+        void onSubmit(content, visibility).then(() => {
           setContent(EMPTY_DOC);
           setKey((n) => n + 1);
         });
       }}
     >
-      <span className="field-label">{label}</span>
+      <div className="ticket-composer-head">
+        {staffModes ? (
+          <div className="ticket-vis-seg" role="group" aria-label="Sichtbarkeit">
+            <button
+              type="button"
+              className={visibility === "public" ? "is-active" : ""}
+              aria-pressed={visibility === "public"}
+              onClick={() => setVisibility("public")}
+            >
+              An den Kunden
+            </button>
+            <button
+              type="button"
+              className={`is-internal${visibility === "internal" ? " is-active" : ""}`}
+              aria-pressed={visibility === "internal"}
+              onClick={() => setVisibility("internal")}
+            >
+              Intern
+            </button>
+          </div>
+        ) : (
+          <span className="field-label">{heading}</span>
+        )}
+        {staffModes ? (
+          <p className="muted ticket-composer-hint">
+            {internal ? "Nicht im Kundenportal sichtbar." : "Der Kunde sieht diese Nachricht."}
+          </p>
+        ) : null}
+      </div>
       <DocumentEditor
         key={key}
         content={content}
         onChange={setContent}
         variant="comment"
-        placeholder={placeholder}
+        placeholder={hint}
       />
       <button
-        className={`btn ${tone === "ghost" ? "btn-ghost" : "btn-primary"}`}
+        className={`btn ${internal ? "btn-ghost" : "btn-primary"}`}
         type="submit"
         disabled={busy || !richTextHasContent(content)}
       >
-        {busy ? "Senden…" : submitLabel}
+        {busy ? "Senden…" : action}
       </button>
     </form>
+  );
+}
+
+/**
+ * Datei-Dropzone für Ticket-Anhänge (Staff und Portal).
+ */
+export function TicketFileDrop({
+  busy = false,
+  onFiles,
+}: {
+  busy?: boolean;
+  onFiles: (files: FileList | File[]) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [dragOver, setDragOver] = useState(false);
+
+  function onDrag(e: DragEvent, over: boolean) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(over);
+  }
+
+  return (
+    <div className="field ticket-file-drop-field">
+      <span className="field-label">Anhänge</span>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        hidden
+        disabled={busy}
+        onChange={(e) => {
+          if (e.target.files?.length) onFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <button
+        type="button"
+        className={`portal-ticket-drop${dragOver ? " is-over" : ""}`}
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+        onDragEnter={(e) => onDrag(e, true)}
+        onDragOver={(e) => onDrag(e, true)}
+        onDragLeave={(e) => onDrag(e, false)}
+        onDrop={(e) => {
+          onDrag(e, false);
+          if (e.dataTransfer.files.length) onFiles(e.dataTransfer.files);
+        }}
+      >
+        <strong>{busy ? "Wird hochgeladen…" : "Dateien hierher ziehen oder auswählen"}</strong>
+        <span className="muted">Screenshots, PDF oder Office-Dateien</span>
+      </button>
+    </div>
   );
 }
 
