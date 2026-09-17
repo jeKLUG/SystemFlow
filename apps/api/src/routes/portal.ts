@@ -14,9 +14,11 @@ import {
   ticketMessages,
   tickets,
   ticketPriorities,
+  type TicketPriority,
   type TicketStatus,
 } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { addDaysIso, isoInAppZone, todayIso } from "../lib/dates.js";
 import { isVaultFile, publicFolder, sharedFolderIds } from "../lib/portalVault.js";
 import {
   findActiveContract,
@@ -74,6 +76,7 @@ function publicFile(row: typeof attachments.$inferSelect) {
 export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: string) {
   app.addHook("preHandler", requirePortal(db));
 
+  /** Portal-Start: Kennzahlen, Ticket-Verteilungen und letzte Tickets. */
   app.get("/api/portal/overview", async (request) => {
     const { customerId } = request.portal!;
     const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
@@ -121,6 +124,47 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       (f) => f.portalVisible || (f.folderId ? sharedFolders.has(f.folderId) : false),
     ).length;
 
+    const ticketsByStatus: Record<TicketStatus, number> = {
+      open: 0,
+      in_progress: 0,
+      waiting_customer: 0,
+      resolved: 0,
+      closed: 0,
+    };
+    const ticketsByPriority: Record<TicketPriority, number> = {
+      low: 0,
+      normal: 0,
+      high: 0,
+      critical: 0,
+    };
+    for (const row of ticketRows) {
+      ticketsByStatus[row.status] += 1;
+    }
+    for (const row of openTickets) {
+      ticketsByPriority[row.priority] += 1;
+    }
+
+    const today = todayIso();
+    const ticketsWeek = Array.from({ length: 7 }, (_, i) => {
+      const date = addDaysIso(today, i - 6);
+      return {
+        date,
+        count: ticketRows.filter((row) => isoInAppZone(row.createdAt) === date).length,
+      };
+    });
+
+    const recentTickets = [...ticketRows]
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+      .slice(0, 5)
+      .map((row) => ({
+        id: row.id,
+        number: row.number,
+        title: row.title,
+        status: row.status,
+        priority: row.priority,
+        updatedAt: row.updatedAt,
+      }));
+
     return {
       customerName: customer?.company || customer?.name || "",
       contactPerson: customer?.contactPerson ?? null,
@@ -130,8 +174,14 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       waitingOnCustomer,
       slaBreachedCount: slaBreached,
       documentCount: docCount + fileCount,
+      wikiCount: docCount,
+      fileCount,
       assetCount,
       contractCount,
+      ticketsByStatus,
+      ticketsByPriority,
+      ticketsWeek,
+      recentTickets,
     };
   });
 

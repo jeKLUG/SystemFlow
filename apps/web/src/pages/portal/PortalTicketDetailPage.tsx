@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { TicketComposer, TicketBrief, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { formatBytes } from "../../lib/files";
 import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
-import { useSlaNow } from "../../lib/tickets";
+import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
 import type { TicketItem } from "../../types";
 
 /**
@@ -95,18 +96,43 @@ export function PortalTicketDetailPage() {
         meta={
           <>
             <div>
-              <dt>Eingegangen</dt>
-              <dd>{formatDate(ticket.createdAt)}</dd>
+              <dt>Aktueller Status</dt>
+              <dd>{portalTicketStatusLabel[ticket.status]}</dd>
             </div>
-            {ticket.slaResponseDueAt ? (
+            <div>
+              <dt>Priorität</dt>
+              <dd>{ticketPriorityLabel[ticket.priority]}</dd>
+            </div>
+            <div>
+              <dt>Eingegangen</dt>
+              <dd>
+                {formatTimeAgo(ticket.createdAt, clockNow)} · {formatDate(ticket.createdAt)}
+              </dd>
+            </div>
+            <div>
+              <dt>Aktualisiert</dt>
+              <dd>
+                {formatTimeAgo(ticket.updatedAt, clockNow)} · {formatDate(ticket.updatedAt)}
+              </dd>
+            </div>
+            {ticket.firstResponseAt ? (
               <div>
-                <dt>Reaktion bis</dt>
-                <dd>{formatDate(ticket.slaResponseDueAt)}</dd>
+                <dt>Erste Antwort</dt>
+                <dd>{formatDate(ticket.firstResponseAt)}</dd>
+              </div>
+            ) : null}
+            {ticket.resolvedAt || ticket.closedAt ? (
+              <div>
+                <dt>{ticket.status === "closed" ? "Geschlossen" : "Gelöst"}</dt>
+                <dd>{formatDate(ticket.resolvedAt || ticket.closedAt || "")}</dd>
               </div>
             ) : null}
           </>
         }
       />
+      {ticket.slaResponseDueAt || ticket.slaResolveDueAt ? (
+        <TicketSlaClocks ticket={ticket} now={now} />
+      ) : null}
       {waiting ? (
         <p className="portal-ticket-banner panel">
           <strong>Ihre Rückmeldung ist gefragt.</strong> {portalTicketStatusHint.waiting_customer}

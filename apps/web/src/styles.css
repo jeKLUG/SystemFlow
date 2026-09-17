@@ -13256,6 +13256,19 @@ a.dash-kpi:hover,
   gap: 0.28rem;
 }
 
+.dash-hbar-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.dash-hbar-link:hover .dash-hbar-meta span {
+  color: var(--text);
+}
+
 .dash-hbar-meta {
   display: flex;
   justify-content: space-between;
@@ -16552,23 +16565,40 @@ a.tasks-hub-chip:hover {
 }
 
 .portal-ticket-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 0.85rem 1rem;
-  align-items: center;
-  padding: 0.95rem 1.05rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.7rem;
+  padding: 1rem 1.1rem 1.05rem;
   text-decoration: none;
   color: inherit;
-  transition: border-color 0.15s ease, background 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .portal-ticket-card:hover {
   border-color: rgba(96, 165, 250, 0.35);
 }
 
-.portal-ticket-card.is-waiting {
+.portal-ticket-card.is-waiting:not(.is-sla-overdue) {
   box-shadow: inset 3px 0 0 #c4b5fd;
   background: rgba(196, 181, 253, 0.06);
+}
+
+.portal-ticket-card.is-sla-overdue {
+  box-shadow: inset 3px 0 0 #f87171;
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.portal-ticket-card.is-sla-urgent:not(.is-waiting):not(.is-sla-overdue) {
+  box-shadow: inset 3px 0 0 #fb923c;
+}
+
+.portal-ticket-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.85rem;
+  flex-wrap: wrap;
 }
 
 .portal-ticket-num {
@@ -16584,38 +16614,72 @@ a.tasks-hub-chip:hover {
   white-space: nowrap;
 }
 
+.portal-ticket-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, max-content));
+  gap: 0.55rem 1.35rem;
+  margin: 0;
+}
+
+.portal-ticket-kpis dt,
+.portal-ticket-facts dt {
+  margin: 0 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.portal-ticket-kpis dd,
+.portal-ticket-facts dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.portal-ticket-kpis .badge {
+  min-height: 1.6rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+}
+
 .portal-ticket-main {
   min-width: 0;
 }
 
 .portal-ticket-main strong {
   display: block;
-  font-size: 1rem;
-  letter-spacing: -0.01em;
+  font-size: 1.08rem;
+  letter-spacing: -0.02em;
+  line-height: 1.3;
 }
 
 .portal-ticket-main p {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
+  margin: 0.28rem 0 0;
+  font-size: 0.84rem;
 }
 
-.portal-ticket-meta {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
+.portal-ticket-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.25rem, 1fr));
+  gap: 0.55rem 0.9rem;
+  margin: 0;
+  padding: 0.75rem 0 0;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
 }
 
-.portal-ticket-flags {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
+.portal-ticket-card .ticket-sla-clocks.is-compact {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0.4rem;
 }
 
 .portal-ticket-cta {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #c4b5fd;
+  letter-spacing: 0.02em;
 }
 
 .portal-docs-toolbar {
@@ -16674,6 +16738,89 @@ a.tasks-hub-chip:hover {
 .portal-docs-sep {
   color: var(--text-muted);
   opacity: 0.55;
+}
+
+.portal-dash-kpis {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.portal-dash-sla {
+  margin: 0 0 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  color: #fde68a;
+  font-size: 0.88rem;
+}
+
+.portal-dash-charts {
+  margin-bottom: 1rem;
+}
+
+.portal-dash-recent {
+  margin: 0;
+  padding: 0.95rem 1.05rem 1.05rem;
+}
+
+.portal-dash-recent .dash-chart-head {
+  margin-bottom: 0.65rem;
+}
+
+.portal-dash-ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.portal-dash-ticket-list a {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  padding: 0.8rem 0.9rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background: rgba(0, 0, 0, 0.14);
+  color: inherit;
+  text-decoration: none;
+}
+
+.portal-dash-ticket-list a:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.portal-dash-ticket-list strong {
+  min-width: 0;
+  font-size: 0.98rem;
+}
+
+.portal-dash-ticket-list p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.portal-dash-ticket-list .portal-ticket-facts {
+  padding-top: 0.55rem;
+}
+
+@media (max-width: 960px) {
+  .portal-dash-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .portal-dash-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .portal-dash-charts {
+    grid-template-columns: 1fr;
+  }
 }
 
 .portal-docs-board {
@@ -16956,18 +17103,6 @@ button.portal-doc-card {
     grid-template-columns: 1fr;
   }
 
-  .portal-ticket-card {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-
-  .portal-ticket-flags {
-    grid-column: 1 / -1;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
   .portal-doc-card {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -17015,8 +17150,9 @@ button.portal-doc-card {
     grid-template-columns: 1fr;
   }
 
-  .portal-ticket-card {
-    grid-template-columns: 1fr;
+  .portal-ticket-kpis {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
   }
 
   .staff-ticket-card {

@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
+import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { formatBytes } from "../../lib/files";
 import {
   formatDate,
@@ -12,6 +13,7 @@ import {
   ticketPriorityLabel,
 } from "../../lib/labels";
 import { EMPTY_DOC, richTextHasContent } from "../../lib/richtext";
+import { formatTimeAgo, ticketSlaTone, useSlaNow } from "../../lib/tickets";
 import type { TicketItem, TicketPriority } from "../../types";
 
 const PRIORITIES: TicketPriority[] = ["low", "normal", "high", "critical"];
@@ -48,6 +50,7 @@ export function PortalTicketsPage() {
   const [form, setForm] = useState({ title: "", description: EMPTY_DOC, priority: "normal" as TicketPriority });
   const [editorKey, setEditorKey] = useState(0);
   const filter = parseFilter(params.get("filter"));
+  const now = useSlaNow();
 
   const counts = useMemo(
     () => ({
@@ -207,7 +210,7 @@ export function PortalTicketsPage() {
               <p className="muted">Wir warten auf eine kurze Rückmeldung von Ihnen.</p>
               <ul className="portal-ticket-list">
                 {waiting.map((t) => (
-                  <PortalTicketCard key={t.id} ticket={t} waiting />
+                  <PortalTicketCard key={t.id} ticket={t} waiting now={now} />
                 ))}
               </ul>
             </section>
@@ -217,7 +220,7 @@ export function PortalTicketsPage() {
               <h3>{filter === "all" && waiting.length ? "In Bearbeitung" : "Laufende Anfragen"}</h3>
               <ul className="portal-ticket-list">
                 {active.map((t) => (
-                  <PortalTicketCard key={t.id} ticket={t} waiting={false} />
+                  <PortalTicketCard key={t.id} ticket={t} waiting={false} now={now} />
                 ))}
               </ul>
             </section>
@@ -227,7 +230,7 @@ export function PortalTicketsPage() {
               <h3>Erledigt</h3>
               <ul className="portal-ticket-list">
                 {done.map((t) => (
-                  <PortalTicketCard key={t.id} ticket={t} waiting={false} />
+                  <PortalTicketCard key={t.id} ticket={t} waiting={false} now={now} />
                 ))}
               </ul>
             </section>
@@ -342,25 +345,81 @@ export function PortalTicketsPage() {
   );
 }
 
-/** Eine Ticketkarte in der Portal-Liste. */
-function PortalTicketCard({ ticket, waiting }: { ticket: TicketItem; waiting: boolean }) {
+/** Kennzahlen für eine Portal-Ticketkarte (Zeiten und Herkunft). */
+function ticketCardFacts(ticket: TicketItem, now: Date) {
+  const facts: { label: string; value: string }[] = [
+    { label: "Eingegangen", value: formatTimeAgo(ticket.createdAt, now) || formatDate(ticket.createdAt) },
+    { label: "Aktualisiert", value: formatTimeAgo(ticket.updatedAt, now) || formatDate(ticket.updatedAt) },
+    { label: "Quelle", value: ticket.createdByRole === "customer" ? "Von Ihnen" : "Vom Systemhaus" },
+  ];
+  if (ticket.firstResponseAt) {
+    facts.push({ label: "Erste Antwort", value: formatTimeAgo(ticket.firstResponseAt, now) });
+  } else if (ticket.status === "open" || ticket.status === "in_progress" || ticket.status === "waiting_customer") {
+    facts.push({ label: "Erste Antwort", value: "steht aus" });
+  }
+  if (ticket.resolvedAt || ticket.closedAt) {
+    facts.push({
+      label: ticket.status === "closed" ? "Geschlossen" : "Gelöst",
+      value: formatDate(ticket.resolvedAt || ticket.closedAt || ""),
+    });
+  }
+  return facts;
+}
+
+/** Eine Ticketkarte in der Portal-Liste mit Status, Zeiten und SLA. */
+function PortalTicketCard({
+  ticket,
+  waiting,
+  now,
+}: {
+  ticket: TicketItem;
+  waiting: boolean;
+  now: number;
+}) {
+  const clockNow = new Date(now);
+  const slaTone = ticketSlaTone(ticket, clockNow);
+  const showSla = Boolean(ticket.slaResponseDueAt || ticket.slaResolveDueAt);
+  const facts = ticketCardFacts(ticket, clockNow);
+
   return (
     <li>
       <Link
-        className={`panel portal-ticket-card${waiting ? " is-waiting" : ""}`}
+        className={`panel portal-ticket-card is-sla-${slaTone}${waiting ? " is-waiting" : ""}`}
         to={`/portal/tickets/${ticket.id}`}
       >
-        <span className="portal-ticket-num">{ticket.number}</span>
+        <div className="portal-ticket-card-head">
+          <span className="portal-ticket-num">{ticket.number}</span>
+          {waiting ? <span className="portal-ticket-cta">Bitte antworten</span> : null}
+        </div>
+        <dl className="portal-ticket-kpis">
+          <div>
+            <dt>Aktueller Status</dt>
+            <dd>
+              <span className={`badge badge-ticket-${ticket.status}`}>
+                {portalTicketStatusLabel[ticket.status]}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>Priorität</dt>
+            <dd>
+              <span className={`badge badge-prio-${ticket.priority}`}>{ticketPriorityLabel[ticket.priority]}</span>
+            </dd>
+          </div>
+        </dl>
         <div className="portal-ticket-main">
           <strong>{ticket.title}</strong>
           <p className="muted">{portalTicketStatusHint[ticket.status]}</p>
-          <span className="portal-ticket-meta muted">Aktualisiert {formatDate(ticket.updatedAt)}</span>
         </div>
-        <div className="portal-ticket-flags">
-          <span className={`badge badge-ticket-${ticket.status}`}>{portalTicketStatusLabel[ticket.status]}</span>
-          <span className={`badge badge-prio-${ticket.priority}`}>{ticketPriorityLabel[ticket.priority]}</span>
-          {waiting ? <span className="portal-ticket-cta">Antworten</span> : null}
-        </div>
+        <dl className="portal-ticket-facts">
+          {facts.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+            </div>
+          ))}
+        </dl>
+        {showSla ? <TicketSlaClocks ticket={ticket} now={now} compact /> : null}
       </Link>
     </li>
   );

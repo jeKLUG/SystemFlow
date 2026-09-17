@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 type Slice = { label: string; value: number; color: string };
 
 /**
@@ -76,8 +78,8 @@ export function HBarChart({
     <ul className="dash-hbar">
       {items.map((item) => {
         const pct = item.value <= 0 ? 0 : Math.max(4, (item.value / peak) * 100);
-        return (
-          <li key={item.label}>
+        const row = (
+          <>
             <div className="dash-hbar-meta">
               <span>{item.label}</span>
               <strong>{item.value}</strong>
@@ -91,6 +93,17 @@ export function HBarChart({
                 }}
               />
             </div>
+          </>
+        );
+        return (
+          <li key={item.label}>
+            {item.href ? (
+              <Link className="dash-hbar-link" to={item.href}>
+                {row}
+              </Link>
+            ) : (
+              row
+            )}
           </li>
         );
       })}

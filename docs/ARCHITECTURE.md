@@ -62,7 +62,7 @@ Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, 
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
-Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Ticketdetail als Timeline (Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`).
+Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Ticketdetail als Timeline (Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`): Ticketkarten mit Status, Priorität, Zeiten und SLA.
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält nur Passwort und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
@@ -76,7 +76,7 @@ Kalendertage (`YYYY-MM-DD`) und „heute“ laufen über `Europe/Berlin` (API: E
 Session-Cookie (`systemhaus_session`) via `@fastify/secure-session` (Cookie + Session-`expiry` 30 Tage bei „Angemeldet bleiben“, sonst 12 h; Sliding über `/api/auth/me` bzw. `/api/portal/auth/me`). Passwort mit bcrypt.
 
 - **Staff:** `users`, Login `/login`, APIs mit `requireAdmin` (bestehende `/api/*`). Session `role=admin`.
-- **Kundenportal:** `customer_users` (ein Login je Kunde, in der Kundenakte gesetzt), Login `/portal/login`, APIs unter `/api/portal/*` mit `requirePortal`. Session `role=customer` + `customerId`. Kein Zugriff auf Tresor, Preise, Zeiten, Backup, andere Kunden. Interne Ticket-Notizen, `notes` (Kunde/Vertrag/Inventar) werden nicht ausgeliefert.
+- **Kundenportal:** `customer_users` (ein Login je Kunde, in der Kundenakte gesetzt), Login `/portal/login`, APIs unter `/api/portal/*` mit `requirePortal`. Session `role=customer` + `customerId`. Startseite `/portal` mit Kennzahlen und Diagrammen aus `GET /api/portal/overview`. Kein Zugriff auf Tresor, Preise, Zeiten, Backup, andere Kunden. Interne Ticket-Notizen, `notes` (Kunde/Vertrag/Inventar) werden nicht ausgeliefert.
 
 Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` überschrieben.
 

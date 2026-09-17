@@ -40,3 +40,15 @@ export function addDaysIso(iso: string, days: number): string {
   const dd = String(dt.getUTCDate()).padStart(2, "0");
   return `${yy}-${mm}-${dd}`;
 }
+
+/**
+ * Kalendertag eines Zeitpunkts in der App-Zeitzone.
+ */
+export function isoInAppZone(value: Date, timeZone: string = APP_TIMEZONE): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(value);
+}

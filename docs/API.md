@@ -67,7 +67,7 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | POST | `/api/portal/auth/logout` | Session beenden |
 | GET | `/api/portal/auth/me` | Portal-Benutzer |
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
-| GET | `/api/portal/overview` | Kennzahlen |
+| GET | `/api/portal/overview` | Kennzahlen plus Ticket-Verteilung (`ticketsByStatus`, offene `ticketsByPriority`, `ticketsWeek` 7 Tage, `recentTickets`) sowie `wikiCount`/`fileCount` |
 | GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung als TipTap-JSON, Priorität) |
 | GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |

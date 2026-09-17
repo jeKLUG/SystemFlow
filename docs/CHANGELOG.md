@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.122 – 2026-09-17
+
+- Kundenportal Tickets: Karten mit Status, Priorität, Zeiten und SLA statt schmaler Zeile
+
+## 1.5.121 – 2026-09-17
+
+- Kundenportal Start: Diagramme zu Ticket-Status, Woche, Priorität und Freigaben statt nur Kennzahlen-Kacheln
+
 ## 1.5.120 – 2026-09-17
 
 - Inventar: kompaktere Karten mit IP, Host, Gerät, Ort und weiteren Kennzahlen auf einen Blick

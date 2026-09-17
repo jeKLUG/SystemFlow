@@ -738,6 +738,19 @@ export interface PortalOverview {
   waitingOnCustomer: number;
   slaBreachedCount: number;
   documentCount: number;
+  wikiCount?: number;
+  fileCount?: number;
   assetCount: number;
   contractCount: number;
+  ticketsByStatus?: Record<TicketStatus, number>;
+  ticketsByPriority?: Record<TicketPriority, number>;
+  ticketsWeek?: { date: string; count: number }[];
+  recentTickets?: {
+    id: string;
+    number: string;
+    title: string;
+    status: TicketStatus;
+    priority: TicketPriority;
+    updatedAt: string;
+  }[];
 }
