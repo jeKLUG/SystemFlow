@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.120 – 2026-09-17
+
+- Inventar: kompaktere Karten mit IP, Host, Gerät, Ort und weiteren Kennzahlen auf einen Blick
+
+## 1.5.119 – 2026-09-17
+
+- Kundenportal Dokumente: Ordner und Dateien als Kacheln mit Icons wie in der Datei-Ablage; mehr Abstand zu Suche und Pfad
+
+## 1.5.118 – 2026-09-17
+
+- Ticket lösen/schließen: Lösungs-Dialog ohne X, kein Schließen per Klick daneben, mehr Abstand bei den Buttons
+
+## 1.5.117 – 2026-09-17
+
+- Ticketdetail: Titel, Beschreibung und Metadaten als eigene Übersichtskarte, Verlauf nur noch Kommentare
+
+## 1.5.116 – 2026-09-17
+
+- Passwort: neues Passwort zur Kontrolle zweimal; Anzeigen/Verbergen mit Auge-Icons (Portal-Zugang, Konto, Login)
+
 ## 1.5.115 – 2026-09-17
 
 - Kundenportal Dokumente: Ordner können wie Dateien freigegeben werden (inkl. Unterordner und Inhalt); Suche und Typ-Reiter ohne Überlappung

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
+import { FileGlyph, FolderGlyph } from "../../components/FileGlyphs";
 import { fileKind, fileKindLabel, formatBytes } from "../../lib/files";
 import { documentTypeLabel, formatDate } from "../../lib/labels";
 import type { AttachmentItem, DocumentItem, DocumentType, FileFolderItem } from "../../types";
@@ -60,19 +61,19 @@ export function PortalDocumentsPage() {
   }, []);
 
   function setTab(next: DocsTab) {
-    const q = new URLSearchParams(params);
-    if (next === "all") q.delete("tab");
-    else q.set("tab", next);
-    setParams(q, { replace: true });
+    const nextParams = new URLSearchParams(params);
+    if (next === "all") nextParams.delete("tab");
+    else nextParams.set("tab", next);
+    setParams(nextParams, { replace: true });
   }
 
   function setFolder(id: string | null) {
-    const q = new URLSearchParams(params);
+    const nextParams = new URLSearchParams(params);
     if (id) {
-      q.set("folder", id);
-      if (tab !== "all" && tab !== "files") q.set("tab", "files");
-    } else q.delete("folder");
-    setParams(q, { replace: true });
+      nextParams.set("folder", id);
+      if (tab !== "all" && tab !== "files") nextParams.set("tab", "files");
+    } else nextParams.delete("folder");
+    setParams(nextParams, { replace: true });
   }
 
   const folderIds = useMemo(() => new Set(folders.map((folder) => folder.id)), [folders]);
@@ -132,6 +133,7 @@ export function PortalDocumentsPage() {
   const typeTabs = wikiTypes.filter((t) => counts[t] > 0);
   const fileTabCount = files.length + shareRoots.length;
   const nothingShared = docs.length === 0 && files.length === 0 && folders.length === 0;
+  const showVault = visibleFolders.length > 0 || visibleFiles.length > 0;
 
   return (
     <div className="page">
@@ -215,7 +217,7 @@ export function PortalDocumentsPage() {
         <div className="portal-docs-board">
           {visibleDocs.length ? (
             <section className="portal-docs-section">
-              {tab === "all" && (visibleFiles.length || visibleFolders.length) ? <h3>Seiten</h3> : null}
+              {tab === "all" && showVault ? <h3>Seiten</h3> : null}
               <ul className="portal-docs-list">
                 {visibleDocs.map((doc) => (
                   <li key={doc.id}>
@@ -232,70 +234,109 @@ export function PortalDocumentsPage() {
               </ul>
             </section>
           ) : null}
-          {visibleFolders.length ? (
+
+          {showVault ? (
             <section className="portal-docs-section">
-              {tab === "all" && (visibleDocs.length || visibleFiles.length) ? <h3>Ordner</h3> : null}
-              <ul className="portal-docs-list">
+              {tab === "all" && visibleDocs.length ? <h3>Ordner und Dateien</h3> : null}
+              <div className="vault-board is-grid">
                 {visibleFolders.map((folder) => {
                   const count = folderChildCount(folder.id, folders, files);
                   return (
-                    <li key={folder.id}>
+                    <article key={folder.id} className="vault-card is-folder">
                       <button
                         type="button"
-                        className="panel portal-doc-card is-folder"
+                        className="vault-card-main"
                         onClick={() => setFolder(folder.id)}
                       >
-                        <span className="docs-type-badge type-folder">Ordner</span>
-                        <div className="portal-doc-main">
-                          <strong>{folder.name}</strong>
+                        <span className="vault-card-preview is-folder" aria-hidden>
+                          <span className="vault-card-glyph">
+                            <FolderGlyph />
+                          </span>
+                        </span>
+                        <span className="vault-card-meta">
+                          <strong title={folder.name}>{folder.name}</strong>
                           <span className="muted">
                             {count} Einträg{count === 1 ? "" : "e"}
                           </span>
-                        </div>
-                        <span className="portal-doc-cta">Öffnen</span>
+                        </span>
                       </button>
-                    </li>
+                    </article>
                   );
                 })}
-              </ul>
-            </section>
-          ) : null}
-          {visibleFiles.length ? (
-            <section className="portal-docs-section">
-              {tab === "all" && (visibleDocs.length || visibleFolders.length) ? <h3>Dateien</h3> : null}
-              <ul className="portal-docs-list">
                 {visibleFiles.map((file) => {
                   const kind = fileKind(file.mimeType, file.originalName);
                   const href = `/api/portal/attachments/${file.id}/download`;
                   const canView = kind === "image" || kind === "pdf" || kind === "text";
+                  const openHref = canView ? `${href}?inline=1` : href;
                   return (
-                    <li key={file.id}>
-                      <div className="panel portal-doc-card is-file">
-                        <span className={`docs-type-badge type-file kind-${kind}`}>{fileKindLabel[kind]}</span>
-                        <div className="portal-doc-main">
-                          <strong>{file.originalName}</strong>
+                    <article key={file.id} className={`vault-card is-file kind-${kind} is-portal`}>
+                      <a
+                        className="vault-card-main"
+                        href={openHref}
+                        target={canView ? "_blank" : undefined}
+                        rel={canView ? "noreferrer" : undefined}
+                        download={canView ? undefined : true}
+                      >
+                        <span className={`vault-card-preview kind-${kind}`} aria-hidden>
+                          {kind === "image" ? (
+                            <img src={`${href}?inline=1`} alt="" loading="lazy" />
+                          ) : (
+                            <span className={`vault-card-glyph kind-${kind}`}>
+                              <FileGlyph kind={kind} />
+                            </span>
+                          )}
+                          <span className="vault-card-kind">{fileKindLabel[kind]}</span>
+                        </span>
+                        <span className="vault-card-meta">
+                          <strong title={file.originalName}>{file.originalName}</strong>
                           <span className="muted">
-                            {formatBytes(file.size)}
-                            {file.description ? ` · ${file.description}` : ""}
-                            {" · "}
-                            {formatDate(file.updatedAt ?? file.createdAt)}
+                            {formatBytes(file.size)} · {formatDate(file.updatedAt ?? file.createdAt)}
                           </span>
-                        </div>
-                        <div className="portal-doc-actions">
-                          {canView ? (
-                            <a className="btn btn-ghost" href={`${href}?inline=1`} target="_blank" rel="noreferrer">
-                              Ansehen
-                            </a>
-                          ) : null}
-                          <a className="btn btn-primary" href={href} download>
-                            Download
+                          {file.description ? <span className="vault-card-desc">{file.description}</span> : null}
+                        </span>
+                      </a>
+                      <div className="vault-card-toolbar">
+                        {canView ? (
+                          <a
+                            className="vault-card-menu-btn"
+                            href={`${href}?inline=1`}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Ansehen"
+                            title="Ansehen"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                              <path
+                                d="M2.42 12.71C2.28 12.5 2.22 12.39 2.18 12.22C2.15 12.1 2.15 11.9 2.18 11.78C2.22 11.61 2.28 11.5 2.42 11.29C3.55 9.5 6.9 5 12 5C17.11 5 20.46 9.5 21.58 11.29C21.72 11.5 21.79 11.61 21.82 11.78C21.85 11.9 21.85 12.1 21.82 12.22C21.79 12.39 21.72 12.5 21.58 12.71C20.46 14.5 17.11 19 12 19C6.9 19 3.55 14.5 2.42 12.71Z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                              <path
+                                d="M12 15C13.66 15 15 13.66 15 12C15 10.34 13.66 9 12 9C10.34 9 9 10.34 9 12C9 13.66 10.34 15 12 15Z"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
                           </a>
-                        </div>
+                        ) : null}
+                        <a
+                          className="vault-card-menu-btn"
+                          href={href}
+                          download
+                          aria-label="Herunterladen"
+                          title="Herunterladen"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                            <path d="M12 4v10M8 10l4 4 4-4M5 18h14" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </a>
                       </div>
-                    </li>
+                    </article>
                   );
                 })}
-              </ul>
+              </div>
             </section>
           ) : null}
         </div>

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../auth";
 import { Checkbox } from "../components/Checkbox";
+import { PasswordField } from "../components/PasswordField";
 
 /**
  * Login-Ansicht im SaaS-Look.
@@ -56,25 +57,15 @@ export function LoginPage() {
               required
             />
           </label>
-          <label className="field">
-            <span>Passwort</span>
-            <div className="password-field">
-              <input
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                required
-              />
-              <button
-                type="button"
-                className="btn btn-ghost btn-sm"
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? "Aus" : "An"}
-              </button>
-            </div>
-          </label>
+          <PasswordField
+            label="Passwort"
+            value={password}
+            onChange={setPassword}
+            revealed={showPassword}
+            onToggleReveal={() => setShowPassword((v) => !v)}
+            autoComplete="current-password"
+            required
+          />
 
           <Checkbox
             label="Angemeldet bleiben"

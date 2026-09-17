@@ -3,7 +3,7 @@ import { formatDate } from "../lib/labels";
 import { EMPTY_DOC, richTextHasContent, richTextPlain, toEditorContent } from "../lib/richtext";
 import { formatTimeAgo } from "../lib/tickets";
 import type { TicketMessageItem } from "../types";
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent, type ReactNode } from "react";
 
 type TimelineProps = {
   messages: TicketMessageItem[];
@@ -70,6 +70,35 @@ function isTimelineComment(message: TicketMessageItem, ticketCreatedAt?: string)
 }
 
 /**
+ * Ticketkopf: Nummer, Titel und Beschreibung getrennt vom Verlauf.
+ */
+export function TicketBrief({
+  number,
+  title,
+  description,
+  badges,
+  meta,
+}: {
+  number: string;
+  title: string;
+  description?: string | null;
+  badges?: ReactNode;
+  meta?: ReactNode;
+}) {
+  return (
+    <section className="ticket-brief panel">
+      <div className="ticket-brief-top">
+        <span className="ticket-brief-num">{number}</span>
+        {badges ? <div className="ticket-brief-badges">{badges}</div> : null}
+      </div>
+      <h1 className="ticket-brief-title">{title}</h1>
+      <TicketDescription content={description} title={title} />
+      {meta ? <dl className="ticket-brief-meta">{meta}</dl> : null}
+    </section>
+  );
+}
+
+/**
  * Anfragetext des Tickets (kein Timeline-Eintrag).
  */
 export function TicketDescription({
@@ -82,7 +111,8 @@ export function TicketDescription({
   if (!richTextHasContent(content)) return null;
   if (title && richTextPlain(content) === title.trim()) return null;
   return (
-    <div className="ticket-opener">
+    <div className="ticket-brief-desc">
+      <p className="ticket-brief-label">Beschreibung</p>
       <TicketRichBody content={content} />
     </div>
   );

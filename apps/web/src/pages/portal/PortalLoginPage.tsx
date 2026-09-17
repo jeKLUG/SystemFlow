@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../../auth";
 import { Checkbox } from "../../components/Checkbox";
+import { PasswordField } from "../../components/PasswordField";
 
 /**
  * Login für das Kundenportal (getrennt vom Staff-Login).
@@ -10,6 +11,7 @@ export function PortalLoginPage() {
   const { user, loading, portalLogin } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -48,16 +50,15 @@ export function PortalLoginPage() {
             <span>Benutzername</span>
             <input value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" required />
           </label>
-          <label className="field">
-            <span>Passwort</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </label>
+          <PasswordField
+            label="Passwort"
+            value={password}
+            onChange={setPassword}
+            revealed={showPassword}
+            onToggleReveal={() => setShowPassword((v) => !v)}
+            autoComplete="current-password"
+            required
+          />
           <Checkbox label="Angemeldet bleiben" checked={rememberMe} onChange={setRememberMe} />
           {error ? <p className="form-error">{error}</p> : null}
           <button className="btn btn-primary btn-xl" type="submit" disabled={busy || loading}>

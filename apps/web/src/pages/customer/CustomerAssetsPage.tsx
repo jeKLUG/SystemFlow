@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
+import { AssetFacts } from "../../components/AssetFacts";
 import { Checkbox } from "../../components/Checkbox";
 import { Modal } from "../../components/Modal";
 import {
@@ -100,13 +101,6 @@ function matchesQuery(asset: Asset, q: string) {
     .join(" ")
     .toLowerCase();
   return hay.includes(q);
-}
-
-/** Kurze Zweitzeile für die Liste (max. zwei Hinweise). */
-function assetListHint(asset: Asset): string {
-  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
-  const parts = [asset.location, asset.ipAddress || asset.hostname, hardware].filter(Boolean);
-  return parts.slice(0, 2).join(" · ");
 }
 
 type PreviewRow = { label: string; value: string; mono?: boolean; href?: string };
@@ -418,7 +412,6 @@ export function CustomerAssetsPage() {
                 {group.items.map((asset) => {
                   const status = asset.status ?? "active";
                   const ownership = asset.ownership ?? "customer";
-                  const hint = assetListHint(asset);
                   return (
                     <li key={asset.id} className="list-row asset-row">
                       <button
@@ -438,7 +431,7 @@ export function CustomerAssetsPage() {
                             <span className="badge badge-kind">{assetKindLabel[asset.kind]}</span>
                           ) : null}
                         </div>
-                        {hint ? <p className="asset-hint muted">{hint}</p> : null}
+                        <AssetFacts asset={asset} />
                       </button>
                       <div className="list-actions asset-actions">
                         <button

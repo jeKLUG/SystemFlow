@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerFields } from "../../components/CustomerFields";
+import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
 import { customerAddressLine } from "../../lib/customer";
 import { formatDate } from "../../lib/labels";
 import { formatTimeAgo } from "../../lib/tickets";
@@ -265,6 +266,8 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
   const [portal, setPortal] = useState<PortalUser | null>(null);
   const [username, setUsername] = useState(email?.split("@")[0] ?? "");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [editing, setEditing] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -280,6 +283,8 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setEnabled(Boolean(row?.enabled));
     setUsername(row?.username || email?.split("@")[0] || "");
     setPassword("");
+    setPasswordConfirm("");
+    setShowPassword(false);
   }
 
   useEffect(() => {
@@ -302,6 +307,8 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
       if (!next) {
         setEditing(false);
         setPassword("");
+        setPasswordConfirm("");
+        setShowPassword(false);
       }
       return;
     }
@@ -320,17 +327,28 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
 
   async function saveCredentials(e: FormEvent) {
     e.preventDefault();
-    setBusy("save");
     setError("");
     setOk("");
+    const changingPassword = Boolean(password || passwordConfirm);
+    if (changingPassword || !exists) {
+      if (password !== passwordConfirm) {
+        setError("Die Passwörter stimmen nicht überein.");
+        return;
+      }
+      if (password.length < 8) {
+        setError("Passwort mindestens 8 Zeichen");
+        return;
+      }
+    }
+    setBusy("save");
     try {
       const body: Record<string, unknown> = { username, enabled: exists ? enabled : true };
-      if (password) body.password = password;
+      if (changingPassword) body.password = password;
       const res = await api.upsertPortalUser(customerId, body);
       applyPortal(res.portalUser);
       setEditing(false);
       setOk(
-        password
+        changingPassword
           ? "Zugangsdaten gespeichert. Passwort dem Kunden mitteilen – es wird nicht per E-Mail versendet."
           : "Benutzername gespeichert.",
       );
@@ -346,12 +364,16 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setOk("");
     setError("");
     setPassword("");
+    setPasswordConfirm("");
+    setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
   }
 
   function cancelEdit() {
     setEditing(false);
     setPassword("");
+    setPasswordConfirm("");
+    setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
     setError("");
     if (!exists) setEnabled(false);
@@ -433,18 +455,37 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
                     onChange={(e) => setUsername(e.target.value)}
                     autoComplete="off"
                   />
+                  <span className="field-hint muted">Login für das Kundenportal unter /portal/login</span>
                 </label>
-                <label className="field">
-                  <span>{exists ? "Neues Passwort (leer = unverändert)" : "Passwort (mind. 8 Zeichen)"}</span>
-                  <input
-                    type="password"
-                    minLength={exists ? undefined : 8}
-                    required={!exists}
+                <div className="portal-access-secrets">
+                  <p className="portal-access-secrets-lead muted">
+                    {exists
+                      ? "Neues Passwort nur setzen, wenn es geändert werden soll. Zweimal eingeben."
+                      : "Passwort zweimal eingeben, mindestens 8 Zeichen."}
+                  </p>
+                  <PasswordField
+                    label={exists ? "Neues Passwort" : "Passwort"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={setPassword}
+                    revealed={showPassword}
+                    onToggleReveal={() => setShowPassword((v) => !v)}
                     autoComplete="new-password"
+                    required={!exists}
+                    minLength={exists ? undefined : 8}
+                    placeholder={exists ? "Unverändert lassen…" : undefined}
                   />
-                </label>
+                  <PasswordField
+                    label={exists ? "Neues Passwort wiederholen" : "Passwort wiederholen"}
+                    value={passwordConfirm}
+                    onChange={setPasswordConfirm}
+                    revealed={showPassword}
+                    onToggleReveal={() => setShowPassword((v) => !v)}
+                    autoComplete="new-password"
+                    required={!exists}
+                    minLength={exists ? undefined : 8}
+                  />
+                  <PasswordMatchHint value={password} confirm={passwordConfirm} />
+                </div>
                 <div className="stammdaten-form-actions">
                   <button className="btn btn-primary" type="submit" disabled={Boolean(busy)}>
                     {busy === "save" ? "Speichern…" : exists ? "Zugangsdaten speichern" : "Zugang anlegen"}

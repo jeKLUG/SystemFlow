@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth";
 import { api } from "../api";
+import { PasswordField, PasswordMatchHint } from "../components/PasswordField";
 
 /**
  * Konto: Passwort ändern und Datensicherung.
@@ -10,6 +11,8 @@ export function SettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
@@ -75,7 +78,7 @@ export function SettingsPage() {
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("Passwörter stimmen nicht überein");
+      setError("Die Passwörter stimmen nicht überein.");
       return;
     }
 
@@ -86,6 +89,8 @@ export function SettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setShowCurrent(false);
+      setShowNew(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Ändern fehlgeschlagen");
     } finally {
@@ -110,42 +115,39 @@ export function SettingsPage() {
           </div>
         </header>
         <p className="settings-card-lead muted">
-          Nach dem Ändern bleibst du angemeldet. Das Passwort wird nicht durch Deployments
-          zurückgesetzt.
+          Nach dem Ändern bleibst du angemeldet. Neues Passwort zur Kontrolle zweimal eingeben.
         </p>
         <form className="settings-password-form" onSubmit={onSubmit}>
-          <label className="field">
-            <span>Aktuelles Passwort</span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              required
-            />
-          </label>
-          <label className="field">
-            <span>Neues Passwort</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </label>
-          <label className="field">
-            <span>Bestätigen</span>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-          </label>
+          <PasswordField
+            label="Aktuelles Passwort"
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            revealed={showCurrent}
+            onToggleReveal={() => setShowCurrent((v) => !v)}
+            autoComplete="current-password"
+            required
+          />
+          <PasswordField
+            label="Neues Passwort"
+            value={newPassword}
+            onChange={setNewPassword}
+            revealed={showNew}
+            onToggleReveal={() => setShowNew((v) => !v)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+          />
+          <PasswordField
+            label="Neues Passwort wiederholen"
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            revealed={showNew}
+            onToggleReveal={() => setShowNew((v) => !v)}
+            autoComplete="new-password"
+            required
+            minLength={8}
+          />
+          <PasswordMatchHint value={newPassword} confirm={confirmPassword} />
           {error ? <p className="form-error settings-span-all">{error}</p> : null}
           {success ? <p className="form-success settings-span-all">{success}</p> : null}
           <div className="settings-span-all">

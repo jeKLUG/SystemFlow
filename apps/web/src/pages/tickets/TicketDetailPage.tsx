@@ -4,7 +4,7 @@ import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { Modal } from "../../components/Modal";
 import { TicketSlaClocks } from "../../components/TicketSlaClocks";
-import { TicketComposer, TicketFileDrop, TicketDescription, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import { TicketComposer, TicketFileDrop, TicketBrief, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
 import { formatBytes } from "../../lib/files";
@@ -179,22 +179,38 @@ export function TicketDetailPage() {
         <span>{ticket.number}</span>
       </div>
 
-      <header className="page-head">
-        <div>
-          <p className="eyebrow">{ticket.number}</p>
-          <h2>{ticket.title}</h2>
-          <p className="muted">
-            {customer}
-            {" · "}
-            {ticket.source === "portal" ? "vom Portal" : "intern angelegt"}
-            {" · Eingegangen "}
-            {formatTimeAgo(ticket.createdAt, clockNow)}
-            {" · "}
-            {formatDate(ticket.createdAt)}
-          </p>
-        </div>
-        <span className={`badge badge-ticket-${ticket.status}`}>{ticketStatusLabel[ticket.status]}</span>
-      </header>
+      <TicketBrief
+        number={ticket.number}
+        title={ticket.title}
+        description={ticket.description}
+        badges={
+          <>
+            <span className={`badge badge-ticket-${ticket.status}`}>{ticketStatusLabel[ticket.status]}</span>
+            <span className={`badge badge-prio-${ticket.priority}`}>{ticketPriorityLabel[ticket.priority]}</span>
+          </>
+        }
+        meta={
+          <>
+            <div>
+              <dt>Kunde</dt>
+              <dd>
+                <Link to={`/customers/${ticket.customerId}`}>{customer}</Link>
+              </dd>
+            </div>
+            <div>
+              <dt>Quelle</dt>
+              <dd>{ticket.source === "portal" ? "Kundenportal" : "Intern angelegt"}</dd>
+            </div>
+            <div>
+              <dt>Eingegangen</dt>
+              <dd>
+                {formatTimeAgo(ticket.createdAt, clockNow)}
+                <span className="muted"> · {formatDate(ticket.createdAt)}</span>
+              </dd>
+            </div>
+          </>
+        }
+      />
 
       <TicketSlaClocks ticket={ticket} now={now} />
 
@@ -203,7 +219,6 @@ export function TicketDetailPage() {
       <div className="ticket-detail-grid">
         <section className="panel ticket-thread">
           <h3>Verlauf</h3>
-          <TicketDescription content={ticket.description} title={ticket.title} />
           <TicketSolutionCard
             resolution={ticket.resolution}
             resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
@@ -319,6 +334,8 @@ export function TicketDetailPage() {
         title="Lösung dokumentieren"
         onClose={() => setPendingStatus(null)}
         className="modal-wide"
+        showCloseButton={false}
+        closeOnBackdrop={false}
       >
         <p className="muted ticket-resolution-hint">
           Beim Schließen oder Lösen muss eine Lösung festgehalten werden. Der Kunde sieht sie im Portal.
@@ -331,7 +348,7 @@ export function TicketDetailPage() {
           variant="comment"
           placeholder="Was war die Ursache, was wurde gemacht, wie ist der Stand?"
         />
-        <div className="modal-actions">
+        <div className="form-actions modal-actions ticket-resolution-actions">
           <button type="button" className="btn btn-ghost" onClick={() => setPendingStatus(null)}>
             Abbrechen
           </button>

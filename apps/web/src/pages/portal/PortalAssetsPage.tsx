@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { api } from "../../api";
+import { AssetFacts } from "../../components/AssetFacts";
 import {
   assetKindLabel,
   assetOwnershipLabel,
@@ -53,12 +54,6 @@ function portalAssetRows(asset: Asset): PreviewRow[] {
   return rows.filter((r): r is PreviewRow => Boolean(r));
 }
 
-function assetListHint(asset: Asset): string {
-  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
-  const parts = [asset.location, asset.ipAddress || asset.hostname, hardware].filter(Boolean);
-  return parts.slice(0, 2).join(" · ");
-}
-
 /**
  * Opt-in Inventar im Portal: Liste mit aufklappbaren Gerätedetails (ohne interne Notizen).
  */
@@ -108,7 +103,6 @@ export function PortalAssetsPage() {
                 {group.items.map((asset) => {
                   const status = (asset.status ?? "active") as AssetStatus;
                   const ownership = (asset.ownership ?? "customer") as AssetOwnership;
-                  const hint = assetListHint(asset);
                   const open = openId === asset.id;
                   const details = portalAssetRows(asset);
                   return (
@@ -125,9 +119,9 @@ export function PortalAssetsPage() {
                             {assetOwnershipLabel[ownership]}
                           </span>
                           <span className={`badge badge-asset-${status}`}>{assetStatusLabel[status]}</span>
+                          <span className="muted portal-asset-more">{open ? "Weniger" : "Mehr"}</span>
                         </div>
-                        {hint ? <p className="asset-hint muted">{hint}</p> : null}
-                        <span className="muted portal-asset-more">{open ? "Weniger" : "Details"}</span>
+                        <AssetFacts asset={asset} />
                       </button>
                       {open ? (
                         <div className="asset-preview">

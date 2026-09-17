@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../../api";
-import { TicketComposer, TicketDescription, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
+import { TicketComposer, TicketBrief, TicketFileDrop, TicketSolutionCard, TicketTimeline } from "../../components/TicketTimeline";
 import { formatBytes } from "../../lib/files";
 import { formatDate, portalTicketStatusHint, portalTicketStatusLabel, ticketPriorityLabel } from "../../lib/labels";
 import { useSlaNow } from "../../lib/tickets";
@@ -82,17 +82,31 @@ export function PortalTicketDetailPage() {
         <span>/</span>
         <span>{ticket.number}</span>
       </div>
-      <header className="page-head">
-        <div>
-          <p className="eyebrow">{ticket.number}</p>
-          <h2>{ticket.title}</h2>
-          <p className="muted">
-            {portalTicketStatusLabel[ticket.status]} · {ticketPriorityLabel[ticket.priority]}
-            {ticket.slaResponseDueAt ? ` · Reaktion bis ${formatDate(ticket.slaResponseDueAt)}` : ""}
-          </p>
-        </div>
-        <span className={`badge badge-ticket-${ticket.status}`}>{portalTicketStatusLabel[ticket.status]}</span>
-      </header>
+      <TicketBrief
+        number={ticket.number}
+        title={ticket.title}
+        description={ticket.description}
+        badges={
+          <>
+            <span className={`badge badge-ticket-${ticket.status}`}>{portalTicketStatusLabel[ticket.status]}</span>
+            <span className={`badge badge-prio-${ticket.priority}`}>{ticketPriorityLabel[ticket.priority]}</span>
+          </>
+        }
+        meta={
+          <>
+            <div>
+              <dt>Eingegangen</dt>
+              <dd>{formatDate(ticket.createdAt)}</dd>
+            </div>
+            {ticket.slaResponseDueAt ? (
+              <div>
+                <dt>Reaktion bis</dt>
+                <dd>{formatDate(ticket.slaResponseDueAt)}</dd>
+              </div>
+            ) : null}
+          </>
+        }
+      />
       {waiting ? (
         <p className="portal-ticket-banner panel">
           <strong>Ihre Rückmeldung ist gefragt.</strong> {portalTicketStatusHint.waiting_customer}
@@ -119,7 +133,6 @@ export function PortalTicketDetailPage() {
       {error ? <p className="form-error">{error}</p> : null}
       <section className="panel ticket-thread">
         <h3>Verlauf</h3>
-        <TicketDescription content={ticket.description} title={ticket.title} />
         <TicketSolutionCard
           resolution={ticket.resolution}
           resolvedAt={ticket.resolvedAt ?? ticket.closedAt}
