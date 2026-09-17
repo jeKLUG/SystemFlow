@@ -125,11 +125,37 @@ export const ticketStatusLabel: Record<TicketStatus, string> = {
   closed: "Geschlossen",
 };
 
+/** Kundenfreundliche Statusbezeichnungen im Portal. */
+export const portalTicketStatusLabel: Record<TicketStatus, string> = {
+  open: "Eingegangen",
+  in_progress: "In Bearbeitung",
+  waiting_customer: "Rückmeldung nötig",
+  resolved: "Gelöst",
+  closed: "Abgeschlossen",
+};
+
+/** Kurzer Hinweistext zum Ticketstatus für Kunden. */
+export const portalTicketStatusHint: Record<TicketStatus, string> = {
+  open: "Wir haben Ihre Anfrage erhalten.",
+  in_progress: "Wir kümmern uns darum.",
+  waiting_customer: "Bitte antworten Sie uns im Ticket.",
+  resolved: "Die Anfrage ist erledigt.",
+  closed: "Das Ticket ist geschlossen.",
+};
+
 export const ticketPriorityLabel: Record<TicketPriority, string> = {
   low: "Niedrig",
   normal: "Normal",
   high: "Hoch",
   critical: "Kritisch",
+};
+
+/** Kurzhilfe zur Priorität im Portal-Anlegen-Dialog. */
+export const portalTicketPriorityHint: Record<TicketPriority, string> = {
+  low: "Kann warten",
+  normal: "Alltägliche Anfrage",
+  high: "Bitte zeitnah",
+  critical: "Ausfall oder Stillstand",
 };
 
 export function formatDate(value: string | Date) {

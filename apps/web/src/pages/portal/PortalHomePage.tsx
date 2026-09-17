@@ -26,18 +26,18 @@ export function PortalHomePage() {
           <p className="eyebrow">Willkommen</p>
           <h2>{data?.customerName ?? "Kundenportal"}</h2>
         </div>
-        <Link className="btn btn-primary" to="/portal/tickets">
+        <Link className="btn btn-primary" to="/portal/tickets?neu=1">
           Neues Ticket
         </Link>
       </header>
       {error ? <p className="form-error">{error}</p> : null}
       {data ? (
         <section className="stat-strip">
-          <Link className="stat-chip" to="/portal/tickets">
+          <Link className="stat-chip" to="/portal/tickets?filter=open">
             <strong>{data.openTicketCount}</strong>
             <span>Offene Tickets</span>
           </Link>
-          <Link className="stat-chip" to="/portal/tickets">
+          <Link className="stat-chip" to="/portal/tickets?filter=waiting">
             <strong>{data.waitingOnCustomer}</strong>
             <span>Wartet auf Sie</span>
           </Link>

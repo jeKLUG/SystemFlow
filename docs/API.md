@@ -68,10 +68,10 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | GET | `/api/portal/auth/me` | Portal-Benutzer |
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
 | GET | `/api/portal/overview` | Kennzahlen |
-| GET/POST | `/api/portal/tickets` | Eigene Tickets |
+| GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung, Priorität) |
 | GET | `/api/portal/tickets/:id` | Nur öffentliche Nachrichten |
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort |
-| POST | `/api/portal/tickets/:id/attachments` | Anhang |
+| POST | `/api/portal/tickets/:id/attachments` | Anhang (multipart `file`); Portal-UI hängt Dateien direkt nach dem Anlegen an |
 | GET | `/api/portal/attachments/:id/download` | Ticket- oder freigegebene Wiki-/Inventar-Datei |
 | GET | `/api/portal/contracts` | Aktive/pausierte Verträge ohne `notes` |
 | GET | `/api/portal/documents` | Nur `portalVisible` |
