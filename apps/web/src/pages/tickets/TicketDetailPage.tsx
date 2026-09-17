@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { customerDisplayName } from "../../lib/customer";
 import { localTodayIso } from "../../lib/dates";
+import { formatBytes } from "../../lib/files";
 import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
+import { formatTimeAgo, useSlaNow } from "../../lib/tickets";
 import type { TicketItem, TicketPriority, TicketStatus } from "../../types";
 
 /**
@@ -18,6 +21,7 @@ export function TicketDetailPage() {
   const [internalBody, setInternalBody] = useState("");
   const [busy, setBusy] = useState("");
   const [hours, setHours] = useState("1");
+  const now = useSlaNow();
 
   async function reload() {
     const row = await api.ticket(ticketId);
@@ -121,15 +125,18 @@ export function TicketDetailPage() {
 
   const messages = ticket.messages ?? [];
   const files = ticket.attachments ?? [];
+  const customer = customerDisplayName({
+    name: ticket.customerName ?? "",
+    company: ticket.customerCompany ?? null,
+  });
+  const clockNow = new Date(now);
 
   return (
     <div className="page ticket-detail-page">
       <div className="breadcrumb">
         <Link to="/tickets">Tickets</Link>
         <span>/</span>
-        <Link to={`/customers/${ticket.customerId}`}>
-          {customerDisplayName({ name: ticket.customerName ?? "", company: ticket.customerCompany ?? null })}
-        </Link>
+        <Link to={`/customers/${ticket.customerId}`}>{customer}</Link>
         <span>/</span>
         <span>{ticket.number}</span>
       </div>
@@ -139,11 +146,19 @@ export function TicketDetailPage() {
           <p className="eyebrow">{ticket.number}</p>
           <h2>{ticket.title}</h2>
           <p className="muted">
-            {ticket.source === "portal" ? "Vom Portal" : "Intern angelegt"} · {formatDate(ticket.createdAt)}
-            {ticket.slaBreached ? " · SLA überfällig" : ""}
+            {customer}
+            {" · "}
+            {ticket.source === "portal" ? "vom Portal" : "intern angelegt"}
+            {" · Eingegangen "}
+            {formatTimeAgo(ticket.createdAt, clockNow)}
+            {" · "}
+            {formatDate(ticket.createdAt)}
           </p>
         </div>
+        <span className={`badge badge-ticket-${ticket.status}`}>{ticketStatusLabel[ticket.status]}</span>
       </header>
+
+      <TicketSlaClocks ticket={ticket} now={now} />
 
       {error ? <p className="form-error">{error}</p> : null}
 
@@ -166,7 +181,9 @@ export function TicketDetailPage() {
                       {m.authorRole === "admin" ? "Systemhaus" : "Kunde"}
                       {m.visibility === "internal" ? " · intern" : ""}
                     </strong>
-                    <time>{formatDate(m.createdAt)}</time>
+                    <time>
+                      {formatTimeAgo(m.createdAt, clockNow)} · {formatDate(m.createdAt)}
+                    </time>
                   </header>
                   <p>{m.body}</p>
                 </li>
@@ -175,11 +192,11 @@ export function TicketDetailPage() {
           )}
 
           {files.length ? (
-            <ul className="ticket-files">
+            <ul className="portal-file-chips">
               {files.map((f) => (
                 <li key={f.id}>
                   <a href={`/api/tickets/${ticket.id}/attachments/${f.id}/download`} download>
-                    {f.originalName}
+                    {f.originalName} <em>{formatBytes(f.size)}</em>
                   </a>
                 </li>
               ))}
@@ -257,15 +274,25 @@ export function TicketDetailPage() {
           </label>
           <dl className="ticket-sla">
             <div>
-              <dt>Reaktion bis</dt>
-              <dd className={ticket.responseBreached ? "is-breach" : undefined}>
-                {ticket.slaResponseDueAt ? formatDate(ticket.slaResponseDueAt) : "–"}
+              <dt>Eingegangen</dt>
+              <dd>
+                {formatDate(ticket.createdAt)}
+                <span className="muted"> · {formatTimeAgo(ticket.createdAt, clockNow)}</span>
               </dd>
             </div>
             <div>
-              <dt>Lösung bis</dt>
-              <dd className={ticket.resolveBreached ? "is-breach" : undefined}>
-                {ticket.slaResolveDueAt ? formatDate(ticket.slaResolveDueAt) : "–"}
+              <dt>Letzte Änderung</dt>
+              <dd>
+                {formatDate(ticket.updatedAt)}
+                <span className="muted"> · {formatTimeAgo(ticket.updatedAt, clockNow)}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Erste Reaktion</dt>
+              <dd>
+                {ticket.firstResponseAt
+                  ? `${formatDate(ticket.firstResponseAt)} · ${formatTimeAgo(ticket.firstResponseAt, clockNow)}`
+                  : "steht noch aus"}
               </dd>
             </div>
             <div>

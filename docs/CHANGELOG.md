@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.108 – 2026-09-17
+
+- Kundenportal: Navigationsleiste bleibt stehen, Inhalt (z. B. Dokumente) scrollt daneben
+- Staff-Tickets: Restzeit für Reaktion und Lösung in Queue und Detail, Eingangszeit relativ und absolut
+
 ## 1.5.107 – 2026-09-17
 
 - Kundenportal Sidebar: Name als Button, Abmelden-Icon erst nach Klick

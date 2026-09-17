@@ -15381,6 +15381,198 @@ a.tasks-hub-chip:hover {
   min-width: 0;
 }
 
+.staff-ticket-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.staff-ticket-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(11.5rem, 14.5rem) auto;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  padding: 0.9rem 1.05rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.staff-ticket-card:hover {
+  border-color: rgba(96, 165, 250, 0.35);
+}
+
+.staff-ticket-card.is-sla-overdue {
+  box-shadow: inset 3px 0 0 #f87171;
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.staff-ticket-card.is-sla-urgent {
+  box-shadow: inset 3px 0 0 #fb923c;
+}
+
+.staff-ticket-card.is-waiting:not(.is-sla-overdue) {
+  box-shadow: inset 3px 0 0 #c4b5fd;
+}
+
+.staff-ticket-main {
+  min-width: 0;
+}
+
+.staff-ticket-main strong {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.staff-ticket-main p {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+}
+
+.staff-ticket-flags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+.ticket-sla-clocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.ticket-sla-clocks.is-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.sla-clock {
+  padding: 0.85rem 0.95rem;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sla-clock-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sla-clock-headline {
+  margin: 0.2rem 0 0.1rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: -0.02em;
+}
+
+.sla-clock-detail {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.sla-clock-bar {
+  margin-top: 0.65rem;
+  height: 0.28rem;
+  border-radius: 99px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.sla-clock-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+}
+
+.sla-clock.is-ok {
+  color: #93c5fd;
+}
+
+.sla-clock.is-soon {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.35);
+}
+
+.sla-clock.is-urgent {
+  color: #fb923c;
+  border-color: rgba(251, 146, 60, 0.45);
+  background: rgba(251, 146, 60, 0.08);
+}
+
+.sla-clock.is-overdue {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.45);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.sla-clock.is-met {
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+.sla-clock.is-none {
+  color: var(--text-muted);
+}
+
+.sla-clock.is-ok .sla-clock-headline,
+.sla-clock.is-soon .sla-clock-headline,
+.sla-clock.is-urgent .sla-clock-headline,
+.sla-clock.is-overdue .sla-clock-headline,
+.sla-clock.is-met .sla-clock-headline {
+  color: inherit;
+}
+
+.sla-pill {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.55rem;
+  padding: 0.22rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.75rem;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.sla-pill em {
+  font-style: normal;
+  color: var(--text-muted);
+}
+
+.sla-pill strong {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sla-pill.is-ok strong { color: #93c5fd; }
+.sla-pill.is-soon strong { color: #fbbf24; }
+.sla-pill.is-urgent {
+  border-color: rgba(251, 146, 60, 0.4);
+  background: rgba(251, 146, 60, 0.08);
+}
+.sla-pill.is-urgent strong { color: #fb923c; }
+.sla-pill.is-overdue {
+  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+}
+.sla-pill.is-overdue strong { color: #f87171; }
+.sla-pill.is-met strong { color: #34d399; }
+
 .tickets-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -15502,8 +15694,29 @@ a.tasks-hub-chip:hover {
   margin: 0 0 0.85rem;
 }
 
+.portal-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .portal-shell .portal-sidebar {
-  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portal-shell .app-main {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.portal-shell .app-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .portal-shell .user-card-meta .muted {
@@ -15836,6 +16049,26 @@ a.tasks-hub-chip:hover {
     grid-template-columns: 1fr;
   }
 
+  .staff-ticket-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .staff-ticket-card .ticket-sla-clocks,
+  .staff-ticket-flags {
+    grid-column: 1 / -1;
+  }
+
+  .staff-ticket-flags {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .ticket-sla-clocks:not(.is-compact) {
+    grid-template-columns: 1fr;
+  }
+
   .portal-ticket-card {
     grid-template-columns: auto minmax(0, 1fr);
   }
@@ -15850,16 +16083,17 @@ a.tasks-hub-chip:hover {
 
   .portal-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
   }
 
   .portal-shell .sidebar {
-    position: sticky;
-    top: 0;
+    position: relative;
     z-index: 5;
     width: auto;
     height: auto;
     max-height: none;
     transform: none;
+    overflow: visible;
   }
 
   .portal-shell .sidebar-nav {
@@ -15885,6 +16119,10 @@ a.tasks-hub-chip:hover {
   }
 
   .portal-ticket-card {
+    grid-template-columns: 1fr;
+  }
+
+  .staff-ticket-card {
     grid-template-columns: 1fr;
   }
 }

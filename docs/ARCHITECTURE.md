@@ -62,7 +62,7 @@ Desktop: Sidebar mit Logo und globaler Suche darunter (Kontakte, Wiki, Dateien, 
 
 PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzlich lokale Snapshots (`offlineCache`) für Dashboard, Kontaktliste und Kalender.
 
-Nav „Tickets“ (`/tickets`): Helpdesk-Queue. Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`).
+Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`).
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält nur Passwort und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.

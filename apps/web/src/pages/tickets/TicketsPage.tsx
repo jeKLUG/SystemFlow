@@ -3,8 +3,10 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { api } from "../../api";
 import { CustomerPicker } from "../../components/CustomerPicker";
 import { Modal } from "../../components/Modal";
+import { TicketSlaClocks } from "../../components/TicketSlaClocks";
 import { customerDisplayName } from "../../lib/customer";
 import { formatDate, ticketPriorityLabel, ticketStatusLabel } from "../../lib/labels";
+import { formatTimeAgo, ticketSlaTone, useSlaNow } from "../../lib/tickets";
 import type { TicketItem, TicketPriority } from "../../types";
 
 const statusFilters: { id: string; label: string }[] = [
@@ -41,6 +43,7 @@ export function TicketsPage() {
   const priority = (searchParams.get("priority") || "") as TicketPriority | "";
   const slaOnly = searchParams.get("sla") === "1";
   const filterCustomer = searchParams.get("customer") || customerId;
+  const now = useSlaNow();
 
   useEffect(() => {
     setForm((f) => ({ ...f, customerId: customerId || f.customerId }));
@@ -71,6 +74,10 @@ export function TicketsPage() {
   const openCount = useMemo(
     () => rows.filter((t) => t.status === "open" || t.status === "in_progress" || t.status === "waiting_customer").length,
     [rows],
+  );
+  const overdueCount = useMemo(
+    () => rows.filter((t) => ticketSlaTone(t, new Date(now)) === "overdue").length,
+    [rows, now],
   );
 
   async function createTicket(e: FormEvent) {
@@ -107,7 +114,11 @@ export function TicketsPage() {
         <div>
           <p className="eyebrow">Helpdesk</p>
           <h2>Tickets</h2>
-          <p className="muted">{loading ? "Laden…" : `${openCount} offen in dieser Ansicht`}</p>
+          <p className="muted">
+            {loading
+              ? "Laden…"
+              : `${openCount} offen${overdueCount ? ` · ${overdueCount} überfällig` : ""}`}
+          </p>
         </div>
         <button type="button" className="btn btn-primary" onClick={() => setCreateOpen(true)}>
           Neues Ticket
@@ -167,31 +178,41 @@ export function TicketsPage() {
       ) : rows.length === 0 ? (
         <p className="empty panel">Keine Tickets in dieser Ansicht.</p>
       ) : (
-        <ul className="list ticket-list">
-          {rows.map((t) => (
-            <li key={t.id}>
-              <Link className="list-row ticket-row" to={customerId ? `/tickets/${t.id}` : `/tickets/${t.id}`}>
-                <div className="ticket-row-main">
-                  <strong>
-                    {t.number} · {t.title}
-                  </strong>
-                  <span className="muted">
-                    {customerDisplayName({
-                      name: t.customerName ?? "",
-                      company: t.customerCompany ?? null,
-                    })}
-                    {" · "}
-                    {formatDate(t.updatedAt)}
-                  </span>
-                </div>
-                <div className="list-meta">
-                  <span className={`badge badge-ticket-${t.status}`}>{ticketStatusLabel[t.status]}</span>
-                  <span className={`badge badge-prio-${t.priority}`}>{ticketPriorityLabel[t.priority]}</span>
-                  {t.slaBreached ? <span className="badge badge-warn">SLA</span> : null}
-                </div>
-              </Link>
-            </li>
-          ))}
+        <ul className="staff-ticket-list">
+          {rows.map((t) => {
+            const slaTone = ticketSlaTone(t, new Date(now));
+            const waiting = t.status === "waiting_customer";
+            const customer = customerDisplayName({
+              name: t.customerName ?? "",
+              company: t.customerCompany ?? null,
+            });
+            return (
+              <li key={t.id}>
+                <Link
+                  className={`panel staff-ticket-card is-sla-${slaTone}${waiting ? " is-waiting" : ""}`}
+                  to={`/tickets/${t.id}`}
+                >
+                  <span className="portal-ticket-num">{t.number}</span>
+                  <div className="staff-ticket-main">
+                    <strong>{t.title}</strong>
+                    <p className="muted">
+                      {customer}
+                      {" · Eingegangen "}
+                      {formatTimeAgo(t.createdAt, new Date(now))}
+                      {" · "}
+                      {formatDate(t.createdAt)}
+                    </p>
+                  </div>
+                  <TicketSlaClocks ticket={t} now={now} compact />
+                  <div className="staff-ticket-flags">
+                    <span className={`badge badge-ticket-${t.status}`}>{ticketStatusLabel[t.status]}</span>
+                    <span className={`badge badge-prio-${t.priority}`}>{ticketPriorityLabel[t.priority]}</span>
+                    {waiting ? <span className="portal-ticket-cta">Kunde</span> : null}
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
 
