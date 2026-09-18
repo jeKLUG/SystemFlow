@@ -16,6 +16,12 @@ function formatMb(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Liest eine Semver wie 1.0.5 aus dem Dateinamen (GitHub-Artefakt). */
+function versionFromFilename(name: string): string | null {
+  const match = name.match(/(?:^|[^0-9])(\d+\.\d+\.\d+)(?:[^0-9]|$)/);
+  return match?.[1] ?? null;
+}
+
 /**
  * Enrollment-Key, Agent-Pakete und kopierbare Install-Skripte.
  */
@@ -40,7 +46,7 @@ export function MonitoringAgentPage() {
       const next = { ...prev };
       for (const p of s.platforms) {
         if (!next[p.id]) {
-          next[p.id] = s.packages.find((row) => row.platform === p.id)?.version ?? "1.0.3";
+          next[p.id] = s.packages.find((row) => row.platform === p.id)?.version ?? "1.0.5";
         }
       }
       return next;
@@ -79,7 +85,8 @@ export function MonitoringAgentPage() {
 
   async function uploadPackage(platform: AgentPackagePlatform, file: File | null) {
     if (!file) return;
-    const version = (pkgVersion[platform] ?? "").trim() || "1.0.3";
+    const version =
+      versionFromFilename(file.name) || (pkgVersion[platform] ?? "").trim() || "1.0.5";
     setPkgVersion((prev) => ({ ...prev, [platform]: version }));
     setPkgBusy(platform);
     setPkgMsg((prev) => ({ ...prev, [platform]: "" }));
@@ -212,7 +219,7 @@ export function MonitoringAgentPage() {
             <p className="eyebrow">Schritt 1</p>
             <div className="page-head-title">
               <h3>Paket hochladen</h3>
-              <HelpHint text="Eine Datei je Plattform. Die Version muss zur Binary passen (z. B. 1.0.3)." />
+              <HelpHint text="Eine Datei je Plattform. GitHub-Artefakte enthalten die Version im Dateinamen (z. B. 1.0.5)." />
             </div>
           </div>
         </header>
@@ -240,9 +247,9 @@ export function MonitoringAgentPage() {
                 <label className="field settings-agent-ver">
                   <span>Version</span>
                   <input
-                    value={pkgVersion[p.id] ?? "1.0.3"}
+                    value={pkgVersion[p.id] ?? "1.0.5"}
                     onChange={(e) => setPkgVersion((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                    placeholder="1.0.3"
+                    placeholder="1.0.5"
                     autoComplete="off"
                   />
                 </label>

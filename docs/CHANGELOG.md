@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.170 – 2026-09-18
+
+- Monitoring-Agent: CI packt die Version aus `apps/agent/VERSION` in Artefaktname und Windows-Dateieigenschaften (nicht mehr anonymes „1.0“)
+
 ## 1.5.169 – 2026-09-18
 
 - Einstellungen: E-Mail-Bereich als kompakte Zeilen ohne Chip-Wolke

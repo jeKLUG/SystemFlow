@@ -1,15 +1,20 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
-const agentVersion = "1.0.5"
+//go:embed VERSION
+var embeddedAgentVersion string
+
+var agentVersion = strings.TrimSpace(embeddedAgentVersion)
 
 type config struct {
 	ServerURL        string `json:"serverUrl"`
@@ -134,6 +139,9 @@ func main() {
 				os.Exit(1)
 			}
 			fmt.Println("Agent installiert. Config:", cfgPath)
+			return
+		case "version", "-version", "--version":
+			fmt.Println(agentVersion)
 			return
 		case "uninstall":
 			if err := uninstallService(); err != nil {

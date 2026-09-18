@@ -8,7 +8,18 @@ on:
       - ".github/workflows/monitoring-agent.yml"
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: meta
+        run: echo "version=$(tr -d '[:space:]' < apps/agent/VERSION)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: version
+    name: ${{ matrix.goos }}-${{ matrix.goarch }} ${{ needs.version.outputs.version }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,14 +38,49 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+      - name: Windows file version
+        if: matrix.goos == 'windows'
+        working-directory: apps/agent
+        env:
+          AGENT_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@v1.4.1
+          IFS=. read -r MAJ MIN PAT _ <<EOF
+          ${AGENT_VERSION}.0.0
+          EOF
+          printf '%s\n' '{}' > versioninfo.json
+          "$(go env GOPATH)/bin/goversioninfo" \
+            -64 \
+            -product-name "Systemhaus-Ess Monitoring Agent" \
+            -company "Systemhaus ESS" \
+            -description "Systemhaus-Ess Monitoring Agent" \
+            -internal-name "systemhaus-agent" \
+            -original-name "systemhaus-agent.exe" \
+            -file-version "${AGENT_VERSION}.0" \
+            -product-version "${AGENT_VERSION}" \
+            -ver-major "${MAJ:-1}" \
+            -ver-minor "${MIN:-0}" \
+            -ver-patch "${PAT:-0}" \
+            -ver-build 0 \
+            -product-ver-major "${MAJ:-1}" \
+            -product-ver-minor "${MIN:-0}" \
+            -product-ver-patch "${PAT:-0}" \
+            -product-ver-build 0 \
+            -o resource.syso
       - name: Build
         working-directory: apps/agent
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: "0"
-        run: go mod tidy && go build -ldflags "-s -w" -o "systemhaus-agent${{ matrix.ext }}" .
+          AGENT_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          go mod tidy
+          OUT="systemhaus-agent-${{ matrix.goos }}-${{ matrix.goarch }}-${AGENT_VERSION}${{ matrix.ext }}"
+          go build -ldflags "-s -w" -o "$OUT" .
+          echo "Built $OUT"
+          echo "Agent **${AGENT_VERSION}** (${{ matrix.goos }}/${{ matrix.goarch }})" >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
-          name: systemhaus-agent-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: apps/agent/systemhaus-agent${{ matrix.ext }}
+          name: systemhaus-agent-${{ matrix.goos }}-${{ matrix.goarch }}-${{ needs.version.outputs.version }}
+          path: apps/agent/systemhaus-agent-${{ matrix.goos }}-${{ matrix.goarch }}-${{ needs.version.outputs.version }}${{ matrix.ext }}

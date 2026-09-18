@@ -116,4 +116,4 @@ Staff-Nav **Monitoring** (`/monitoring`): Flotten-Dashboard, Warnungen als Zeile
 
 Installation: in `/monitoring/setup` (Button „Agent einrichten“ auf der Monitoring-Seite) Windows-PowerShell- bzw. Linux-Bash-Skript kopieren (URL + Key sind eingefügt) und als Administrator bzw. root ausführen. Der Dienst liegt unter `%ProgramData%\SystemhausEss\systemhaus-agent.exe` bzw. `/usr/local/bin/systemhaus-agent`. Manuell weiterhin `install --server … --key …`.
 
-Config: Windows `%ProgramData%\SystemhausEss\agent.json`, Linux `/etc/systemhaus-agent/agent.json`. CI-Build der Binaries: `.github/workflows/monitoring-agent.yml`.
+Config: Windows `%ProgramData%\SystemhausEss\agent.json`, Linux `/etc/systemhaus-agent/agent.json`. Version steht in `apps/agent/VERSION` (Binary, Heartbeat, `systemhaus-agent version`). CI (`.github/workflows/monitoring-agent.yml`) benennt Artefakte `systemhaus-agent-<os>-<arch>-<version>` und setzt unter Windows die Dateiversion in den Eigenschaften.
