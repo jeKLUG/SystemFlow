@@ -210,6 +210,34 @@ export function parseOpenTickets(raw: string | null | undefined): OpenTicketMap 
   }
 }
 
+/**
+ * Entfernt ein gelöschtes Ticket aus den offenen Monitoring-Zuordnungen.
+ */
+export async function unlinkDeletedMonitoringTicket(db: Db, ticketId: string) {
+  const agents = await db.select().from(monitoringAgents).all();
+  const now = new Date();
+  for (const agent of agents) {
+    const map = parseOpenTickets(agent.openTicketsJson);
+    let changed = false;
+    for (const [key, id] of Object.entries(map)) {
+      if (id === ticketId) {
+        delete map[key];
+        changed = true;
+      }
+    }
+    const openTicketId = agent.openTicketId === ticketId ? null : agent.openTicketId;
+    if (!changed && openTicketId === agent.openTicketId) continue;
+    await db
+      .update(monitoringAgents)
+      .set({
+        openTicketsJson: JSON.stringify(map),
+        openTicketId,
+        updatedAt: now,
+      })
+      .where(eq(monitoringAgents.id, agent.id));
+  }
+}
+
 export type DiskSnapshot = {
   id?: string;
   name: string;

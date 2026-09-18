@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { createReadStream } from "node:fs";
+import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
@@ -32,6 +33,7 @@ import { richTextHasContent } from "../lib/richtext.js";
 import { saveFirstUpload } from "../lib/uploads.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
+import { unlinkDeletedMonitoringTicket } from "../lib/monitoring.js";
 
 const createBody = z.object({
   customerId: z.string().min(1),
@@ -136,7 +138,7 @@ async function loadTicketExtras(db: Db, ticket: Ticket, includeInternal: boolean
 }
 
 /**
- * Staff-Helpdesk: Tickets listen, anlegen, beantworten, Aufgabe/Zeit verknüpfen.
+ * Staff-Helpdesk: Tickets listen, anlegen, beantworten, löschen, Aufgabe/Zeit verknüpfen.
  */
 export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: string) {
   app.addHook("preHandler", requireAdmin);
@@ -336,6 +338,26 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
 
     const next = { ...existing, ...updated };
     return loadTicketExtras(db, next, true);
+  });
+
+  app.delete("/api/tickets/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const existing = await db.select().from(tickets).where(eq(tickets.id, id)).get();
+    if (!existing) return reply.code(404).send({ error: "Ticket nicht gefunden" });
+
+    const now = new Date();
+    const files = await db.select().from(attachments).where(eq(attachments.ticketId, id)).all();
+    await db.update(tasks).set({ ticketId: null, updatedAt: now }).where(eq(tasks.ticketId, id));
+    await db.update(timeEntries).set({ ticketId: null, updatedAt: now }).where(eq(timeEntries.ticketId, id));
+    await db.delete(attachments).where(eq(attachments.ticketId, id));
+    await db.delete(ticketMessages).where(eq(ticketMessages.ticketId, id));
+    await unlinkDeletedMonitoringTicket(db, id);
+    await db.delete(tickets).where(eq(tickets.id, id));
+    for (const file of files) {
+      await unlink(join(uploadDir, file.storedName)).catch(() => undefined);
+    }
+    await addActivity(db, existing.customerId, `Ticket ${existing.number} gelöscht`, existing.title, now);
+    return { ok: true };
   });
 
   app.post("/api/tickets/:id/messages", async (request, reply) => {

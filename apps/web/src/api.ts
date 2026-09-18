@@ -134,6 +134,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  deleteTicket: (id: string) => request<{ ok: boolean }>(`/api/tickets/${id}`, { method: "DELETE" }),
   addTicketMessage: (id: string, body: string, visibility?: "public" | "internal") =>
     request<import("./types").TicketMessageItem>(`/api/tickets/${id}/messages`, {
       method: "POST",
@@ -777,12 +778,7 @@ export const api = {
       { method: "POST", body: JSON.stringify({ assetId }) },
     ),
   monitoringCustomer: (customerId: string) =>
-    request<{
-      customerId: string;
-      customerName: string;
-      devices: import("./types").MonitoringDeviceSummary[];
-      waitingAssets: { id: string; name: string; hostname: string | null }[];
-    }>(`/api/monitoring/customers/${customerId}`),
+    request<import("./types").MonitoringCustomerView>(`/api/monitoring/customers/${customerId}`),
   monitoringDevice: (assetId: string, range?: { from?: number; to?: number }) => {
     const q = new URLSearchParams();
     if (range?.from) q.set("from", String(range.from));

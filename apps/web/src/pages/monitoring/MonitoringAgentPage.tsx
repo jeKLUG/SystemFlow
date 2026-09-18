@@ -1,8 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api";
+import { copyToClipboard } from "../../lib/clipboard";
 import { linuxAgentInstallScript, windowsAgentInstallScript } from "../../lib/agentInstallScripts";
 import type { AgentPackageInfo, AgentPackagePlatform, MonitoringSettings } from "../../types";
+
+const FALLBACK_PLATFORMS: MonitoringSettings["platforms"] = [
+  { id: "windows-amd64", label: "Windows 64-bit", filename: "systemhaus-agent.exe" },
+  { id: "linux-amd64", label: "Linux 64-bit", filename: "systemhaus-agent" },
+  { id: "linux-arm64", label: "Linux ARM64", filename: "systemhaus-agent" },
+];
+
+function formatMb(bytes: number): string {
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /**
  * Enrollment-Key, Agent-Pakete und kopierbare Install-Skripte.
@@ -17,6 +28,7 @@ export function MonitoringAgentPage() {
   const [pkgBusy, setPkgBusy] = useState<string | null>(null);
   const [pkgMsg, setPkgMsg] = useState<Record<string, string>>({});
   const [copiedScript, setCopiedScript] = useState("");
+  const [copyError, setCopyError] = useState("");
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
 
   function applySettings(s: MonitoringSettings) {
@@ -49,12 +61,19 @@ export function MonitoringAgentPage() {
   }, [packages]);
   const windowsScript = enrollKey ? windowsAgentInstallScript(origin, enrollKey) : "";
   const linuxScript = enrollKey ? linuxAgentInstallScript(origin, enrollKey) : "";
+  const list = platforms.length ? platforms : FALLBACK_PLATFORMS;
 
-  function copyText(label: string, text: string) {
-    void navigator.clipboard.writeText(text).then(() => {
-      setCopiedScript(label);
-      window.setTimeout(() => setCopiedScript(""), 1600);
-    });
+  async function copyText(label: string, text: string) {
+    if (!text) return;
+    setCopyError("");
+    const ok = await copyToClipboard(text);
+    if (!ok) {
+      setCopiedScript("");
+      setCopyError("Kopieren nicht möglich. Text markieren und Strg+C.");
+      return;
+    }
+    setCopiedScript(label);
+    window.setTimeout(() => setCopiedScript(""), 1800);
   }
 
   async function uploadPackage(platform: AgentPackagePlatform, file: File | null) {
@@ -94,9 +113,12 @@ export function MonitoringAgentPage() {
     try {
       await api.deleteAgentPackage(platform);
       setPackages((prev) => prev.filter((p) => p.platform !== platform));
-      setEnrollMsg("Paket gelöscht.");
+      setPkgMsg((prev) => ({ ...prev, [platform]: "Paket gelöscht." }));
     } catch (err) {
-      setEnrollMsg(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+      setPkgMsg((prev) => ({
+        ...prev,
+        [platform]: err instanceof Error ? err.message : "Löschen fehlgeschlagen",
+      }));
     } finally {
       setPkgBusy(null);
     }
@@ -108,11 +130,7 @@ export function MonitoringAgentPage() {
         <div>
           <p className="eyebrow">Monitoring</p>
           <h2>Agent einrichten</h2>
-          <p className="muted">
-            Binary hochladen, Skript kopieren, auf dem Kundenrechner als Administrator bzw. root
-            ausführen. Der Dienst startet beim Hochfahren und nach einem Absturz neu. Agenten prüfen
-            täglich auf eine neue Version.
-          </p>
+          <p className="muted">Paket hochladen, Skript kopieren, auf dem Gerät als Admin bzw. root ausführen.</p>
         </div>
         <Link className="btn btn-ghost" to="/monitoring">
           Zurück zur Flotte
@@ -126,13 +144,17 @@ export function MonitoringAgentPage() {
             <h3>Enrollment-Key</h3>
           </div>
         </header>
+        <p className="settings-card-lead muted">
+          Steckt in den Install-Skripten. Bereits laufende Agenten bleiben gültig, wenn du den Key neu
+          erzeugst.
+        </p>
         {enrollKey ? (
           <p className="settings-enroll-key">
             <code>{enrollKey}</code>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => copyText("key", enrollKey)}
+              onClick={() => void copyText("key", enrollKey)}
             >
               {copiedScript === "key" ? "Kopiert" : "Key kopieren"}
             </button>
@@ -159,7 +181,7 @@ export function MonitoringAgentPage() {
                 .rotateMonitoringKey()
                 .then((s) => {
                   applySettings(s);
-                  setEnrollMsg("Neuer Schlüssel erzeugt.");
+                  setEnrollMsg("Neuer Schlüssel erzeugt. Skripte neu kopieren.");
                 })
                 .catch((err) => {
                   setEnrollMsg(err instanceof Error ? err.message : "Fehler");
@@ -181,60 +203,57 @@ export function MonitoringAgentPage() {
             {enrollMsg}
           </p>
         ) : null}
+        {copyError ? <p className="form-error">{copyError}</p> : null}
       </section>
 
       <section className="panel settings-card">
         <header className="settings-card-head">
           <div>
-            <p className="eyebrow">Dateien</p>
-            <h3>Agent-Pakete</h3>
+            <p className="eyebrow">Schritt 1</p>
+            <h3>Paket hochladen</h3>
           </div>
         </header>
         <p className="settings-card-lead muted">
-          Die Versionsnummer muss zur Binary passen (steht in der Agent-Anzeige). Ein neues Upload
-          ersetzt die vorherige Datei dieser Plattform.
+          Eine Datei je Plattform. Die Version muss zur Binary passen (z. B. 1.0.3).
         </p>
-        <ul className="settings-agent-packages">
-          {(platforms.length
-            ? platforms
-            : [
-                { id: "windows-amd64" as const, label: "Windows 64-bit", filename: "systemhaus-agent.exe" },
-                { id: "linux-amd64" as const, label: "Linux 64-bit (x86_64)", filename: "systemhaus-agent" },
-                { id: "linux-arm64" as const, label: "Linux ARM64 (aarch64)", filename: "systemhaus-agent" },
-              ]
-          ).map((p) => {
+        <ul className="agent-pkg-grid">
+          {list.map((p) => {
             const row = pkgByPlatform.get(p.id);
+            const busy = pkgBusy === p.id;
             return (
-              <li key={p.id} className="settings-agent-pkg">
-                <div>
+              <li key={p.id} className={`agent-pkg-card${row ? " is-ready" : ""}`}>
+                <div className="agent-pkg-card-head">
                   <strong>{p.label}</strong>
-                  {row ? (
-                    <p className="muted">
-                      v{row.version} · {row.filename} · {(row.sizeBytes / (1024 * 1024)).toFixed(1)} MB
-                      <br />
-                      SHA-256 {row.sha256.slice(0, 16)}…
-                    </p>
-                  ) : (
-                    <p className="muted">Noch kein Paket · erwartet {p.filename}</p>
-                  )}
+                  <span className={`badge${row ? " badge-active" : " badge-inactive"}`}>
+                    {row ? "Bereit" : "Fehlt"}
+                  </span>
                 </div>
-                <div className="settings-agent-pkg-actions">
-                  <label className="field settings-agent-ver">
-                    <span>Version</span>
-                    <input
-                      value={pkgVersion[p.id] ?? "1.0.3"}
-                      onChange={(e) => setPkgVersion((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      placeholder="1.0.3"
-                      autoComplete="off"
-                    />
-                  </label>
+                {row ? (
+                  <p className="muted agent-pkg-meta">
+                    {row.filename}
+                    <br />
+                    v{row.version} · {formatMb(row.sizeBytes)}
+                  </p>
+                ) : (
+                  <p className="muted agent-pkg-meta">Erwartet {p.filename}</p>
+                )}
+                <label className="field settings-agent-ver">
+                  <span>Version</span>
+                  <input
+                    value={pkgVersion[p.id] ?? "1.0.3"}
+                    onChange={(e) => setPkgVersion((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                    placeholder="1.0.3"
+                    autoComplete="off"
+                  />
+                </label>
+                <div className="agent-pkg-actions">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
-                    disabled={pkgBusy === p.id}
+                    className={row ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm"}
+                    disabled={busy}
                     onClick={() => fileInputs.current[p.id]?.click()}
                   >
-                    {pkgBusy === p.id ? "Lädt…" : row ? "Ersetzen" : "Hochladen"}
+                    {busy ? "Lädt…" : row ? "Ersetzen" : "Datei wählen"}
                   </button>
                   <input
                     ref={(el) => {
@@ -243,7 +262,7 @@ export function MonitoringAgentPage() {
                     type="file"
                     className="sr-only"
                     accept={p.id.startsWith("windows") ? ".exe,application/octet-stream" : undefined}
-                    disabled={pkgBusy === p.id}
+                    disabled={busy}
                     onChange={(e) => {
                       const f = e.target.files?.[0] ?? null;
                       e.target.value = "";
@@ -254,7 +273,7 @@ export function MonitoringAgentPage() {
                     <button
                       type="button"
                       className="btn btn-ghost btn-sm"
-                      disabled={pkgBusy === p.id}
+                      disabled={busy}
                       onClick={() => void removePackage(p.id)}
                     >
                       Löschen
@@ -264,7 +283,12 @@ export function MonitoringAgentPage() {
                 {pkgMsg[p.id] ? (
                   <p
                     className={
-                      pkgMsg[p.id].toLowerCase().includes("hochgeladen") ? "form-success" : "form-error"
+                      pkgMsg[p.id].toLowerCase().includes("hochgeladen") &&
+                      !pkgMsg[p.id].toLowerCase().includes("fehl")
+                        ? "form-success"
+                        : pkgMsg[p.id].toLowerCase().includes("gelöscht")
+                          ? "form-success"
+                          : "form-error"
                     }
                   >
                     {pkgMsg[p.id]}
@@ -279,32 +303,34 @@ export function MonitoringAgentPage() {
       <section className="panel settings-card">
         <header className="settings-card-head">
           <div>
-            <p className="eyebrow">Installation</p>
-            <h3>Skripte</h3>
+            <p className="eyebrow">Schritt 2</p>
+            <h3>Skript auf dem Gerät ausführen</h3>
           </div>
         </header>
         <p className="settings-card-lead muted">
-          Enthalten Server-URL ({origin}) und den aktuellen Key. Wer das Skript hat, kann Geräte
-          anmelden.
+          Kopieren und als Administrator (Windows) bzw. root (Linux) einfügen. Enthält Server{" "}
+          <code>{origin}</code> und den aktuellen Key.
         </p>
-        <div className="settings-agent-scripts">
+        <div className="agent-script-grid">
           <ScriptCopy
-            title="Windows (PowerShell)"
-            hint="Als Administrator in PowerShell einfügen. Paket windows-amd64 muss hochgeladen sein."
+            title="Windows"
+            hint="PowerShell als Administrator öffnen, Skript einfügen, Enter."
+            missingHint="Zuerst das Windows-Paket hochladen."
             script={windowsScript}
             copied={copiedScript === "win"}
-            onCopy={() => windowsScript && copyText("win", windowsScript)}
             ready={Boolean(enrollKey && pkgByPlatform.get("windows-amd64"))}
+            onCopy={() => void copyText("win", windowsScript)}
           />
           <ScriptCopy
-            title="Linux (Bash)"
-            hint="Als root: Architektur wird automatisch erkannt (amd64/arm64)."
+            title="Linux"
+            hint="Als root: sudo bash, Skript einfügen. Erkennt amd64 und ARM64 selbst."
+            missingHint="Zuerst ein Linux-Paket (64-bit oder ARM64) hochladen."
             script={linuxScript}
             copied={copiedScript === "linux"}
-            onCopy={() => linuxScript && copyText("linux", linuxScript)}
             ready={Boolean(
               enrollKey && (pkgByPlatform.get("linux-amd64") || pkgByPlatform.get("linux-arm64")),
             )}
+            onCopy={() => void copyText("linux", linuxScript)}
           />
         </div>
       </section>
@@ -313,11 +339,12 @@ export function MonitoringAgentPage() {
 }
 
 /**
- * Kopierbares Installationsskript mit Syntax-Highlighting-freier Vorschau.
+ * Install-Skript mit Kopieren und einklappbarer Vorschau.
  */
 function ScriptCopy({
   title,
   hint,
+  missingHint,
   script,
   copied,
   onCopy,
@@ -325,22 +352,38 @@ function ScriptCopy({
 }: {
   title: string;
   hint: string;
+  missingHint: string;
   script: string;
   copied: boolean;
   onCopy: () => void;
   ready: boolean;
 }) {
   return (
-    <div className="settings-agent-script">
-      <div className="settings-agent-script-head">
+    <div className={`agent-script-card${ready ? " is-ready" : ""}`}>
+      <div className="agent-script-card-head">
         <strong>{title}</strong>
-        <button type="button" className="btn btn-primary btn-sm" disabled={!script} onClick={onCopy}>
-          {copied ? "Kopiert" : "Skript kopieren"}
-        </button>
+        <span className={`badge${ready ? " badge-active" : " badge-inactive"}`}>
+          {ready ? "Bereit" : "Paket fehlt"}
+        </span>
       </div>
       <p className="muted">{hint}</p>
-      {!ready ? <p className="form-error">Zuerst das passende Paket hochladen.</p> : null}
-      {script ? <pre className="settings-agent-pre">{script}</pre> : <p className="muted">Key wird geladen…</p>}
+      <button
+        type="button"
+        className="btn btn-primary"
+        disabled={!script}
+        onClick={onCopy}
+      >
+        {copied ? "Kopiert" : "Skript kopieren"}
+      </button>
+      {!ready ? <p className="form-error">{missingHint}</p> : null}
+      {script ? (
+        <details className="agent-script-details">
+          <summary>Skript anzeigen</summary>
+          <pre className="settings-agent-pre">{script}</pre>
+        </details>
+      ) : (
+        <p className="muted">Key wird geladen…</p>
+      )}
     </div>
   );
 }

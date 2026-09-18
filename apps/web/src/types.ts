@@ -869,6 +869,13 @@ export interface MonitoringOverview {
   customers: { id: string; name: string }[];
 }
 
+export interface MonitoringCustomerView {
+  customerId: string;
+  customerName: string;
+  devices: MonitoringDeviceSummary[];
+  waitingAssets: { id: string; name: string; hostname: string | null }[];
+}
+
 export interface MonitoringPendingAgent {
   id: string;
   machineId: string;

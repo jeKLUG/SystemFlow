@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.155 – 2026-09-18
+
+- Monitoring: Geräteausstattung als Überblickskarten (CPU, RAM, Speicher, Netz) statt Tabellen
+
+## 1.5.154 – 2026-09-18
+
+- Monitoring: eigene Kundenseite mit Diagrammen, Meldungen und durchsuchbarer Geräteliste
+
+## 1.5.153 – 2026-09-18
+
+- Monitoring: aktive Warnungen als Karten; Kundenwahl über Kacheln und Suche statt Dropdown
+
+## 1.5.152 – 2026-09-18
+
+- Tickets: Staff kann ein Ticket inklusive Nachrichten und Anhänge löschen
+
+## 1.5.151 – 2026-09-18
+
+- Monitoring: Agent-Pakete und Install-Skripte übersichtlicher; Kopieren funktioniert auch über HTTP
+
 ## 1.5.150 – 2026-09-18
 
 - Monitoring: Agent-Einrichtung (Key, Pakete, Skripte) auf eigener Seite `/monitoring/setup`

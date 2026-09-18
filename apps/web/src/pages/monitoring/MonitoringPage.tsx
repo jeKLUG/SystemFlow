@@ -1,103 +1,35 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
-import { ChartLegend, DonutChart, HBarChart, LineChart } from "../../components/DashCharts";
-import { MonitoringAlertConfigFields } from "../../components/MonitoringAlertConfigFields";
-import { MonitoringHardwarePanel } from "../../components/MonitoringHardware";
+import { CustomerPicker } from "../../components/CustomerPicker";
+import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
+import {
+  deviceIssueChips,
+  fleetCustomerMeta,
+  monitoringIssueLabel,
+  relSeen,
+} from "../../lib/monitoringUi";
 import type {
-  MonitoringAlertConfig,
   MonitoringAssignableAsset,
-  MonitoringDeviceDetail,
   MonitoringDeviceSummary,
-  MonitoringIssueKind,
   MonitoringOverview,
   MonitoringPendingAgent,
-  MonitoringSample,
 } from "../../types";
-import { emptyMonitoringAlertConfig, monitoringDiskId } from "../../types";
 
-const issueLabel: Record<MonitoringIssueKind, string> = {
-  offline: "Offline",
-  disk: "Datenträger",
-  cpu: "CPU",
-  ram: "RAM",
-  eventlog: "Ereignisse",
-  updates: "Updates",
-};
-
-function deviceIssueText(d: {
-  issues: MonitoringIssueKind[];
-  diskIssues?: { id: string; name: string }[];
-}): string {
-  const parts = d.issues.filter((i) => i !== "disk").map((i) => issueLabel[i]);
-  for (const disk of d.diskIssues ?? []) parts.push(`Datenträger ${disk.name}`);
-  if (d.issues.includes("disk") && !(d.diskIssues ?? []).length) parts.push(issueLabel.disk);
-  return parts.join(", ") || "Problem";
-}
-
-function sampleTime(ts: string | number | Date): number {
-  if (typeof ts === "number") return ts;
-  if (ts instanceof Date) return ts.getTime();
-  const n = Date.parse(ts);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function formatBytes(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "–";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 ** 2) return `${(n / 1024).toFixed(1)} KB`;
-  if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(1)} MB`;
-  return `${(n / 1024 ** 3).toFixed(1)} GB`;
-}
-
-function formatUptime(sec: number | null | undefined): string {
-  if (sec == null || !Number.isFinite(sec)) return "–";
-  const d = Math.floor(sec / 86400);
-  const h = Math.floor((sec % 86400) / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h`;
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m} min`;
-}
-
-function relSeen(iso: string | null | undefined): string {
-  if (!iso) return "nie";
-  const t = sampleTime(iso);
-  if (!t) return "nie";
-  const delta = Date.now() - t;
-  if (delta < 90_000) return "gerade eben";
-  if (delta < 3600_000) return `vor ${Math.round(delta / 60_000)} Min.`;
-  if (delta < 86400_000) return `vor ${Math.round(delta / 3600_000)} Std.`;
-  return new Date(t).toLocaleString("de-DE");
-}
-
-function pct(n: number | null | undefined): string {
-  if (n == null || !Number.isFinite(n)) return "–";
-  return `${Math.round(n)} %`;
-}
-
-function seriesFrom(samples: MonitoringSample[], key: keyof MonitoringSample) {
-  return samples.map((s) => ({
-    t: sampleTime(s.ts),
-    v: typeof s[key] === "number" ? (s[key] as number) : null,
-  }));
+function customerHref(customerId: string, assetId?: string | null) {
+  return assetId
+    ? `/monitoring/customers/${customerId}/devices/${assetId}`
+    : `/monitoring/customers/${customerId}`;
 }
 
 /**
- * Staff-Monitoring: Flotte, Zuordnung und Gerätedetails.
+ * Staff-Monitoring: Flotte, Warnungen und Einstieg in die Kundenseiten.
  */
 export function MonitoringPage() {
+  const navigate = useNavigate();
   const [overview, setOverview] = useState<MonitoringOverview | null>(null);
   const [pending, setPending] = useState<MonitoringPendingAgent[]>([]);
   const [assignable, setAssignable] = useState<MonitoringAssignableAsset[]>([]);
-  const [customerId, setCustomerId] = useState("");
-  const [devices, setDevices] = useState<MonitoringDeviceSummary[]>([]);
-  const [waitingAssets, setWaitingAssets] = useState<{ id: string; name: string; hostname: string | null }[]>(
-    [],
-  );
-  const [detailAssetId, setDetailAssetId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<MonitoringDeviceDetail | null>(null);
-  const [rangeDays, setRangeDays] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [assignPick, setAssignPick] = useState<Record<string, string>>({});
@@ -128,37 +60,6 @@ export function MonitoringPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!customerId) {
-      setDevices([]);
-      setWaitingAssets([]);
-      return;
-    }
-    void api
-      .monitoringCustomer(customerId)
-      .then((row) => {
-        setDevices(row.devices);
-        setWaitingAssets(row.waitingAssets);
-      })
-      .catch(() => {
-        setDevices([]);
-        setWaitingAssets([]);
-      });
-  }, [customerId, overview]);
-
-  useEffect(() => {
-    if (!detailAssetId) {
-      setDetail(null);
-      return;
-    }
-    const to = Date.now();
-    const from = to - rangeDays * 24 * 60 * 60 * 1000;
-    void api
-      .monitoringDevice(detailAssetId, { from, to })
-      .then(setDetail)
-      .catch(() => setDetail(null));
-  }, [detailAssetId, rangeDays, overview]);
-
   const slices = useMemo(() => {
     if (!overview) return [];
     return [
@@ -167,6 +68,22 @@ export function MonitoringPage() {
       { label: "Warnung", value: overview.warning, color: "#f87171" },
     ].filter((s) => s.value > 0);
   }, [overview]);
+
+  const fleetCustomers = useMemo(() => {
+    return [...(overview?.byCustomer ?? [])].sort((a, b) => {
+      if (b.warning !== a.warning) return b.warning - a.warning;
+      return a.customerName.localeCompare(b.customerName, "de");
+    });
+  }, [overview]);
+
+  function openCustomer(nextId: string) {
+    if (!nextId) return;
+    navigate(customerHref(nextId));
+  }
+
+  function openProblem(p: MonitoringDeviceSummary) {
+    if (p.customerId) navigate(customerHref(p.customerId, p.assetId));
+  }
 
   async function assign(agentId: string) {
     const assetId = assignPick[agentId];
@@ -183,64 +100,13 @@ export function MonitoringPage() {
     }
   }
 
-  const saveAlertsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const saveAlertsLatest = useRef<{ assetId: string; cfg: MonitoringAlertConfig } | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (saveAlertsTimer.current) window.clearTimeout(saveAlertsTimer.current);
-    };
-  }, []);
-
-  function saveAlerts(assetId: string, monitoringAlerts: MonitoringAlertConfig) {
-    saveAlertsLatest.current = { assetId, cfg: monitoringAlerts };
-    if (saveAlertsTimer.current) window.clearTimeout(saveAlertsTimer.current);
-    saveAlertsTimer.current = setTimeout(() => {
-      const payload = saveAlertsLatest.current;
-      if (!payload) return;
-      void flushSaveAlerts(payload.assetId, payload.cfg);
-    }, 400);
-  }
-
-  async function flushSaveAlerts(assetId: string, monitoringAlerts: MonitoringAlertConfig) {
-    setBusyId(assetId);
-    setError("");
-    try {
-      await api.patchMonitoringDevice(assetId, { monitoringAlerts });
-      await reloadFleet();
-      if (customerId) {
-        const row = await api.monitoringCustomer(customerId);
-        setDevices(row.devices);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Warnungen konnten nicht gespeichert werden");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  async function requestAgentUpdate() {
-    const assetId = detail?.device.assetId;
-    if (!assetId) return;
-    setBusyId(assetId);
-    setError("");
-    try {
-      await api.requestAgentUpdate(assetId);
-      await reloadFleet();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Update konnte nicht angefordert werden");
-    } finally {
-      setBusyId(null);
-    }
-  }
-
   return (
     <div className="page monitoring-page">
       <header className="dashboard-hero">
         <div>
           <p className="eyebrow">Flotte</p>
           <h2>Monitoring</h2>
-          <p className="muted">Live-Status der Agenten, Zuordnung zum Inventar, Warnungen und Verlauf.</p>
+          <p className="muted">Live-Status der Agenten, Zuordnung zum Inventar und Einstieg je Kunde.</p>
         </div>
         <Link className="btn btn-ghost" to="/monitoring/setup">
           Agent einrichten
@@ -326,45 +192,70 @@ export function MonitoringPage() {
                   label: c.customerName,
                   value: c.warning,
                   color: "#f87171",
+                  href: customerHref(c.customerId),
                 }))}
             />
           )}
         </article>
       </section>
 
-      {(overview?.problems.length ?? 0) > 0 ? (
-        <section className="panel mon-panel">
-          <div className="section-head">
+      <section className="panel mon-panel" aria-label="Aktive Warnungen">
+        <div className="section-head row-between">
+          <div>
             <h2>Aktive Warnungen</h2>
-            <p>Nur Geräte mit eingeschalteter Warnung</p>
+            <p>Klick öffnet die Kundenseite und das Gerät</p>
           </div>
-          <ul className="mon-problem-list">
+          <span className={`mon-count-badge${(overview?.problems.length ?? 0) > 0 ? " is-warn" : ""}`}>
+            {loading ? "…" : overview?.problems.length ?? 0}
+          </span>
+        </div>
+        {loading ? (
+          <p className="empty">Lade…</p>
+        ) : (overview?.problems.length ?? 0) === 0 ? (
+          <p className="mon-warn-empty">Keine aktiven Warnungen. Die Flotte liegt innerhalb der Schwellen.</p>
+        ) : (
+          <ul className="mon-warn-list">
             {overview!.problems.map((p) => (
               <li key={p.agentId}>
-                <button type="button" className="mon-problem-open" onClick={() => {
-                  if (p.customerId) setCustomerId(p.customerId);
-                  if (p.assetId) setDetailAssetId(p.assetId);
-                }}>
-                  <span className="mon-dot is-warn" aria-hidden />
-                  <div>
-                    <strong>{p.assetName}</strong>
-                    <p className="muted">
-                      {p.customerName} · {deviceIssueText(p)} · {relSeen(p.lastSeenAt)}
-                    </p>
-                  </div>
-                </button>
-                <div className="mon-problem-tickets">
-                  {(p.tickets ?? []).map((t) => (
-                    <Link key={t.ticketId} className="btn btn-ghost btn-sm" to={`/tickets/${t.ticketId}`}>
-                      {t.ticketNumber} · {t.diskId ?? issueLabel[t.kind]}
-                    </Link>
-                  ))}
-                </div>
+                <article className="mon-warn-card">
+                  <button
+                    type="button"
+                    className="mon-warn-card-main"
+                    onClick={() => openProblem(p)}
+                    aria-label={`${p.assetName} öffnen`}
+                  >
+                    <span className="mon-dot is-warn" aria-hidden />
+                    <div className="mon-warn-card-body">
+                      <div className="mon-warn-card-title">
+                        <strong>{p.assetName}</strong>
+                        <span className="muted">{relSeen(p.lastSeenAt)}</span>
+                      </div>
+                      <p className="muted">{p.customerName || "Ohne Kunde"}</p>
+                      <div className="mon-warn-chips">
+                        {deviceIssueChips(p).map((label) => (
+                          <span key={label} className="mon-issue-chip">
+                            {label}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </button>
+                  {(p.tickets ?? []).length > 0 ? (
+                    <div className="mon-warn-tickets">
+                      {(p.tickets ?? []).map((t) => (
+                        <Link key={t.ticketId} className="mon-warn-ticket" to={`/tickets/${t.ticketId}`}>
+                          {t.ticketNumber}
+                          <span>{t.diskId ?? monitoringIssueLabel[t.kind]}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
               </li>
             ))}
           </ul>
-        </section>
-      ) : null}
+        )}
+      </section>
 
       {pending.length > 0 ? (
         <section className="panel mon-panel">
@@ -415,326 +306,49 @@ export function MonitoringPage() {
         </section>
       ) : null}
 
-      <section className="panel mon-panel">
+      <section className="panel mon-panel" id="mon-fleet" aria-label="Kunden">
         <div className="section-head row-between">
           <div>
-            <h2>Kunde</h2>
-            <p>Geräte eines Kunden im Detail</p>
+            <h2>Kunden</h2>
+            <p>Öffnet die Monitoring-Seite des Kunden mit Diagrammen und Geräteliste</p>
           </div>
-          <select
-            className="mon-customer-select"
-            value={customerId}
-            onChange={(e) => {
-              setCustomerId(e.target.value);
-              setDetailAssetId(null);
-            }}
-          >
-            <option value="">Kunde wählen…</option>
-            {(overview?.customers ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          <CustomerPicker
+            className="mon-customer-picker"
+            value=""
+            onChange={openCustomer}
+            allowEmpty
+            emptyLabel="Kunde suchen…"
+            compact
+            placeholder="Kunde suchen…"
+          />
         </div>
 
-        {!customerId ? (
-          <p className="empty">Wähle einen Kunden, um dessen Geräte zu sehen.</p>
-        ) : devices.length === 0 && waitingAssets.length === 0 ? (
+        {loading ? (
+          <p className="empty">Lade…</p>
+        ) : fleetCustomers.length === 0 ? (
           <p className="empty">
-            Keine Monitoring-Geräte. Im Inventar Monitoring aktivieren und den Agenten zuordnen.
+            Noch keine zugeordneten Geräte. Oben einen Agenten zuordnen oder einen Kunden suchen.
           </p>
         ) : (
-          <ul className="mon-device-grid">
-            {devices.map((d) => (
-              <li key={d.agentId}>
-                <button
-                  type="button"
-                  className={`mon-device-card${d.assetId === detailAssetId ? " is-active" : ""}${d.warning ? " is-warn" : ""}`}
-                  onClick={() => d.assetId && setDetailAssetId(d.assetId)}
+          <ul className="mon-customer-grid">
+            {fleetCustomers.map((c) => (
+              <li key={c.customerId}>
+                <Link
+                  className={`mon-customer-card${c.warning > 0 ? " is-warn" : ""}`}
+                  to={customerHref(c.customerId)}
                 >
-                  <span
-                    className={`mon-dot${d.warning ? " is-warn" : d.online ? " is-on" : " is-off"}`}
-                    aria-hidden
-                  />
-                  <strong>{d.assetName}</strong>
-                  <p className="muted">
-                    {d.hostname || d.ipAddress || "–"} · {d.online ? "online" : "offline"}
-                    {d.agentOutdated ? " · Update" : ""}
-                  </p>
-                  <p className="mon-device-metrics">
-                    CPU {pct(d.cpuPercent)} · RAM {pct(d.ramPercent)} · Disk {pct(d.diskUsedPct)}
-                  </p>
-                </button>
-              </li>
-            ))}
-            {waitingAssets.map((a) => (
-              <li key={a.id}>
-                <div className="mon-device-card is-waiting">
-                  <span className="mon-dot" aria-hidden />
-                  <strong>{a.name}</strong>
-                  <p className="muted">wartet auf Agent</p>
-                </div>
+                  <span className={`mon-dot${c.warning > 0 ? " is-warn" : c.offline > 0 ? " is-off" : " is-on"}`} aria-hidden />
+                  <div>
+                    <strong>{c.customerName}</strong>
+                    <p className="muted">{fleetCustomerMeta(c)}</p>
+                  </div>
+                  {c.warning > 0 ? <span className="mon-customer-warn">{c.warning}</span> : null}
+                </Link>
               </li>
             ))}
           </ul>
         )}
       </section>
-
-      {detail ? (
-        <DeviceDetail
-          key={detail.device.assetId ?? detail.device.agentId}
-          detail={detail}
-          rangeDays={rangeDays}
-          onRange={setRangeDays}
-          onSaveAlerts={(cfg) => {
-            if (detail.device.assetId) void saveAlerts(detail.device.assetId, cfg);
-          }}
-          onRequestUpdate={requestAgentUpdate}
-          updateBusy={busyId === detail.device.assetId}
-        />
-      ) : null}
     </div>
-  );
-}
-
-function DeviceDetail({
-  detail,
-  rangeDays,
-  onRange,
-  onSaveAlerts,
-  onRequestUpdate,
-  updateBusy,
-}: {
-  detail: MonitoringDeviceDetail;
-  rangeDays: number;
-  onRange: (days: number) => void;
-  onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
-  onRequestUpdate: () => void;
-  updateBusy: boolean;
-}) {
-  const { device, snapshot, samples } = detail;
-  const pointsCpu = seriesFrom(samples, "cpuPct");
-  const pointsRam = seriesFrom(samples, "ramPct");
-  const pointsDisk = seriesFrom(samples, "diskUsedPct");
-  const [alertConfig, setAlertConfig] = useState(
-    device.alertConfig ?? emptyMonitoringAlertConfig(device.alertEnabled),
-  );
-  const [updateMsg, setUpdateMsg] = useState("");
-
-  return (
-    <section className="panel mon-detail">
-      <div className="section-head row-between">
-        <div>
-          <h2>{device.assetName}</h2>
-          <p>
-            {device.customerName} · {device.hostname || "–"} · {device.ipAddress || "–"} · zuletzt{" "}
-            {relSeen(device.lastSeenAt)}
-          </p>
-        </div>
-        <div className="mon-detail-actions">
-          {device.assetId ? (
-            <Link className="btn btn-ghost btn-sm" to={`/customers/${device.customerId}/assets`}>
-              Inventar
-            </Link>
-          ) : null}
-          {(device.tickets ?? []).map((t) => (
-            <Link key={t.ticketId} className="btn btn-ghost btn-sm" to={`/tickets/${t.ticketId}`}>
-              {t.ticketNumber} · {t.diskId ?? issueLabel[t.kind]}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="mon-detail-toggles">
-        <MonitoringAlertConfigFields
-          value={alertConfig}
-          disks={snapshot?.disks}
-          onChange={(cfg) => {
-            setAlertConfig(cfg);
-            onSaveAlerts(cfg);
-          }}
-        />
-        <div className="mon-range">
-          {[1, 7, 30].map((d) => (
-            <button
-              key={d}
-              type="button"
-              className={`btn btn-sm${rangeDays === d ? " btn-primary" : " btn-ghost"}`}
-              onClick={() => onRange(d)}
-            >
-              {d === 1 ? "24 Std." : `${d} Tage`}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {device.warning ? (
-        <p className="mon-warn-banner">
-          {deviceIssueText(device)}
-        </p>
-      ) : null}
-
-      <div className="mon-kpis-mini">
-        <div>
-          <span>CPU</span>
-          <strong>{pct(device.cpuPercent)}</strong>
-        </div>
-        <div>
-          <span>RAM</span>
-          <strong>{pct(device.ramPercent)}</strong>
-        </div>
-        <div>
-          <span>Datenträger</span>
-          <strong>{pct(device.diskUsedPct)}</strong>
-        </div>
-        <div>
-          <span>Uptime</span>
-          <strong>{formatUptime(device.uptimeSec)}</strong>
-        </div>
-      </div>
-
-      {samples.length < 2 ? (
-        <p className="empty">Noch nicht genug Verlauf für ein Diagramm.</p>
-      ) : (
-        <LineChart
-          yMax={100}
-          ySuffix="%"
-          series={[
-            { label: "CPU", color: "#60a5fa", points: pointsCpu },
-            { label: "RAM", color: "#a78bfa", points: pointsRam },
-            { label: "Datenträger", color: "#34d399", points: pointsDisk },
-          ]}
-        />
-      )}
-
-      <MonitoringHardwarePanel hardware={snapshot?.hardware} />
-
-      {snapshot?.disks?.length ? (
-        <div className="mon-block">
-          <h3>Datenträger</h3>
-          <ul className="mon-disk-list">
-            {snapshot.disks.map((d) => {
-              const id = monitoringDiskId(d);
-              const used = d.totalBytes > 0 ? (d.usedBytes / d.totalBytes) * 100 : 0;
-              const vol = alertConfig.disk.volumes[id];
-              const thresh = vol?.warnUsedPct ?? alertConfig.disk.warnUsedPct ?? 90;
-              const over = Boolean(alertConfig.disk.enabled && (vol?.enabled ?? true) && used >= thresh);
-              return (
-                <li key={id} className={over ? "is-over" : undefined}>
-                  <div className="mon-disk-list-head">
-                    <span>{d.name || id}</span>
-                    <span className="muted">
-                      {formatBytes(d.freeBytes)} frei von {formatBytes(d.totalBytes)} ({Math.round(used)} %{" "}
-                      belegt{over ? ` · Warnung ab ${thresh} %` : ""})
-                    </span>
-                  </div>
-                  <span className="mon-disk-bar" aria-hidden>
-                    <span style={{ width: `${Math.round(used)}%` }} />
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : (
-        <div className="mon-block">
-          <h3>Datenträger</h3>
-          <p className="muted">
-            Keine Laufwerke gemeldet. Agent 1.0.1 oder neuer installieren und kurz warten, bis der
-            nächste Heartbeat ankommt.
-          </p>
-        </div>
-      )}
-
-      {snapshot?.processes?.length ? (
-        <div className="mon-block">
-          <h3>Top-Prozesse</h3>
-          <table className="mon-table">
-            <thead>
-              <tr>
-                <th>Prozess</th>
-                <th>CPU</th>
-                <th>RAM</th>
-              </tr>
-            </thead>
-            <tbody>
-              {snapshot.processes.map((p, i) => (
-                <tr key={`${p.name}-${i}`}>
-                  <td>{p.name}</td>
-                  <td>{pct(p.cpuPercent ?? null)}</td>
-                  <td>{formatBytes(p.rssBytes)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : null}
-
-      {snapshot?.updates ? (
-        <div className="mon-block">
-          <h3>Updates</h3>
-          <p>
-            {snapshot.updates.pendingCount ?? 0} ausstehend
-            {snapshot.updates.lastInstalled ? ` · zuletzt ${snapshot.updates.lastInstalled}` : ""}
-          </p>
-        </div>
-      ) : null}
-
-      {snapshot?.events?.length ? (
-        <div className="mon-block">
-          <h3>Ereignisse</h3>
-          <ul className="mon-event-list">
-            {snapshot.events.map((ev, i) => (
-              <li key={i}>
-                <span className="muted">
-                  {ev.time || ""} {ev.source || ""} {ev.level || ""}
-                </span>
-                <p>{ev.message}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      <div className="mon-agent-update">
-        <p className="muted mon-os-line">
-          {[
-            snapshot?.os,
-            snapshot?.osVersion,
-            snapshot?.arch,
-            device.agentVersion && `Agent ${device.agentVersion}`,
-            device.latestAgentVersion &&
-              (device.agentOutdated
-                ? `aktuell ${device.latestAgentVersion}`
-                : `Paket ${device.latestAgentVersion}`),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-        {device.latestAgentVersion ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={updateBusy || (!device.agentOutdated && !device.updateRequested)}
-            onClick={() => {
-              setUpdateMsg("Update wird beim nächsten Heartbeat geladen (ca. 1 Minute).");
-              onRequestUpdate();
-            }}
-          >
-            {updateBusy
-              ? "…"
-              : device.updateRequested
-                ? "Update angefordert"
-                : device.agentOutdated
-                  ? "Jetzt aktualisieren"
-                  : "Aktuell"}
-          </button>
-        ) : (
-          <p className="muted">Kein Agent-Paket für {device.agentPlatform || "diese Plattform"} in den Einstellungen.</p>
-        )}
-      </div>
-      {updateMsg ? <p className="form-success">{updateMsg}</p> : null}
-    </section>
   );
 }

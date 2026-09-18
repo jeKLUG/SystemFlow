@@ -76,6 +76,26 @@ export function TicketDetailPage() {
     }
   }
 
+  async function onDelete() {
+    if (!ticket) return;
+    if (
+      !window.confirm(
+        `Ticket ${ticket.number} wirklich löschen?\n\nNachrichten und Anhänge werden entfernt. Aufgaben und Zeiteinträge bleiben erhalten.`,
+      )
+    ) {
+      return;
+    }
+    setBusy("delete");
+    setError("");
+    try {
+      await api.deleteTicket(ticket.id);
+      navigate("/tickets");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+      setBusy("");
+    }
+  }
+
   function onStatusChange(next: TicketStatus) {
     if (!ticket) return;
     if ((next === "closed" || next === "resolved") && ticket.status !== next) {
@@ -358,6 +378,14 @@ export function TicketDetailPage() {
           <Link className="btn btn-ghost ticket-side-customer" to={`/customers/${ticket.customerId}`}>
             Zur Kundenakte
           </Link>
+          <button
+            type="button"
+            className="btn btn-danger ticket-side-delete"
+            disabled={busy === "delete"}
+            onClick={() => void onDelete()}
+          >
+            {busy === "delete" ? "Löscht…" : "Ticket löschen"}
+          </button>
         </aside>
       </div>
 

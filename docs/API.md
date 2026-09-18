@@ -48,6 +48,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | GET | `/api/tickets?customerId=&status=&priority=&slaBreached=` | Queue; `status=open_any` = offen/in Bearbeitung/wartet |
 | POST | `/api/tickets` | Anlegen (`customerId`, `title`, `description?` TipTap-JSON, `priority?`, `contractId?`); UI hängt Dateien direkt nach dem Anlegen an |
 | GET/PUT | `/api/tickets/:id` | Detail inkl. Thread/Anhängen; Status/Priorität; beim Wechsel auf `resolved`/`closed` ist `resolution` (TipTap-JSON) Pflicht |
+| DELETE | `/api/tickets/:id` | Ticket löschen (Nachrichten und Anhänge weg; Aufgaben/Zeiten behalten die Verknüpfung nicht, Einträge bleiben) |
 | POST | `/api/tickets/:id/messages` | `{ body, visibility }` – `body` TipTap-JSON oder Klartext, `visibility` public/internal |
 | POST | `/api/tickets/:id/attachments` | Multipart-Upload |
 | GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
@@ -180,7 +181,7 @@ Staff:
 | GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste; Geräte inkl. `agentVersion` / `agentOutdated` |
 | GET | `/api/monitoring/pending` | Unzugeordnete Agenten + zuordbare Assets |
 | POST | `/api/monitoring/pending/:id/assign` | `{ assetId }` – Asset muss `monitoringEnabled` haben und frei sein |
-| GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden |
+| GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden; UI: `/monitoring/customers/:customerId` |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms) |
 | PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }` |
 | POST | `/api/monitoring/devices/:assetId/update-agent` | Sofort-Update: Agent zieht das aktuelle Paket beim nächsten Heartbeat |
