@@ -20,7 +20,7 @@ type LiveDisk = {
 
 const kindMeta: Record<MonitoringIssueKind, { title: string; hint: string }> = {
   offline: { title: "Offline", hint: "Kein Heartbeat seit 2 Minuten" },
-  disk: { title: "Datenträger voll", hint: "Je Laufwerk eigener Schwellwert (Belegt-%)" },
+  disk: { title: "Datenträger voll", hint: "Warnung je Laufwerk über dem Belegt-Wert" },
   cpu: { title: "CPU hoch", hint: "Über 90 % für 5 Minuten" },
   ram: { title: "RAM hoch", hint: "Über 90 % für 5 Minuten" },
   eventlog: { title: "Ereignisprotokoll", hint: "Fehler im Event-Log / Journal" },
@@ -49,9 +49,85 @@ function volumeFor(disk: MonitoringDiskAlert, id: string): MonitoringVolumeAlert
   };
 }
 
+/** Anzahl eingeschalteter Warnungstypen. */
+export function monitoringAlertEnabledCount(cfg: MonitoringAlertConfig): number {
+  return monitoringIssueKinds.filter((kind) => cfg[kind].enabled).length;
+}
+
+/** Kurzlabels der aktiven Warnungen für die Geräteliste. */
+export function monitoringAlertSummary(cfg: MonitoringAlertConfig): string[] {
+  return monitoringIssueKinds.filter((kind) => cfg[kind].enabled).map((kind) => kindMeta[kind].title);
+}
+
+function PrioPicker({
+  value,
+  disabled,
+  label,
+  onChange,
+}: {
+  value: TicketPriority;
+  disabled?: boolean;
+  label: string;
+  onChange: (p: TicketPriority) => void;
+}) {
+  return (
+    <div className="mon-alert-prios" role="group" aria-label={`Ticket-Priorität ${label}`}>
+      <span className="mon-alert-prios-label">Ticket</span>
+      {priorities.map((p) => (
+        <button
+          key={p}
+          type="button"
+          className={`mon-alert-prio is-${p}${value === p ? " is-active" : ""}`}
+          disabled={disabled}
+          onClick={() => onChange(p)}
+        >
+          {ticketPriorityLabel[p]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ThreshField({
+  value,
+  disabled,
+  label,
+  onChange,
+}: {
+  value: number;
+  disabled?: boolean;
+  label: string;
+  onChange: (n: number) => void;
+}) {
+  const n = Math.min(99, Math.max(1, value || 90));
+  return (
+    <label className="mon-alert-thresh">
+      <span>{label}</span>
+      <input
+        type="range"
+        min={1}
+        max={99}
+        disabled={disabled}
+        value={n}
+        onChange={(e) => onChange(Number(e.target.value) || 90)}
+      />
+      <span className="mon-alert-thresh-val">
+        <input
+          type="number"
+          min={1}
+          max={99}
+          disabled={disabled}
+          value={n}
+          onChange={(e) => onChange(Number(e.target.value) || 90)}
+        />
+        %
+      </span>
+    </label>
+  );
+}
+
 /**
- * Pro Warnungstyp: aktivieren und Ticket-Priorität für dieses Gerät wählen.
- * Datenträger: Schwellwert je Laufwerk, sobald der Agent Platten gemeldet hat.
+ * Warnungen je Typ ein/aus und Ticket-Priorität; Datenträger mit Schwellwert je Laufwerk.
  */
 export function MonitoringAlertConfigFields({
   value,
@@ -95,8 +171,7 @@ export function MonitoringAlertConfigFields({
   return (
     <div className="mon-alert-config">
       <p className="mon-alert-config-lead muted">
-        Nur aktivierte Typen erzeugen eine Warnung und ein eigenes Ticket. Datenträger: ein Ticket
-        pro Laufwerk über dem Schwellwert.
+        Eingeschaltete Typen erzeugen eine Warnung und ein eigenes Ticket.
       </p>
       <ul className="mon-alert-list">
         {monitoringIssueKinds.map((kind) => {
@@ -104,50 +179,39 @@ export function MonitoringAlertConfigFields({
           if (kind === "disk") {
             const row = value.disk;
             return (
-              <li key={kind} className={`mon-alert-row mon-alert-row-disk${row.enabled ? "" : " is-off"}`}>
-                <Checkbox
-                  checked={row.enabled}
-                  disabled={disabled}
-                  onChange={(enabled) => patchDisk({ enabled })}
-                  aria-label={meta.title}
-                />
-                <div className="mon-alert-meta">
-                  <strong>{meta.title}</strong>
-                  <span className="muted">{meta.hint}</span>
-                </div>
-                <div className="mon-alert-prios" role="group" aria-label={`Priorität ${meta.title}`}>
-                  {priorities.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      className={`mon-alert-prio is-${p}${row.priority === p ? " is-active" : ""}`}
-                      disabled={disabled || !row.enabled}
-                      onClick={() => patchDisk({ priority: p })}
-                    >
-                      {ticketPriorityLabel[p]}
-                    </button>
-                  ))}
+              <li key={kind} className={`mon-alert-row${row.enabled ? "" : " is-off"}`}>
+                <div className="mon-alert-row-top">
+                  <Checkbox
+                    checked={row.enabled}
+                    disabled={disabled}
+                    onChange={(enabled) => patchDisk({ enabled })}
+                    label={
+                      <span className="mon-alert-meta">
+                        <strong>{meta.title}</strong>
+                        <span className="muted">{meta.hint}</span>
+                      </span>
+                    }
+                  />
+                  {row.enabled ? (
+                    <PrioPicker
+                      value={row.priority}
+                      disabled={disabled}
+                      label={meta.title}
+                      onChange={(priority) => patchDisk({ priority })}
+                    />
+                  ) : null}
                 </div>
                 {row.enabled ? (
                   <div className="mon-disk-alerts">
-                    <label className="mon-disk-default">
-                      <span>Standard, falls kein eigener Wert</span>
-                      <span className="mon-disk-thresh">
-                        <input
-                          type="number"
-                          min={1}
-                          max={99}
-                          disabled={disabled}
-                          value={row.warnUsedPct ?? 90}
-                          onChange={(e) => patchDisk({ warnUsedPct: Number(e.target.value) || 90 })}
-                        />
-                        % belegt
-                      </span>
-                    </label>
+                    <ThreshField
+                      label="Neue Laufwerke ab"
+                      value={row.warnUsedPct ?? 90}
+                      disabled={disabled}
+                      onChange={(warnUsedPct) => patchDisk({ warnUsedPct })}
+                    />
                     {live.length === 0 ? (
                       <p className="muted mon-disk-empty">
-                        Laufwerke erscheinen nach dem nächsten Heartbeat. Dann kannst du je Platte
-                        den Schwellwert setzen.
+                        Laufwerke erscheinen nach dem nächsten Heartbeat.
                       </p>
                     ) : (
                       <ul className="mon-disk-volume-list">
@@ -157,40 +221,38 @@ export function MonitoringAlertConfigFields({
                           const pct = usedPct(d);
                           const over = pct != null && vol.enabled && pct >= vol.warnUsedPct;
                           return (
-                            <li key={id} className={`mon-disk-volume${over ? " is-over" : ""}${vol.enabled ? "" : " is-off"}`}>
+                            <li
+                              key={id}
+                              className={`mon-disk-volume${over ? " is-over" : ""}${vol.enabled ? "" : " is-off"}`}
+                            >
                               <Checkbox
                                 checked={vol.enabled}
                                 disabled={disabled}
                                 onChange={(enabled) => patchVolume(id, { enabled })}
-                                aria-label={`Warnung ${d.name || id}`}
-                              />
-                              <div className="mon-disk-volume-meta">
-                                <strong>{d.name || id}</strong>
-                                <span className="muted">
-                                  {d.totalBytes
-                                    ? `${formatBytes(d.freeBytes)} frei von ${formatBytes(d.totalBytes)}${pct != null ? ` · ${Math.round(pct)} % belegt` : ""}`
-                                    : "aktuell nicht gemeldet"}
-                                </span>
-                                {pct != null ? (
-                                  <span className="mon-disk-bar" aria-hidden>
-                                    <span style={{ width: `${Math.round(pct)}%` }} />
+                                label={
+                                  <span className="mon-disk-volume-meta">
+                                    <strong>{d.name || id}</strong>
+                                    <span className="muted">
+                                      {d.totalBytes
+                                        ? `${formatBytes(d.freeBytes)} frei · ${pct != null ? `${Math.round(pct)} % belegt` : ""}`
+                                        : "aktuell nicht gemeldet"}
+                                    </span>
+                                    {pct != null ? (
+                                      <span className="mon-disk-bar" aria-hidden>
+                                        <span style={{ width: `${Math.round(pct)}%` }} />
+                                      </span>
+                                    ) : null}
                                   </span>
-                                ) : null}
-                              </div>
-                              <label className="mon-disk-thresh">
-                                ab
-                                <input
-                                  type="number"
-                                  min={1}
-                                  max={99}
-                                  disabled={disabled || !vol.enabled}
+                                }
+                              />
+                              {vol.enabled ? (
+                                <ThreshField
+                                  label="Warnen ab"
                                   value={vol.warnUsedPct}
-                                  onChange={(e) =>
-                                    patchVolume(id, { warnUsedPct: Number(e.target.value) || row.warnUsedPct })
-                                  }
+                                  disabled={disabled}
+                                  onChange={(warnUsedPct) => patchVolume(id, { warnUsedPct })}
                                 />
-                                %
-                              </label>
+                              ) : null}
                             </li>
                           );
                         })}
@@ -205,28 +267,26 @@ export function MonitoringAlertConfigFields({
           const row = value[kind];
           return (
             <li key={kind} className={`mon-alert-row${row.enabled ? "" : " is-off"}`}>
-              <Checkbox
-                checked={row.enabled}
-                disabled={disabled}
-                onChange={(enabled) => patch(kind, { enabled })}
-                aria-label={meta.title}
-              />
-              <div className="mon-alert-meta">
-                <strong>{meta.title}</strong>
-                <span className="muted">{meta.hint}</span>
-              </div>
-              <div className="mon-alert-prios" role="group" aria-label={`Priorität ${meta.title}`}>
-                {priorities.map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    className={`mon-alert-prio is-${p}${row.priority === p ? " is-active" : ""}`}
-                    disabled={disabled || !row.enabled}
-                    onClick={() => patch(kind, { priority: p })}
-                  >
-                    {ticketPriorityLabel[p]}
-                  </button>
-                ))}
+              <div className="mon-alert-row-top">
+                <Checkbox
+                  checked={row.enabled}
+                  disabled={disabled}
+                  onChange={(enabled) => patch(kind, { enabled })}
+                  label={
+                    <span className="mon-alert-meta">
+                      <strong>{meta.title}</strong>
+                      <span className="muted">{meta.hint}</span>
+                    </span>
+                  }
+                />
+                {row.enabled ? (
+                  <PrioPicker
+                    value={row.priority}
+                    disabled={disabled}
+                    label={meta.title}
+                    onChange={(priority) => patch(kind, { priority })}
+                  />
+                ) : null}
               </div>
             </li>
           );

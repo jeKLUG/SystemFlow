@@ -3,15 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerPicker } from "../../components/CustomerPicker";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
+import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
 import {
   deviceIssueChips,
-  fleetCustomerMeta,
-  monitoringIssueLabel,
   relSeen,
 } from "../../lib/monitoringUi";
 import type {
   MonitoringAssignableAsset,
-  MonitoringDeviceSummary,
   MonitoringOverview,
   MonitoringPendingAgent,
 } from "../../types";
@@ -79,10 +77,6 @@ export function MonitoringPage() {
   function openCustomer(nextId: string) {
     if (!nextId) return;
     navigate(customerHref(nextId));
-  }
-
-  function openProblem(p: MonitoringDeviceSummary) {
-    if (p.customerId) navigate(customerHref(p.customerId, p.assetId));
   }
 
   async function assign(agentId: string) {
@@ -203,7 +197,7 @@ export function MonitoringPage() {
         <div className="section-head row-between">
           <div>
             <h2>Aktive Warnungen</h2>
-            <p>Klick öffnet die Kundenseite und das Gerät</p>
+            <p>Zum Kunden, Gerät oder Ticket springen</p>
           </div>
           <span className={`mon-count-badge${(overview?.problems.length ?? 0) > 0 ? " is-warn" : ""}`}>
             {loading ? "…" : overview?.problems.length ?? 0}
@@ -214,43 +208,19 @@ export function MonitoringPage() {
         ) : (overview?.problems.length ?? 0) === 0 ? (
           <p className="mon-warn-empty">Keine aktiven Warnungen. Die Flotte liegt innerhalb der Schwellen.</p>
         ) : (
-          <ul className="mon-warn-list">
+          <ul className="mon-alert-feed">
             {overview!.problems.map((p) => (
               <li key={p.agentId}>
-                <article className="mon-warn-card">
-                  <button
-                    type="button"
-                    className="mon-warn-card-main"
-                    onClick={() => openProblem(p)}
-                    aria-label={`${p.assetName} öffnen`}
-                  >
-                    <span className="mon-dot is-warn" aria-hidden />
-                    <div className="mon-warn-card-body">
-                      <div className="mon-warn-card-title">
-                        <strong>{p.assetName}</strong>
-                        <span className="muted">{relSeen(p.lastSeenAt)}</span>
-                      </div>
-                      <p className="muted">{p.customerName || "Ohne Kunde"}</p>
-                      <div className="mon-warn-chips">
-                        {deviceIssueChips(p).map((label) => (
-                          <span key={label} className="mon-issue-chip">
-                            {label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </button>
-                  {(p.tickets ?? []).length > 0 ? (
-                    <div className="mon-warn-tickets">
-                      {(p.tickets ?? []).map((t) => (
-                        <Link key={t.ticketId} className="mon-warn-ticket" to={`/tickets/${t.ticketId}`}>
-                          {t.ticketNumber}
-                          <span>{t.diskId ?? monitoringIssueLabel[t.kind]}</span>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
-                </article>
+                <MonitoringAlertItem
+                  title={p.assetName}
+                  subtitle={p.customerName || "Ohne Kunde"}
+                  kindLabel="Warnung"
+                  tone="warn"
+                  chips={deviceIssueChips(p)}
+                  seen={relSeen(p.lastSeenAt)}
+                  tickets={p.tickets}
+                  href={p.customerId ? customerHref(p.customerId, p.assetId) : undefined}
+                />
               </li>
             ))}
           </ul>
@@ -310,7 +280,7 @@ export function MonitoringPage() {
         <div className="section-head row-between">
           <div>
             <h2>Kunden</h2>
-            <p>Öffnet die Monitoring-Seite des Kunden mit Diagrammen und Geräteliste</p>
+            <p>Monitoring-Seite mit Diagrammen und Geräten</p>
           </div>
           <CustomerPicker
             className="mon-customer-picker"
@@ -330,22 +300,47 @@ export function MonitoringPage() {
             Noch keine zugeordneten Geräte. Oben einen Agenten zuordnen oder einen Kunden suchen.
           </p>
         ) : (
-          <ul className="mon-customer-grid">
-            {fleetCustomers.map((c) => (
-              <li key={c.customerId}>
-                <Link
-                  className={`mon-customer-card${c.warning > 0 ? " is-warn" : ""}`}
-                  to={customerHref(c.customerId)}
-                >
-                  <span className={`mon-dot${c.warning > 0 ? " is-warn" : c.offline > 0 ? " is-off" : " is-on"}`} aria-hidden />
-                  <div>
-                    <strong>{c.customerName}</strong>
-                    <p className="muted">{fleetCustomerMeta(c)}</p>
-                  </div>
-                  {c.warning > 0 ? <span className="mon-customer-warn">{c.warning}</span> : null}
-                </Link>
-              </li>
-            ))}
+          <ul className="mon-customer-feed">
+            {fleetCustomers.map((c) => {
+              const total = c.online + c.offline;
+              const tone = c.warning > 0 ? "warn" : c.offline > 0 ? "off" : "ok";
+              return (
+                <li key={c.customerId}>
+                  <Link className={`mon-customer-row is-${tone}`} to={customerHref(c.customerId)}>
+                    <span
+                      className={`mon-dot${tone === "warn" ? " is-warn" : tone === "off" ? " is-off" : " is-on"}`}
+                      aria-hidden
+                    />
+                    <div className="mon-customer-row-copy">
+                      <span className="mon-customer-row-kind">
+                        {tone === "warn" ? "Warnung" : tone === "off" ? "Offline" : "Online"}
+                      </span>
+                      <strong>{c.customerName}</strong>
+                    </div>
+                    <dl className="mon-customer-row-stats">
+                      <div>
+                        <dt>Geräte</dt>
+                        <dd>{total}</dd>
+                      </div>
+                      <div>
+                        <dt>Online</dt>
+                        <dd>{c.online}</dd>
+                      </div>
+                      {c.offline > 0 ? (
+                        <div>
+                          <dt>Offline</dt>
+                          <dd>{c.offline}</dd>
+                        </div>
+                      ) : null}
+                      <div className={c.warning > 0 ? "is-warn" : undefined}>
+                        <dt>Warnungen</dt>
+                        <dd>{c.warning}</dd>
+                      </div>
+                    </dl>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

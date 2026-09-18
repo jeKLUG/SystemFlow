@@ -39,6 +39,13 @@ function memoryTypeLabel(raw?: string): string | null {
   return raw.replace(/^Type\s+/i, "").trim() || null;
 }
 
+function formatBiosDate(raw?: string): string | null {
+  if (!raw?.trim()) return null;
+  const m = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  return raw.trim();
+}
+
 function formatClock(mhz?: number): string | null {
   if (!mhz || !Number.isFinite(mhz)) return null;
   if (mhz >= 1000) {
@@ -134,8 +141,12 @@ export function MonitoringHardwarePanel({
 }) {
   const sysName = hardware ? systemTitle(hardware.system) : "";
   const sysLine = joinParts([hardware?.system?.manufacturer, hardware?.system?.model]);
-  const board = joinParts([hardware?.board?.manufacturer, hardware?.board?.product]);
-  const bios = joinParts([hardware?.bios?.vendor, hardware?.bios?.version, hardware?.bios?.date]);
+  const boardName = hardware?.board?.product?.trim() || "";
+  const boardMaker = hardware?.board?.manufacturer?.trim() || "";
+  const boardSerial = hardware?.board?.serial?.trim() || "";
+  const biosVersion = hardware?.bios?.version?.trim() || "";
+  const biosDate = formatBiosDate(hardware?.bios?.date);
+  const systemSerial = hardware?.system?.serial?.trim() || "";
   const cpus = hardware?.cpus ?? [];
   const ramModules = hardware?.memoryModules ?? [];
   const ramGroups = ramModules.length ? groupRam(ramModules) : [];
@@ -145,7 +156,16 @@ export function MonitoringHardwarePanel({
   const nics = hardware?.nics ?? [];
   const hasHw = Boolean(
     hardware &&
-      (sysName || board || bios || cpus.length || ramModules.length || storage.length || gpus.length || nics.length),
+      (sysName ||
+        boardName ||
+        boardSerial ||
+        biosVersion ||
+        systemSerial ||
+        cpus.length ||
+        ramModules.length ||
+        storage.length ||
+        gpus.length ||
+        nics.length),
   );
   const hasLive = Boolean((disks?.length ?? 0) > 0 || (processes?.length ?? 0) > 0 || updates);
 
@@ -193,25 +213,50 @@ export function MonitoringHardwarePanel({
   return (
     <div className="mon-hw">
       {hasHw ? (
-        <div className="mon-hw-identity">
-          <div>
-            <h3>Ausstattung</h3>
-            <p className="mon-hw-model">{sysName || "Unbekanntes System"}</p>
-            {sysLine && sysLine !== sysName ? <p className="muted">{sysLine}</p> : null}
+        <section className="mon-hw-hero">
+          <div className="mon-hw-hero-top">
+            <div>
+              <p className="eyebrow">Ausstattung</p>
+              <h3 className="mon-hw-model">{sysName || "Unbekanntes System"}</h3>
+              {sysLine && sysLine !== sysName ? <p className="muted">{sysLine}</p> : null}
+            </div>
+            {updates?.pendingCount ? (
+              <span className="mon-hw-update-pill">{updates.pendingCount} Updates</span>
+            ) : null}
           </div>
-          <ul className="mon-hw-tags">
-            {hardware?.system?.serial ? <li>SN {hardware.system.serial}</li> : null}
-            {board ? <li>{board}</li> : null}
-            {hardware?.board?.serial ? <li>Board {hardware.board.serial}</li> : null}
-            {bios ? <li>BIOS {bios}</li> : null}
-            {updates?.pendingCount ? <li className="is-warn">{updates.pendingCount} Updates</li> : null}
-          </ul>
-        </div>
-      ) : (
-        <h3>Gerät</h3>
-      )}
-
-      <div className="mon-hw-cards">
+          {systemSerial || boardName || boardSerial || biosVersion ? (
+            <dl className="mon-hw-specs">
+              {systemSerial ? (
+                <div>
+                  <dt>Seriennummer</dt>
+                  <dd>{systemSerial}</dd>
+                </div>
+              ) : null}
+              {boardName || boardMaker ? (
+                <div>
+                  <dt>Mainboard</dt>
+                  <dd>{boardName || boardMaker}</dd>
+                  {boardName && boardMaker && boardMaker.toLowerCase() !== hardware?.system?.manufacturer?.toLowerCase() ? (
+                    <dd className="muted">{boardMaker}</dd>
+                  ) : null}
+                </div>
+              ) : null}
+              {boardSerial ? (
+                <div>
+                  <dt>Board-SN</dt>
+                  <dd>{boardSerial}</dd>
+                </div>
+              ) : null}
+              {biosVersion || biosDate ? (
+                <div>
+                  <dt>BIOS</dt>
+                  <dd>{biosVersion || biosDate}</dd>
+                  {biosVersion && biosDate ? <dd className="muted">{biosDate}</dd> : null}
+                </div>
+              ) : null}
+            </dl>
+          ) : null}
+          <div className="mon-hw-cards">
         {cpu ? (
           <HwCard
             label="CPU"
@@ -249,6 +294,10 @@ export function MonitoringHardwarePanel({
           />
         ) : null}
       </div>
+        </section>
+      ) : (
+        <h3>Gerät</h3>
+      )}
 
       {disks?.length ? (
         <div className="mon-hw-section">

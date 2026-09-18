@@ -4,7 +4,11 @@ import { api } from "../../api";
 import { AssetFacts } from "../../components/AssetFacts";
 import { AssetTypeFields } from "../../components/AssetTypeFields";
 import { Checkbox } from "../../components/Checkbox";
-import { MonitoringAlertConfigFields } from "../../components/MonitoringAlertConfigFields";
+import {
+  MonitoringAlertConfigFields,
+  monitoringAlertEnabledCount,
+  monitoringAlertSummary,
+} from "../../components/MonitoringAlertConfigFields";
 import { Modal } from "../../components/Modal";
 import {
   assetKindDetailRows,
@@ -204,6 +208,7 @@ export function CustomerAssetsPage() {
   const [statusFilter, setStatusFilter] = useState<"all" | AssetStatus>("all");
   const [groupByKind, setGroupByKind] = useState(true);
   const [error, setError] = useState("");
+  const [alertFieldsOpen, setAlertFieldsOpen] = useState(false);
 
   async function reload() {
     setAssetList(await api.assets(id));
@@ -224,6 +229,7 @@ export function CustomerAssetsPage() {
     setFormMode(null);
     setEditingId(null);
     setAssetForm(emptyAsset);
+    setAlertFieldsOpen(false);
     setError("");
   }
 
@@ -232,6 +238,7 @@ export function CustomerAssetsPage() {
     setEditingId(null);
     setAssetForm(emptyAsset);
     setFormMode("create");
+    setAlertFieldsOpen(false);
     setError("");
   }
 
@@ -240,6 +247,7 @@ export function CustomerAssetsPage() {
     setEditingId(asset.id);
     setAssetForm(assetToForm(asset));
     setFormMode("edit");
+    setAlertFieldsOpen(false);
     setError("");
   }
 
@@ -704,11 +712,30 @@ export function CustomerAssetsPage() {
                 />
               </div>
               {assetForm.monitoringEnabled ? (
-                <div className="asset-form-span-2">
-                  <MonitoringAlertConfigFields
-                    value={assetForm.monitoringAlerts}
-                    onChange={(monitoringAlerts) => setAssetForm({ ...assetForm, monitoringAlerts })}
-                  />
+                <div className="asset-form-span-2 mon-alert-form">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => setAlertFieldsOpen((open) => !open)}
+                  >
+                    Warnungen konfigurieren
+                    {monitoringAlertEnabledCount(assetForm.monitoringAlerts) ? (
+                      <span className="mon-alert-btn-count">
+                        {monitoringAlertEnabledCount(assetForm.monitoringAlerts)}
+                      </span>
+                    ) : null}
+                  </button>
+                  <p className="muted">
+                    {monitoringAlertEnabledCount(assetForm.monitoringAlerts)
+                      ? monitoringAlertSummary(assetForm.monitoringAlerts).join(" · ")
+                      : "Keine Warnungen aktiv"}
+                  </p>
+                  {alertFieldsOpen ? (
+                    <MonitoringAlertConfigFields
+                      value={assetForm.monitoringAlerts}
+                      onChange={(monitoringAlerts) => setAssetForm({ ...assetForm, monitoringAlerts })}
+                    />
+                  ) : null}
                 </div>
               ) : null}
             </div>

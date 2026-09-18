@@ -29,15 +29,6 @@ export function deviceIssueText(d: {
   return deviceIssueChips(d).join(", ");
 }
 
-export function fleetCustomerMeta(c: { online: number; offline: number; warning: number }): string {
-  const total = c.online + c.offline;
-  const parts = [`${total} ${total === 1 ? "Gerät" : "Geräte"}`];
-  if (c.warning) parts.push(`${c.warning} ${c.warning === 1 ? "Warnung" : "Warnungen"}`);
-  else if (c.offline) parts.push(`${c.offline} offline`);
-  else parts.push("online");
-  return parts.join(" · ");
-}
-
 export function sampleTime(ts: string | number | Date): number {
   if (typeof ts === "number") return ts;
   if (ts instanceof Date) return ts.getTime();

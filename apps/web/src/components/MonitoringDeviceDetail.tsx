@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LineChart } from "./DashCharts";
-import { MonitoringAlertConfigFields } from "./MonitoringAlertConfigFields";
+import { Modal } from "./Modal";
+import {
+  MonitoringAlertConfigFields,
+  monitoringAlertEnabledCount,
+  monitoringAlertSummary,
+} from "./MonitoringAlertConfigFields";
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import {
   deviceIssueText,
@@ -42,7 +47,10 @@ export function MonitoringDeviceDetail({
   const [alertConfig, setAlertConfig] = useState(
     device.alertConfig ?? emptyMonitoringAlertConfig(device.alertEnabled),
   );
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
+  const alertCount = monitoringAlertEnabledCount(alertConfig);
+  const alertLabels = monitoringAlertSummary(alertConfig);
 
   return (
     <section className="panel mon-detail" id="mon-device-detail">
@@ -70,18 +78,19 @@ export function MonitoringDeviceDetail({
               {t.ticketNumber} · {t.diskId ?? monitoringIssueLabel[t.kind]}
             </Link>
           ))}
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAlertsOpen(true)}>
+            Warnungen konfigurieren
+            {alertCount ? <span className="mon-alert-btn-count">{alertCount}</span> : null}
+          </button>
         </div>
       </div>
 
       <div className="mon-detail-toggles">
-        <MonitoringAlertConfigFields
-          value={alertConfig}
-          disks={snapshot?.disks}
-          onChange={(cfg) => {
-            setAlertConfig(cfg);
-            onSaveAlerts(cfg);
-          }}
-        />
+        <p className="mon-alert-summary muted">
+          {alertCount
+            ? `${alertCount} ${alertCount === 1 ? "Warnung aktiv" : "Warnungen aktiv"}: ${alertLabels.join(" · ")}`
+            : "Keine Warnungen aktiv – das Gerät erzeugt keine Tickets."}
+        </p>
         <div className="mon-range">
           {[1, 7, 30].map((d) => (
             <button
@@ -95,6 +104,22 @@ export function MonitoringDeviceDetail({
           ))}
         </div>
       </div>
+
+      <Modal
+        open={alertsOpen}
+        title="Warnungen konfigurieren"
+        onClose={() => setAlertsOpen(false)}
+        className="modal-wide mon-alert-modal"
+      >
+        <MonitoringAlertConfigFields
+          value={alertConfig}
+          disks={snapshot?.disks}
+          onChange={(cfg) => {
+            setAlertConfig(cfg);
+            onSaveAlerts(cfg);
+          }}
+        />
+      </Modal>
 
       {device.warning ? <p className="mon-warn-banner">{deviceIssueText(device)}</p> : null}
 

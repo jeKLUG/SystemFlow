@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
+import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
 import { MonitoringDeviceDetail } from "../../components/MonitoringDeviceDetail";
 import {
   deviceIssueChips,
@@ -146,22 +147,39 @@ export function MonitoringCustomerPage() {
   }, [devices]);
 
   const messages = useMemo(() => {
-    const rows: { key: string; tone: "warn" | "off" | "info"; title: string; text: string; href?: string }[] = [];
+    const rows: {
+      key: string;
+      tone: "warn" | "off" | "info";
+      kindLabel: string;
+      title: string;
+      subtitle?: string | null;
+      chips: string[];
+      seen?: string;
+      href?: string;
+      tickets?: MonitoringDeviceSummary["tickets"];
+    }[] = [];
     for (const d of devices.filter((x) => x.warning)) {
       rows.push({
         key: `warn-${d.agentId}`,
         tone: "warn",
+        kindLabel: "Warnung",
         title: d.assetName,
-        text: `${deviceIssueChips(d).join(" · ")} · ${relSeen(d.lastSeenAt)}`,
+        subtitle: d.hostname || d.ipAddress,
+        chips: deviceIssueChips(d),
+        seen: relSeen(d.lastSeenAt),
         href: d.assetId ? customerPath(customerId, d.assetId) : undefined,
+        tickets: d.tickets,
       });
     }
     for (const d of devices.filter((x) => !x.online && !x.warning)) {
       rows.push({
         key: `off-${d.agentId}`,
         tone: "off",
+        kindLabel: "Offline",
         title: d.assetName,
-        text: `Offline · zuletzt ${relSeen(d.lastSeenAt)}`,
+        subtitle: d.hostname || d.ipAddress,
+        chips: ["Kein Heartbeat"],
+        seen: relSeen(d.lastSeenAt),
         href: d.assetId ? customerPath(customerId, d.assetId) : undefined,
       });
     }
@@ -169,8 +187,11 @@ export function MonitoringCustomerPage() {
       rows.push({
         key: `upd-${d.agentId}`,
         tone: "info",
+        kindLabel: "Agent",
         title: d.assetName,
-        text: `Agent ${d.agentVersion || "?"} · Paket ${d.latestAgentVersion}`,
+        subtitle: d.hostname || d.ipAddress,
+        chips: d.latestAgentVersion ? [`Update ${d.latestAgentVersion}`] : ["Update"],
+        seen: relSeen(d.lastSeenAt),
         href: d.assetId ? customerPath(customerId, d.assetId) : undefined,
       });
     }
@@ -178,8 +199,10 @@ export function MonitoringCustomerPage() {
       rows.push({
         key: `wait-${a.id}`,
         tone: "info",
+        kindLabel: "Inventar",
         title: a.name,
-        text: a.hostname ? `${a.hostname} · wartet auf Agent` : "Wartet auf Agent",
+        subtitle: a.hostname,
+        chips: ["Wartet auf Agent"],
       });
     }
     return rows;
@@ -360,7 +383,7 @@ export function MonitoringCustomerPage() {
         <div className="section-head row-between">
           <div>
             <h2>Aktuelle Meldungen</h2>
-            <p>Warnungen, Offline-Geräte und ausstehende Agenten</p>
+            <p>Zum Gerät oder Ticket springen</p>
           </div>
           <span className={`mon-count-badge${messages.length > 0 ? " is-warn" : ""}`}>
             {loading ? "…" : messages.length}
@@ -371,29 +394,21 @@ export function MonitoringCustomerPage() {
         ) : messages.length === 0 ? (
           <p className="mon-warn-empty">Keine offenen Meldungen. Die Geräte liegen innerhalb der Schwellen.</p>
         ) : (
-          <ul className="mon-cust-messages">
-            {messages.map((m) => {
-              const inner = (
-                <>
-                  <span className={`mon-dot${m.tone === "warn" ? " is-warn" : m.tone === "off" ? " is-off" : ""}`} aria-hidden />
-                  <div>
-                    <strong>{m.title}</strong>
-                    <p className="muted">{m.text}</p>
-                  </div>
-                </>
-              );
-              return (
-                <li key={m.key} className={`mon-cust-message is-${m.tone}`}>
-                  {m.href ? (
-                    <Link className="mon-cust-message-main" to={m.href}>
-                      {inner}
-                    </Link>
-                  ) : (
-                    <div className="mon-cust-message-main">{inner}</div>
-                  )}
-                </li>
-              );
-            })}
+          <ul className="mon-alert-feed">
+            {messages.map((m) => (
+              <li key={m.key}>
+                <MonitoringAlertItem
+                  title={m.title}
+                  subtitle={m.subtitle}
+                  kindLabel={m.kindLabel}
+                  tone={m.tone}
+                  chips={m.chips}
+                  seen={m.seen}
+                  tickets={m.tickets}
+                  href={m.href}
+                />
+              </li>
+            ))}
           </ul>
         )}
       </section>

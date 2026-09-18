@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.159 – 2026-09-18
+
+- Monitoring: Kunden als volle Zeilen mit Status, Geräten, Online/Offline und Warnungen statt schmaler Kacheln
+
+## 1.5.158 – 2026-09-18
+
+- Monitoring: aktive Warnungen und aktuelle Meldungen als volle Zeilen mit Typ, Chip und Ticket
+
+## 1.5.157 – 2026-09-18
+
+- Monitoring: Ausstattung als Modellkopf mit beschrifteten Specs statt Chip-Wolke
+
+## 1.5.156 – 2026-09-18
+
+- Monitoring: Warnungen hinter „Warnungen konfigurieren“; Schalter und Schwellwert-Slider statt langer Liste
+
 ## 1.5.155 – 2026-09-18
 
 - Monitoring: Geräteausstattung als Überblickskarten (CPU, RAM, Speicher, Netz) statt Tabellen
