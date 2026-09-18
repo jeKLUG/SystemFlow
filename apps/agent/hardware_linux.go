@@ -169,9 +169,29 @@ func linuxStorage() []HardwareStorage {
 			SizeBytes: anyToUint(d.Size),
 			Bus:       cleanHW(d.Tran),
 			Media:     media,
+			Health:    linuxDiskHealth(d.Name),
 		})
 	}
 	return storage
+}
+
+func linuxDiskHealth(name string) string {
+	if name == "" {
+		return ""
+	}
+	out, err := exec.Command("smartctl", "-H", "-n", "standby", "/dev/"+name).Output()
+	if err != nil && len(out) == 0 {
+		return ""
+	}
+	low := strings.ToLower(string(out))
+	switch {
+	case strings.Contains(low, "passed"):
+		return "ok"
+	case strings.Contains(low, "failed"):
+		return "fail"
+	default:
+		return ""
+	}
 }
 
 func linuxGPUs() []HardwareGPU {

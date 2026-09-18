@@ -45,6 +45,7 @@ type EventSnapshot struct {
 type UpdateSnapshot struct {
 	PendingCount  int     `json:"pendingCount"`
 	LastInstalled *string `json:"lastInstalled"`
+	RebootPending bool    `json:"rebootPending,omitempty"`
 }
 
 type AgentSnapshot struct {
@@ -64,9 +65,13 @@ type AgentSnapshot struct {
 	Disks        []DiskSnapshot    `json:"disks,omitempty"`
 	NICs         []NicSnapshot     `json:"nics,omitempty"`
 	Processes    []ProcessSnapshot `json:"processes,omitempty"`
-	Updates      *UpdateSnapshot   `json:"updates,omitempty"`
-	Events       []EventSnapshot   `json:"events,omitempty"`
+	Updates      *UpdateSnapshot    `json:"updates,omitempty"`
+	Events       []EventSnapshot    `json:"events,omitempty"`
 	Hardware     *HardwareInventory `json:"hardware,omitempty"`
+	Session      *SessionSnapshot   `json:"session,omitempty"`
+	Network      *NetworkSnapshot   `json:"network,omitempty"`
+	Services     []ServiceSnapshot  `json:"services,omitempty"`
+	Software     []SoftwareSnapshot `json:"software,omitempty"`
 }
 
 func goosName() string {
@@ -150,9 +155,21 @@ func collectSnapshot() (AgentSnapshot, error) {
 	}
 
 	snap.Processes = topProcesses(10)
-	snap.Updates = collectUpdates()
+	updates := collectUpdates()
+	if updates == nil {
+		updates = &UpdateSnapshot{}
+	} else {
+		cp := *updates
+		updates = &cp
+	}
+	updates.RebootPending = collectRebootPending()
+	snap.Updates = updates
 	snap.Events = collectEvents()
 	snap.Hardware = collectHardwareCached()
+	snap.Session = collectSession()
+	snap.Network = collectNetwork()
+	snap.Services = collectFailedServices()
+	snap.Software = collectSoftwareCached()
 	return snap, nil
 }
 

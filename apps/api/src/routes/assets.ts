@@ -96,6 +96,9 @@ const assetBody = z.object({
       ram: kindAlertBody,
       eventlog: kindAlertBody,
       updates: kindAlertBody,
+      smart: kindAlertBody.optional(),
+      services: kindAlertBody.optional(),
+      reboot: kindAlertBody.optional(),
     })
     .optional(),
 });

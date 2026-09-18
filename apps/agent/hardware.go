@@ -48,12 +48,13 @@ type HardwareMemoryModule struct {
 }
 
 type HardwareStorage struct {
-	Name   string `json:"name,omitempty"`
-	Model  string `json:"model,omitempty"`
-	Serial string `json:"serial,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Model     string `json:"model,omitempty"`
+	Serial    string `json:"serial,omitempty"`
 	SizeBytes uint64 `json:"sizeBytes,omitempty"`
-	Bus    string `json:"bus,omitempty"`
-	Media  string `json:"media,omitempty"`
+	Bus       string `json:"bus,omitempty"`
+	Media     string `json:"media,omitempty"`
+	Health    string `json:"health,omitempty"`
 }
 
 type HardwareGPU struct {

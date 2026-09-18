@@ -619,6 +619,9 @@ export const monitoringIssueKinds = [
   "ram",
   "eventlog",
   "updates",
+  "smart",
+  "services",
+  "reboot",
 ] as const;
 export type MonitoringIssueKind = (typeof monitoringIssueKinds)[number];
 

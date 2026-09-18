@@ -19286,6 +19286,77 @@ div.mon-alert-item-main {
   border: 1px solid rgba(248, 113, 113, 0.38);
 }
 
+.mon-hw-update-pill.is-reboot {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.14);
+  border-color: rgba(251, 191, 36, 0.42);
+}
+
+.mon-hw-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.mon-hw-user {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #93c5fd;
+}
+
+.mon-hw-health {
+  display: inline-flex;
+  align-items: center;
+  max-width: 12rem;
+  min-height: 1.4rem;
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.mon-hw-health.is-ok {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.32);
+}
+
+.mon-hw-health.is-warn {
+  color: #fde68a;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+}
+
+.mon-hw-health.is-fail {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.14);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+.mon-hw-health.is-info {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.32);
+}
+
+.mon-hw-net-cards {
+  margin-bottom: 0.55rem;
+}
+
+.mon-hw-dhcp {
+  margin: 0.15rem 0 0.35rem;
+  font-size: 0.85rem;
+}
+
 .mon-hw-specs {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
@@ -19383,7 +19454,8 @@ div.mon-alert-item-main {
 .mon-hw-disks,
 .mon-hw-nics,
 .mon-hw-procs,
-.mon-hw-quiet {
+.mon-hw-quiet,
+.mon-hw-soft {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -19446,6 +19518,95 @@ div.mon-alert-item-main {
 .mon-hw-procs .mon-meter {
   grid-area: bar;
   margin-top: 0.12rem;
+}
+
+.mon-hw-services li {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-areas: "name ram cpu";
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  background: rgba(248, 113, 113, 0.06);
+}
+
+.mon-hw-soft-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.mon-hw-soft-head h4 {
+  margin: 0;
+}
+
+.mon-hw-soft-head .muted {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.mon-hw-soft-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.7rem;
+}
+
+.mon-hw-soft-tools input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  height: 2.15rem;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 13, 22, 0.55);
+  color: inherit;
+}
+
+.mon-hw-soft-filters {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.mon-hw-soft-filter {
+  height: 2.15rem;
+  padding: 0 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.mon-hw-soft-filter.is-active {
+  color: #dbeafe;
+  background: rgba(59, 130, 246, 0.16);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.mon-hw-soft li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(15, 23, 42, 0.28);
+}
+
+.mon-hw-soft li strong {
+  display: block;
+  font-size: 0.9rem;
+}
+
+.mon-hw-soft li p {
+  margin: 0.12rem 0 0;
+  font-size: 0.78rem;
 }
 
 .mon-os-line {
@@ -19695,6 +19856,15 @@ div.mon-alert-item-main {
 
   .mon-hw-hero-top {
     flex-direction: column;
+  }
+
+  .mon-hw-pills {
+    justify-content: flex-start;
+  }
+
+  .mon-hw-soft li {
+    flex-direction: column;
+    align-items: flex-start;
   }
 
   .mon-hw-specs {

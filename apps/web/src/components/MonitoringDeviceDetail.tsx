@@ -195,6 +195,13 @@ export function MonitoringDeviceDetail({
         }
         processes={snapshot?.processes}
         updates={snapshot?.updates}
+        session={snapshot?.session}
+        network={snapshot?.network}
+        ip={snapshot?.ip}
+        ips={snapshot?.ips}
+        services={snapshot?.services}
+        software={snapshot?.software}
+        customerId={device.customerId}
       />
 
       {snapshot?.events?.length ? (

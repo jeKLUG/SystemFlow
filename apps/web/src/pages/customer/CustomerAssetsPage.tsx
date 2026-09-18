@@ -174,6 +174,9 @@ const monitoringKindPreviewLabel: Record<string, string> = {
   ram: "RAM",
   eventlog: "Ereignisse",
   updates: "Updates",
+  smart: "SMART",
+  services: "Dienste",
+  reboot: "Neustart",
 };
 
 function monitoringAlertPreview(asset: Asset): PreviewRow | null {

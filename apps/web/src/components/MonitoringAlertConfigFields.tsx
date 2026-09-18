@@ -25,6 +25,9 @@ const kindMeta: Record<MonitoringIssueKind, { title: string; hint: string }> = {
   ram: { title: "RAM hoch", hint: "Über 90 % für 5 Minuten" },
   eventlog: { title: "Ereignisprotokoll", hint: "Fehler im Event-Log / Journal" },
   updates: { title: "Updates ausstehend", hint: "Mindestens ein ausstehendes Update" },
+  smart: { title: "Datenträger-Gesundheit", hint: "SMART / HealthStatus Warnung oder Fehler" },
+  services: { title: "Dienste fehlgeschlagen", hint: "Auto-Start-Dienst läuft nicht" },
+  reboot: { title: "Neustart ausstehend", hint: "Nach Updates oder Dateioperationen" },
 };
 
 const priorities: TicketPriority[] = ["low", "normal", "high", "critical"];

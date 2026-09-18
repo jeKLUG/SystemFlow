@@ -7,6 +7,9 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   ram: "RAM",
   eventlog: "Ereignisse",
   updates: "Updates",
+  smart: "SMART",
+  services: "Dienste",
+  reboot: "Neustart",
 };
 
 /**

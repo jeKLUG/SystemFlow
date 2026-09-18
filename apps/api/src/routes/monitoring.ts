@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, lte } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, lte } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink } from "node:fs/promises";
@@ -34,6 +34,7 @@ import {
   loadAlertConfig,
   mapDeviceSummary,
   mapPendingAgent,
+  matchInstalledSoftware,
   newAgentToken,
   parseAlertConfig,
   parseIssues,
@@ -111,6 +112,7 @@ const heartbeatBody = z.object({
     .object({
       pendingCount: z.number().int().nonnegative().optional(),
       lastInstalled: z.string().max(80).nullable().optional(),
+      rebootPending: z.boolean().optional(),
     })
     .optional(),
   events: z
@@ -184,6 +186,7 @@ const heartbeatBody = z.object({
             sizeBytes: z.number().nonnegative().optional(),
             bus: z.string().max(40).optional(),
             media: z.string().max(40).optional(),
+            health: z.string().max(20).optional(),
           }),
         )
         .max(16)
@@ -210,6 +213,42 @@ const heartbeatBody = z.object({
         .max(16)
         .optional(),
     })
+    .optional(),
+  session: z
+    .object({
+      user: z.string().max(200).optional(),
+      users: z.array(z.string().max(200)).max(16).optional(),
+      lastLogon: z.string().max(80).optional(),
+    })
+    .optional(),
+  network: z
+    .object({
+      publicIp: z.string().max(80).optional(),
+      gateway: z.string().max(80).optional(),
+      dns: z.array(z.string().max(80)).max(8).optional(),
+      dhcp: z.boolean().nullable().optional(),
+      adapter: z.string().max(120).optional(),
+    })
+    .optional(),
+  services: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        display: z.string().max(200).optional(),
+        state: z.string().max(40).optional(),
+      }),
+    )
+    .max(20)
+    .optional(),
+  software: z
+    .array(
+      z.object({
+        name: z.string().max(200),
+        publisher: z.string().max(200).optional(),
+        version: z.string().max(80).optional(),
+      }),
+    )
+    .max(250)
     .optional(),
 });
 
@@ -365,7 +404,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     const issues = evald.issues;
     const name = await deviceNameFor(db, agent);
     const ticketSync = agent.assetId
-      ? await syncAssignedAgentTickets(db, agent, issues, config, name, evald.firingDisks, now)
+      ? await syncAssignedAgentTickets(db, agent, issues, config, name, evald.firingDisks, now, snapshot)
       : { openTickets: {}, opened: [], closed: [] };
 
     await db.insert(monitoringSamples).values(sampleFromSnapshot(snapshot, agent.id, now));
@@ -830,6 +869,22 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
 
       samples.sort((a, b) => a.ts.getTime() - b.ts.getTime());
 
+      const snapshot = parseSnapshot(agent.lastSnapshotJson);
+      if (snapshot?.software?.length && customer) {
+        const catalog = await db
+          .select({
+            id: assets.id,
+            name: assets.name,
+            manufacturer: assets.manufacturer,
+            model: assets.model,
+            kind: assets.kind,
+          })
+          .from(assets)
+          .where(and(eq(assets.customerId, customer.id), inArray(assets.kind, ["software", "license"])))
+          .all();
+        snapshot.software = matchInstalledSoftware(snapshot.software, catalog);
+      }
+
       return {
         device: await mapDeviceSummary(
           db,
@@ -839,7 +894,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
           now,
           packages,
         ),
-        snapshot: parseSnapshot(agent.lastSnapshotJson),
+        snapshot,
         samples: samples.map((s) => ({
           ts: s.ts,
           cpuPct: s.cpuPct,
@@ -881,6 +936,9 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
               ram: kindAlertZ,
               eventlog: kindAlertZ,
               updates: kindAlertZ,
+              smart: kindAlertZ.optional(),
+              services: kindAlertZ.optional(),
+              reboot: kindAlertZ.optional(),
             })
             .optional(),
         })

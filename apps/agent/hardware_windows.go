@@ -54,6 +54,16 @@ Get-CimInstance Win32_PhysicalMemory | ForEach-Object {
 }
 $storage = @()
 Get-PhysicalDisk | ForEach-Object {
+  $health = $null
+  switch ([string]$_.HealthStatus) {
+    'Healthy' { $health = 'ok' }
+    'Warning' { $health = 'warn' }
+    'Unhealthy' { $health = 'fail' }
+    default {
+      if ([string]$_.OperationalStatus -match 'OK|Unknown') { $health = 'ok' }
+      elseif ($_.OperationalStatus) { $health = 'warn' }
+    }
+  }
   $storage += @{
     name = N $_.FriendlyName
     model = N $_.FriendlyName
@@ -61,6 +71,7 @@ Get-PhysicalDisk | ForEach-Object {
     sizeBytes = [int64]$_.Size
     bus = N $_.BusType
     media = N $_.MediaType
+    health = $health
   }
 }
 if ($storage.Count -eq 0) {
@@ -166,13 +177,17 @@ func collectHardware() *HardwareInventory {
 		m.Serial = cleanHW(m.Serial)
 		m.Type = cleanHW(m.Type)
 	}
-	for i := range hw.Storage {
+		for i := range hw.Storage {
 		s := &hw.Storage[i]
 		s.Name = cleanHW(s.Name)
 		s.Model = cleanHW(s.Model)
 		s.Serial = cleanHW(s.Serial)
 		s.Bus = cleanHW(s.Bus)
 		s.Media = cleanHW(s.Media)
+		s.Health = strings.ToLower(strings.TrimSpace(s.Health))
+		if s.Health != "ok" && s.Health != "warn" && s.Health != "fail" {
+			s.Health = ""
+		}
 	}
 	for i := range hw.Gpus {
 		hw.Gpus[i].Name = cleanHW(hw.Gpus[i].Name)

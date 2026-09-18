@@ -43,6 +43,9 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   ram: "RAM hoch",
   eventlog: "Ereignisprotokoll",
   updates: "Updates ausstehend",
+  smart: "Datenträger-Gesundheit",
+  services: "Dienste fehlgeschlagen",
+  reboot: "Neustart ausstehend",
 };
 
 export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = {
@@ -52,6 +55,9 @@ export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = 
   ram: "normal",
   eventlog: "normal",
   updates: "low",
+  smart: "high",
+  services: "normal",
+  reboot: "low",
 };
 
 export type KindAlert = { enabled: boolean; priority: TicketPriority };
@@ -136,6 +142,9 @@ export function emptyAlertConfig(allEnabled = false): AlertConfig {
     ram: { enabled: allEnabled, priority: defaultKindPriority.ram },
     eventlog: { enabled: allEnabled, priority: defaultKindPriority.eventlog },
     updates: { enabled: allEnabled, priority: defaultKindPriority.updates },
+    smart: { enabled: allEnabled, priority: defaultKindPriority.smart },
+    services: { enabled: allEnabled, priority: defaultKindPriority.services },
+    reboot: { enabled: allEnabled, priority: defaultKindPriority.reboot },
   };
 }
 
@@ -345,9 +354,37 @@ export type HardwareInventory = {
     sizeBytes?: number;
     bus?: string;
     media?: string;
+    health?: "ok" | "warn" | "fail" | string;
   }[];
   gpus?: { name?: string; driver?: string; vramBytes?: number }[];
   nics?: { name?: string; mac?: string; manufacturer?: string; speedMbps?: number }[];
+};
+
+export type SessionSnapshot = {
+  user?: string;
+  users?: string[];
+  lastLogon?: string;
+};
+
+export type NetworkSnapshot = {
+  publicIp?: string;
+  gateway?: string;
+  dns?: string[];
+  dhcp?: boolean | null;
+  adapter?: string;
+};
+
+export type ServiceSnapshot = {
+  name: string;
+  display?: string;
+  state?: string;
+};
+
+export type SoftwareSnapshot = {
+  name: string;
+  publisher?: string;
+  version?: string;
+  match?: { assetId: string; name: string } | null;
 };
 
 export type AgentSnapshot = {
@@ -366,9 +403,13 @@ export type AgentSnapshot = {
   disks?: DiskSnapshot[];
   nics?: NicSnapshot[];
   processes?: ProcessSnapshot[];
-  updates?: { pendingCount?: number; lastInstalled?: string | null };
+  updates?: { pendingCount?: number; lastInstalled?: string | null; rebootPending?: boolean };
   events?: EventSnapshot[];
   hardware?: HardwareInventory;
+  session?: SessionSnapshot;
+  network?: NetworkSnapshot;
+  services?: ServiceSnapshot[];
+  software?: SoftwareSnapshot[];
   /** z.B. `windows-amd64` – vom Agent gemeldet. */
   platform?: string;
 };
@@ -540,6 +581,11 @@ export function evaluateHeartbeatIssues(
 
   if ((snapshot.updates?.pendingCount ?? 0) > 0) issues.push("updates");
 
+  const storage = snapshot.hardware?.storage ?? [];
+  if (storage.some((s) => s.health === "fail" || s.health === "warn")) issues.push("smart");
+  if ((snapshot.services ?? []).length > 0) issues.push("services");
+  if (snapshot.updates?.rebootPending) issues.push("reboot");
+
   return { issues, firingDisks, cpuHighStreak, ramHighStreak };
 }
 
@@ -548,11 +594,39 @@ function issueTitle(deviceName: string, kind: MonitoringIssueKind, diskName?: st
   return `[Monitoring] ${deviceName} — ${monitoringIssueLabel[kind]}`;
 }
 
-function issueDescription(deviceName: string, kind: MonitoringIssueKind, diskName?: string): string {
+function issueDetailFromSnapshot(snapshot: AgentSnapshot | null | undefined, kind: MonitoringIssueKind): string {
+  if (!snapshot) return "";
+  if (kind === "smart") {
+    const bad = (snapshot.hardware?.storage ?? []).filter((s) => s.health === "fail" || s.health === "warn");
+    return bad
+      .map((s) => {
+        const name = s.model || s.name || s.serial || "Datenträger";
+        const label = s.health === "fail" ? "kritisch" : "Warnung";
+        return `${name} (${label})`;
+      })
+      .join(", ");
+  }
+  if (kind === "services") {
+    return (snapshot.services ?? [])
+      .map((s) => s.display || s.name)
+      .filter(Boolean)
+      .join(", ");
+  }
+  if (kind === "reboot") return "Windows/Linux verlangt einen Neustart.";
+  return "";
+}
+
+function issueDescription(
+  deviceName: string,
+  kind: MonitoringIssueKind,
+  diskName?: string,
+  extra?: string,
+): string {
   if (kind === "disk" && diskName) {
     return `Automatische Monitoring-Meldung für ${deviceName}: Datenträger ${diskName} über dem Schwellwert.`;
   }
-  return `Automatische Monitoring-Meldung für ${deviceName}: ${monitoringIssueLabel[kind]}.`;
+  const base = `Automatische Monitoring-Meldung für ${deviceName}: ${monitoringIssueLabel[kind]}.`;
+  return extra?.trim() ? `${base} ${extra.trim()}` : base;
 }
 
 function plainDoc(text: string): string {
@@ -623,6 +697,7 @@ export async function syncMonitoringTickets(
   config: AlertConfig,
   deviceName: string,
   firingDisks: FiringDisk[] = [],
+  snapshot?: AgentSnapshot | null,
 ): Promise<MonitoringTicketSync> {
   const now = new Date();
   const authorId = await adminUserId(db);
@@ -650,7 +725,7 @@ export async function syncMonitoringTickets(
       kind,
       priority: config[kind].priority,
       title: issueTitle(deviceName, kind),
-      description: issueDescription(deviceName, kind),
+      description: issueDescription(deviceName, kind, undefined, issueDetailFromSnapshot(snapshot, kind)),
       firing: firingKinds.has(kind),
       enabled: config[kind].enabled,
       closeOk: `Die Warnung „${monitoringIssueLabel[kind]}“ ist nicht mehr aktiv.`,
@@ -788,6 +863,7 @@ export async function syncAssignedAgentTickets(
   deviceName: string,
   firingDisks: FiringDisk[] = [],
   now = new Date(),
+  snapshot?: AgentSnapshot | null,
 ): Promise<MonitoringTicketSync> {
   return withAgentTicketLock(agent.id, async () => {
     const fresh =
@@ -799,6 +875,7 @@ export async function syncAssignedAgentTickets(
       config,
       deviceName,
       firingDisks,
+      snapshot ?? parseSnapshot(fresh.lastSnapshotJson),
     );
     const firstTicket = Object.values(result.openTickets)[0] ?? null;
     await db
@@ -976,6 +1053,71 @@ export function parseSnapshot(raw: string | null | undefined): AgentSnapshot | n
   }
 }
 
+function foldSoftwareName(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[®™©]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(
+      /\b(gmbh|inc|ltd|llc|corp|corporation|ag|kg|mbh|co|the|microsoft|oracle|adobe|64|32|bit|x64|x86|win64|windows|setup|installer)\b/g,
+      " ",
+    )
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function softwareTokens(value: string): string[] {
+  return foldSoftwareName(value)
+    .split(" ")
+    .filter((t) => t.length >= 3);
+}
+
+function softwareMatchScore(
+  installed: SoftwareSnapshot,
+  asset: Pick<Asset, "name" | "manufacturer" | "model">,
+): number {
+  const inst = foldSoftwareName(installed.name);
+  if (!inst) return 0;
+  const names = [asset.model, asset.name, [asset.manufacturer, asset.model].filter(Boolean).join(" ")]
+    .map((v) => foldSoftwareName(v ?? ""))
+    .filter((s) => s.length >= 3);
+  let best = 0;
+  for (const n of names) {
+    if (inst === n) best = Math.max(best, 100);
+    else if (inst.includes(n) || n.includes(inst)) best = Math.max(best, 80);
+    else {
+      const have = new Set(softwareTokens(inst));
+      const hit = softwareTokens(n).filter((t) => have.has(t)).length;
+      if (hit >= 2) best = Math.max(best, 50 + hit * 5);
+    }
+  }
+  const pub = foldSoftwareName(installed.publisher ?? "");
+  const maker = foldSoftwareName(asset.manufacturer ?? "");
+  if (pub && maker && best > 0 && (pub.includes(maker) || maker.includes(pub))) best += 10;
+  return best;
+}
+
+/**
+ * Markiert installierte Programme, die zu Software-/Lizenz-Inventar passen.
+ */
+export function matchInstalledSoftware(
+  installed: SoftwareSnapshot[] | undefined,
+  catalog: Pick<Asset, "id" | "name" | "manufacturer" | "model" | "kind">[],
+): SoftwareSnapshot[] {
+  const licenses = catalog.filter((a) => a.kind === "software" || a.kind === "license");
+  return (installed ?? []).map((row) => {
+    let best: { asset: (typeof licenses)[number]; score: number } | null = null;
+    for (const asset of licenses) {
+      const score = softwareMatchScore(row, asset);
+      if (score >= 50 && (!best || score > best.score)) best = { asset, score };
+    }
+    return {
+      ...row,
+      match: best ? { assetId: best.asset.id, name: best.asset.name } : null,
+    };
+  });
+}
+
 export async function loadAlertConfig(db: Db, assetId: string | null): Promise<AlertConfig> {
   if (!assetId) return emptyAlertConfig(false);
   const asset = await db.select().from(assets).where(eq(assets.id, assetId)).get();
@@ -1020,7 +1162,7 @@ export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now =
   if (firingDisks.length) issues.push("disk");
   if (!online) issues.unshift("offline");
   const name = asset?.name || agent.hostname || agent.machineId;
-  const ticketSync = await syncAssignedAgentTickets(db, agent, issues, config, name, firingDisks, now);
+  const ticketSync = await syncAssignedAgentTickets(db, agent, issues, config, name, firingDisks, now, snapshot);
   const issuesJson = serializeDetectedIssues(issues, firingDisks.map((d) => d.id));
   if (issuesJson !== (agent.currentIssuesJson || "[]")) {
     await db

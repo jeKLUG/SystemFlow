@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.179 – 2026-09-18
+
+- Monitoring: Agent 1.0.6 liefert SMART, Sitzung, Neustart, öffentliches Netz, Software und fehlgeschlagene Dienste; SMART/Dienste/Neustart als schaltbare Tickets (bestehende Geräte: Schalter aus)
+
 ## 1.5.178 – 2026-09-18
 
 - E-Mail: Kunden erhalten eine Benachrichtigung, wenn Monitoring automatisch ein Ticket anlegt

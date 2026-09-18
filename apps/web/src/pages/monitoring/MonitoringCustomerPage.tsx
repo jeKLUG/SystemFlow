@@ -27,6 +27,9 @@ const issueBarColor: Record<MonitoringIssueKind, string> = {
   ram: "#a78bfa",
   eventlog: "#38bdf8",
   updates: "#60a5fa",
+  smart: "#f87171",
+  services: "#c084fc",
+  reboot: "#fbbf24",
 };
 
 type DeviceFilter = "all" | "warn" | "offline" | "online" | "update" | "waiting";
@@ -133,6 +136,9 @@ export function MonitoringCustomerPage() {
       ram: 0,
       eventlog: 0,
       updates: 0,
+      smart: 0,
+      services: 0,
+      reboot: 0,
     };
     for (const d of devices) {
       for (const kind of d.issues) counts[kind] += 1;

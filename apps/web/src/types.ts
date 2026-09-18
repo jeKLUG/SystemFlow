@@ -29,7 +29,16 @@ export type AssetOwnership = "customer" | "loaned" | "held";
 
 export type AssetStatus = "active" | "spare" | "retired";
 export type TicketPriority = "low" | "normal" | "high" | "critical";
-export type MonitoringIssueKind = "offline" | "disk" | "cpu" | "ram" | "eventlog" | "updates";
+export type MonitoringIssueKind =
+  | "offline"
+  | "disk"
+  | "cpu"
+  | "ram"
+  | "eventlog"
+  | "updates"
+  | "smart"
+  | "services"
+  | "reboot";
 export type MonitoringKindAlert = { enabled: boolean; priority: TicketPriority };
 export type MonitoringVolumeAlert = { enabled: boolean; warnUsedPct: number };
 export type MonitoringDiskAlert = MonitoringKindAlert & {
@@ -844,6 +853,9 @@ export const monitoringIssueKinds: MonitoringIssueKind[] = [
   "ram",
   "eventlog",
   "updates",
+  "smart",
+  "services",
+  "reboot",
 ];
 
 export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertConfig {
@@ -854,6 +866,9 @@ export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertC
     ram: { enabled: allEnabled, priority: "normal" },
     eventlog: { enabled: allEnabled, priority: "normal" },
     updates: { enabled: allEnabled, priority: "low" },
+    smart: { enabled: allEnabled, priority: "high" },
+    services: { enabled: allEnabled, priority: "normal" },
+    reboot: { enabled: allEnabled, priority: "low" },
   };
 }
 
@@ -991,6 +1006,7 @@ export interface MonitoringHardware {
     sizeBytes?: number;
     bus?: string;
     media?: string;
+    health?: "ok" | "warn" | "fail" | string;
   }[];
   gpus?: { name?: string; driver?: string; vramBytes?: number }[];
   nics?: { name?: string; mac?: string; manufacturer?: string; speedMbps?: number }[];
@@ -1013,9 +1029,24 @@ export interface MonitoringSnapshot {
   disks?: { id?: string; name: string; mount?: string; totalBytes: number; usedBytes: number; freeBytes: number }[];
   nics?: { name: string; bytesRecv: number; bytesSent: number; up?: boolean }[];
   processes?: { name: string; cpuPercent?: number; rssBytes?: number }[];
-  updates?: { pendingCount?: number; lastInstalled?: string | null };
+  updates?: { pendingCount?: number; lastInstalled?: string | null; rebootPending?: boolean };
   events?: { source?: string; level?: string; time?: string; message: string }[];
   hardware?: MonitoringHardware;
+  session?: { user?: string; users?: string[]; lastLogon?: string };
+  network?: {
+    publicIp?: string;
+    gateway?: string;
+    dns?: string[];
+    dhcp?: boolean | null;
+    adapter?: string;
+  };
+  services?: { name: string; display?: string; state?: string }[];
+  software?: {
+    name: string;
+    publisher?: string;
+    version?: string;
+    match?: { assetId: string; name: string } | null;
+  }[];
 }
 
 export interface MonitoringDeviceDetail {
