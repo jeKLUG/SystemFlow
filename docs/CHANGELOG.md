@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.175 – 2026-09-18
+
+- E-Mail: Layout in App-Farben (Dunkel, Akzentblau statt Rot), Infos in einer Karte, Warnung nur als gelber Hinweis
+
 ## 1.5.174 – 2026-09-18
 
 - Monitoring: kein zweites Ticket mehr für dieselbe Warnung (Lock pro Agent, bestehende offene Tickets werden wiederverwendet)

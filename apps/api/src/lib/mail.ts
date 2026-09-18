@@ -121,21 +121,42 @@ function escapeHtml(value: string): string {
 export type MailFact = { label: string; value: string };
 export type MailTone = "neutral" | "info" | "warn" | "ok";
 
-const TONE_BAR: Record<MailTone, string> = {
-  neutral: "#2563eb",
-  info: "#2563eb",
-  warn: "#dc2626",
-  ok: "#059669",
+const BRAND = {
+  bg: "#080d16",
+  card: "#121b29",
+  inset: "#182233",
+  text: "#f1f5fb",
+  muted: "#8b9cb3",
+  body: "#c5d0de",
+  accent: "#3b82f6",
+  accentBright: "#6babff",
+  border: "#2a384c",
+  ok: "#34d399",
+  warn: "#fbbf24",
 };
 
-const FONT = 'Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif';
+const FONT = "Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif";
+
+const TONE_LABEL: Record<MailTone, string> = {
+  neutral: "",
+  info: "",
+  warn: "Warnung",
+  ok: "Erledigt",
+};
+
+const TONE_COLOR: Record<MailTone, string> = {
+  neutral: BRAND.accentBright,
+  info: BRAND.accentBright,
+  warn: BRAND.warn,
+  ok: BRAND.ok,
+};
 
 function htmlLines(value: string): string {
   return escapeHtml(value).replace(/\n/g, "<br>");
 }
 
 /**
- * Schlichtes HTML für System-Mails (helle Karte, Infotabelle, Button). Outlook-tauglich.
+ * HTML-Mail im App-Look: dunkel, Akzentblau, Infotabelle, Button.
  */
 export function mailHtml(opts: {
   brand?: string;
@@ -153,64 +174,82 @@ export function mailHtml(opts: {
 }): { html: string; text: string } {
   const brand = opts.brand?.trim() || "Systemhaus-Ess";
   const tone = opts.tone ?? "neutral";
-  const bar = TONE_BAR[tone];
-  const kicker = [brand, opts.kicker].filter(Boolean).join(" · ");
+  const toneLabel = TONE_LABEL[tone];
+  const toneColor = TONE_COLOR[tone];
   const facts = (opts.facts ?? []).filter((f) => f.value.trim());
   const factRows = facts
     .map((f, i) => {
       const last = i === facts.length - 1;
-      const border = last ? "none" : "1px solid #eef2f6";
+      const border = last ? "none" : `1px solid ${BRAND.border}`;
       return `<tr>
-        <td style="padding:10px 0;width:148px;vertical-align:top;font-size:13px;line-height:1.4;color:#64748b;border-bottom:${border}">${escapeHtml(f.label)}</td>
-        <td style="padding:10px 0;vertical-align:top;font-size:13px;line-height:1.4;color:#0f172a;font-weight:600;border-bottom:${border}">${htmlLines(f.value)}</td>
+        <td style="padding:11px 0;width:132px;vertical-align:top;font-size:12px;line-height:1.45;color:${BRAND.muted};border-bottom:${border}">${escapeHtml(f.label)}</td>
+        <td style="padding:11px 0;vertical-align:top;font-size:14px;line-height:1.45;color:${BRAND.text};font-weight:600;border-bottom:${border}">${htmlLines(f.value)}</td>
       </tr>`;
     })
     .join("");
   const factsBlock = factRows
-    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 20px;border-top:1px solid #eef2f6">${factRows}</table>`
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BRAND.inset}" style="margin:0 0 22px;background:${BRAND.inset};border:1px solid ${BRAND.border}">
+        <tr><td style="padding:4px 20px 6px">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${factRows}</table>
+        </td></tr>
+      </table>`
     : "";
   const bodyBlock = opts.body
-    ? `${opts.bodyLabel ? `<p style="margin:0 0 8px;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;color:#94a3b8">${escapeHtml(opts.bodyLabel)}</p>` : ""}
+    ? `${opts.bodyLabel ? `<p style="margin:0 0 8px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${BRAND.muted}">${escapeHtml(opts.bodyLabel)}</p>` : ""}
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px">
-        <tr><td style="padding:14px 16px;background:#f8fafc;border-left:3px solid ${bar};font-size:14px;line-height:1.55;color:#334155">${htmlLines(opts.body)}</td></tr>
+        <tr><td bgcolor="${BRAND.inset}" style="padding:14px 16px 14px 18px;background:${BRAND.inset};border-left:3px solid ${BRAND.accent};font-size:14px;line-height:1.6;color:${BRAND.body}">${htmlLines(opts.body)}</td></tr>
       </table>`
     : "";
   const btn =
     opts.href && opts.button
-      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 8px"><tr>
-          <td bgcolor="${bar}" style="border-radius:8px">
-            <a href="${escapeHtml(opts.href)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none">${escapeHtml(opts.button)}</a>
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:4px 0 4px"><tr>
+          <td bgcolor="${BRAND.accent}" style="border-radius:10px">
+            <a href="${escapeHtml(opts.href)}" style="display:inline-block;padding:12px 22px;font-family:${FONT};font-size:14px;font-weight:650;color:#ffffff;text-decoration:none">${escapeHtml(opts.button)}</a>
           </td>
         </tr></table>`
       : "";
   const intro = opts.intro
-    ? `<p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#334155">${htmlLines(opts.intro)}</p>`
+    ? `<p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:${BRAND.body}">${htmlLines(opts.intro)}</p>`
     : "";
   const note = opts.note
-    ? `<p style="margin:16px 0 0;font-size:13px;line-height:1.45;color:#64748b">${htmlLines(opts.note)}</p>`
+    ? `<p style="margin:18px 0 0;font-size:13px;line-height:1.5;color:${BRAND.muted}">${htmlLines(opts.note)}</p>`
     : "";
   const footer =
     opts.footer ||
     "Automatische Benachrichtigung. Bitte nicht auf diese Nachricht antworten, sofern nicht anders angegeben.";
+  const badge = toneLabel
+    ? `<span style="display:inline-block;margin-left:10px;padding:3px 9px;border-radius:999px;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.bg};background:${toneColor};font-weight:700;vertical-align:middle">${escapeHtml(toneLabel)}</span>`
+    : "";
+  const kickerLine = opts.kicker
+    ? `<span style="color:${BRAND.muted}"> · ${escapeHtml(opts.kicker)}</span>`
+    : "";
   const preheader = [opts.intro, facts.map((f) => `${f.label}: ${f.value}`).join(" · ")].filter(Boolean).join(" ");
   const html = `<!DOCTYPE html>
 <html lang="de">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="supported-color-schemes" content="dark">
 <title>${escapeHtml(opts.title)}</title>
+<style>
+  :root { color-scheme: dark; }
+  a { color: ${BRAND.accentBright}; }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#eef1f4">
+<body style="margin:0;padding:0;background:${BRAND.bg}">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(preheader)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f4">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${BRAND.bg}" style="background:${BRAND.bg}">
   <tr>
-    <td align="center" style="padding:32px 16px">
-      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px;background:#ffffff;border:1px solid #e2e8f0">
-        <tr><td style="height:4px;background:${bar};font-size:0;line-height:0">&nbsp;</td></tr>
+    <td align="center" style="padding:36px 16px">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" bgcolor="${BRAND.card}" style="width:100%;max-width:560px;background:${BRAND.card};border:1px solid ${BRAND.border}">
+        <tr><td bgcolor="${BRAND.accent}" style="height:3px;background:${BRAND.accent};font-size:0;line-height:0">&nbsp;</td></tr>
         <tr>
-          <td style="padding:28px 32px 8px;font-family:${FONT}">
-            <p style="margin:0 0 8px;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#64748b">${escapeHtml(kicker)}</p>
-            <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;font-weight:650;color:#0f172a">${escapeHtml(opts.title)}</h1>
+          <td style="padding:28px 32px 10px;font-family:${FONT}">
+            <p style="margin:0 0 14px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:650">
+              <span style="color:${BRAND.accentBright}">${escapeHtml(brand)}</span>${kickerLine}${badge}
+            </p>
+            <h1 style="margin:0 0 12px;font-size:22px;line-height:1.35;font-weight:650;color:${BRAND.text}">${escapeHtml(opts.title)}</h1>
             ${intro}
             ${factsBlock}
             ${bodyBlock}
@@ -219,7 +258,7 @@ export function mailHtml(opts: {
           </td>
         </tr>
         <tr>
-          <td style="padding:20px 32px 28px;font-family:${FONT};font-size:12px;line-height:1.5;color:#94a3b8;border-top:1px solid #eef2f6">
+          <td style="padding:18px 32px 26px;font-family:${FONT};font-size:12px;line-height:1.5;color:${BRAND.muted};border-top:1px solid ${BRAND.border}">
             ${escapeHtml(footer)}
           </td>
         </tr>
@@ -229,8 +268,9 @@ export function mailHtml(opts: {
 </table>
 </body>
 </html>`;
+  const kickerText = [brand, opts.kicker, toneLabel].filter(Boolean).join(" · ");
   const text = [
-    kicker,
+    kickerText,
     opts.title,
     opts.intro,
     ...facts.map((f) => `${f.label}: ${f.value}`),
