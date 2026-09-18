@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api";
+import { HelpHint } from "../../components/HelpHint";
 import { copyToClipboard } from "../../lib/clipboard";
 import { linuxAgentInstallScript, windowsAgentInstallScript } from "../../lib/agentInstallScripts";
 import type { AgentPackageInfo, AgentPackagePlatform, MonitoringSettings } from "../../types";
@@ -141,57 +142,56 @@ export function MonitoringAgentPage() {
         <header className="settings-card-head">
           <div>
             <p className="eyebrow">Zugang</p>
-            <h3>Enrollment-Key</h3>
+            <div className="page-head-title">
+              <h3>Enrollment-Key</h3>
+              <HelpHint text="Steckt in den Install-Skripten. Bereits laufende Agenten bleiben gültig, wenn du den Key neu erzeugst." />
+            </div>
           </div>
         </header>
-        <p className="settings-card-lead muted">
-          Steckt in den Install-Skripten. Bereits laufende Agenten bleiben gültig, wenn du den Key neu
-          erzeugst.
-        </p>
         {enrollKey ? (
-          <p className="settings-enroll-key">
-            <code>{enrollKey}</code>
+          <div className="agent-enroll">
+            <div className={`agent-enroll-secret${copiedScript === "key" ? " is-copied" : ""}`}>
+              <code>{enrollKey}</code>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => void copyText("key", enrollKey)}
+              >
+                {copiedScript === "key" ? "Kopiert" : "Kopieren"}
+              </button>
+            </div>
             <button
               type="button"
               className="btn btn-ghost btn-sm"
-              onClick={() => void copyText("key", enrollKey)}
+              disabled={enrollBusy}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Neuen Enrollment-Key erzeugen? Bereits installierte Agenten bleiben gültig, neue Installationen brauchen den neuen Schlüssel.",
+                  )
+                ) {
+                  return;
+                }
+                setEnrollBusy(true);
+                setEnrollMsg("");
+                void api
+                  .rotateMonitoringKey()
+                  .then((s) => {
+                    applySettings(s);
+                    setEnrollMsg("Neuer Schlüssel erzeugt. Skripte neu kopieren.");
+                  })
+                  .catch((err) => {
+                    setEnrollMsg(err instanceof Error ? err.message : "Fehler");
+                  })
+                  .finally(() => setEnrollBusy(false));
+              }}
             >
-              {copiedScript === "key" ? "Kopiert" : "Key kopieren"}
+              {enrollBusy ? "Erzeugt…" : "Schlüssel neu erzeugen"}
             </button>
-          </p>
+          </div>
         ) : (
           <p className="muted">Schlüssel wird geladen…</p>
         )}
-        <div className="settings-backup-actions">
-          <button
-            type="button"
-            className="btn btn-ghost"
-            disabled={enrollBusy}
-            onClick={() => {
-              if (
-                !window.confirm(
-                  "Neuen Enrollment-Key erzeugen? Bereits installierte Agenten bleiben gültig, neue Installationen brauchen den neuen Schlüssel.",
-                )
-              ) {
-                return;
-              }
-              setEnrollBusy(true);
-              setEnrollMsg("");
-              void api
-                .rotateMonitoringKey()
-                .then((s) => {
-                  applySettings(s);
-                  setEnrollMsg("Neuer Schlüssel erzeugt. Skripte neu kopieren.");
-                })
-                .catch((err) => {
-                  setEnrollMsg(err instanceof Error ? err.message : "Fehler");
-                })
-                .finally(() => setEnrollBusy(false));
-            }}
-          >
-            Schlüssel neu erzeugen
-          </button>
-        </div>
         {enrollMsg ? (
           <p
             className={
@@ -210,12 +210,12 @@ export function MonitoringAgentPage() {
         <header className="settings-card-head">
           <div>
             <p className="eyebrow">Schritt 1</p>
-            <h3>Paket hochladen</h3>
+            <div className="page-head-title">
+              <h3>Paket hochladen</h3>
+              <HelpHint text="Eine Datei je Plattform. Die Version muss zur Binary passen (z. B. 1.0.3)." />
+            </div>
           </div>
         </header>
-        <p className="settings-card-lead muted">
-          Eine Datei je Plattform. Die Version muss zur Binary passen (z. B. 1.0.3).
-        </p>
         <ul className="agent-pkg-grid">
           {list.map((p) => {
             const row = pkgByPlatform.get(p.id);
@@ -304,13 +304,14 @@ export function MonitoringAgentPage() {
         <header className="settings-card-head">
           <div>
             <p className="eyebrow">Schritt 2</p>
-            <h3>Skript auf dem Gerät ausführen</h3>
+            <div className="page-head-title">
+              <h3>Skript auf dem Gerät ausführen</h3>
+              <HelpHint
+                text={`Kopieren und als Administrator (Windows) bzw. root (Linux) einfügen. Enthält Server ${origin} und den aktuellen Key.`}
+              />
+            </div>
           </div>
         </header>
-        <p className="settings-card-lead muted">
-          Kopieren und als Administrator (Windows) bzw. root (Linux) einfügen. Enthält Server{" "}
-          <code>{origin}</code> und den aktuellen Key.
-        </p>
         <div className="agent-script-grid">
           <ScriptCopy
             title="Windows"

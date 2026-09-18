@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.161 – 2026-09-18
+
+- Monitoring Setup: Enrollment-Key als Schlüsselzeile mit Kopieren; Hinweis im Hilfe-Kreis
+
+## 1.5.160 – 2026-09-18
+
+- Monitoring Setup: Hinweise zu Schritt 1 und 2 im Hilfe-Kreis neben der Überschrift
+
 ## 1.5.159 – 2026-09-18
 
 - Monitoring: Kunden als volle Zeilen mit Status, Geräten, Online/Offline und Warnungen statt schmaler Kacheln
