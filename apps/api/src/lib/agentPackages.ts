@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createReadStream, createWriteStream, existsSync, statSync } from "node:fs";
-import { mkdir, rename, unlink } from "node:fs/promises";
+import { mkdir, readFile, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import type { FastifyRequest } from "fastify";
@@ -25,6 +25,19 @@ export const AGENT_PACKAGE_PLATFORMS: {
 ];
 
 const PLATFORM_SET = new Set<string>(agentPackagePlatforms);
+
+const AGENT_VERSION_STAMP = Buffer.from("SYSFLW_AGENT_VERSION=");
+const AGENT_VERSION_STAMP_RE = /^SYSFLW_AGENT_VERSION=([0-9]+(?:\.[0-9]+){1,3})/;
+
+/**
+ * Liest die in die Binary gebrannte Agent-Version (`SYSFLW_AGENT_VERSION=`).
+ */
+export function extractAgentVersionFromBinary(buf: Buffer): string | null {
+  const idx = buf.indexOf(AGENT_VERSION_STAMP);
+  if (idx < 0) return null;
+  const slice = buf.subarray(idx, Math.min(buf.length, idx + 48)).toString("latin1");
+  return slice.match(AGENT_VERSION_STAMP_RE)?.[1] ?? null;
+}
 
 /**
  * Prüft, ob `value` eine unterstützte Agent-Plattform ist.

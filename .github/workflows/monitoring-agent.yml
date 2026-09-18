@@ -38,6 +38,12 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+      - name: Stamp version into source
+        working-directory: apps/agent
+        env:
+          AGENT_VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          printf '%s\n' "package main" "" "const agentVersionStamp = \"SYSFLW_AGENT_VERSION=${AGENT_VERSION}\"" "" "func init() { _ = agentVersionStamp }" > version_stamp.go
       - name: Windows file version
         if: matrix.goos == 'windows'
         working-directory: apps/agent

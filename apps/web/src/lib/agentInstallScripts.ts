@@ -19,18 +19,45 @@ $Key = ${psKey}
 $Dir = Join-Path $env:ProgramData 'SystemhausEss'
 New-Item -ItemType Directory -Force -Path $Dir | Out-Null
 $Exe = Join-Path $Dir 'systemhaus-agent.exe'
-if (Get-Service SystemhausAgent -ErrorAction SilentlyContinue) {
+$svc = Get-Service SystemhausAgent -ErrorAction SilentlyContinue
+if ($svc) {
   Stop-Service SystemhausAgent -Force -ErrorAction SilentlyContinue
+  sc.exe stop SystemhausAgent | Out-Null
+  for ($i = 0; $i -lt 20; $i++) {
+    $svc.Refresh()
+    if ($svc.Status -eq 'Stopped') { break }
+    Start-Sleep -Seconds 1
+  }
+  Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq 'systemhaus-agent.exe' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+  Start-Sleep -Seconds 1
 }
-$Url = "$Server/api/monitoring/agent/download/windows-amd64?key=$([uri]::EscapeDataString($Key))"
-Invoke-WebRequest -Uri $Url -OutFile $Exe -UseBasicParsing
+$EscKey = [uri]::EscapeDataString($Key)
+$Stamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+$Meta = Invoke-RestMethod -Uri "$Server/api/monitoring/agent/latest?platform=windows-amd64&key=$EscKey" -UseBasicParsing
+Write-Host "Lade Agent $($Meta.version) ..."
+$Tmp = Join-Path $env:TEMP ("systemhaus-agent-" + [guid]::NewGuid().ToString() + ".exe")
+Invoke-WebRequest -Uri "$Server/api/monitoring/agent/download/windows-amd64?key=$EscKey&t=$Stamp" -OutFile $Tmp -UseBasicParsing
+if ((Get-Item $Tmp).Length -lt 100000) { throw 'Download unvollständig.' }
+if ($Meta.sha256) {
+  $hash = (Get-FileHash -Path $Tmp -Algorithm SHA256).Hash.ToLower()
+  if ($hash -ne ([string]$Meta.sha256).ToLower()) { throw 'Download beschädigt (SHA-256 stimmt nicht).' }
+}
+$Bak = "$Exe.bak"
+if (Test-Path $Exe) {
+  Remove-Item $Bak -Force -ErrorAction SilentlyContinue
+  Rename-Item $Exe $Bak
+}
+Move-Item -Force $Tmp $Exe
 Unblock-File -Path $Exe -ErrorAction SilentlyContinue
 & $Exe install --server $Server --key $Key
 if ($LASTEXITCODE -ne 0) { throw "Installation fehlgeschlagen (Exit $LASTEXITCODE)" }
 sc.exe failure SystemhausAgent reset= 86400 actions= restart/5000/restart/15000/restart/60000 | Out-Null
 sc.exe failureflag SystemhausAgent 1 | Out-Null
 Start-Service SystemhausAgent -ErrorAction SilentlyContinue
-Write-Host 'Agent installiert. Startet automatisch beim Hochfahren und nach Absturz.'
+Remove-Item $Bak -Force -ErrorAction SilentlyContinue
+Write-Host "Agent $($Meta.version) installiert. Startet automatisch beim Hochfahren und nach Absturz."
 `;
 }
 
@@ -55,18 +82,34 @@ case "$(uname -m)" in
   *) echo "Nicht unterstützte Architektur: $(uname -m)" >&2; exit 1 ;;
 esac
 BIN=/usr/local/bin/systemhaus-agent
-URL="$SERVER/api/monitoring/agent/download/$PLAT?key=$KEY"
+systemctl stop systemhaus-agent >/dev/null 2>&1 || true
+sleep 1
+META_URL="$SERVER/api/monitoring/agent/latest?platform=$PLAT&key=$KEY"
 if command -v curl >/dev/null 2>&1; then
-  curl -fsSL "$URL" -o "$BIN"
+  META=$(curl -fsSL "$META_URL")
 elif command -v wget >/dev/null 2>&1; then
-  wget -qO "$BIN" "$URL"
+  META=$(wget -qO- "$META_URL")
 else
   echo "curl oder wget ist erforderlich." >&2
   exit 1
 fi
-chmod 755 "$BIN"
+VER=$( { printf '%s' "$META" | tr -d ' ' | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4; } || true)
+echo "Lade Agent \${VER:-unbekannt} ..."
+TMP=$(mktemp)
+URL="$SERVER/api/monitoring/agent/download/$PLAT?key=$KEY&t=$(date +%s)"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL "$URL" -o "$TMP"
+else
+  wget -qO "$TMP" "$URL"
+fi
+if [[ ! -s "$TMP" ]]; then
+  echo "Download unvollständig." >&2
+  exit 1
+fi
+install -m 755 "$TMP" "$BIN"
+rm -f "$TMP"
 "$BIN" install --server "$SERVER" --key "$KEY"
-echo "Agent installiert (systemd: systemhaus-agent). Startet automatisch beim Hochfahren."
+echo "Agent \${VER:-} installiert (systemd: systemhaus-agent). Startet automatisch beim Hochfahren."
 `;
 }
 

@@ -1,6 +1,7 @@
 import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { createReadStream, existsSync, statSync } from "node:fs";
+import { readFile, unlink } from "node:fs/promises";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { assets, customers, monitoringAgents, monitoringSamples, ticketPriorities } from "../db/schema.js";
@@ -12,6 +13,7 @@ import {
   commitAgentPackage,
   compareAgentVersions,
   deleteAgentPackage,
+  extractAgentVersionFromBinary,
   getAgentPackage,
   isAgentPackagePlatform,
   listAgentPackages,
@@ -499,11 +501,20 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         await unlink(uploaded.tmpPath).catch(() => undefined);
         return reply.code(400).send({ error: "Unbekannte Plattform" });
       }
-      const version = (fields.version ?? "").trim();
+      const detected = extractAgentVersionFromBinary(await readFile(uploaded.tmpPath));
+      let version = (fields.version ?? "").trim();
+      if (detected) {
+        if (version && version !== detected) {
+          await unlink(uploaded.tmpPath).catch(() => undefined);
+          return reply.code(400).send({
+            error: `Die Datei ist Agent ${detected}, nicht ${version}. Bitte das GitHub-Artefakt mit der Versionsnummer im Dateinamen hochladen.`,
+          });
+        }
+        version = detected;
+      }
       if (!/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,39}$/.test(version)) {
-        const { unlink } = await import("node:fs/promises");
         await unlink(uploaded.tmpPath).catch(() => undefined);
-        return reply.code(400).send({ error: "Version fehlt oder ungültig (z. B. 1.0.3)" });
+        return reply.code(400).send({ error: "Version fehlt oder ungültig (z. B. 1.0.5)" });
       }
       try {
         const pkg = await commitAgentPackage(db, uploadDir, {

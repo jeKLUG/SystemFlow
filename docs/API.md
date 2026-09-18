@@ -178,7 +178,7 @@ Staff:
 |---------|------|--------------|
 | GET | `/api/monitoring/settings` | `{ enrollmentKey, platforms[], packages[] }` |
 | POST | `/api/monitoring/settings/rotate-key` | Neuen Enrollment-Key erzeugen (gleiche Antwortform) |
-| POST | `/api/monitoring/agent-packages` | Multipart `platform`, `version`, `file` – ersetzt das Binary der Plattform |
+| POST | `/api/monitoring/agent-packages` | Multipart `platform`, `version`, `file` – Version wird aus der Binary gelesen (`SYSFLW_AGENT_VERSION=`), Formularwert muss dazu passen |
 | DELETE | `/api/monitoring/agent-packages/:platform` | Paket löschen |
 | GET | `/api/monitoring/stats` | `{ warningCount, pendingCount }` (Navbar-Badge) |
 | GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste; Geräte inkl. `agentVersion` / `agentOutdated` |

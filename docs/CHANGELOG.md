@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.171 – 2026-09-18
+
+- Monitoring: Paket-Upload liest die Version aus der Binary; Install-Skript stoppt den Dienst, ersetzt die Datei per Temp-Download und prüft SHA-256
+
 ## 1.5.170 – 2026-09-18
 
 - Monitoring-Agent: CI packt die Version aus `apps/agent/VERSION` in Artefaktname und Windows-Dateieigenschaften (nicht mehr anonymes „1.0“)

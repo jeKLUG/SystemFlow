@@ -219,7 +219,7 @@ export function MonitoringAgentPage() {
             <p className="eyebrow">Schritt 1</p>
             <div className="page-head-title">
               <h3>Paket hochladen</h3>
-              <HelpHint text="Eine Datei je Plattform. GitHub-Artefakte enthalten die Version im Dateinamen (z. B. 1.0.5)." />
+              <HelpHint text="GitHub-Artefakt mit Versionsnummer im Dateinamen hochladen (z. B. systemhaus-agent-windows-amd64-1.0.5.exe). Die Geräte-Version kommt aus der Binary, nicht aus diesem Feld." />
             </div>
           </div>
         </header>
