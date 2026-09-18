@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.176 – 2026-09-18
+
+- E-Mail: Kunden-Mails gehen an die Portal-Adresse, sonst an die Stammdaten-E-Mail (vorher still übersprungen)
+
 ## 1.5.175 – 2026-09-18
 
 - E-Mail: Layout in App-Farben (Dunkel, Akzentblau statt Rot), Infos in einer Karte, Warnung nur als gelber Hinweis

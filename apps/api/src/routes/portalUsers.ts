@@ -89,7 +89,7 @@ export async function portalUserRoutes(app: FastifyInstance, db: Db) {
     }
 
     const emailRaw = parsed.data.email !== undefined ? parsed.data.email : existing?.email;
-    const email = emailRaw?.trim() || null;
+    const email = emailRaw?.trim() || customer.email?.trim() || null;
     if (email && !isEmail(email)) {
       return reply.code(400).send({ error: "E-Mail-Adresse ungültig" });
     }

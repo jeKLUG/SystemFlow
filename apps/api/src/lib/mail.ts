@@ -297,7 +297,12 @@ export type OutgoingMail = {
  */
 export async function sendMail(db: Db, mail: OutgoingMail): Promise<boolean> {
   const runtime = await loadMailRuntime(db);
-  if (!runtime || !mailReady(runtime) || !isEmail(mail.to)) return false;
+  if (!runtime || !mailReady(runtime)) return false;
+  const to = mail.to.trim();
+  if (!isEmail(to)) {
+    console.error("Mail: ungültige Empfängeradresse", mail.to);
+    return false;
+  }
   const fromName = runtime.mailFromName || "Systemhaus-Ess";
   const from = `${fromName} <${runtime.mailFromEmail}>`;
   const transporter = nodemailer.createTransport({
@@ -314,7 +319,7 @@ export async function sendMail(db: Db, mail: OutgoingMail): Promise<boolean> {
   try {
     await transporter.sendMail({
       from,
-      to: mail.to,
+      to,
       replyTo: runtime.mailReplyTo && isEmail(runtime.mailReplyTo) ? runtime.mailReplyTo : undefined,
       subject: mail.subject,
       text: mail.text,
@@ -331,7 +336,7 @@ export async function sendMail(db: Db, mail: OutgoingMail): Promise<boolean> {
     });
     return true;
   } catch (err) {
-    console.error("Mail:", err);
+    console.error(`Mail an ${to}:`, err);
     return false;
   }
 }

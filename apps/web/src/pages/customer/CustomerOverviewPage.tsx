@@ -461,6 +461,9 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
                     onChange={(e) => setNotifyEmail(e.target.value)}
                     autoComplete="off"
                   />
+                  <span className="field-hint muted">
+                    An diese Adresse gehen Ticket- und Termin-Mails. Leer = E-Mail aus den Stammdaten.
+                  </span>
                 </label>
                 <div className="portal-access-secrets">
                   <p className="portal-access-secrets-lead muted">

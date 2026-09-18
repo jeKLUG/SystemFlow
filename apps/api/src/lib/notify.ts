@@ -10,7 +10,7 @@ import {
   type TicketStatus,
 } from "../db/schema.js";
 import { APP_TIMEZONE } from "./dates.js";
-import { loadMailPublic, mailHtml, mailReady, sendMail, type MailFact, type MailTone } from "./mail.js";
+import { loadMailPublic, mailHtml, mailReady, sendMail, isEmail, type MailFact, type MailTone } from "./mail.js";
 import { appointmentIcs } from "./mailIcs.js";
 import {
   parseCustomerMailNotify,
@@ -167,11 +167,18 @@ async function sendCustomer(
     .from(customerUsers)
     .where(eq(customerUsers.customerId, customerId))
     .get();
-  if (!user?.enabled || !user.email) return;
-  const prefs = parseCustomerMailNotify(user.mailNotifyJson);
+  if (user && !user.enabled) return;
+  const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+  const to = (user?.email?.trim() || customer?.email?.trim() || "");
+  if (!isEmail(to)) {
+    console.warn(`Mail Kunde ${kind}: keine gültige Adresse für ${customerId}`);
+    return;
+  }
+  const prefs = parseCustomerMailNotify(user?.mailNotifyJson);
   if (!prefs[kind]) return;
   const href = settings.mailPublicUrl ? `${settings.mailPublicUrl}/portal` : undefined;
-  await sendMail(db, { ...build(href), to: user.email });
+  const ok = await sendMail(db, { ...build(href), to });
+  if (!ok) console.warn(`Mail Kunde ${kind}: Versand an ${to} fehlgeschlagen`);
 }
 
 function ticketTone(priority: TicketPriority): MailTone {
