@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api";
 import { ChartLegend, DonutChart, HBarChart, LineChart } from "../../components/DashCharts";
-import { Checkbox } from "../../components/Checkbox";
+import { MonitoringAlertConfigFields } from "../../components/MonitoringAlertConfigFields";
+import { MonitoringHardwarePanel } from "../../components/MonitoringHardware";
 import type {
+  MonitoringAlertConfig,
   MonitoringAssignableAsset,
   MonitoringDeviceDetail,
   MonitoringDeviceSummary,
@@ -12,6 +14,7 @@ import type {
   MonitoringPendingAgent,
   MonitoringSample,
 } from "../../types";
+import { emptyMonitoringAlertConfig, monitoringDiskId } from "../../types";
 
 const issueLabel: Record<MonitoringIssueKind, string> = {
   offline: "Offline",
@@ -21,6 +24,16 @@ const issueLabel: Record<MonitoringIssueKind, string> = {
   eventlog: "Ereignisse",
   updates: "Updates",
 };
+
+function deviceIssueText(d: {
+  issues: MonitoringIssueKind[];
+  diskIssues?: { id: string; name: string }[];
+}): string {
+  const parts = d.issues.filter((i) => i !== "disk").map((i) => issueLabel[i]);
+  for (const disk of d.diskIssues ?? []) parts.push(`Datenträger ${disk.name}`);
+  if (d.issues.includes("disk") && !(d.diskIssues ?? []).length) parts.push(issueLabel.disk);
+  return parts.join(", ") || "Problem";
+}
 
 function sampleTime(ts: string | number | Date): number {
   if (typeof ts === "number") return ts;
@@ -170,15 +183,37 @@ export function MonitoringPage() {
     }
   }
 
-  async function toggleAlert(assetId: string, next: boolean) {
+  const saveAlertsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveAlertsLatest = useRef<{ assetId: string; cfg: MonitoringAlertConfig } | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveAlertsTimer.current) window.clearTimeout(saveAlertsTimer.current);
+    };
+  }, []);
+
+  function saveAlerts(assetId: string, monitoringAlerts: MonitoringAlertConfig) {
+    saveAlertsLatest.current = { assetId, cfg: monitoringAlerts };
+    if (saveAlertsTimer.current) window.clearTimeout(saveAlertsTimer.current);
+    saveAlertsTimer.current = setTimeout(() => {
+      const payload = saveAlertsLatest.current;
+      if (!payload) return;
+      void flushSaveAlerts(payload.assetId, payload.cfg);
+    }, 400);
+  }
+
+  async function flushSaveAlerts(assetId: string, monitoringAlerts: MonitoringAlertConfig) {
     setBusyId(assetId);
+    setError("");
     try {
-      await api.patchMonitoringDevice(assetId, { monitoringAlertEnabled: next });
+      await api.patchMonitoringDevice(assetId, { monitoringAlerts });
       await reloadFleet();
       if (customerId) {
         const row = await api.monitoringCustomer(customerId);
         setDevices(row.devices);
       }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Warnungen konnten nicht gespeichert werden");
     } finally {
       setBusyId(null);
     }
@@ -299,16 +334,17 @@ export function MonitoringPage() {
                   <div>
                     <strong>{p.assetName}</strong>
                     <p className="muted">
-                      {p.customerName} · {p.issues.map((i) => issueLabel[i]).join(", ") || "Problem"} ·{" "}
-                      {relSeen(p.lastSeenAt)}
+                      {p.customerName} · {deviceIssueText(p)} · {relSeen(p.lastSeenAt)}
                     </p>
                   </div>
                 </button>
-                {p.ticketId && p.ticketNumber ? (
-                  <Link className="btn btn-ghost btn-sm" to={`/tickets/${p.ticketId}`}>
-                    {p.ticketNumber}
-                  </Link>
-                ) : null}
+                <div className="mon-problem-tickets">
+                  {(p.tickets ?? []).map((t) => (
+                    <Link key={t.ticketId} className="btn btn-ghost btn-sm" to={`/tickets/${t.ticketId}`}>
+                      {t.ticketNumber} · {t.diskId ?? issueLabel[t.kind]}
+                    </Link>
+                  ))}
+                </div>
               </li>
             ))}
           </ul>
@@ -431,12 +467,12 @@ export function MonitoringPage() {
 
       {detail ? (
         <DeviceDetail
+          key={detail.device.assetId ?? detail.device.agentId}
           detail={detail}
           rangeDays={rangeDays}
           onRange={setRangeDays}
-          busy={busyId === detail.device.assetId}
-          onToggleAlert={(next) => {
-            if (detail.device.assetId) void toggleAlert(detail.device.assetId, next);
+          onSaveAlerts={(cfg) => {
+            if (detail.device.assetId) void saveAlerts(detail.device.assetId, cfg);
           }}
         />
       ) : null}
@@ -448,19 +484,20 @@ function DeviceDetail({
   detail,
   rangeDays,
   onRange,
-  busy,
-  onToggleAlert,
+  onSaveAlerts,
 }: {
   detail: MonitoringDeviceDetail;
   rangeDays: number;
   onRange: (days: number) => void;
-  busy: boolean;
-  onToggleAlert: (next: boolean) => void;
+  onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
 }) {
   const { device, snapshot, samples } = detail;
   const pointsCpu = seriesFrom(samples, "cpuPct");
   const pointsRam = seriesFrom(samples, "ramPct");
   const pointsDisk = seriesFrom(samples, "diskUsedPct");
+  const [alertConfig, setAlertConfig] = useState(
+    device.alertConfig ?? emptyMonitoringAlertConfig(device.alertEnabled),
+  );
 
   return (
     <section className="panel mon-detail">
@@ -478,20 +515,22 @@ function DeviceDetail({
               Inventar
             </Link>
           ) : null}
-          {device.ticketId ? (
-            <Link className="btn btn-ghost btn-sm" to={`/tickets/${device.ticketId}`}>
-              {device.ticketNumber}
+          {(device.tickets ?? []).map((t) => (
+            <Link key={t.ticketId} className="btn btn-ghost btn-sm" to={`/tickets/${t.ticketId}`}>
+              {t.ticketNumber} · {t.diskId ?? issueLabel[t.kind]}
             </Link>
-          ) : null}
+          ))}
         </div>
       </div>
 
       <div className="mon-detail-toggles">
-        <Checkbox
-          label="Warnung (Ticket bei Problemen)"
-          checked={device.alertEnabled}
-          onChange={onToggleAlert}
-          disabled={busy}
+        <MonitoringAlertConfigFields
+          value={alertConfig}
+          disks={snapshot?.disks}
+          onChange={(cfg) => {
+            setAlertConfig(cfg);
+            onSaveAlerts(cfg);
+          }}
         />
         <div className="mon-range">
           {[1, 7, 30].map((d) => (
@@ -509,7 +548,7 @@ function DeviceDetail({
 
       {device.warning ? (
         <p className="mon-warn-banner">
-          {device.issues.map((i) => issueLabel[i]).join(" · ") || "Warnung aktiv"}
+          {deviceIssueText(device)}
         </p>
       ) : null}
 
@@ -546,24 +585,44 @@ function DeviceDetail({
         />
       )}
 
+      <MonitoringHardwarePanel hardware={snapshot?.hardware} />
+
       {snapshot?.disks?.length ? (
         <div className="mon-block">
           <h3>Datenträger</h3>
           <ul className="mon-disk-list">
             {snapshot.disks.map((d) => {
+              const id = monitoringDiskId(d);
               const used = d.totalBytes > 0 ? (d.usedBytes / d.totalBytes) * 100 : 0;
+              const vol = alertConfig.disk.volumes[id];
+              const thresh = vol?.warnUsedPct ?? alertConfig.disk.warnUsedPct ?? 90;
+              const over = Boolean(alertConfig.disk.enabled && (vol?.enabled ?? true) && used >= thresh);
               return (
-                <li key={d.name}>
-                  <span>{d.name}</span>
-                  <span className="muted">
-                    {formatBytes(d.freeBytes)} frei von {formatBytes(d.totalBytes)} ({Math.round(used)} %)
+                <li key={id} className={over ? "is-over" : undefined}>
+                  <div className="mon-disk-list-head">
+                    <span>{d.name || id}</span>
+                    <span className="muted">
+                      {formatBytes(d.freeBytes)} frei von {formatBytes(d.totalBytes)} ({Math.round(used)} %{" "}
+                      belegt{over ? ` · Warnung ab ${thresh} %` : ""})
+                    </span>
+                  </div>
+                  <span className="mon-disk-bar" aria-hidden>
+                    <span style={{ width: `${Math.round(used)}%` }} />
                   </span>
                 </li>
               );
             })}
           </ul>
         </div>
-      ) : null}
+      ) : (
+        <div className="mon-block">
+          <h3>Datenträger</h3>
+          <p className="muted">
+            Keine Laufwerke gemeldet. Agent 1.0.1 oder neuer installieren und kurz warten, bis der
+            nächste Heartbeat ankommt.
+          </p>
+        </div>
+      )}
 
       {snapshot?.processes?.length ? (
         <div className="mon-block">

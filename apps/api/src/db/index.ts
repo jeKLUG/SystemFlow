@@ -204,6 +204,7 @@ export async function createDb(databasePath: string) {
       portal_visible INTEGER NOT NULL DEFAULT 0,
       monitoring_enabled INTEGER NOT NULL DEFAULT 0,
       monitoring_alert_enabled INTEGER NOT NULL DEFAULT 0,
+      monitoring_alerts_json TEXT NOT NULL DEFAULT '{}',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -457,6 +458,7 @@ export async function createDb(databasePath: string) {
       last_snapshot_json TEXT,
       current_issues_json TEXT NOT NULL DEFAULT '[]',
       open_ticket_id TEXT,
+      open_tickets_json TEXT NOT NULL DEFAULT '{}',
       cpu_high_streak INTEGER NOT NULL DEFAULT 0,
       ram_high_streak INTEGER NOT NULL DEFAULT 0,
       created_at INTEGER NOT NULL,
@@ -538,6 +540,8 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "monitoring_enabled", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "monitoring_alert_enabled", "INTEGER NOT NULL DEFAULT 0");
+  await ensureColumn(client, "assets", "monitoring_alerts_json", "TEXT NOT NULL DEFAULT '{}'");
+  await ensureColumn(client, "monitoring_agents", "open_tickets_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "org_settings", "monitoring_enrollment_key", "TEXT");
   await ensureColumn(client, "attachments", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "file_folders", "portal_visible", "INTEGER NOT NULL DEFAULT 0");

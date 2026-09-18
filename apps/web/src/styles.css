@@ -17767,11 +17767,223 @@ button.portal-doc-card {
   margin: 0.1rem 0 0;
 }
 
-.mon-pending-actions {
+.mon-problem-tickets {
   display: flex;
-  gap: 0.45rem;
-  align-items: center;
   flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.mon-alert-config {
+  width: 100%;
+}
+
+.mon-alert-config-lead {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
+}
+
+.mon-alert-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mon-alert-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    "check meta"
+    "prios prios";
+  align-items: start;
+  gap: 0.35rem 0.7rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.mon-alert-row > .check {
+  grid-area: check;
+  margin-top: 0.12rem;
+}
+
+.mon-alert-meta {
+  grid-area: meta;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.mon-alert-meta strong {
+  font-size: 0.9rem;
+}
+
+.mon-alert-meta .muted {
+  font-size: 0.78rem;
+}
+
+.mon-alert-prios {
+  grid-area: prios;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.mon-alert-row.is-off {
+  opacity: 0.72;
+}
+
+.mon-alert-prio {
+  appearance: none;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  padding: 0.28rem 0.5rem;
+  cursor: pointer;
+}
+
+.mon-alert-prio:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.mon-alert-prio.is-low { border-left-color: #64748b; }
+.mon-alert-prio.is-normal { border-left-color: #60a5fa; }
+.mon-alert-prio.is-high { border-left-color: #fb923c; }
+.mon-alert-prio.is-critical { border-left-color: #f87171; }
+
+.mon-alert-prio.is-low.is-active {
+  background: rgba(100, 116, 139, 0.22);
+  border-color: rgba(148, 163, 184, 0.4);
+}
+
+.mon-alert-prio.is-normal.is-active {
+  background: rgba(96, 165, 250, 0.2);
+  border-color: rgba(96, 165, 250, 0.45);
+}
+
+.mon-alert-prio.is-high.is-active {
+  background: rgba(251, 146, 60, 0.18);
+  border-color: rgba(251, 146, 60, 0.45);
+}
+
+.mon-alert-prio.is-critical.is-active {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+@media (min-width: 720px) {
+  .mon-alert-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "check meta prios";
+    align-items: center;
+  }
+
+  .mon-alert-prios {
+    justify-content: flex-end;
+  }
+
+  .mon-alert-row-disk {
+    grid-template-areas:
+      "check meta prios"
+      "disks disks disks";
+  }
+}
+
+.mon-alert-row-disk {
+  grid-template-areas:
+    "check meta"
+    "prios prios"
+    "disks disks";
+}
+
+.mon-disk-alerts {
+  grid-area: disks;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+}
+
+.mon-disk-default,
+.mon-disk-thresh {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+}
+
+.mon-disk-thresh input {
+  width: 4.2rem;
+}
+
+.mon-disk-empty {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.mon-disk-volume-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.mon-disk-volume {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.5rem 0.65rem;
+  align-items: center;
+  padding: 0.5rem 0.55rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.16);
+}
+
+.mon-disk-volume.is-over {
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.mon-disk-volume.is-off {
+  opacity: 0.7;
+}
+
+.mon-disk-volume-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.mon-disk-bar {
+  display: block;
+  height: 0.35rem;
+  border-radius: 99px;
+  background: rgba(148, 163, 184, 0.2);
+  overflow: hidden;
+}
+
+.mon-disk-bar > span {
+  display: block;
+  height: 100%;
+  background: #34d399;
+}
+
+.mon-disk-volume.is-over .mon-disk-bar > span,
+.mon-disk-list li.is-over .mon-disk-bar > span {
+  background: #f87171;
 }
 
 .mon-pending-actions select,
@@ -17878,6 +18090,12 @@ button.portal-doc-card {
 
 .mon-detail-toggles {
   justify-content: space-between;
+  align-items: flex-start;
+}
+
+.mon-detail-toggles .mon-alert-config {
+  flex: 1 1 18rem;
+  min-width: min(100%, 18rem);
 }
 
 .mon-warn-banner {
@@ -17953,6 +18171,19 @@ button.portal-doc-card {
   gap: 0.35rem;
 }
 
+.mon-disk-list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.mon-disk-list-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .mon-table {
   width: 100%;
   border-collapse: collapse;
@@ -17964,6 +18195,41 @@ button.portal-doc-card {
   text-align: left;
   padding: 0.3rem 0.4rem;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mon-hw-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.55rem 1rem;
+  margin: 0 0 0.85rem;
+}
+
+.mon-hw-facts div {
+  min-width: 0;
+}
+
+.mon-hw-facts dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.mon-hw-facts dd {
+  margin: 0.12rem 0 0;
+  font-size: 0.9rem;
+  word-break: break-word;
+}
+
+.mon-hw-table {
+  margin: 0 0 0.75rem;
+}
+
+.mon-hw-table .is-mono,
+.mon-hw-table td.is-mono {
+  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
 }
 
 .mon-os-line {

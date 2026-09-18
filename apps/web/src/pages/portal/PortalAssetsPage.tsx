@@ -2,57 +2,16 @@ import { useMemo, useState, useEffect } from "react";
 import { api } from "../../api";
 import { AssetFacts } from "../../components/AssetFacts";
 import { HelpHint } from "../../components/HelpHint";
+import { assetKindDetailRows } from "../../lib/assetFields";
 import {
   assetKindLabel,
   assetOwnershipLabel,
   assetStatusLabel,
-  formatDateOnly,
 } from "../../lib/labels";
 import type { Asset, AssetKind, AssetOwnership, AssetStatus } from "../../types";
 
-type PreviewRow = { label: string; value: string; mono?: boolean; href?: string };
-
-function normalizeHref(raw: string): string {
-  if (/^https?:\/\//i.test(raw)) return raw;
-  return `https://${raw}`;
-}
-
-/** Alle kundenrelevanten Felder, ohne interne Notizen. */
-function portalAssetRows(asset: Asset): PreviewRow[] {
-  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
-  const specs = [
-    asset.cpu,
-    asset.ramGb != null ? `${asset.ramGb} GB RAM` : null,
-    asset.diskGb != null ? `${asset.diskGb} GB Speicher` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
-  const rows: Array<PreviewRow | null> = [
-    hardware ? { label: "Gerät", value: hardware } : null,
-    asset.role ? { label: "Rolle", value: asset.role } : null,
-    specs ? { label: "Ausstattung", value: specs } : null,
-    asset.location ? { label: "Standort", value: asset.location } : null,
-    asset.rack ? { label: "Rack / Platz", value: asset.rack } : null,
-    asset.hostname ? { label: "Hostname", value: asset.hostname, mono: true } : null,
-    asset.ipAddress ? { label: "IP-Adresse", value: asset.ipAddress, mono: true } : null,
-    asset.secondaryIp ? { label: "Weitere IP", value: asset.secondaryIp, mono: true } : null,
-    asset.macAddress ? { label: "MAC-Adresse", value: asset.macAddress, mono: true } : null,
-    asset.vlan ? { label: "VLAN", value: asset.vlan } : null,
-    asset.ports ? { label: "Ports", value: asset.ports } : null,
-    asset.os ? { label: "OS / Version", value: asset.os } : null,
-    asset.firmware ? { label: "Firmware", value: asset.firmware } : null,
-    asset.serialNumber ? { label: "Serien- / Lizenznr.", value: asset.serialNumber, mono: true } : null,
-    asset.responsiblePerson ? { label: "Ansprechpartner", value: asset.responsiblePerson } : null,
-    asset.purchaseDate ? { label: "Kaufdatum", value: formatDateOnly(asset.purchaseDate) } : null,
-    asset.installedAt ? { label: "Installiert am", value: formatDateOnly(asset.installedAt) } : null,
-    asset.warrantyUntil
-      ? { label: "Garantie / Laufzeit", value: formatDateOnly(asset.warrantyUntil) }
-      : null,
-    asset.managementUrl
-      ? { label: "Management-URL", value: asset.managementUrl, href: normalizeHref(asset.managementUrl) }
-      : null,
-  ];
-  return rows.filter((r): r is PreviewRow => Boolean(r));
+function portalAssetRows(asset: Asset) {
+  return assetKindDetailRows(asset, { notes: false });
 }
 
 /**

@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
-	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
 	"github.com/shirou/gopsutil/v4/net"
@@ -15,7 +14,9 @@ import (
 )
 
 type DiskSnapshot struct {
+	ID         string `json:"id"`
 	Name       string `json:"name"`
+	Mount      string `json:"mount,omitempty"`
 	TotalBytes uint64 `json:"totalBytes"`
 	UsedBytes  uint64 `json:"usedBytes"`
 	FreeBytes  uint64 `json:"freeBytes"`
@@ -64,6 +65,7 @@ type AgentSnapshot struct {
 	Processes    []ProcessSnapshot `json:"processes,omitempty"`
 	Updates      *UpdateSnapshot   `json:"updates,omitempty"`
 	Events       []EventSnapshot   `json:"events,omitempty"`
+	Hardware     *HardwareInventory `json:"hardware,omitempty"`
 }
 
 func goosName() string {
@@ -109,29 +111,7 @@ func collectSnapshot() (AgentSnapshot, error) {
 		snap.RAMTotalBytes = &total
 	}
 
-	if parts, err := disk.Partitions(false); err == nil {
-		seen := map[string]bool{}
-		for _, p := range parts {
-			if seen[p.Mountpoint] {
-				continue
-			}
-			seen[p.Mountpoint] = true
-			usage, err := disk.Usage(p.Mountpoint)
-			if err != nil || usage.Total == 0 {
-				continue
-			}
-			name := p.Mountpoint
-			if p.Device != "" {
-				name = p.Device
-			}
-			snap.Disks = append(snap.Disks, DiskSnapshot{
-				Name:       name,
-				TotalBytes: usage.Total,
-				UsedBytes:  usage.Used,
-				FreeBytes:  usage.Free,
-			})
-		}
-	}
+	snap.Disks = collectDisks()
 
 	if nics, err := net.IOCounters(true); err == nil {
 		for _, n := range nics {
@@ -170,6 +150,7 @@ func collectSnapshot() (AgentSnapshot, error) {
 	snap.Processes = topProcesses(10)
 	snap.Updates = collectUpdates()
 	snap.Events = collectEvents()
+	snap.Hardware = collectHardwareCached()
 	return snap, nil
 }
 

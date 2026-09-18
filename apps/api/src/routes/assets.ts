@@ -2,9 +2,16 @@ import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { assets, customers, monitoringAgents, networkSegments } from "../db/schema.js";
+import { assets, customers, monitoringAgents, networkSegments, ticketPriorities } from "../db/schema.js";
 import { createId } from "../lib/id.js";
-import { isAgentOnline } from "../lib/monitoring.js";
+import {
+  anyAlertEnabled,
+  emptyAlertConfig,
+  isAgentOnline,
+  parseAlertConfig,
+  serializeAlertConfig,
+  refreshTicketsForAsset,
+} from "../lib/monitoring.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 
@@ -31,6 +38,23 @@ const kindEnum = z.enum([
 
 const ownershipEnum = z.enum(["customer", "loaned", "held"]);
 const statusEnum = z.enum(["active", "spare", "retired"]);
+
+const kindAlertBody = z.object({
+  enabled: z.boolean(),
+  priority: z.enum(ticketPriorities),
+});
+const diskAlertBody = kindAlertBody.extend({
+  warnUsedPct: z.number().min(1).max(99).optional(),
+  volumes: z
+    .record(
+      z.string().min(1).max(160),
+      z.object({
+        enabled: z.boolean().optional(),
+        warnUsedPct: z.number().min(1).max(99).optional(),
+      }),
+    )
+    .optional(),
+});
 
 const assetBody = z.object({
   name: z.string().min(1).max(200),
@@ -64,6 +88,16 @@ const assetBody = z.object({
   portalVisible: z.boolean().optional(),
   monitoringEnabled: z.boolean().optional(),
   monitoringAlertEnabled: z.boolean().optional(),
+  monitoringAlerts: z
+    .object({
+      offline: kindAlertBody,
+      disk: diskAlertBody,
+      cpu: kindAlertBody,
+      ram: kindAlertBody,
+      eventlog: kindAlertBody,
+      updates: kindAlertBody,
+    })
+    .optional(),
 });
 
 function emptyToNull(value: string | null | undefined) {
@@ -87,8 +121,23 @@ function mapAssetFields(
     portalVisible?: boolean;
     monitoringEnabled?: boolean;
     monitoringAlertEnabled?: boolean;
+    monitoringAlertsJson?: string;
   },
 ) {
+  let config = parseAlertConfig({
+    monitoringAlertEnabled: data.monitoringAlertEnabled ?? existing?.monitoringAlertEnabled ?? false,
+    monitoringAlertsJson: existing?.monitoringAlertsJson ?? "{}",
+  });
+  if (data.monitoringAlerts) {
+    config = parseAlertConfig({
+      monitoringAlertEnabled: false,
+      monitoringAlertsJson: JSON.stringify(data.monitoringAlerts),
+    });
+  } else if (data.monitoringAlertEnabled !== undefined && !data.monitoringAlerts) {
+    config = emptyAlertConfig(data.monitoringAlertEnabled);
+  }
+  const alertEnabled = anyAlertEnabled(config);
+
   return {
     name: data.name.trim(),
     kind: data.kind ?? (existing?.kind as z.infer<typeof kindEnum> | undefined) ?? ("other" as const),
@@ -127,7 +176,8 @@ function mapAssetFields(
     notes: emptyToNull(data.notes),
     portalVisible: data.portalVisible ?? existing?.portalVisible ?? false,
     monitoringEnabled: data.monitoringEnabled ?? existing?.monitoringEnabled ?? false,
-    monitoringAlertEnabled: data.monitoringAlertEnabled ?? existing?.monitoringAlertEnabled ?? false,
+    monitoringAlertEnabled: alertEnabled,
+    monitoringAlertsJson: serializeAlertConfig(config),
   };
 }
 
@@ -140,6 +190,7 @@ async function withMonitoring(db: Db, rows: (typeof assets.$inferSelect)[]) {
     const agent = byAsset.get(row.id);
     return {
       ...row,
+      monitoringAlerts: parseAlertConfig(row),
       monitoringAgentId: agent?.id ?? null,
       monitoringOnline: agent ? isAgentOnline(agent.lastSeenAt, now) : null,
       monitoringLastSeenAt: agent?.lastSeenAt ?? null,
@@ -234,6 +285,7 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
       portalVisible: existing.portalVisible,
       monitoringEnabled: existing.monitoringEnabled,
       monitoringAlertEnabled: existing.monitoringAlertEnabled,
+      monitoringAlertsJson: existing.monitoringAlertsJson,
     });
     if (fields.segmentId) {
       const seg = await db
@@ -248,7 +300,10 @@ export async function assetRoutes(app: FastifyInstance, db: Db) {
 
     const updated = { ...fields, updatedAt: new Date() };
     await db.update(assets).set(updated).where(eq(assets.id, id));
-    return { ...existing, ...updated };
+    await refreshTicketsForAsset(db, id);
+    const row = await db.select().from(assets).where(eq(assets.id, id)).get();
+    const [enriched] = await withMonitoring(db, [row!]);
+    return enriched;
   });
 
   app.delete("/api/assets/:id", async (request, reply) => {

@@ -35,7 +35,7 @@ Browser (React SPA)
 - **time_entry_lines** – 1–n Leistungen je Zeiteintrag (Katalog oder virtueller Standard-/Projekt-Stundensatz; Menge, Preis-Snapshot)
 - **org_settings** – Standard-Stundensatz, Währung, MwSt.-Hinweis (UI: Preise-App); `monitoringEnrollmentKey` für Agent-Anmeldung
 - **price_items** – Preiskatalog (`hourly` / `fixed` / `unit`; UI: Preise-App unter `/prices`)
-- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns; Host/IP/MAC, Standort, Garantie; optional Monitoring/Warnung). Liste kompakt; Detailvorschau und Anlegen/Bearbeiten als Modal.
+- **assets** – Inventar je Kunde (Geräte, Lizenzen, Software; Zuordnung Kundeneigentum / verliehen / bei uns). Formularfelder je `kind` (PC ≠ Firewall ≠ Lizenz). Agent füllt leere Felder (Host/IP/MAC, Hersteller/Modell/SN, CPU/RAM/Disk, OS/BIOS) bei PC/Notebook/Server/NAS.
 - **monitoring_agents** / **monitoring_samples** – Live-Agenten (Windows/Linux) mit Heartbeat, Inventar-Zuordnung und 30-Tage-Verlauf
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
@@ -100,10 +100,10 @@ Daten liegen im Volume `systemhaus-data` und überleben Updates. Systemsicherung
 
 Staff-Nav **Monitoring** (`/monitoring`): Flotten-Dashboard, Zuordnung unzugeordneter Agenten zum Inventar, Kunden-/Gerätedetail mit Verlauf (30 Tage). Kundenportal hat in V1 keine Monitoring-Ansicht.
 
-- **Inventar:** Am Asset `monitoringEnabled` (Zuordnungsziel) und `monitoringAlertEnabled` (Warnung + Ticket). Ohne Warnung-Flag bleibt ein PC nach Feierabend still – nur Anzeige online/offline.
-- **Agent** (`apps/agent`, Go): Windows-Dienst `SystemhausAgent` bzw. Linux-systemd `systemhaus-agent`. Push jede Minute an `POST /api/monitoring/heartbeat`. Enrollment mit Schlüssel aus Konto-Einstellungen (`POST /api/monitoring/enroll`). Gleiche Machine-ID (`MachineGuid` / `/etc/machine-id`) erzeugt keinen zweiten Pending-Eintrag.
+- **Inventar:** Am Asset `monitoringEnabled` (Zuordnungsziel) und je Warnungstyp aktiv/Priorität (`monitoringAlertsJson`). Datenträger zusätzlich: Standard-Belegt-% und je Laufwerk eigener Schwellwert (`disk.volumes`). Ohne aktivierte Typen bleibt ein PC nach Feierabend still – nur Anzeige online/offline.
+- **Agent** (`apps/agent`, Go, ab 1.0.2): Windows-Dienst `SystemhausAgent` bzw. Linux-systemd `systemhaus-agent`. Meldet Laufwerke, **verbaute Hardware** (System/Mainboard/BIOS, CPU, RAM-Riegel, physische Datenträger, GPU, NICs; Windows per WMI, alle 6 h) und Metriken. Push jede Minute an `POST /api/monitoring/heartbeat`. Enrollment mit Schlüssel aus Konto-Einstellungen (`POST /api/monitoring/enroll`). Gleiche Machine-ID (`MachineGuid` / `/etc/machine-id`) erzeugt keinen zweiten Pending-Eintrag.
 - **Offline:** kein Heartbeat > 2 Minuten.
-- **Schwellwerte (V1 fest):** Disk < 10 % frei; CPU/RAM > 90 % über 5 Minuten; Event-Log/Journal-Fehler; ausstehende Updates. Tickets nur bei aktiver Warnung: max. ein offenes Ticket, automatisch geschlossen wenn wieder ok. Quelle `monitoring`.
+- **Schwellwerte:** CPU/RAM > 90 % über 5 Minuten; Event-Log/Journal-Fehler; ausstehende Updates. Datenträger: Standard 90 % belegt, je Laufwerk am Gerät überschreibbar; ein Ticket pro Laufwerk über dem Wert. Übrige Typen: ein Ticket pro Typ. Auto-Close wenn ok oder deaktiviert. Quelle `monitoring`.
 - **Speicher:** letzter Voll-Snapshot am Agenten; numerische Minuten-Samples 30 Tage (`monitoring_samples`). API-Prozess prüft alle 30 s Offline und räumt alte Samples stündlich.
 - **Erreichbarkeit:** Agenten brauchen HTTPS zum Server (Kunden-Firewall nach außen). Enrollment-Key in `/settings`.
 

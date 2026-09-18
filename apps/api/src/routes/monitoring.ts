@@ -2,26 +2,33 @@ import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { assets, customers, monitoringAgents, monitoringSamples } from "../db/schema.js";
+import { assets, customers, monitoringAgents, monitoringSamples, ticketPriorities } from "../db/schema.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { createId } from "../lib/id.js";
 import {
+  alertedIssues,
+  anyAlertEnabled,
   deviceNameFor,
+  emptyAlertConfig,
   ensureEnrollmentKey,
   evaluateHeartbeatIssues,
   hashesEqual,
   hashToken,
-  loadAlertFlag,
+  hardwareAssetPatch,
+  loadAlertConfig,
   mapDeviceSummary,
   mapPendingAgent,
   newAgentToken,
+  parseAlertConfig,
   parseIssues,
   parseSnapshot,
   primaryIp,
   rotateEnrollmentKey,
   sampleFromSnapshot,
-  serializeIssues,
-  syncMonitoringTicket,
+  serializeAlertConfig,
+  serializeDetectedIssues,
+  syncMonitoringTickets,
+  refreshTicketsForAsset,
   type AgentSnapshot,
   findAssignableAssets,
   isAgentOnline,
@@ -38,7 +45,9 @@ const enrollBody = z.object({
 });
 
 const diskSchema = z.object({
-  name: z.string().max(80),
+  id: z.string().max(160).optional(),
+  name: z.string().max(160),
+  mount: z.string().max(160).optional(),
   totalBytes: z.number().nonnegative(),
   usedBytes: z.number().nonnegative(),
   freeBytes: z.number().nonnegative(),
@@ -95,6 +104,93 @@ const heartbeatBody = z.object({
       }),
     )
     .max(30)
+    .optional(),
+  hardware: z
+    .object({
+      system: z
+        .object({
+          manufacturer: z.string().max(200).optional(),
+          model: z.string().max(200).optional(),
+          serial: z.string().max(120).optional(),
+          sku: z.string().max(120).optional(),
+        })
+        .optional(),
+      bios: z
+        .object({
+          vendor: z.string().max(200).optional(),
+          version: z.string().max(200).optional(),
+          date: z.string().max(40).optional(),
+          serial: z.string().max(120).optional(),
+        })
+        .optional(),
+      board: z
+        .object({
+          manufacturer: z.string().max(200).optional(),
+          product: z.string().max(200).optional(),
+          serial: z.string().max(120).optional(),
+        })
+        .optional(),
+      cpus: z
+        .array(
+          z.object({
+            name: z.string().max(200).optional(),
+            cores: z.number().int().nonnegative().optional(),
+            threads: z.number().int().nonnegative().optional(),
+            mhz: z.number().nonnegative().optional(),
+            socket: z.string().max(80).optional(),
+          }),
+        )
+        .max(8)
+        .optional(),
+      memoryModules: z
+        .array(
+          z.object({
+            slot: z.string().max(80).optional(),
+            sizeBytes: z.number().nonnegative().optional(),
+            speedMhz: z.number().nonnegative().optional(),
+            manufacturer: z.string().max(120).optional(),
+            partNumber: z.string().max(120).optional(),
+            serial: z.string().max(120).optional(),
+            type: z.string().max(40).optional(),
+          }),
+        )
+        .max(24)
+        .optional(),
+      storage: z
+        .array(
+          z.object({
+            name: z.string().max(200).optional(),
+            model: z.string().max(200).optional(),
+            serial: z.string().max(120).optional(),
+            sizeBytes: z.number().nonnegative().optional(),
+            bus: z.string().max(40).optional(),
+            media: z.string().max(40).optional(),
+          }),
+        )
+        .max(16)
+        .optional(),
+      gpus: z
+        .array(
+          z.object({
+            name: z.string().max(200).optional(),
+            driver: z.string().max(80).optional(),
+            vramBytes: z.number().nonnegative().optional(),
+          }),
+        )
+        .max(8)
+        .optional(),
+      nics: z
+        .array(
+          z.object({
+            name: z.string().max(200).optional(),
+            mac: z.string().max(80).optional(),
+            manufacturer: z.string().max(120).optional(),
+            speedMbps: z.number().nonnegative().optional(),
+          }),
+        )
+        .max(16)
+        .optional(),
+    })
     .optional(),
 });
 
@@ -172,6 +268,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       lastSnapshotJson: null,
       currentIssuesJson: "[]",
       openTicketId: null,
+      openTicketsJson: "{}",
       cpuHighStreak: 0,
       ramHighStreak: 0,
       createdAt: now,
@@ -198,13 +295,14 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
 
     const snapshot = parsed.data as AgentSnapshot;
     const now = new Date();
-    const evald = evaluateHeartbeatIssues(snapshot, agent);
+    const config = await loadAlertConfig(db, agent.assetId);
+    const evald = evaluateHeartbeatIssues(snapshot, agent, config);
     const issues = evald.issues;
-    const alertEnabled = await loadAlertFlag(db, agent.assetId);
     const name = await deviceNameFor(db, agent);
-    const openTicketId = agent.assetId
-      ? await syncMonitoringTicket(db, { ...agent, lastSeenAt: now }, issues, alertEnabled, name)
-      : agent.openTicketId;
+    const openTickets = agent.assetId
+      ? await syncMonitoringTickets(db, { ...agent, lastSeenAt: now }, issues, config, name, evald.firingDisks)
+      : {};
+    const firstTicket = Object.values(openTickets)[0] ?? null;
 
     await db.insert(monitoringSamples).values(sampleFromSnapshot(snapshot, agent.id, now));
 
@@ -219,8 +317,9 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
         agentVersion: snapshot.agentVersion?.trim() || agent.agentVersion,
         lastSeenAt: now,
         lastSnapshotJson: JSON.stringify(snapshot),
-        currentIssuesJson: serializeIssues(issues),
-        openTicketId,
+        currentIssuesJson: serializeDetectedIssues(issues, evald.firingDisks.map((d) => d.id)),
+        openTicketsJson: JSON.stringify(openTickets),
+        openTicketId: firstTicket,
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
         updatedAt: now,
@@ -231,11 +330,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
       if (asset) {
         const patch: Partial<typeof asset> = { updatedAt: now };
-        if (!asset.hostname && snapshot.hostname) patch.hostname = snapshot.hostname.trim();
-        if (!asset.ipAddress && ip) patch.ipAddress = ip;
-        if (!asset.os && (snapshot.os || snapshot.osVersion)) {
-          patch.os = [snapshot.os, snapshot.osVersion].filter(Boolean).join(" ");
-        }
+        Object.assign(patch, hardwareAssetPatch(asset, snapshot, ip));
         if (Object.keys(patch).length > 1) {
           await db.update(assets).set(patch).where(eq(assets.id, asset.id));
         }
@@ -271,10 +366,12 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
           continue;
         }
         const asset = assetMap.get(agent.assetId);
-        if (!asset?.monitoringAlertEnabled) continue;
-        const issues = parseIssues(agent.currentIssuesJson);
-        const online = isAgentOnline(agent.lastSeenAt, now);
-        if (!online || issues.some((k) => k !== "offline")) warningCount += 1;
+        const config = parseAlertConfig(asset);
+        const detected = parseIssues(agent.currentIssuesJson);
+        if (!isAgentOnline(agent.lastSeenAt, now) && !detected.includes("offline")) {
+          detected.unshift("offline");
+        }
+        if (alertedIssues(detected, config).length > 0) warningCount += 1;
       }
       return { warningCount, pendingCount };
     });
@@ -491,10 +588,36 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
 
     scoped.patch("/api/monitoring/devices/:assetId", async (request, reply) => {
       const { assetId } = request.params as { assetId: string };
+      const kindAlertZ = z.object({
+        enabled: z.boolean(),
+        priority: z.enum(ticketPriorities),
+      });
+      const diskAlertZ = kindAlertZ.extend({
+        warnUsedPct: z.number().min(1).max(99).optional(),
+        volumes: z
+          .record(
+            z.string().min(1).max(160),
+            z.object({
+              enabled: z.boolean().optional(),
+              warnUsedPct: z.number().min(1).max(99).optional(),
+            }),
+          )
+          .optional(),
+      });
       const parsed = z
         .object({
           monitoringEnabled: z.boolean().optional(),
           monitoringAlertEnabled: z.boolean().optional(),
+          monitoringAlerts: z
+            .object({
+              offline: kindAlertZ,
+              disk: diskAlertZ,
+              cpu: kindAlertZ,
+              ram: kindAlertZ,
+              eventlog: kindAlertZ,
+              updates: kindAlertZ,
+            })
+            .optional(),
         })
         .safeParse(request.body);
       if (!parsed.success) {
@@ -502,13 +625,27 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       }
       const asset = await db.select().from(assets).where(eq(assets.id, assetId)).get();
       if (!asset) return reply.code(404).send({ error: "Inventar-Eintrag nicht gefunden" });
+
+      let config = parseAlertConfig(asset);
+      if (parsed.data.monitoringAlerts) {
+        config = parseAlertConfig({
+          monitoringAlertEnabled: false,
+          monitoringAlertsJson: JSON.stringify(parsed.data.monitoringAlerts),
+        });
+      } else if (parsed.data.monitoringAlertEnabled !== undefined) {
+        config = emptyAlertConfig(parsed.data.monitoringAlertEnabled);
+      }
+      const alertEnabled = anyAlertEnabled(config);
       const updated = {
-        monitoringEnabled: parsed.data.monitoringEnabled ?? asset.monitoringEnabled,
-        monitoringAlertEnabled: parsed.data.monitoringAlertEnabled ?? asset.monitoringAlertEnabled,
+        monitoringEnabled:
+          parsed.data.monitoringEnabled ?? (alertEnabled ? true : asset.monitoringEnabled),
+        monitoringAlertEnabled: alertEnabled,
+        monitoringAlertsJson: serializeAlertConfig(config),
         updatedAt: new Date(),
       };
       await db.update(assets).set(updated).where(eq(assets.id, assetId));
-      return { ...asset, ...updated };
+      await refreshTicketsForAsset(db, assetId);
+      return { ...asset, ...updated, monitoringAlerts: config };
     });
   });
 }

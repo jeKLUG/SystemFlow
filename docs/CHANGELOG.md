@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.147 – 2026-09-18
+
+- Inventar: Formularfelder je Gerätetyp; Monitoring füllt passende Hardware-/Netzfelder am zugeordneten Eintrag
+
+## 1.5.146 – 2026-09-18
+
+- Monitoring: verbaute Hardware (CPU, RAM-Riegel, Platten, Mainboard, GPU, NICs) in der Geräteansicht; Agent 1.0.2
+
+## 1.5.145 – 2026-09-18
+
+- Monitoring: alle lokalen Festplatten listen; Warnung und Ticket je Laufwerk mit eigenem Belegt-Schwellwert; Agent 1.0.1 erkennt Windows-Laufwerke zuverlässiger
+
+## 1.5.144 – 2026-09-18
+
+- Monitoring: Warnungen je Gerät und Typ (inkl. Ticket-Priorität); ein Ticket pro Warnungstyp
+
 ## 1.5.143 – 2026-09-17
 
 - Monitoring: Staff-Dashboard, Windows-/Linux-Agent (Minuten-Heartbeat), Inventar-Zuordnung, Warnungen mit Auto-Ticket

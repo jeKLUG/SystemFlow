@@ -204,10 +204,12 @@ export const assets = sqliteTable("assets", {
   portalVisible: integer("portal_visible", { mode: "boolean" }).notNull().default(false),
   /** Gerät ist Ziel für einen Monitoring-Agenten. */
   monitoringEnabled: integer("monitoring_enabled", { mode: "boolean" }).notNull().default(false),
-  /** Bei Problemen Warnung im Dashboard und Ticket anlegen. */
+  /** Bei Problemen Warnung im Dashboard und Ticket anlegen (true, wenn irgendein Typ aktiv ist). */
   monitoringAlertEnabled: integer("monitoring_alert_enabled", { mode: "boolean" })
     .notNull()
     .default(false),
+  /** Pro Warnungstyp: aktiv + Ticket-Priorität, JSON. */
+  monitoringAlertsJson: text("monitoring_alerts_json").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -617,6 +619,8 @@ export const monitoringAgents = sqliteTable("monitoring_agents", {
   lastSnapshotJson: text("last_snapshot_json"),
   currentIssuesJson: text("current_issues_json").notNull().default("[]"),
   openTicketId: text("open_ticket_id"),
+  /** Offene Tickets je Warnung `{ "cpu": "tkt_…", "disk:C:": "tkt_…" }`. */
+  openTicketsJson: text("open_tickets_json").notNull().default("{}"),
   cpuHighStreak: integer("cpu_high_streak").notNull().default(0),
   ramHighStreak: integer("ram_high_streak").notNull().default(0),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),

@@ -142,7 +142,7 @@ Typen (`kind`): `pc` · `laptop` · `tablet` · `server` · `firewall` · `switc
 
 Zuordnung (`ownership`): `customer` · `loaned` · `held` (Standard: `customer`).
 
-Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus) für das Kundenportal. Optional `monitoringEnabled` / `monitoringAlertEnabled` für den Staff-Agent.
+Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus) für das Kundenportal. Optional `monitoringEnabled` und `monitoringAlerts` (pro Typ `enabled` + `priority`; `disk` zusätzlich `warnUsedPct` und `volumes` je Laufwerk) für den Staff-Agent.
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
@@ -151,7 +151,7 @@ Status: `active` · `spare` · `retired`. Optional `portalVisible` (Default aus)
 | PUT | `/api/assets/:id` | Aktualisieren |
 | DELETE | `/api/assets/:id` | Löschen |
 
-Body: `name`, optional `kind`, `ownership`, `status`, `manufacturer`, `model`, `serialNumber`, `hostname`, `ipAddress`, `macAddress`, `location`, `vlan`, `os`, `managementUrl`, `warrantyUntil`, `notes`, `monitoringEnabled`, `monitoringAlertEnabled`.
+Body: `name`, optional `kind` (steuert die sinnvollen Felder in der UI), `ownership`, `status`, plus typabhängig z. B. `cpu`/`ramGb`/`diskGb`/`os` (Clients), `firmware`/`ports`/`secondaryIp`/`managementUrl` (Netzwerk), `serialNumber` als Lizenzschlüssel (Software). Agent füllt leere Felder am zugeordneten Inventar. `monitoringEnabled` / `monitoringAlerts` vor allem bei PC/Notebook/Server/NAS.
 
 Suche findet auch Hostname, IP, MAC und Standort.
 
@@ -164,7 +164,7 @@ Agent (öffentlich):
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
-| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/Disks/NICs/Prozesse/Updates/Events. Speichert Sample + Snapshot |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware` (System, CPU, RAM-Riegel, physische Datenträger, GPU, NICs)/NICs/Prozesse/Updates/Events. Speichert Sample + Snapshot |
 
 Staff:
 
@@ -178,9 +178,9 @@ Staff:
 | POST | `/api/monitoring/pending/:id/assign` | `{ assetId }` – Asset muss `monitoringEnabled` haben und frei sein |
 | GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms) |
-| PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlertEnabled? }` |
+| PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }` |
 
-Ticket-Quelle zusätzlich `monitoring`. Bei aktiver Warnung höchstens ein offenes Ticket, Auto-Close mit Lösungstext wenn das Gerät wieder ok ist.
+Ticket-Quelle zusätzlich `monitoring`. Pro Gerät und Warnungstyp höchstens ein offenes Ticket; Datenträger **je Laufwerk** (`openTicketsJson` Key `disk:C:`). Priorität aus der Geräte-Konfiguration, Auto-Close mit Lösungstext wenn der Typ bzw. das Laufwerk wieder ok ist.
 
 ## Historie
 

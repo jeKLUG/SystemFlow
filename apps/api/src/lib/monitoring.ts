@@ -16,6 +16,7 @@ import {
   type MonitoringIssueKind,
   type TicketPriority,
   type TicketStatus,
+  ticketPriorities,
 } from "../db/schema.js";
 import { addActivity } from "../routes/activities.js";
 import { createId } from "./id.js";
@@ -29,6 +30,9 @@ export const DISK_FREE_MIN_PCT = 10;
 export const STREAK_MINUTES = 5;
 const SETTINGS_ID = "default";
 
+export const DISK_WARN_USED_DEFAULT = 100 - DISK_FREE_MIN_PCT;
+export const DISK_ISSUE_PREFIX = "disk:";
+
 export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   offline: "Offline",
   disk: "Datenträger voll",
@@ -38,8 +42,177 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   updates: "Updates ausstehend",
 };
 
+export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = {
+  offline: "high",
+  disk: "high",
+  cpu: "normal",
+  ram: "normal",
+  eventlog: "normal",
+  updates: "low",
+};
+
+export type KindAlert = { enabled: boolean; priority: TicketPriority };
+/** Schwellwert je Laufwerk; ohne Eintrag gelten die Datenträger-Defaults des Geräts. */
+export type VolumeAlert = { enabled: boolean; warnUsedPct: number };
+export type DiskKindAlert = KindAlert & {
+  warnUsedPct: number;
+  volumes: Record<string, VolumeAlert>;
+};
+export type AlertConfig = {
+  [K in MonitoringIssueKind]: K extends "disk" ? DiskKindAlert : KindAlert;
+};
+export type OpenTicketMap = Record<string, string>;
+export type FiringDisk = { id: string; name: string; usedPct: number; warnUsedPct: number };
+
+/** Leere Konfiguration: alle Typen aus, mit Standard-Priorität. */
+export function emptyAlertConfig(allEnabled = false): AlertConfig {
+  return {
+    offline: { enabled: allEnabled, priority: defaultKindPriority.offline },
+    disk: {
+      enabled: allEnabled,
+      priority: defaultKindPriority.disk,
+      warnUsedPct: DISK_WARN_USED_DEFAULT,
+      volumes: {},
+    },
+    cpu: { enabled: allEnabled, priority: defaultKindPriority.cpu },
+    ram: { enabled: allEnabled, priority: defaultKindPriority.ram },
+    eventlog: { enabled: allEnabled, priority: defaultKindPriority.eventlog },
+    updates: { enabled: allEnabled, priority: defaultKindPriority.updates },
+  };
+}
+
+function isPriority(value: unknown): value is TicketPriority {
+  return ticketPriorities.includes(value as TicketPriority);
+}
+
+/** Belegt-% für eine Datenträger-Warnung (1–99, Default 90). */
+export function clampWarnUsedPct(value: unknown): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return DISK_WARN_USED_DEFAULT;
+  return Math.min(99, Math.max(1, Math.round(n)));
+}
+
+/**
+ * Stabile Laufwerk-ID: Windows `C:`, Linux Mountpoint `/` bzw. `/data`.
+ */
+export function normalizeDiskId(raw: string): string {
+  const s = raw.trim();
+  if (/^[A-Za-z]:/.test(s) || s.includes("\\")) {
+    const m = s.match(/([A-Za-z]):/);
+    if (m) return `${m[1].toUpperCase()}:`;
+  }
+  const trimmed = s.replace(/\/+$/, "");
+  return trimmed || "/";
+}
+
+export function diskIdOf(disk: DiskSnapshot): string {
+  if (disk.id?.trim()) return normalizeDiskId(disk.id);
+  return normalizeDiskId(disk.name || disk.mount || "");
+}
+
+export function diskTicketKey(diskId: string): string {
+  return `${DISK_ISSUE_PREFIX}${diskId}`;
+}
+
+export function diskIdFromTicketKey(key: string): string | null {
+  if (key.startsWith(DISK_ISSUE_PREFIX) && key.length > DISK_ISSUE_PREFIX.length) {
+    return key.slice(DISK_ISSUE_PREFIX.length);
+  }
+  return null;
+}
+
+export function volumeAlertFor(config: AlertConfig, diskId: string): VolumeAlert & { priority: TicketPriority } {
+  const vol = config.disk.volumes[diskId];
+  return {
+    enabled: config.disk.enabled && (vol?.enabled ?? true),
+    warnUsedPct: vol?.warnUsedPct ?? config.disk.warnUsedPct,
+    priority: config.disk.priority,
+  };
+}
+
+function parseVolumeMap(raw: unknown): Record<string, VolumeAlert> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, VolumeAlert> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!key.trim() || !value || typeof value !== "object" || Array.isArray(value)) continue;
+    const row = value as { enabled?: unknown; warnUsedPct?: unknown };
+    const id = normalizeDiskId(key);
+    if (!id) continue;
+    out[id] = {
+      enabled: row.enabled === undefined ? true : Boolean(row.enabled),
+      warnUsedPct: clampWarnUsedPct(row.warnUsedPct),
+    };
+  }
+  return out;
+}
+
+/**
+ * Liest die Warnungs-Konfiguration eines Inventar-Eintrags.
+ * Leeres JSON fällt auf das alte Flag `monitoringAlertEnabled` zurück (alle Typen an/aus).
+ */
+export function parseAlertConfig(asset: Pick<Asset, "monitoringAlertEnabled" | "monitoringAlertsJson"> | null | undefined): AlertConfig {
+  const fallback = emptyAlertConfig(Boolean(asset?.monitoringAlertEnabled));
+  if (!asset?.monitoringAlertsJson) return fallback;
+  try {
+    const raw = JSON.parse(asset.monitoringAlertsJson) as unknown;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return fallback;
+    const obj = raw as Record<string, Record<string, unknown>>;
+    if (Object.keys(obj).length === 0) return fallback;
+    const cfg = emptyAlertConfig(false);
+    for (const kind of monitoringIssueKinds) {
+      if (kind === "disk") continue;
+      const row = obj[kind];
+      if (!row || typeof row !== "object") continue;
+      cfg[kind] = {
+        enabled: Boolean(row.enabled),
+        priority: isPriority(row.priority) ? row.priority : defaultKindPriority[kind],
+      };
+    }
+    const diskRow = obj.disk;
+    if (diskRow && typeof diskRow === "object") {
+      cfg.disk.enabled = Boolean(diskRow.enabled);
+      cfg.disk.priority = isPriority(diskRow.priority) ? diskRow.priority : defaultKindPriority.disk;
+      cfg.disk.warnUsedPct = clampWarnUsedPct(
+        diskRow.warnUsedPct ?? (typeof diskRow.freeMinPct === "number" ? 100 - Number(diskRow.freeMinPct) : DISK_WARN_USED_DEFAULT),
+      );
+      cfg.disk.volumes = parseVolumeMap(diskRow.volumes);
+    }
+    return cfg;
+  } catch {
+    return fallback;
+  }
+}
+
+export function serializeAlertConfig(cfg: AlertConfig): string {
+  return JSON.stringify(cfg);
+}
+
+export function anyAlertEnabled(cfg: AlertConfig): boolean {
+  return monitoringIssueKinds.some((k) => cfg[k].enabled);
+}
+
+function isTicketKey(key: string): boolean {
+  return monitoringIssueKinds.includes(key as MonitoringIssueKind) || diskIdFromTicketKey(key) != null;
+}
+
+export function parseOpenTickets(raw: string | null | undefined): OpenTicketMap {
+  try {
+    const parsed = JSON.parse(raw || "{}") as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const out: OpenTicketMap = {};
+    for (const [key, id] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof id === "string" && id && isTicketKey(key)) out[key] = id;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 export type DiskSnapshot = {
+  id?: string;
   name: string;
+  mount?: string;
   totalBytes: number;
   usedBytes: number;
   freeBytes: number;
@@ -65,6 +238,32 @@ export type EventSnapshot = {
   message: string;
 };
 
+export type HardwareInventory = {
+  system?: { manufacturer?: string; model?: string; serial?: string; sku?: string };
+  bios?: { vendor?: string; version?: string; date?: string; serial?: string };
+  board?: { manufacturer?: string; product?: string; serial?: string };
+  cpus?: { name?: string; cores?: number; threads?: number; mhz?: number; socket?: string }[];
+  memoryModules?: {
+    slot?: string;
+    sizeBytes?: number;
+    speedMhz?: number;
+    manufacturer?: string;
+    partNumber?: string;
+    serial?: string;
+    type?: string;
+  }[];
+  storage?: {
+    name?: string;
+    model?: string;
+    serial?: string;
+    sizeBytes?: number;
+    bus?: string;
+    media?: string;
+  }[];
+  gpus?: { name?: string; driver?: string; vramBytes?: number }[];
+  nics?: { name?: string; mac?: string; manufacturer?: string; speedMbps?: number }[];
+};
+
 export type AgentSnapshot = {
   hostname?: string;
   os?: string;
@@ -83,6 +282,7 @@ export type AgentSnapshot = {
   processes?: ProcessSnapshot[];
   updates?: { pendingCount?: number; lastInstalled?: string | null };
   events?: EventSnapshot[];
+  hardware?: HardwareInventory;
 };
 
 /**
@@ -112,16 +312,51 @@ export function newEnrollmentKey(): string {
   return `enr_${randomBytes(18).toString("hex")}`;
 }
 
-export function parseIssues(raw: string | null | undefined): MonitoringIssueKind[] {
+export function parseIssueTokens(raw: string | null | undefined): string[] {
   try {
     const parsed = JSON.parse(raw || "[]") as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((x): x is MonitoringIssueKind =>
-      monitoringIssueKinds.includes(x as MonitoringIssueKind),
-    );
+    return parsed.filter((x): x is string => typeof x === "string" && x.length > 0 && x.length < 200);
   } catch {
     return [];
   }
+}
+
+/**
+ * Bekannte Warnungstypen aus dem Issues-JSON (inkl. `disk:C:` → `disk`).
+ */
+export function parseIssues(raw: string | null | undefined): MonitoringIssueKind[] {
+  const kinds = new Set<MonitoringIssueKind>();
+  for (const token of parseIssueTokens(raw)) {
+    if (monitoringIssueKinds.includes(token as MonitoringIssueKind)) {
+      kinds.add(token as MonitoringIssueKind);
+    } else if (diskIdFromTicketKey(token)) {
+      kinds.add("disk");
+    }
+  }
+  return monitoringIssueKinds.filter((k) => kinds.has(k));
+}
+
+export function diskIdsFromTokens(raw: string | null | undefined): string[] {
+  const ids: string[] = [];
+  for (const token of parseIssueTokens(raw)) {
+    const id = diskIdFromTicketKey(token);
+    if (id) ids.push(id);
+  }
+  return ids;
+}
+
+/** Speichert Typen plus `disk:<id>` je voll laufendem Laufwerk. */
+export function serializeDetectedIssues(kinds: MonitoringIssueKind[], diskIds: string[]): string {
+  const tokens: string[] = [];
+  for (const kind of kinds) {
+    if (kind === "disk") continue;
+    tokens.push(kind);
+  }
+  for (const id of diskIds) {
+    if (id) tokens.push(diskTicketKey(id));
+  }
+  return JSON.stringify([...new Set(tokens)]);
 }
 
 export function serializeIssues(issues: MonitoringIssueKind[]): string {
@@ -166,13 +401,34 @@ function nicTotals(nics: NicSnapshot[] | undefined): { rx: number | null; tx: nu
 }
 
 /**
+ * Laufwerke, die den konfigurierten Belegt-Schwellwert überschreiten.
+ */
+export function firingDisksFrom(disks: DiskSnapshot[] | undefined, config: AlertConfig): FiringDisk[] {
+  if (!config.disk.enabled || !disks?.length) return [];
+  const out: FiringDisk[] = [];
+  for (const disk of disks) {
+    const id = diskIdOf(disk);
+    if (!id) continue;
+    const vol = volumeAlertFor(config, id);
+    if (!vol.enabled) continue;
+    const pct = disk.totalBytes > 0 ? usedPct(disk.usedBytes, disk.totalBytes) : null;
+    if (pct != null && pct >= vol.warnUsedPct) {
+      out.push({ id, name: disk.name || id, usedPct: pct, warnUsedPct: vol.warnUsedPct });
+    }
+  }
+  return out;
+}
+
+/**
  * Schwellwerte aus dem letzten Heartbeat (ohne Offline).
  */
 export function evaluateHeartbeatIssues(
   snapshot: AgentSnapshot,
   agent: Pick<MonitoringAgent, "cpuHighStreak" | "ramHighStreak">,
+  config: AlertConfig,
 ): {
   issues: MonitoringIssueKind[];
+  firingDisks: FiringDisk[];
   cpuHighStreak: number;
   ramHighStreak: number;
 } {
@@ -187,8 +443,8 @@ export function evaluateHeartbeatIssues(
     ramPct != null && ramPct > RAM_HIGH_PCT ? agent.ramHighStreak + 1 : 0;
   if (ramHighStreak >= STREAK_MINUTES) issues.push("ram");
 
-  const diskPct = worstDiskUsedPct(snapshot.disks);
-  if (diskPct != null && diskPct >= 100 - DISK_FREE_MIN_PCT) issues.push("disk");
+  const firingDisks = firingDisksFrom(snapshot.disks, config);
+  if (firingDisks.length) issues.push("disk");
 
   if ((snapshot.events ?? []).some((ev) => (ev.level || "error").toLowerCase() !== "warning")) {
     if ((snapshot.events ?? []).length > 0) issues.push("eventlog");
@@ -196,23 +452,19 @@ export function evaluateHeartbeatIssues(
 
   if ((snapshot.updates?.pendingCount ?? 0) > 0) issues.push("updates");
 
-  return { issues, cpuHighStreak, ramHighStreak };
+  return { issues, firingDisks, cpuHighStreak, ramHighStreak };
 }
 
-function issuePriority(issues: MonitoringIssueKind[]): TicketPriority {
-  if (issues.includes("offline") || issues.includes("disk")) return "high";
-  if (issues.includes("cpu") || issues.includes("ram") || issues.includes("eventlog")) return "normal";
-  return "low";
+function issueTitle(deviceName: string, kind: MonitoringIssueKind, diskName?: string): string {
+  if (kind === "disk" && diskName) return `[Monitoring] ${deviceName} — Datenträger ${diskName} voll`;
+  return `[Monitoring] ${deviceName} — ${monitoringIssueLabel[kind]}`;
 }
 
-function issueTitle(deviceName: string, issues: MonitoringIssueKind[]): string {
-  const head = issues[0] ? monitoringIssueLabel[issues[0]] : "Problem";
-  return `[Monitoring] ${deviceName} — ${head}`;
-}
-
-function issueDescription(deviceName: string, issues: MonitoringIssueKind[]): string {
-  const lines = issues.map((k) => `• ${monitoringIssueLabel[k]}`);
-  return `Automatische Monitoring-Meldung für ${deviceName}:\n${lines.join("\n")}`;
+function issueDescription(deviceName: string, kind: MonitoringIssueKind, diskName?: string): string {
+  if (kind === "disk" && diskName) {
+    return `Automatische Monitoring-Meldung für ${deviceName}: Datenträger ${diskName} über dem Schwellwert.`;
+  }
+  return `Automatische Monitoring-Meldung für ${deviceName}: ${monitoringIssueLabel[kind]}.`;
 }
 
 function plainDoc(text: string): string {
@@ -227,135 +479,201 @@ async function adminUserId(db: Db): Promise<string | null> {
   return row?.id ?? null;
 }
 
-function issuesEqual(a: MonitoringIssueKind[], b: MonitoringIssueKind[]): boolean {
-  if (a.length !== b.length) return false;
-  const sa = [...a].sort().join(",");
-  const sb = [...b].sort().join(",");
-  return sa === sb;
+async function closeTicket(
+  db: Db,
+  ticketId: string,
+  authorId: string,
+  now: Date,
+  resolutionText: string,
+) {
+  const ticket = await db.select().from(tickets).where(eq(tickets.id, ticketId)).get();
+  if (!ticket || !isOpenStatus(ticket.status)) return;
+  const resolution = plainDoc(resolutionText);
+  await db
+    .update(tickets)
+    .set({
+      status: "closed" as TicketStatus,
+      resolution,
+      resolvedAt: ticket.resolvedAt ?? now,
+      closedAt: now,
+      updatedAt: now,
+    })
+    .where(eq(tickets.id, ticket.id));
+  await db.insert(ticketMessages).values({
+    id: createId("tmsg"),
+    ticketId: ticket.id,
+    visibility: "public",
+    kind: "resolution",
+    authorRole: "admin",
+    authorUserId: authorId,
+    body: resolution,
+    createdAt: now,
+  });
+  await addActivity(db, ticket.customerId, `Ticket ${ticket.number} geschlossen`, ticket.title, now);
 }
 
+type TicketSlot = {
+  key: string;
+  kind: MonitoringIssueKind;
+  priority: TicketPriority;
+  title: string;
+  description: string;
+  firing: boolean;
+  enabled: boolean;
+  closeOk: string;
+  closeOff: string;
+};
+
 /**
- * Öffnet oder schließt das eine Monitoring-Ticket passend zu den aktuellen Problemen.
+ * Ein offenes Ticket je Warnung; Datenträger je Laufwerk. Schließt Tickets, deren Warnung weg ist.
  */
-export async function syncMonitoringTicket(
+export async function syncMonitoringTickets(
   db: Db,
   agent: MonitoringAgent,
-  issues: MonitoringIssueKind[],
-  alertEnabled: boolean,
+  detected: MonitoringIssueKind[],
+  config: AlertConfig,
   deviceName: string,
-): Promise<string | null> {
+  firingDisks: FiringDisk[] = [],
+): Promise<OpenTicketMap> {
   const now = new Date();
   const authorId = await adminUserId(db);
-  if (!authorId || !agent.customerId) return agent.openTicketId;
+  const openMap = parseOpenTickets(agent.openTicketsJson);
+  if (Object.keys(openMap).length === 0 && agent.openTicketId) {
+    const seed = firingDisks[0]
+      ? diskTicketKey(firingDisks[0].id)
+      : (detected.find((k) => k !== "disk") ?? detected[0] ?? "offline");
+    openMap[seed] = agent.openTicketId;
+  }
+  if (openMap.disk && firingDisks.length) {
+    const key = diskTicketKey(firingDisks[0].id);
+    if (!openMap[key]) openMap[key] = openMap.disk;
+    if (openMap[key] === openMap.disk) delete openMap.disk;
+  }
+  if (!authorId || !agent.customerId) return openMap;
 
-  const shouldAlert = alertEnabled && issues.length > 0;
-  let openTicketId = agent.openTicketId;
-
-  if (openTicketId) {
-    const ticket = await db.select().from(tickets).where(eq(tickets.id, openTicketId)).get();
-    if (!ticket || !isOpenStatus(ticket.status)) {
-      openTicketId = null;
-    }
+  const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && config[kind].enabled));
+  const slots: TicketSlot[] = [];
+  for (const kind of monitoringIssueKinds) {
+    if (kind === "disk") continue;
+    slots.push({
+      key: kind,
+      kind,
+      priority: config[kind].priority,
+      title: issueTitle(deviceName, kind),
+      description: issueDescription(deviceName, kind),
+      firing: firingKinds.has(kind),
+      enabled: config[kind].enabled,
+      closeOk: `Die Warnung „${monitoringIssueLabel[kind]}“ ist nicht mehr aktiv.`,
+      closeOff: `Warnung „${monitoringIssueLabel[kind]}“ am Gerät deaktiviert.`,
+    });
+  }
+  const firingDiskIds = new Set(firingDisks.map((d) => d.id));
+  const diskNames = new Map(firingDisks.map((d) => [d.id, d.name]));
+  const diskKeys = new Set<string>();
+  for (const disk of firingDisks) {
+    const key = diskTicketKey(disk.id);
+    diskKeys.add(key);
+    const vol = volumeAlertFor(config, disk.id);
+    slots.push({
+      key,
+      kind: "disk",
+      priority: vol.priority,
+      title: issueTitle(deviceName, "disk", disk.name),
+      description: issueDescription(deviceName, "disk", disk.name),
+      firing: true,
+      enabled: vol.enabled,
+      closeOk: `Die Warnung für Datenträger ${disk.name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Datenträger ${disk.name} am Gerät deaktiviert.`,
+    });
+  }
+  for (const key of Object.keys(openMap)) {
+    const diskId = diskIdFromTicketKey(key);
+    if (!diskId || diskKeys.has(key)) continue;
+    const name = diskNames.get(diskId) ?? diskId;
+    const vol = volumeAlertFor(config, diskId);
+    slots.push({
+      key,
+      kind: "disk",
+      priority: vol.priority,
+      title: issueTitle(deviceName, "disk", name),
+      description: issueDescription(deviceName, "disk", name),
+      firing: firingDiskIds.has(diskId),
+      enabled: vol.enabled,
+      closeOk: `Die Warnung für Datenträger ${name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Datenträger ${name} am Gerät deaktiviert.`,
+    });
+  }
+  if (openMap.disk) {
+    slots.push({
+      key: "disk",
+      kind: "disk",
+      priority: config.disk.priority,
+      title: issueTitle(deviceName, "disk"),
+      description: issueDescription(deviceName, "disk"),
+      firing: false,
+      enabled: config.disk.enabled,
+      closeOk: `Die Warnung „${monitoringIssueLabel.disk}“ ist nicht mehr aktiv.`,
+      closeOff: `Warnung „${monitoringIssueLabel.disk}“ am Gerät deaktiviert.`,
+    });
   }
 
-  if (!shouldAlert) {
-    if (!openTicketId) return null;
-    const ticket = await db.select().from(tickets).where(eq(tickets.id, openTicketId)).get();
-    if (ticket && isOpenStatus(ticket.status)) {
-      const resolution = plainDoc(
-        alertEnabled
-          ? "Gerät wieder erreichbar. Schwellwerte wieder im Normalbereich."
-          : "Warnung am Gerät deaktiviert.",
-      );
-      await db
-        .update(tickets)
-        .set({
-          status: "closed" as TicketStatus,
-          resolution,
-          resolvedAt: ticket.resolvedAt ?? now,
-          closedAt: now,
-          updatedAt: now,
-        })
-        .where(eq(tickets.id, ticket.id));
-      await db.insert(ticketMessages).values({
-        id: createId("tmsg"),
-        ticketId: ticket.id,
-        visibility: "public",
-        kind: "resolution",
-        authorRole: "admin",
-        authorUserId: authorId,
-        body: resolution,
-        createdAt: now,
-      });
-      await addActivity(
-        db,
-        ticket.customerId,
-        `Ticket ${ticket.number} geschlossen`,
-        ticket.title,
-        now,
-      );
-    }
-    return null;
-  }
+  const next: OpenTicketMap = {};
+  const seen = new Set<string>();
+  for (const slot of slots) {
+    if (seen.has(slot.key)) continue;
+    seen.add(slot.key);
+    const existingId = openMap[slot.key];
+    const existing = existingId
+      ? await db.select().from(tickets).where(eq(tickets.id, existingId)).get()
+      : undefined;
+    const openExisting = existing && isOpenStatus(existing.status) ? existing : null;
 
-  if (openTicketId) {
-    const ticket = await db.select().from(tickets).where(eq(tickets.id, openTicketId)).get();
-    if (ticket) {
-      const prev = parseIssues(agent.currentIssuesJson);
-      if (!issuesEqual(prev, issues)) {
-        const title = issueTitle(deviceName, issues);
-        await db
-          .update(tickets)
-          .set({
-            title,
-            description: issueDescription(deviceName, issues),
-            priority: issuePriority(issues),
-            updatedAt: now,
-          })
-          .where(eq(tickets.id, ticket.id));
-        await db.insert(ticketMessages).values({
-          id: createId("tmsg"),
-          ticketId: ticket.id,
-          visibility: "internal",
-          kind: "comment",
-          authorRole: "admin",
-          authorUserId: authorId,
-          body: plainDoc(`Aktualisiert: ${issues.map((k) => monitoringIssueLabel[k]).join(", ")}`),
-          createdAt: now,
-        });
+    if (slot.firing) {
+      if (openExisting) {
+        const patch: { priority?: TicketPriority; title?: string; updatedAt: Date } = { updatedAt: now };
+        if (openExisting.priority !== slot.priority) patch.priority = slot.priority;
+        if (openExisting.title !== slot.title) patch.title = slot.title;
+        if (patch.priority || patch.title) {
+          await db.update(tickets).set(patch).where(eq(tickets.id, openExisting.id));
+        }
+        next[slot.key] = openExisting.id;
+        continue;
       }
-      return ticket.id;
+      const contract = await findActiveContract(db, agent.customerId);
+      const sla = slaFromContract(contract, slot.priority, now);
+      const row = {
+        id: createId("tkt"),
+        number: await nextTicketNumber(db),
+        customerId: agent.customerId,
+        title: slot.title,
+        description: slot.description,
+        status: "open" as TicketStatus,
+        priority: slot.priority,
+        source: "monitoring" as const,
+        contractId: sla.contractId,
+        createdByRole: "admin" as const,
+        createdByUserId: authorId,
+        firstResponseAt: null as Date | null,
+        resolvedAt: null as Date | null,
+        closedAt: null as Date | null,
+        slaResponseDueAt: sla.slaResponseDueAt,
+        slaResolveDueAt: sla.slaResolveDueAt,
+        resolution: null as string | null,
+        createdAt: now,
+        updatedAt: now,
+      };
+      await db.insert(tickets).values(row);
+      await addActivity(db, agent.customerId, `Ticket ${row.number} angelegt`, row.title, now);
+      next[slot.key] = row.id;
+      continue;
+    }
+
+    if (openExisting) {
+      await closeTicket(db, openExisting.id, authorId, now, slot.enabled ? slot.closeOk : slot.closeOff);
     }
   }
 
-  const contract = await findActiveContract(db, agent.customerId);
-  const priority = issuePriority(issues);
-  const sla = slaFromContract(contract, priority, now);
-  const title = issueTitle(deviceName, issues);
-  const row = {
-    id: createId("tkt"),
-    number: await nextTicketNumber(db),
-    customerId: agent.customerId,
-    title,
-    description: issueDescription(deviceName, issues),
-    status: "open" as TicketStatus,
-    priority,
-    source: "monitoring" as const,
-    contractId: sla.contractId,
-    createdByRole: "admin" as const,
-    createdByUserId: authorId,
-    firstResponseAt: null as Date | null,
-    resolvedAt: null as Date | null,
-    closedAt: null as Date | null,
-    slaResponseDueAt: sla.slaResponseDueAt,
-    slaResolveDueAt: sla.slaResolveDueAt,
-    resolution: null as string | null,
-    createdAt: now,
-    updatedAt: now,
-  };
-  await db.insert(tickets).values(row);
-  await addActivity(db, agent.customerId, `Ticket ${row.number} angelegt`, row.title, now);
-  return row.id;
+  return next;
 }
 
 export async function ensureEnrollmentKey(db: Db): Promise<string> {
@@ -399,6 +717,87 @@ export function primaryIp(snapshot: AgentSnapshot): string | null {
   return first ?? snapshot.ips?.[0] ?? null;
 }
 
+/** Füllt leere Inventar-Felder aus Heartbeat und Hardware-Inventur. */
+export function hardwareAssetPatch(
+  asset: Pick<
+    Asset,
+    | "kind"
+    | "manufacturer"
+    | "model"
+    | "serialNumber"
+    | "hostname"
+    | "ipAddress"
+    | "secondaryIp"
+    | "macAddress"
+    | "os"
+    | "firmware"
+    | "cpu"
+    | "ramGb"
+    | "diskGb"
+  >,
+  snapshot: AgentSnapshot,
+  ip: string | null,
+): Partial<
+  Pick<
+    Asset,
+    | "manufacturer"
+    | "model"
+    | "serialNumber"
+    | "hostname"
+    | "ipAddress"
+    | "secondaryIp"
+    | "macAddress"
+    | "os"
+    | "firmware"
+    | "cpu"
+    | "ramGb"
+    | "diskGb"
+  >
+> {
+  const hw = snapshot.hardware;
+  const patch: ReturnType<typeof hardwareAssetPatch> = {};
+  const computer = ["pc", "laptop", "tablet", "server", "nas"].includes(asset.kind);
+
+  if (!asset.manufacturer && hw?.system?.manufacturer) {
+    patch.manufacturer = hw.system.manufacturer.slice(0, 200);
+  } else if (!asset.manufacturer && hw?.board?.manufacturer) {
+    patch.manufacturer = hw.board.manufacturer.slice(0, 200);
+  }
+  if (!asset.model && hw?.system?.model) patch.model = hw.system.model.slice(0, 200);
+  else if (!asset.model && hw?.board?.product) patch.model = hw.board.product.slice(0, 200);
+
+  const serial = hw?.system?.serial || hw?.bios?.serial;
+  if (!asset.serialNumber && serial) patch.serialNumber = serial.slice(0, 200);
+
+  if (!asset.hostname && snapshot.hostname?.trim()) patch.hostname = snapshot.hostname.trim().slice(0, 200);
+  if (!asset.ipAddress && ip) patch.ipAddress = ip.slice(0, 80);
+  const extraIps = (snapshot.ips ?? []).map((x) => x.trim()).filter((x) => x && x !== ip && !x.startsWith("127.") && x !== "::1");
+  if (!asset.secondaryIp && extraIps.length) patch.secondaryIp = extraIps.slice(0, 4).join(", ").slice(0, 80);
+
+  const mac = snapshot.mac?.trim() || hw?.nics?.find((n) => n.mac)?.mac;
+  if (!asset.macAddress && mac) patch.macAddress = mac.slice(0, 80);
+
+  if (computer) {
+    if (!asset.os && (snapshot.os || snapshot.osVersion)) {
+      patch.os = [snapshot.os, snapshot.osVersion].filter(Boolean).join(" ").slice(0, 200);
+    }
+    const bios = [hw?.bios?.vendor, hw?.bios?.version].filter(Boolean).join(" ");
+    if (!asset.firmware && bios) patch.firmware = bios.slice(0, 200);
+    const cpuName = hw?.cpus?.find((c) => c.name)?.name;
+    if (!asset.cpu && cpuName) patch.cpu = cpuName.slice(0, 200);
+    if (asset.ramGb == null && snapshot.ramTotalBytes) {
+      const gb = snapshot.ramTotalBytes / 1024 ** 3;
+      if (gb > 0) patch.ramGb = Math.round(gb * 10) / 10;
+    }
+    if (asset.diskGb == null && hw?.storage?.length) {
+      const bytes = hw.storage.reduce((sum, d) => sum + (d.sizeBytes ?? 0), 0);
+      if (bytes > 0) patch.diskGb = Math.round(bytes / 1024 ** 3);
+    }
+  }
+
+  return patch;
+}
+
 export function sampleFromSnapshot(snapshot: AgentSnapshot, agentId: string, now: Date) {
   const ramPct = usedPct(snapshot.ramUsedBytes ?? 0, snapshot.ramTotalBytes ?? 0);
   const diskUsedPct = worstDiskUsedPct(snapshot.disks);
@@ -429,10 +828,10 @@ export function parseSnapshot(raw: string | null | undefined): AgentSnapshot | n
   }
 }
 
-export async function loadAlertFlag(db: Db, assetId: string | null): Promise<boolean> {
-  if (!assetId) return false;
+export async function loadAlertConfig(db: Db, assetId: string | null): Promise<AlertConfig> {
+  if (!assetId) return emptyAlertConfig(false);
   const asset = await db.select().from(assets).where(eq(assets.id, assetId)).get();
-  return Boolean(asset?.monitoringAlertEnabled);
+  return parseAlertConfig(asset ?? undefined);
 }
 
 export async function deviceNameFor(db: Db, agent: MonitoringAgent): Promise<string> {
@@ -450,17 +849,58 @@ export function devicePublicStatus(agent: MonitoringAgent, now = new Date()): De
   return isAgentOnline(agent.lastSeenAt, now) ? "online" : "offline";
 }
 
-export function warningActive(
-  agent: MonitoringAgent,
-  alertEnabled: boolean,
-  now = new Date(),
-): boolean {
-  if (!alertEnabled || !agent.assetId) return false;
-  const issues = parseIssues(agent.currentIssuesJson);
+export function warningActive(detected: MonitoringIssueKind[], config: AlertConfig): boolean {
+  return detected.some((kind) => config[kind].enabled);
+}
+
+export function alertedIssues(detected: MonitoringIssueKind[], config: AlertConfig): MonitoringIssueKind[] {
+  return detected.filter((kind) => config[kind].enabled);
+}
+
+/**
+ * Tickets eines zugeordneten Agenten an aktuelle Warnungen und Geräte-Konfig anpassen.
+ */
+export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now = new Date()): Promise<void> {
+  if (!agent.assetId || !agent.customerId) return;
+  const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
+  const config = parseAlertConfig(asset ?? undefined);
   const online = isAgentOnline(agent.lastSeenAt, now);
-  const hasOffline = issues.includes("offline") || !online;
-  const hasOther = issues.some((k) => k !== "offline");
-  return hasOffline || hasOther;
+  const snapshot = parseSnapshot(agent.lastSnapshotJson);
+  const stored = parseIssues(agent.currentIssuesJson).filter((k) => k !== "offline" && k !== "disk");
+  const firingDisks = firingDisksFrom(snapshot?.disks, config);
+  const issues: MonitoringIssueKind[] = [...stored];
+  if (firingDisks.length) issues.push("disk");
+  if (!online) issues.unshift("offline");
+  const name = asset?.name || agent.hostname || agent.machineId;
+  const openTickets = await syncMonitoringTickets(db, agent, issues, config, name, firingDisks);
+  const firstTicket = Object.values(openTickets)[0] ?? null;
+  const issuesJson = serializeDetectedIssues(issues, firingDisks.map((d) => d.id));
+  if (
+    issuesJson !== (agent.currentIssuesJson || "[]") ||
+    JSON.stringify(openTickets) !== (agent.openTicketsJson || "{}") ||
+    firstTicket !== agent.openTicketId
+  ) {
+    await db
+      .update(monitoringAgents)
+      .set({
+        currentIssuesJson: issuesJson,
+        openTicketsJson: JSON.stringify(openTickets),
+        openTicketId: firstTicket,
+        updatedAt: now,
+      })
+      .where(eq(monitoringAgents.id, agent.id));
+  }
+}
+
+/** Ticket-Sync nach Änderung der Warnungs-Konfiguration am Inventar-Eintrag. */
+export async function refreshTicketsForAsset(db: Db, assetId: string): Promise<void> {
+  const agent = await db
+    .select()
+    .from(monitoringAgents)
+    .where(eq(monitoringAgents.assetId, assetId))
+    .get();
+  if (!agent) return;
+  await refreshAssignedAgent(db, agent);
 }
 
 /**
@@ -470,29 +910,7 @@ export async function evaluateOfflineAgents(db: Db): Promise<void> {
   const now = new Date();
   const rows = await db.select().from(monitoringAgents).all();
   for (const agent of rows) {
-    if (!agent.assetId || !agent.customerId) continue;
-    const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
-    const alertEnabled = Boolean(asset?.monitoringAlertEnabled);
-    const online = isAgentOnline(agent.lastSeenAt, now);
-    const issues: MonitoringIssueKind[] = parseIssues(agent.currentIssuesJson).filter(
-      (k) => k !== "offline",
-    );
-    if (!online) issues.unshift("offline");
-    const name = asset?.name || agent.hostname || agent.machineId;
-    const openTicketId = await syncMonitoringTicket(db, agent, issues, alertEnabled, name);
-    if (
-      serializeIssues(issues) !== (agent.currentIssuesJson || "[]") ||
-      openTicketId !== agent.openTicketId
-    ) {
-      await db
-        .update(monitoringAgents)
-        .set({
-          currentIssuesJson: serializeIssues(issues),
-          openTicketId,
-          updatedAt: now,
-        })
-        .where(eq(monitoringAgents.id, agent.id));
-    }
+    await refreshAssignedAgent(db, agent, now);
   }
 }
 
@@ -543,15 +961,39 @@ export async function mapDeviceSummary(
   customerName: string | null,
   now = new Date(),
 ) {
-  const alertEnabled = Boolean(asset?.monitoringAlertEnabled);
-  const issues = parseIssues(agent.currentIssuesJson);
+  const config = parseAlertConfig(asset);
+  const detected = parseIssues(agent.currentIssuesJson);
   const online = isAgentOnline(agent.lastSeenAt, now);
   const snapshot = parseSnapshot(agent.lastSnapshotJson);
-  const warn = warningActive(agent, alertEnabled, now);
-  let ticketNumber: string | null = null;
-  if (agent.openTicketId) {
-    const t = await db.select({ number: tickets.number }).from(tickets).where(eq(tickets.id, agent.openTicketId)).get();
-    ticketNumber = t?.number ?? null;
+  const issues = alertedIssues(detected, config);
+  const warn = issues.length > 0;
+  const openMap = parseOpenTickets(agent.openTicketsJson);
+  const firingDisks = firingDisksFrom(snapshot?.disks, config);
+  const ticketRows: {
+    kind: MonitoringIssueKind;
+    diskId?: string;
+    ticketId: string;
+    ticketNumber: string;
+    priority: TicketPriority;
+  }[] = [];
+  async function pushTicket(kind: MonitoringIssueKind, key: string, diskId?: string) {
+    const id = openMap[key];
+    if (!id) return;
+    const t = await db
+      .select({ number: tickets.number, priority: tickets.priority })
+      .from(tickets)
+      .where(eq(tickets.id, id))
+      .get();
+    if (t) ticketRows.push({ kind, diskId, ticketId: id, ticketNumber: t.number, priority: t.priority });
+  }
+  if (warn) {
+    for (const kind of issues) {
+      if (kind === "disk") continue;
+      await pushTicket(kind, kind);
+    }
+    for (const disk of firingDisks) {
+      await pushTicket("disk", diskTicketKey(disk.id), disk.id);
+    }
   }
   return {
     agentId: agent.id,
@@ -566,12 +1008,15 @@ export async function mapDeviceSummary(
     lastSeenAt: agent.lastSeenAt,
     status: devicePublicStatus(agent, now),
     online,
-    alertEnabled,
+    alertEnabled: anyAlertEnabled(config),
+    alertConfig: config,
     monitoringEnabled: Boolean(asset?.monitoringEnabled),
     warning: warn,
-    issues: warn ? (online ? issues.filter((k) => k !== "offline") : issues.includes("offline") ? issues : ["offline", ...issues]) : [],
-    ticketId: warn ? agent.openTicketId : null,
-    ticketNumber: warn ? ticketNumber : null,
+    issues,
+    diskIssues: firingDisks.map((d) => ({ id: d.id, name: d.name, usedPct: d.usedPct, warnUsedPct: d.warnUsedPct })),
+    tickets: ticketRows,
+    ticketId: ticketRows[0]?.ticketId ?? null,
+    ticketNumber: ticketRows[0]?.ticketNumber ?? null,
     cpuPercent: snapshot?.cpuPercent ?? null,
     ramPercent: usedPct(snapshot?.ramUsedBytes ?? 0, snapshot?.ramTotalBytes ?? 0),
     diskUsedPct: worstDiskUsedPct(snapshot?.disks),

@@ -2,37 +2,56 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../../api";
 import { AssetFacts } from "../../components/AssetFacts";
+import { AssetTypeFields } from "../../components/AssetTypeFields";
 import { Checkbox } from "../../components/Checkbox";
+import { MonitoringAlertConfigFields } from "../../components/MonitoringAlertConfigFields";
 import { Modal } from "../../components/Modal";
+import {
+  assetKindDetailRows,
+  assetKindShowsMonitoring,
+  assetNamePlaceholder,
+} from "../../lib/assetFields";
 import {
   assetKindLabel,
   assetOwnershipFilterLabel,
   assetOwnershipLabel,
   assetStatusLabel,
-  formatDateOnly,
+  ticketPriorityLabel,
 } from "../../lib/labels";
-import type { Asset, AssetKind, AssetOwnership, AssetStatus } from "../../types";
+import type { Asset, AssetKind, AssetOwnership, AssetStatus, MonitoringAlertConfig } from "../../types";
+import { emptyMonitoringAlertConfig, monitoringIssueKinds } from "../../types";
 
 type AssetForm = {
   name: string;
   kind: AssetKind;
   ownership: AssetOwnership;
   status: AssetStatus;
+  location: string;
   manufacturer: string;
   model: string;
   serialNumber: string;
   hostname: string;
   ipAddress: string;
+  secondaryIp: string;
   macAddress: string;
-  location: string;
   vlan: string;
+  rack: string;
   os: string;
+  firmware: string;
+  cpu: string;
+  ramGb: string;
+  diskGb: string;
+  ports: string;
+  role: string;
   managementUrl: string;
+  purchaseDate: string;
+  installedAt: string;
+  responsiblePerson: string;
   warrantyUntil: string;
   notes: string;
   portalVisible: boolean;
   monitoringEnabled: boolean;
-  monitoringAlertEnabled: boolean;
+  monitoringAlerts: MonitoringAlertConfig;
 };
 
 const emptyAsset: AssetForm = {
@@ -40,21 +59,32 @@ const emptyAsset: AssetForm = {
   kind: "pc",
   ownership: "customer",
   status: "active",
+  location: "",
   manufacturer: "",
   model: "",
   serialNumber: "",
   hostname: "",
   ipAddress: "",
+  secondaryIp: "",
   macAddress: "",
-  location: "",
   vlan: "",
+  rack: "",
   os: "",
+  firmware: "",
+  cpu: "",
+  ramGb: "",
+  diskGb: "",
+  ports: "",
+  role: "",
   managementUrl: "",
+  purchaseDate: "",
+  installedAt: "",
+  responsiblePerson: "",
   warrantyUntil: "",
   notes: "",
   portalVisible: false,
   monitoringEnabled: false,
-  monitoringAlertEnabled: false,
+  monitoringAlerts: emptyMonitoringAlertConfig(false),
 };
 
 function assetToForm(asset: Asset): AssetForm {
@@ -63,21 +93,32 @@ function assetToForm(asset: Asset): AssetForm {
     kind: asset.kind,
     ownership: asset.ownership ?? "customer",
     status: asset.status ?? "active",
+    location: asset.location ?? "",
     manufacturer: asset.manufacturer ?? "",
     model: asset.model ?? "",
     serialNumber: asset.serialNumber ?? "",
     hostname: asset.hostname ?? "",
     ipAddress: asset.ipAddress ?? "",
+    secondaryIp: asset.secondaryIp ?? "",
     macAddress: asset.macAddress ?? "",
-    location: asset.location ?? "",
     vlan: asset.vlan ?? "",
+    rack: asset.rack ?? "",
     os: asset.os ?? "",
+    firmware: asset.firmware ?? "",
+    cpu: asset.cpu ?? "",
+    ramGb: asset.ramGb != null ? String(asset.ramGb) : "",
+    diskGb: asset.diskGb != null ? String(asset.diskGb) : "",
+    ports: asset.ports ?? "",
+    role: asset.role ?? "",
     managementUrl: asset.managementUrl ?? "",
+    purchaseDate: asset.purchaseDate ?? "",
+    installedAt: asset.installedAt ?? "",
+    responsiblePerson: asset.responsiblePerson ?? "",
     warrantyUntil: asset.warrantyUntil ?? "",
     notes: asset.notes ?? "",
     portalVisible: Boolean(asset.portalVisible),
     monitoringEnabled: Boolean(asset.monitoringEnabled),
-    monitoringAlertEnabled: Boolean(asset.monitoringAlertEnabled),
+    monitoringAlerts: asset.monitoringAlerts ?? emptyMonitoringAlertConfig(Boolean(asset.monitoringAlertEnabled)),
   };
 }
 
@@ -101,6 +142,9 @@ function matchesQuery(asset: Asset, q: string) {
     asset.location,
     asset.vlan,
     asset.os,
+    asset.cpu,
+    asset.firmware,
+    asset.role,
     asset.notes,
   ]
     .filter(Boolean)
@@ -112,25 +156,35 @@ function matchesQuery(asset: Asset, q: string) {
 type PreviewRow = { label: string; value: string; mono?: boolean; href?: string };
 
 function assetPreviewRows(asset: Asset): PreviewRow[] {
-  const hardware = [asset.manufacturer, asset.model].filter(Boolean).join(" ");
   const rows: Array<PreviewRow | null> = [
-    hardware ? { label: "Gerät", value: hardware } : null,
-    asset.location ? { label: "Standort", value: asset.location } : null,
-    asset.hostname ? { label: "Hostname", value: asset.hostname, mono: true } : null,
-    asset.ipAddress ? { label: "IP-Adresse", value: asset.ipAddress, mono: true } : null,
-    asset.macAddress ? { label: "MAC-Adresse", value: asset.macAddress, mono: true } : null,
-    asset.vlan ? { label: "VLAN", value: asset.vlan } : null,
-    asset.os ? { label: "OS / Version", value: asset.os } : null,
-    asset.serialNumber ? { label: "Serien- / Lizenznr.", value: asset.serialNumber, mono: true } : null,
-    asset.warrantyUntil
-      ? { label: "Garantie / Laufzeit", value: formatDateOnly(asset.warrantyUntil) }
-      : null,
-    asset.managementUrl
-      ? { label: "Portal", value: asset.managementUrl, href: asset.managementUrl }
-      : null,
-    asset.notes ? { label: "Notizen", value: asset.notes } : null,
+    ...assetKindDetailRows(asset, { notes: true }),
+    monitoringAlertPreview(asset),
   ];
   return rows.filter((r): r is PreviewRow => Boolean(r));
+}
+
+const monitoringKindPreviewLabel: Record<string, string> = {
+  offline: "Offline",
+  disk: "Datenträger",
+  cpu: "CPU",
+  ram: "RAM",
+  eventlog: "Ereignisse",
+  updates: "Updates",
+};
+
+function monitoringAlertPreview(asset: Asset): PreviewRow | null {
+  if (!asset.monitoringEnabled) return null;
+  const cfg = asset.monitoringAlerts ?? emptyMonitoringAlertConfig(Boolean(asset.monitoringAlertEnabled));
+  const enabled = monitoringIssueKinds.filter((kind) => cfg[kind].enabled);
+  if (enabled.length === 0) {
+    return { label: "Warnungen", value: "Keine Typen aktiv — nur Status, keine Tickets" };
+  }
+  return {
+    label: "Warnungen",
+    value: enabled
+      .map((kind) => `${monitoringKindPreviewLabel[kind]} (${ticketPriorityLabel[cfg[kind].priority]})`)
+      .join(" · "),
+  };
 }
 
 /**
@@ -500,7 +554,6 @@ export function CustomerAssetsPage() {
                     : preview.monitoringAgentId
                       ? "offline"
                       : "ohne Agent"}
-                  {preview.monitoringAlertEnabled ? " · Warnung an" : ""}
                 </span>
               ) : null}
             </div>
@@ -562,7 +615,7 @@ export function CustomerAssetsPage() {
                   required
                   value={assetForm.name}
                   onChange={(e) => setAssetForm({ ...assetForm, name: e.target.value })}
-                  placeholder="z. B. NB-Müller / Office 365 / Leih-USV"
+                  placeholder={assetNamePlaceholder(assetForm.kind)}
                 />
               </label>
               <label className="field">
@@ -621,112 +674,20 @@ export function CustomerAssetsPage() {
             </div>
           </section>
 
-          <section className="asset-form-block">
-            <h4>Gerät & Produkt</h4>
-            <div className="asset-form-grid">
-              <label className="field">
-                <span>Hersteller</span>
-                <input
-                  value={assetForm.manufacturer}
-                  onChange={(e) => setAssetForm({ ...assetForm, manufacturer: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>Modell / Produkt</span>
-                <input
-                  value={assetForm.model}
-                  onChange={(e) => setAssetForm({ ...assetForm, model: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>Serien- / Lizenznummer</span>
-                <input
-                  value={assetForm.serialNumber}
-                  onChange={(e) => setAssetForm({ ...assetForm, serialNumber: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>OS / Version</span>
-                <input
-                  value={assetForm.os}
-                  onChange={(e) => setAssetForm({ ...assetForm, os: e.target.value })}
-                  placeholder="Windows 11 / v3.2"
-                />
-              </label>
-              <label className="field asset-form-span-2">
-                <span>Portal- / Management-URL</span>
-                <input
-                  value={assetForm.managementUrl}
-                  onChange={(e) => setAssetForm({ ...assetForm, managementUrl: e.target.value })}
-                  placeholder="https://…"
-                />
-              </label>
-            </div>
-          </section>
+          <AssetTypeFields
+            kind={assetForm.kind}
+            values={assetForm}
+            onChange={(id, value) => setAssetForm({ ...assetForm, [id]: value })}
+          />
 
+          {assetKindShowsMonitoring(assetForm.kind) ? (
           <section className="asset-form-block">
-            <h4>Netzwerk</h4>
+            <h4>Monitoring</h4>
+            <p className="muted">
+              Hostname, IP, MAC, Hersteller, Modell, Seriennummer, CPU, RAM, Speicher, OS und BIOS
+              füllt der Agent automatisch, sobald er diesem Eintrag zugeordnet ist (leere Felder).
+            </p>
             <div className="asset-form-grid">
-              <label className="field">
-                <span>Hostname</span>
-                <input
-                  value={assetForm.hostname}
-                  onChange={(e) => setAssetForm({ ...assetForm, hostname: e.target.value })}
-                  placeholder="optional"
-                />
-              </label>
-              <label className="field">
-                <span>IP-Adresse</span>
-                <input
-                  value={assetForm.ipAddress}
-                  onChange={(e) => setAssetForm({ ...assetForm, ipAddress: e.target.value })}
-                  placeholder="optional"
-                />
-              </label>
-              <label className="field">
-                <span>MAC-Adresse</span>
-                <input
-                  value={assetForm.macAddress}
-                  onChange={(e) => setAssetForm({ ...assetForm, macAddress: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>VLAN</span>
-                <input
-                  value={assetForm.vlan}
-                  onChange={(e) => setAssetForm({ ...assetForm, vlan: e.target.value })}
-                />
-              </label>
-            </div>
-          </section>
-
-          <section className="asset-form-block">
-            <h4>Laufzeit & Notizen</h4>
-            <div className="asset-form-grid">
-              <label className="field">
-                <span>Garantie / Laufzeit bis</span>
-                <input
-                  type="date"
-                  value={assetForm.warrantyUntil}
-                  onChange={(e) => setAssetForm({ ...assetForm, warrantyUntil: e.target.value })}
-                />
-              </label>
-              <label className="field asset-form-span-2">
-                <span>Notizen</span>
-                <textarea
-                  rows={3}
-                  value={assetForm.notes}
-                  onChange={(e) => setAssetForm({ ...assetForm, notes: e.target.value })}
-                  placeholder="Leihfrist, Zustand, Schlüssel, Lizenzkontingent…"
-                />
-              </label>
-              <div className="asset-form-span-2">
-                <Checkbox
-                  label="Im Kundenportal zeigen"
-                  checked={assetForm.portalVisible}
-                  onChange={(checked) => setAssetForm({ ...assetForm, portalVisible: checked })}
-                />
-              </div>
               <div className="asset-form-span-2">
                 <Checkbox
                   label="Monitoring aktivieren (Agent kann diesem Eintrag zugeordnet werden)"
@@ -735,26 +696,24 @@ export function CustomerAssetsPage() {
                     setAssetForm({
                       ...assetForm,
                       monitoringEnabled: checked,
-                      monitoringAlertEnabled: checked ? assetForm.monitoringAlertEnabled : false,
+                      monitoringAlerts: checked
+                        ? assetForm.monitoringAlerts
+                        : emptyMonitoringAlertConfig(false),
                     })
                   }
                 />
               </div>
-              <div className="asset-form-span-2">
-                <Checkbox
-                  label="Warnung (Ticket bei Offline/Schwellwert — z. B. Server, nicht Feierabend-PC)"
-                  checked={assetForm.monitoringAlertEnabled}
-                  onChange={(checked) =>
-                    setAssetForm({
-                      ...assetForm,
-                      monitoringAlertEnabled: checked,
-                      monitoringEnabled: checked ? true : assetForm.monitoringEnabled,
-                    })
-                  }
-                />
-              </div>
+              {assetForm.monitoringEnabled ? (
+                <div className="asset-form-span-2">
+                  <MonitoringAlertConfigFields
+                    value={assetForm.monitoringAlerts}
+                    onChange={(monitoringAlerts) => setAssetForm({ ...assetForm, monitoringAlerts })}
+                  />
+                </div>
+              ) : null}
             </div>
           </section>
+          ) : null}
 
           {error ? <p className="form-error">{error}</p> : null}
           <div className="form-actions modal-actions">

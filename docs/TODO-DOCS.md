@@ -5,7 +5,11 @@
 - [x] Firewall-Hinweise (ufw/firewalld) für `SYSTEMHAUS_PORT` – Deploy öffnet UFW/firewalld; Cloud-Firewall ggf. manuell
 - [x] Backup-Hinweis für Volume `systemhaus-data` / SQLite-Datei → siehe [BACKUP.md](BACKUP.md)
 - [ ] PWA: Installieren erfordert HTTPS (oder localhost); Icon als PNG optional ergänzen
-- [ ] Optional: Monitoring-Schwellwerte je Gerät statt fester V1-Defaults
+- [ ] Optional: Monitoring-Schwellwerte CPU/RAM je Gerät statt fester V1-Defaults
+- [x] Monitoring-Warnungen je Typ und Gerät inkl. Ticket-Priorität
+- [x] Monitoring-Datenträger: Liste aller Laufwerke, Schwellwert und Ticket je Festplatte
+- [x] Monitoring: verbaute Hardware-Komponenten (CPU/RAM/Platten/GPU) in der Geräteansicht
+- [x] Inventar-Felder je Typ (PC, Firewall, Lizenz, …) inkl. Auto-Fill vom Agent
 - [ ] Optional: E-Mail-Einladung / Ticket-Benachrichtigungen (SMTP)
 - [ ] Optional: mehrere Portal-Benutzer pro Kunde
 - [ ] Optional: SLA nach Servicezeiten (`coverageHours`) statt Kalenderstunden

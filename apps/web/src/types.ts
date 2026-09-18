@@ -28,6 +28,17 @@ export type AssetKind =
 export type AssetOwnership = "customer" | "loaned" | "held";
 
 export type AssetStatus = "active" | "spare" | "retired";
+export type TicketPriority = "low" | "normal" | "high" | "critical";
+export type MonitoringIssueKind = "offline" | "disk" | "cpu" | "ram" | "eventlog" | "updates";
+export type MonitoringKindAlert = { enabled: boolean; priority: TicketPriority };
+export type MonitoringVolumeAlert = { enabled: boolean; warnUsedPct: number };
+export type MonitoringDiskAlert = MonitoringKindAlert & {
+  warnUsedPct: number;
+  volumes: Record<string, MonitoringVolumeAlert>;
+};
+export type MonitoringAlertConfig = {
+  [K in MonitoringIssueKind]: K extends "disk" ? MonitoringDiskAlert : MonitoringKindAlert;
+};
 export type VaultCategory =
   | "vpn"
   | "admin"
@@ -341,6 +352,7 @@ export interface Asset {
   portalVisible?: boolean;
   monitoringEnabled?: boolean;
   monitoringAlertEnabled?: boolean;
+  monitoringAlerts?: MonitoringAlertConfig;
   monitoringAgentId?: string | null;
   monitoringOnline?: boolean | null;
   monitoringLastSeenAt?: string | null;
@@ -674,7 +686,6 @@ export const emptyCustomerForm: {
 };
 
 export type TicketStatus = "open" | "in_progress" | "waiting_customer" | "resolved" | "closed";
-export type TicketPriority = "low" | "normal" | "high" | "critical";
 export type TicketSource = "portal" | "staff" | "monitoring";
 export type TicketMessageVisibility = "public" | "internal";
 export type TicketMessageKind = "comment" | "resolution" | "opener";
@@ -763,7 +774,50 @@ export interface PortalOverview {
   }[];
 }
 
-export type MonitoringIssueKind = "offline" | "disk" | "cpu" | "ram" | "eventlog" | "updates";
+export const monitoringIssueKinds: MonitoringIssueKind[] = [
+  "offline",
+  "disk",
+  "cpu",
+  "ram",
+  "eventlog",
+  "updates",
+];
+
+export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertConfig {
+  return {
+    offline: { enabled: allEnabled, priority: "high" },
+    disk: { enabled: allEnabled, priority: "high", warnUsedPct: 90, volumes: {} },
+    cpu: { enabled: allEnabled, priority: "normal" },
+    ram: { enabled: allEnabled, priority: "normal" },
+    eventlog: { enabled: allEnabled, priority: "normal" },
+    updates: { enabled: allEnabled, priority: "low" },
+  };
+}
+
+export function monitoringDiskId(disk: { id?: string; name: string; mount?: string }): string {
+  const raw = (disk.id || disk.name || disk.mount || "").trim();
+  if (/^[A-Za-z]:/.test(raw) || raw.includes("\\")) {
+    const m = raw.match(/([A-Za-z]):/);
+    if (m) return `${m[1].toUpperCase()}:`;
+  }
+  const trimmed = raw.replace(/\/+$/, "");
+  return trimmed || "/";
+}
+
+export interface MonitoringIssueTicket {
+  kind: MonitoringIssueKind;
+  diskId?: string;
+  ticketId: string;
+  ticketNumber: string;
+  priority: TicketPriority;
+}
+
+export interface MonitoringDiskIssue {
+  id: string;
+  name: string;
+  usedPct: number;
+  warnUsedPct: number;
+}
 
 export interface MonitoringDeviceSummary {
   agentId: string;
@@ -779,9 +833,12 @@ export interface MonitoringDeviceSummary {
   status: "online" | "offline" | "pending";
   online: boolean;
   alertEnabled: boolean;
+  alertConfig?: MonitoringAlertConfig;
   monitoringEnabled: boolean;
   warning: boolean;
   issues: MonitoringIssueKind[];
+  diskIssues?: MonitoringDiskIssue[];
+  tickets?: MonitoringIssueTicket[];
   ticketId: string | null;
   ticketNumber: string | null;
   cpuPercent: number | null;
@@ -836,6 +893,32 @@ export interface MonitoringSample {
   netTxBytes: number | null;
 }
 
+export interface MonitoringHardware {
+  system?: { manufacturer?: string; model?: string; serial?: string; sku?: string };
+  bios?: { vendor?: string; version?: string; date?: string; serial?: string };
+  board?: { manufacturer?: string; product?: string; serial?: string };
+  cpus?: { name?: string; cores?: number; threads?: number; mhz?: number; socket?: string }[];
+  memoryModules?: {
+    slot?: string;
+    sizeBytes?: number;
+    speedMhz?: number;
+    manufacturer?: string;
+    partNumber?: string;
+    serial?: string;
+    type?: string;
+  }[];
+  storage?: {
+    name?: string;
+    model?: string;
+    serial?: string;
+    sizeBytes?: number;
+    bus?: string;
+    media?: string;
+  }[];
+  gpus?: { name?: string; driver?: string; vramBytes?: number }[];
+  nics?: { name?: string; mac?: string; manufacturer?: string; speedMbps?: number }[];
+}
+
 export interface MonitoringSnapshot {
   hostname?: string;
   os?: string;
@@ -849,11 +932,12 @@ export interface MonitoringSnapshot {
   cpuPercent?: number | null;
   ramUsedBytes?: number | null;
   ramTotalBytes?: number | null;
-  disks?: { name: string; totalBytes: number; usedBytes: number; freeBytes: number }[];
+  disks?: { id?: string; name: string; mount?: string; totalBytes: number; usedBytes: number; freeBytes: number }[];
   nics?: { name: string; bytesRecv: number; bytesSent: number; up?: boolean }[];
   processes?: { name: string; cpuPercent?: number; rssBytes?: number }[];
   updates?: { pendingCount?: number; lastInstalled?: string | null };
   events?: { source?: string; level?: string; time?: string; message: string }[];
+  hardware?: MonitoringHardware;
 }
 
 export interface MonitoringDeviceDetail {
