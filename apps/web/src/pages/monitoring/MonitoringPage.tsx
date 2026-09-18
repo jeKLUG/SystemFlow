@@ -2,10 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerPicker } from "../../components/CustomerPicker";
+import { InventoryPicker } from "../../components/InventoryPicker";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
 import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
 import {
   deviceIssueChips,
+  agentVersionAtLeast,
+  isMonitoringOnline,
   relSeen,
 } from "../../lib/monitoringUi";
 import type {
@@ -86,9 +89,59 @@ export function MonitoringPage() {
     setError("");
     try {
       await api.assignMonitoringAgent(agentId, assetId);
+      setAssignPick((prev) => {
+        const next = { ...prev };
+        delete next[agentId];
+        return next;
+      });
       await reloadFleet();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Zuordnung fehlgeschlagen");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function uninstall(agent: MonitoringPendingAgent) {
+    const name = agent.hostname || agent.machineId;
+    const oldAgent = !agentVersionAtLeast(agent.agentVersion, "1.0.4");
+    if (
+      !window.confirm(
+        oldAgent
+          ? `Client „${name}“ löschen?\n\nDieser Agent (${agent.agentVersion || "unbekannt"}) kann Remote-Deinstallation erst ab 1.0.4. Bitte das Paket unter „Agent einrichten“ hochladen – dann wird zuerst aktualisiert, danach der Dienst entfernt.`
+          : `Client „${name}“ löschen?\n\nBeim nächsten Heartbeat (ca. 1 Minute) deinstalliert der Agent den Dienst und verschwindet aus dem Monitoring.`,
+      )
+    ) {
+      return;
+    }
+    setBusyId(agent.id);
+    setError("");
+    try {
+      await api.requestMonitoringUninstall(agent.id);
+      await reloadFleet();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function removeNow(agent: MonitoringPendingAgent) {
+    const name = agent.hostname || agent.machineId;
+    if (
+      !window.confirm(
+        `„${name}“ jetzt aus der Liste nehmen? Der Dienst bleibt installiert, bis der Agent den Löschbefehl empfängt oder lokal deinstalliert wird.`,
+      )
+    ) {
+      return;
+    }
+    setBusyId(agent.id);
+    setError("");
+    try {
+      await api.removeMonitoringAgent(agent.id);
+      await reloadFleet();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Entfernen fehlgeschlagen");
     } finally {
       setBusyId(null);
     }
@@ -228,50 +281,100 @@ export function MonitoringPage() {
       </section>
 
       {pending.length > 0 ? (
-        <section className="panel mon-panel">
-          <div className="section-head">
-            <h2>Unzugeordnet</h2>
-            <p>Agenten dem Inventar zuordnen (Monitoring muss am Eintrag aktiv sein)</p>
+        <section className="panel mon-panel" aria-label="Unzugeordnet">
+          <div className="section-head row-between">
+            <div>
+              <h2>Unzugeordnet</h2>
+              <p>Neuen Client einem Inventar-Eintrag zuordnen oder den Dienst remote entfernen</p>
+            </div>
+            <span className="mon-count-badge is-warn">{pending.length}</span>
           </div>
           {assignable.length === 0 ? (
-            <p className="empty">
-              Keine freien Inventar-Einträge mit aktiviertem Monitoring. Im Kunden-Inventar zuerst
-              „Monitoring“ einschalten.
+            <p className="mon-pending-hint">
+              Noch kein freies Inventar mit aktivem Monitoring. Im Kunden-Inventar zuerst
+              „Monitoring“ einschalten, dann hier zuordnen.
             </p>
-          ) : null}
+          ) : (
+            <p className="mon-pending-hint">
+              Gerät wählen, Inventar suchen und zuordnen. Ohne Zuordnung bleibt der Client nur in
+              dieser Liste.
+            </p>
+          )}
           <ul className="mon-pending-list">
-            {pending.map((agent) => (
-              <li key={agent.id}>
-                <div>
-                  <strong>{agent.hostname || agent.machineId}</strong>
-                  <p className="muted">
-                    {[agent.os, agent.osVersion, agent.ipAddress].filter(Boolean).join(" · ") || agent.machineId}{" "}
-                    · {relSeen(agent.lastSeenAt)}
-                  </p>
-                </div>
-                <div className="mon-pending-actions">
-                  <select
-                    value={assignPick[agent.id] ?? ""}
-                    onChange={(e) => setAssignPick((prev) => ({ ...prev, [agent.id]: e.target.value }))}
-                  >
-                    <option value="">Inventar wählen…</option>
-                    {assignable.map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.customerName} — {a.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-sm"
-                    disabled={!assignPick[agent.id] || busyId === agent.id}
-                    onClick={() => void assign(agent.id)}
-                  >
-                    Zuordnen
-                  </button>
-                </div>
-              </li>
-            ))}
+            {pending.map((agent) => {
+              const online = isMonitoringOnline(agent.lastSeenAt);
+              const removing = agent.uninstallRequested;
+              const meta = [agent.os, agent.osVersion, agent.ipAddress].filter(Boolean).join(" · ");
+              return (
+                <li
+                  key={agent.id}
+                  className={`mon-pending-card${removing ? " is-removing" : online ? " is-on" : " is-off"}`}
+                >
+                  <span
+                    className={`mon-dot${removing ? " is-info" : online ? " is-on" : " is-off"}`}
+                    aria-hidden
+                  />
+                  <div className="mon-pending-copy">
+                    <span className="mon-pending-kind">
+                      {removing ? "Wird entfernt" : online ? "Bereit" : "Offline"}
+                    </span>
+                    <strong>{agent.hostname || agent.machineId}</strong>
+                    <p className="muted">
+                      {meta || agent.machineId}
+                      {agent.agentVersion ? ` · Agent ${agent.agentVersion}` : ""} ·{" "}
+                      {relSeen(agent.lastSeenAt)}
+                    </p>
+                  </div>
+                  {removing ? (
+                    <div className="mon-pending-actions">
+                      <p className="mon-pending-wait">
+                        {agentVersionAtLeast(agent.agentVersion, "1.0.4")
+                          ? "Deinstallation beim nächsten Heartbeat. Danach verschwindet der Eintrag."
+                          : "Zuerst Update auf Agent 1.0.4, danach Deinstallation. Bis dahin bleibt der Eintrag sichtbar."}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        disabled={busyId === agent.id}
+                        onClick={() => void removeNow(agent)}
+                      >
+                        Sofort aus Liste nehmen
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mon-pending-actions">
+                      <InventoryPicker
+                        assets={assignable}
+                        value={assignPick[agent.id] ?? ""}
+                        onChange={(assetId) =>
+                          setAssignPick((prev) => ({ ...prev, [agent.id]: assetId }))
+                        }
+                        placeholder="Inventar suchen…"
+                        disabled={busyId === agent.id}
+                      />
+                      <div className="mon-pending-buttons">
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          disabled={!assignPick[agent.id] || busyId === agent.id}
+                          onClick={() => void assign(agent.id)}
+                        >
+                          Zuordnen
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger btn-sm"
+                          disabled={busyId === agent.id}
+                          onClick={() => void uninstall(agent)}
+                        >
+                          Client löschen
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}

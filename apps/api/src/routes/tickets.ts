@@ -34,6 +34,7 @@ import { saveFirstUpload } from "../lib/uploads.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
 import { unlinkDeletedMonitoringTicket } from "../lib/monitoring.js";
+import { notifyTicketComment, notifyTicketCreated, notifyTicketStatus } from "../lib/notify.js";
 
 const createBody = z.object({
   customerId: z.string().min(1),
@@ -251,6 +252,7 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     await db.insert(tickets).values(row);
 
     await addActivity(db, customer.id, `Ticket ${row.number} angelegt`, row.title, now);
+    await notifyTicketCreated(db, row);
     return reply.code(201).send(await loadTicketExtras(db, row, true));
   });
 
@@ -337,6 +339,9 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     }
 
     const next = { ...existing, ...updated };
+    if (existing.status !== status) {
+      await notifyTicketStatus(db, next, existing.status, status);
+    }
     return loadTicketExtras(db, next, true);
   });
 
@@ -394,6 +399,10 @@ export async function ticketRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       if (ticket.status === "open") patch.status = "in_progress";
     }
     await db.update(tickets).set(patch).where(eq(tickets.id, id));
+
+    if (visibility === "public") {
+      await notifyTicketComment(db, { ...ticket, ...patch }, parsed.data.body.trim(), "admin");
+    }
 
     return reply.code(201).send(message);
   });

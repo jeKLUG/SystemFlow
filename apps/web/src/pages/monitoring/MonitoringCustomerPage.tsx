@@ -266,6 +266,21 @@ export function MonitoringCustomerPage() {
     }
   }
 
+  async function requestAgentUninstall() {
+    const agentId = detail?.device.agentId;
+    if (!agentId) return;
+    setBusyId(agentId);
+    setError("");
+    try {
+      await api.requestMonitoringUninstall(agentId);
+      await reloadCustomer();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Deinstallation fehlgeschlagen");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const totalAssigned = devices.length + waiting;
   const filters: { id: DeviceFilter; label: string; count: number }[] = [
     { id: "all", label: "Alle", count: devices.length + waiting },
@@ -506,7 +521,9 @@ export function MonitoringCustomerPage() {
               if (detail.device.assetId) void saveAlerts(detail.device.assetId, cfg);
             }}
             onRequestUpdate={requestAgentUpdate}
+            onRequestUninstall={requestAgentUninstall}
             updateBusy={busyId === detail.device.assetId}
+            uninstallBusy={busyId === detail.device.agentId}
             backTo={customerPath(customerId)}
           />
         </div>

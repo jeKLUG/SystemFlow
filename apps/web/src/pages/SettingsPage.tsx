@@ -1,7 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../auth";
 import { api } from "../api";
+import { Checkbox } from "../components/Checkbox";
+import { HelpHint } from "../components/HelpHint";
 import { PasswordField, PasswordMatchHint } from "../components/PasswordField";
+import {
+  mailCustomerKinds,
+  mailKindLabel,
+  mailStaffKinds,
+  type MailNotifyConfig,
+  type MailSettings,
+  type SmtpSecure,
+} from "../types";
 
 /**
  * Konto: Passwort und Datensicherung.
@@ -102,7 +112,7 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h2>Einstellungen</h2>
-          <p className="muted">Konto und Sicherung · {user?.username}</p>
+          <p className="muted">Konto, E-Mail und Sicherung · {user?.username}</p>
         </div>
       </div>
 
@@ -156,6 +166,8 @@ export function SettingsPage() {
           </div>
         </form>
       </section>
+
+      <MailSettingsCard />
 
       <section className="panel settings-card">
         <header className="settings-card-head">
@@ -213,5 +225,285 @@ export function SettingsPage() {
         </p>
       </section>
     </div>
+  );
+}
+
+function emptyNotify(): MailNotifyConfig {
+  return {
+    staff: Object.fromEntries(mailStaffKinds.map((k) => [k, true])) as MailNotifyConfig["staff"],
+    customer: Object.fromEntries(mailCustomerKinds.map((k) => [k, true])) as MailNotifyConfig["customer"],
+    reminders: { hours24: true, hours1: true, morning: false },
+  };
+}
+
+/**
+ * SMTP und welche Ereignisse Mails auslösen.
+ */
+function MailSettingsCard() {
+  const [form, setForm] = useState({
+    smtpHost: "",
+    smtpPort: "587",
+    smtpSecure: "starttls" as SmtpSecure,
+    smtpUser: "",
+    smtpPassword: "",
+    mailFromEmail: "",
+    mailFromName: "",
+    mailReplyTo: "",
+    mailPublicUrl: "",
+    mailStaffInbox: "",
+  });
+  const [notify, setNotify] = useState<MailNotifyConfig>(emptyNotify);
+  const [passwordSet, setPasswordSet] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    void api
+      .mailSettings()
+      .then((s: MailSettings) => {
+        setForm({
+          smtpHost: s.smtpHost,
+          smtpPort: String(s.smtpPort || 587),
+          smtpSecure: s.smtpSecure,
+          smtpUser: s.smtpUser,
+          smtpPassword: "",
+          mailFromEmail: s.mailFromEmail,
+          mailFromName: s.mailFromName,
+          mailReplyTo: s.mailReplyTo,
+          mailPublicUrl: s.mailPublicUrl,
+          mailStaffInbox: s.mailStaffInbox,
+        });
+        setNotify(s.notify);
+        setPasswordSet(s.smtpPasswordSet);
+      })
+      .catch((e) => setErr(e instanceof Error ? e.message : "Laden fehlgeschlagen"))
+      .finally(() => setLoaded(true));
+  }, []);
+
+  function patch<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function save(e: FormEvent) {
+    e.preventDefault();
+    setErr("");
+    setMsg("");
+    setBusy("save");
+    try {
+      const updated = await api.updateMailSettings({
+        smtpHost: form.smtpHost,
+        smtpPort: Number(form.smtpPort) || 587,
+        smtpSecure: form.smtpSecure,
+        smtpUser: form.smtpUser,
+        smtpPassword: form.smtpPassword || undefined,
+        mailFromEmail: form.mailFromEmail,
+        mailFromName: form.mailFromName,
+        mailReplyTo: form.mailReplyTo,
+        mailPublicUrl: form.mailPublicUrl,
+        mailStaffInbox: form.mailStaffInbox,
+        notify,
+      });
+      setPasswordSet(updated.smtpPasswordSet);
+      setForm((f) => ({ ...f, smtpPassword: "" }));
+      setMsg("E-Mail-Einstellungen gespeichert.");
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Speichern fehlgeschlagen");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function test() {
+    setErr("");
+    setMsg("");
+    setBusy("test");
+    try {
+      await api.testMailSettings();
+      setMsg("Testmail gesendet.");
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : "Test fehlgeschlagen");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <section className="panel settings-card">
+      <header className="settings-card-head">
+        <div>
+          <p className="eyebrow">Benachrichtigungen</p>
+          <div className="page-head-title">
+            <h3>E-Mail</h3>
+            <HelpHint text="SMTP in der Datenbank (Passwort verschlüsselt). Staff bekommt Mails an die Sammeladresse, Kunden an die Adresse am Portal-Zugang." />
+          </div>
+        </div>
+      </header>
+      {!loaded ? (
+        <p className="muted">Lade…</p>
+      ) : (
+        <form className="mail-settings-form" onSubmit={(e) => void save(e)}>
+          <label className="field">
+            <span>SMTP-Host</span>
+            <input value={form.smtpHost} onChange={(e) => patch("smtpHost", e.target.value)} autoComplete="off" />
+          </label>
+          <label className="field">
+            <span>Port</span>
+            <input
+              type="number"
+              min={1}
+              max={65535}
+              value={form.smtpPort}
+              onChange={(e) => patch("smtpPort", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Verschlüsselung</span>
+            <select
+              value={form.smtpSecure}
+              onChange={(e) => patch("smtpSecure", e.target.value as SmtpSecure)}
+            >
+              <option value="starttls">STARTTLS (587)</option>
+              <option value="ssl">SSL/TLS (465)</option>
+              <option value="none">Unverschlüsselt</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>SMTP-Benutzer</span>
+            <input value={form.smtpUser} onChange={(e) => patch("smtpUser", e.target.value)} autoComplete="off" />
+          </label>
+          <PasswordField
+            label={passwordSet ? "SMTP-Passwort (leer = unverändert)" : "SMTP-Passwort"}
+            value={form.smtpPassword}
+            onChange={(v) => patch("smtpPassword", v)}
+            revealed={showPass}
+            onToggleReveal={() => setShowPass((v) => !v)}
+            autoComplete="new-password"
+          />
+          <label className="field">
+            <span>Absender-Adresse</span>
+            <input
+              type="email"
+              value={form.mailFromEmail}
+              onChange={(e) => patch("mailFromEmail", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Absendername</span>
+            <input value={form.mailFromName} onChange={(e) => patch("mailFromName", e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Reply-To</span>
+            <input
+              type="email"
+              value={form.mailReplyTo}
+              onChange={(e) => patch("mailReplyTo", e.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Staff-Sammeladresse</span>
+            <input
+              type="email"
+              value={form.mailStaffInbox}
+              onChange={(e) => patch("mailStaffInbox", e.target.value)}
+            />
+          </label>
+          <label className="field mail-settings-span">
+            <span>Öffentliche App-URL</span>
+            <input
+              placeholder="https://app.example.de"
+              value={form.mailPublicUrl}
+              onChange={(e) => patch("mailPublicUrl", e.target.value)}
+            />
+          </label>
+
+          <h4 className="mail-settings-sub">Ereignisse</h4>
+          <table className="mail-notify-table">
+            <thead>
+              <tr>
+                <th>Typ</th>
+                <th>Staff</th>
+                <th>Kunden</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mailStaffKinds.map((kind) => (
+                <tr key={kind}>
+                  <td>{mailKindLabel[kind]}</td>
+                  <td>
+                    <Checkbox
+                      checked={notify.staff[kind]}
+                      onChange={(checked) =>
+                        setNotify((n) => ({ ...n, staff: { ...n.staff, [kind]: checked } }))
+                      }
+                      label="an"
+                    />
+                  </td>
+                  <td>
+                    {mailCustomerKinds.includes(kind as (typeof mailCustomerKinds)[number]) ? (
+                      <Checkbox
+                        checked={notify.customer[kind as (typeof mailCustomerKinds)[number]]}
+                        onChange={(checked) =>
+                          setNotify((n) => ({
+                            ...n,
+                            customer: { ...n.customer, [kind]: checked },
+                          }))
+                        }
+                        label="an"
+                      />
+                    ) : (
+                      <span className="muted">–</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <h4 className="mail-settings-sub">Termin-Erinnerung</h4>
+          <div className="mail-reminder-row">
+            <Checkbox
+              checked={notify.reminders.hours24}
+              onChange={(checked) =>
+                setNotify((n) => ({ ...n, reminders: { ...n.reminders, hours24: checked } }))
+              }
+              label="24 Stunden vorher"
+            />
+            <Checkbox
+              checked={notify.reminders.hours1}
+              onChange={(checked) =>
+                setNotify((n) => ({ ...n, reminders: { ...n.reminders, hours1: checked } }))
+              }
+              label="1 Stunde vorher"
+            />
+            <Checkbox
+              checked={notify.reminders.morning}
+              onChange={(checked) =>
+                setNotify((n) => ({ ...n, reminders: { ...n.reminders, morning: checked } }))
+              }
+              label="Am Termin-Tag 08:00"
+            />
+          </div>
+
+          {err ? <p className="form-error">{err}</p> : null}
+          {msg ? <p className="form-success">{msg}</p> : null}
+          <div className="mail-settings-actions">
+            <button className="btn btn-primary" type="submit" disabled={Boolean(busy)}>
+              {busy === "save" ? "Speichert…" : "Speichern"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={Boolean(busy)}
+              onClick={() => void test()}
+            >
+              {busy === "test" ? "Sendet…" : "Testmail senden"}
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }

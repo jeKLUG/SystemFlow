@@ -1172,6 +1172,65 @@ a.list-row {
   grid-column: 1 / -1;
 }
 
+.mail-settings-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+}
+
+.mail-settings-span,
+.mail-settings-form .mail-settings-sub,
+.mail-settings-form .mail-notify-table,
+.mail-settings-form .mail-reminder-row,
+.mail-settings-form .form-error,
+.mail-settings-form .form-success,
+.mail-settings-form .mail-settings-actions {
+  grid-column: 1 / -1;
+}
+
+.mail-settings-sub {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+}
+
+.mail-notify-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.mail-notify-table th,
+.mail-notify-table td {
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.mail-notify-table th {
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mail-reminder-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.2rem;
+}
+
+.mail-settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .mail-settings-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-price-form {
   margin: 0;
   padding: 1rem;
@@ -17748,26 +17807,140 @@ button.portal-doc-card {
   align-items: center;
 }
 
+.mon-pending-hint {
+  margin: 0 0 0.85rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: rgba(96, 165, 250, 0.08);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  color: #bfdbfe;
+  font-size: 0.9rem;
+}
+
 .mon-pending-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
-.mon-pending-list li {
-  display: flex;
+.mon-pending-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(16rem, 22rem);
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.65rem 0.2rem;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  gap: 0.85rem 1rem;
+  padding: 0.9rem 1.05rem;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(15, 23, 42, 0.28);
+  box-shadow: inset 3px 0 0 #fbbf24;
 }
 
-.mon-pending-list p {
-  margin: 0.1rem 0 0;
+.mon-pending-card.is-on {
+  box-shadow: inset 3px 0 0 #34d399;
+}
+
+.mon-pending-card.is-off {
+  box-shadow: inset 3px 0 0 #94a3b8;
+}
+
+.mon-pending-card.is-removing {
+  border-color: rgba(251, 191, 36, 0.35);
+  background:
+    linear-gradient(90deg, rgba(251, 191, 36, 0.1), transparent 42%),
+    rgba(15, 23, 42, 0.28);
+  box-shadow: inset 3px 0 0 #fbbf24;
+}
+
+.mon-pending-copy {
+  min-width: 0;
+}
+
+.mon-pending-kind {
+  display: block;
+  margin-bottom: 0.12rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mon-pending-card.is-on .mon-pending-kind {
+  color: #6ee7b7;
+}
+
+.mon-pending-card.is-removing .mon-pending-kind {
+  color: #fde68a;
+}
+
+.mon-pending-copy strong {
+  display: block;
+  font-size: 1.05rem;
+  line-height: 1.3;
+  overflow-wrap: break-word;
+}
+
+.mon-pending-copy p {
+  margin: 0.15rem 0 0;
+}
+
+.mon-pending-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.mon-pending-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+}
+
+.mon-pending-wait {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #fde68a;
+  line-height: 1.4;
+}
+
+.inventory-picker {
+  min-width: 0;
+}
+
+.inventory-picker-list {
+  padding: 0.4rem;
+}
+
+.inventory-picker-group {
+  margin: 0;
+}
+
+.inventory-picker-group + .inventory-picker-group {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.inventory-picker-group ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.inventory-picker-group-label {
+  display: block;
+  padding: 0.35rem 0.65rem 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 
 .mon-count-badge {
@@ -18684,9 +18857,9 @@ div.mon-alert-item-main {
   box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.55);
 }
 
-.mon-pending-actions select {
-  min-width: 16rem;
-  max-width: 100%;
+.mon-pending-actions .inventory-picker {
+  min-width: 0;
+  width: 100%;
 }
 
 .mon-dot {
@@ -19345,6 +19518,13 @@ div.mon-alert-item-main {
   justify-content: space-between;
 }
 
+.mon-agent-update-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
 @media (max-width: 980px) {
   .agent-pkg-grid {
     grid-template-columns: 1fr;
@@ -19393,12 +19573,23 @@ div.mon-alert-item-main {
     grid-column: 1;
   }
 
-  .mon-pending-list li {
-    flex-direction: column;
-    align-items: stretch;
+  .mon-pending-card {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
-  .mon-pending-actions select,
+  .mon-pending-actions {
+    grid-column: 1 / -1;
+  }
+
+  .mon-pending-buttons {
+    justify-content: stretch;
+  }
+
+  .mon-pending-buttons .btn {
+    flex: 1 1 auto;
+  }
+
+  .mon-pending-actions .inventory-picker,
   .mon-customer-picker {
     min-width: 0;
     width: 100%;

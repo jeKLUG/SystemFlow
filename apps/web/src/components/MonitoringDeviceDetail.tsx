@@ -9,6 +9,7 @@ import {
 } from "./MonitoringAlertConfigFields";
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import {
+  agentVersionAtLeast,
   deviceIssueText,
   formatBytes,
   formatUptime,
@@ -21,7 +22,7 @@ import type { MonitoringAlertConfig, MonitoringDeviceDetail } from "../types";
 import { emptyMonitoringAlertConfig, monitoringDiskId } from "../types";
 
 /**
- * Gerätedetail: Warnungen, Verlauf, Hardware und Agent-Update.
+ * Gerätedetail: Warnungen, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
  */
 export function MonitoringDeviceDetail({
   detail,
@@ -29,7 +30,9 @@ export function MonitoringDeviceDetail({
   onRange,
   onSaveAlerts,
   onRequestUpdate,
+  onRequestUninstall,
   updateBusy,
+  uninstallBusy,
   backTo,
 }: {
   detail: MonitoringDeviceDetail;
@@ -37,7 +40,9 @@ export function MonitoringDeviceDetail({
   onRange: (days: number) => void;
   onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
   onRequestUpdate: () => void;
+  onRequestUninstall?: () => void;
   updateBusy: boolean;
+  uninstallBusy?: boolean;
   backTo?: string;
 }) {
   const { device, snapshot, samples } = detail;
@@ -49,6 +54,7 @@ export function MonitoringDeviceDetail({
   );
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [updateMsg, setUpdateMsg] = useState("");
+  const [uninstallMsg, setUninstallMsg] = useState("");
   const alertCount = monitoringAlertEnabledCount(alertConfig);
   const alertLabels = monitoringAlertSummary(alertConfig);
 
@@ -222,31 +228,61 @@ export function MonitoringDeviceDetail({
             .filter(Boolean)
             .join(" · ")}
         </p>
-        {device.latestAgentVersion ? (
-          <button
-            type="button"
-            className="btn btn-ghost btn-sm"
-            disabled={updateBusy || (!device.agentOutdated && !device.updateRequested)}
-            onClick={() => {
-              setUpdateMsg("Update wird beim nächsten Heartbeat geladen (ca. 1 Minute).");
-              onRequestUpdate();
-            }}
-          >
-            {updateBusy
-              ? "…"
-              : device.updateRequested
-                ? "Update angefordert"
-                : device.agentOutdated
-                  ? "Jetzt aktualisieren"
-                  : "Aktuell"}
-          </button>
-        ) : (
-          <p className="muted">
-            Kein Agent-Paket für {device.agentPlatform || "diese Plattform"} in den Einstellungen.
-          </p>
-        )}
+        <div className="mon-agent-update-actions">
+          {device.latestAgentVersion ? (
+            <button
+              type="button"
+              className="btn btn-ghost btn-sm"
+              disabled={updateBusy || uninstallBusy || (!device.agentOutdated && !device.updateRequested)}
+              onClick={() => {
+                setUpdateMsg("Update wird beim nächsten Heartbeat geladen (ca. 1 Minute).");
+                onRequestUpdate();
+              }}
+            >
+              {updateBusy
+                ? "…"
+                : device.updateRequested
+                  ? "Update angefordert"
+                  : device.agentOutdated
+                    ? "Jetzt aktualisieren"
+                    : "Aktuell"}
+            </button>
+          ) : (
+            <p className="muted">
+              Kein Agent-Paket für {device.agentPlatform || "diese Plattform"} in den Einstellungen.
+            </p>
+          )}
+          {onRequestUninstall ? (
+            <button
+              type="button"
+              className="btn btn-danger btn-sm"
+              disabled={updateBusy || uninstallBusy || device.uninstallRequested}
+              onClick={() => {
+                const oldAgent = !agentVersionAtLeast(device.agentVersion, "1.0.4");
+                if (
+                  !window.confirm(
+                    oldAgent
+                      ? `Agent auf „${device.assetName}“ deinstallieren?\n\nDieser Agent (${device.agentVersion || "unbekannt"}) braucht 1.0.4. Zuerst das Paket hochladen – dann Update und Deinstallation nacheinander. Der Inventar-Eintrag bleibt.`
+                      : `Agent auf „${device.assetName}“ deinstallieren?\n\nDer Dienst wird beim nächsten Heartbeat entfernt. Der Inventar-Eintrag bleibt.`,
+                  )
+                ) {
+                  return;
+                }
+                setUninstallMsg("Deinstallation beim nächsten Heartbeat. Danach verschwindet das Gerät aus dem Monitoring.");
+                onRequestUninstall();
+              }}
+            >
+              {uninstallBusy ? "…" : device.uninstallRequested ? "Wird entfernt…" : "Client löschen"}
+            </button>
+          ) : null}
+        </div>
       </div>
       {updateMsg ? <p className="form-success">{updateMsg}</p> : null}
+      {uninstallMsg || device.uninstallRequested ? (
+        <p className="form-success">
+          {uninstallMsg || "Deinstallation angefordert. Der Agent entfernt den Dienst beim nächsten Heartbeat."}
+        </p>
+      ) : null}
     </section>
   );
 }

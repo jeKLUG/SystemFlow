@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.166 – 2026-09-18
+
+- E-Mail: SMTP in den Einstellungen; Tickets, Termine (.ics, Erinnerung) und Monitoring an Staff-Sammeladresse und Portal-Kunden
+
+## 1.5.165 – 2026-09-18
+
+- Monitoring: Unzugeordnet als Karten mit suchbarem Inventar; Client löschen deinstalliert den Agenten remote (1.0.4)
+
 ## 1.5.164 – 2026-09-18
 
 - Monitoring: Datenträger-Schwellen als Kapsel mit %; Schieberegler und Belegt-Balken mit Warnmarke

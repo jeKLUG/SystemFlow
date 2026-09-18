@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const agentVersion = "1.0.3"
+const agentVersion = "1.0.4"
 
 type config struct {
 	ServerURL        string `json:"serverUrl"`
@@ -85,7 +85,7 @@ func runLoop(cfgPath string) error {
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
-	send := func() {
+	send := func() bool {
 		hb, err := heartbeat(cfg)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "heartbeat: %v\n", err)
@@ -96,13 +96,21 @@ func runLoop(cfgPath string) error {
 					*cfg = *next
 				}
 			}
-			return
+			return false
+		}
+		if maybeRemoteUninstall(cfgPath, hb) {
+			return true
 		}
 		maybeSelfUpdate(cfgPath, cfg, hb)
+		return false
 	}
-	send()
+	if send() {
+		return nil
+	}
 	for range ticker.C {
-		send()
+		if send() {
+			return nil
+		}
 	}
 	return nil
 }

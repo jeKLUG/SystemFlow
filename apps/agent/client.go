@@ -37,6 +37,7 @@ type heartbeatResponse struct {
 	OK          bool             `json:"ok"`
 	Assigned    bool             `json:"assigned"`
 	UpdateNow   bool             `json:"updateNow"`
+	Uninstall   bool             `json:"uninstall"`
 	LatestAgent *latestAgentInfo `json:"latestAgent"`
 }
 

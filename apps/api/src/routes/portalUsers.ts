@@ -5,12 +5,14 @@ import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { customerUsers, customers, users } from "../db/schema.js";
 import { createId } from "../lib/id.js";
+import { isEmail } from "../lib/mail.js";
 import { requireAdmin } from "../plugins/auth.js";
 
 const upsertBody = z.object({
   username: z.string().min(2).max(80).optional(),
   password: z.string().min(8).max(200).optional(),
   enabled: z.boolean().optional(),
+  email: z.string().max(200).optional().nullable(),
 });
 
 function publicPortalUser(row: typeof customerUsers.$inferSelect) {
@@ -18,6 +20,7 @@ function publicPortalUser(row: typeof customerUsers.$inferSelect) {
     id: row.id,
     customerId: row.customerId,
     username: row.username,
+    email: row.email,
     enabled: row.enabled,
     lastLoginAt: row.lastLoginAt,
     createdAt: row.createdAt,
@@ -85,6 +88,12 @@ export async function portalUserRoutes(app: FastifyInstance, db: Db) {
       return reply.code(400).send({ error: "Benutzername bereits vergeben" });
     }
 
+    const emailRaw = parsed.data.email !== undefined ? parsed.data.email : existing?.email;
+    const email = emailRaw?.trim() || null;
+    if (email && !isEmail(email)) {
+      return reply.code(400).send({ error: "E-Mail-Adresse ungültig" });
+    }
+
     const now = new Date();
     if (!existing) {
       const passwordHash = await bcrypt.hash(parsed.data.password!, 12);
@@ -93,6 +102,8 @@ export async function portalUserRoutes(app: FastifyInstance, db: Db) {
         customerId,
         username,
         passwordHash,
+        email,
+        mailNotifyJson: "{}",
         enabled: parsed.data.enabled ?? true,
         lastLoginAt: null,
         createdAt: now,
@@ -108,6 +119,7 @@ export async function portalUserRoutes(app: FastifyInstance, db: Db) {
     const updated = {
       username,
       passwordHash,
+      email: parsed.data.email !== undefined ? email : existing.email,
       enabled: parsed.data.enabled ?? existing.enabled,
       updatedAt: now,
     };

@@ -331,6 +331,8 @@ export const appointments = sqliteTable("appointments", {
   endTime: text("end_time"),
   allDay: integer("all_day", { mode: "boolean" }).notNull().default(false),
   location: text("location"),
+  /** Bereits versendete Erinnerungen, JSON z. B. `{"hours24":"…","hours1":"…","morning":"…"}`. */
+  remindersSentJson: text("reminders_sent_json").notNull().default("{}"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -347,6 +349,19 @@ export const orgSettings = sqliteTable("org_settings", {
   invoiceNote: text("invoice_note"),
   /** Gemeinsamer Schlüssel, mit dem Agenten sich anmelden (Klartext, nur Staff). */
   monitoringEnrollmentKey: text("monitoring_enrollment_key"),
+  smtpHost: text("smtp_host"),
+  smtpPort: integer("smtp_port"),
+  smtpSecure: text("smtp_secure", { enum: ["starttls", "ssl", "none"] }).notNull().default("starttls"),
+  smtpUser: text("smtp_user"),
+  /** AES-256-GCM, Schlüssel aus SESSION_SECRET. */
+  smtpPassEnc: text("smtp_pass_enc"),
+  mailFromEmail: text("mail_from_email"),
+  mailFromName: text("mail_from_name"),
+  mailReplyTo: text("mail_reply_to"),
+  mailPublicUrl: text("mail_public_url"),
+  mailStaffInbox: text("mail_staff_inbox"),
+  /** Globale Typ-Schalter und Erinnerungs-Offsets. */
+  mailNotifyJson: text("mail_notify_json").notNull().default("{}"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
@@ -547,6 +562,10 @@ export const customerUsers = sqliteTable("customer_users", {
     .references(() => customers.id, { onDelete: "cascade" }),
   username: text("username").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
+  /** Empfänger für Portal-Mails, unabhängig vom Login. */
+  email: text("email"),
+  /** Kunden-Opt-out je Typ, JSON. Leeres Objekt = alles an. */
+  mailNotifyJson: text("mail_notify_json").notNull().default("{}"),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
@@ -625,6 +644,8 @@ export const monitoringAgents = sqliteTable("monitoring_agents", {
   ramHighStreak: integer("ram_high_streak").notNull().default(0),
   /** Staff hat ein Sofort-Update angefordert; Agent zieht das aktuelle Paket beim nächsten Heartbeat. */
   updateRequestedAt: integer("update_requested_at", { mode: "timestamp_ms" }),
+  /** Staff hat Remote-Deinstallation angefordert; Agent entfernt den Dienst beim nächsten Heartbeat. */
+  uninstallRequestedAt: integer("uninstall_requested_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });

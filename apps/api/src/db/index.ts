@@ -153,6 +153,17 @@ export async function createDb(databasePath: string) {
       default_vat_percent REAL,
       invoice_note TEXT,
       monitoring_enrollment_key TEXT,
+      smtp_host TEXT,
+      smtp_port INTEGER,
+      smtp_secure TEXT NOT NULL DEFAULT 'starttls',
+      smtp_user TEXT,
+      smtp_pass_enc TEXT,
+      mail_from_email TEXT,
+      mail_from_name TEXT,
+      mail_reply_to TEXT,
+      mail_public_url TEXT,
+      mail_staff_inbox TEXT,
+      mail_notify_json TEXT NOT NULL DEFAULT '{}',
       updated_at INTEGER NOT NULL
     );
 
@@ -279,6 +290,7 @@ export async function createDb(databasePath: string) {
       end_time TEXT,
       all_day INTEGER NOT NULL DEFAULT 0,
       location TEXT,
+      reminders_sent_json TEXT NOT NULL DEFAULT '{}',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -379,6 +391,8 @@ export async function createDb(databasePath: string) {
       customer_id TEXT NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
       username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
+      email TEXT,
+      mail_notify_json TEXT NOT NULL DEFAULT '{}',
       enabled INTEGER NOT NULL DEFAULT 1,
       last_login_at INTEGER,
       created_at INTEGER NOT NULL,
@@ -554,6 +568,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "monitoring_alerts_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "monitoring_agents", "open_tickets_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "monitoring_agents", "update_requested_at", "INTEGER");
+  await ensureColumn(client, "monitoring_agents", "uninstall_requested_at", "INTEGER");
   await client.execute(`
     CREATE TABLE IF NOT EXISTS monitoring_agent_packages (
       id TEXT PRIMARY KEY,
@@ -567,6 +582,20 @@ export async function createDb(databasePath: string) {
     )
   `);
   await ensureColumn(client, "org_settings", "monitoring_enrollment_key", "TEXT");
+  await ensureColumn(client, "org_settings", "smtp_host", "TEXT");
+  await ensureColumn(client, "org_settings", "smtp_port", "INTEGER");
+  await ensureColumn(client, "org_settings", "smtp_secure", "TEXT NOT NULL DEFAULT 'starttls'");
+  await ensureColumn(client, "org_settings", "smtp_user", "TEXT");
+  await ensureColumn(client, "org_settings", "smtp_pass_enc", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_from_email", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_from_name", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_reply_to", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_public_url", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_staff_inbox", "TEXT");
+  await ensureColumn(client, "org_settings", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
+  await ensureColumn(client, "customer_users", "email", "TEXT");
+  await ensureColumn(client, "customer_users", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
+  await ensureColumn(client, "appointments", "reminders_sent_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "attachments", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "file_folders", "portal_visible", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "tickets", "resolution", "TEXT");

@@ -63,6 +63,17 @@ async function ensureSettings(db: Db) {
     defaultVatPercent: 19 as number | null,
     invoiceNote: null as string | null,
     monitoringEnrollmentKey: null as string | null,
+    smtpHost: null as string | null,
+    smtpPort: null as number | null,
+    smtpSecure: "starttls" as const,
+    smtpUser: null as string | null,
+    smtpPassEnc: null as string | null,
+    mailFromEmail: null as string | null,
+    mailFromName: null as string | null,
+    mailReplyTo: null as string | null,
+    mailPublicUrl: null as string | null,
+    mailStaffInbox: null as string | null,
+    mailNotifyJson: "{}",
     updatedAt: now,
   };
   await db.insert(orgSettings).values(row);
@@ -106,7 +117,9 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
 
   app.get("/api/settings/org", async () => {
-    return await ensureSettings(db);
+    const row = await ensureSettings(db);
+    const { smtpPassEnc: _p, ...rest } = row;
+    return rest;
   });
 
   app.put("/api/settings/org", async (request, reply) => {

@@ -42,6 +42,37 @@ export function addDaysIso(iso: string, days: number): string {
 }
 
 /**
+ * Wandelt ein lokales Datum/Uhrzeit in der App-Zeitzone in UTC-ms.
+ */
+export function zonedLocalToUtcMs(
+  dateIso: string,
+  timeHm: string,
+  timeZone: string = APP_TIMEZONE,
+): number {
+  const [year, month, day] = dateIso.split("-").map(Number);
+  const [hour, minute] = timeHm.split(":").map(Number);
+  if (![year, month, day, hour, minute].every((n) => Number.isFinite(n))) return NaN;
+  let utc = Date.UTC(year!, month! - 1, day!, hour, minute, 0);
+  for (let i = 0; i < 3; i += 1) {
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(new Date(utc));
+    const get = (type: Intl.DateTimeFormatPartTypes) =>
+      Number(parts.find((p) => p.type === type)?.value ?? "0");
+    const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), 0);
+    const wanted = Date.UTC(year!, month! - 1, day!, hour, minute, 0);
+    utc += wanted - asUtc;
+  }
+  return utc;
+}
+
+/**
  * Kalendertag eines Zeitpunkts in der App-Zeitzone.
  */
 export function isoInAppZone(value: Date, timeZone: string = APP_TIMEZONE): string {

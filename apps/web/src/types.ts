@@ -295,6 +295,67 @@ export interface OrgSettings {
   updatedAt: string;
 }
 
+export type SmtpSecure = "starttls" | "ssl" | "none";
+
+export const mailStaffKinds = [
+  "ticketCreated",
+  "ticketComment",
+  "ticketStatus",
+  "appointmentCreated",
+  "appointmentChanged",
+  "appointmentReminder",
+  "monitoringOpen",
+  "monitoringClose",
+] as const;
+export type MailStaffKind = (typeof mailStaffKinds)[number];
+
+export const mailCustomerKinds = [
+  "ticketCreated",
+  "ticketComment",
+  "ticketStatus",
+  "appointmentCreated",
+  "appointmentChanged",
+  "appointmentReminder",
+] as const;
+export type MailCustomerKind = (typeof mailCustomerKinds)[number];
+
+export const mailKindLabel: Record<MailStaffKind, string> = {
+  ticketCreated: "Neues Ticket",
+  ticketComment: "Ticket-Kommentar",
+  ticketStatus: "Ticket-Status",
+  appointmentCreated: "Termin angelegt",
+  appointmentChanged: "Termin geändert / gelöscht",
+  appointmentReminder: "Termin-Erinnerung",
+  monitoringOpen: "Monitoring-Warnung",
+  monitoringClose: "Monitoring-Entwarnung",
+};
+
+export interface MailNotifyConfig {
+  staff: Record<MailStaffKind, boolean>;
+  customer: Record<MailCustomerKind, boolean>;
+  reminders: { hours24: boolean; hours1: boolean; morning: boolean };
+}
+
+export interface MailSettings {
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: SmtpSecure;
+  smtpUser: string;
+  smtpPasswordSet: boolean;
+  mailFromEmail: string;
+  mailFromName: string;
+  mailReplyTo: string;
+  mailPublicUrl: string;
+  mailStaffInbox: string;
+  notify: MailNotifyConfig;
+}
+
+export interface PortalMailAccount {
+  email: string;
+  notify: Record<MailCustomerKind, boolean>;
+  allowed: Record<MailCustomerKind, boolean>;
+}
+
 export interface PriceItem {
   id: string;
   name: string;
@@ -742,6 +803,7 @@ export interface PortalUser {
   id: string;
   customerId: string;
   username: string;
+  email?: string | null;
   enabled: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -846,6 +908,7 @@ export interface MonitoringDeviceSummary {
   latestAgentVersion: string | null;
   agentOutdated: boolean;
   updateRequested: boolean;
+  uninstallRequested: boolean;
   cpuPercent: number | null;
   ramPercent: number | null;
   diskUsedPct: number | null;
@@ -886,6 +949,7 @@ export interface MonitoringPendingAgent {
   agentVersion: string | null;
   lastSeenAt: string | null;
   createdAt: string;
+  uninstallRequested: boolean;
 }
 
 export interface MonitoringAssignableAsset {

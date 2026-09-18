@@ -18,6 +18,8 @@ UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung �
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | GET/PUT | `/api/settings/org` | Standard-Stundensatz, Währung, MwSt.-Hinweis, Notiz |
+| GET/PUT | `/api/settings/mail` | SMTP (Host, Port, STARTTLS/SSL/none, User, Passwort verschlüsselt), Absender, Reply-To, Staff-Sammeladresse, öffentliche App-URL, Typ-Schalter Staff/Kunde, Erinnerungen (24h / 1h / 08:00). GET ohne Passwort, nur `smtpPasswordSet` |
+| POST | `/api/settings/mail/test` | Testmail an die Staff-Sammeladresse |
 | GET | `/api/price-items?activeOnly=&kind=` | Preiskatalog |
 | POST | `/api/price-items` | Position anlegen (`hourly`\|`fixed`\|`unit`); Artikelnummer (`sku`) wird als `ART-YYYY-NNN` vergeben, falls leer |
 | PUT/DELETE | `/api/price-items/:id` | Aktualisieren / löschen |
@@ -54,7 +56,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
 | POST | `/api/tickets/:id/task` | Aufgabe aus Ticket |
 | POST | `/api/tickets/:id/time-entry` | `{ hours, workDate? }` Zeitbuchung |
-| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`); GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
+| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`, `email` für Mails); GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
 
 Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Quelle: `portal` \| `staff` \| `monitoring`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
 
@@ -68,6 +70,7 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | POST | `/api/portal/auth/logout` | Session beenden |
 | GET | `/api/portal/auth/me` | Portal-Benutzer |
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
+| GET/PUT | `/api/portal/account` | E-Mail und Opt-in je Typ (`notify`); `allowed` sind die vom Staff global freigegebenen Typen |
 | GET | `/api/portal/overview` | Kennzahlen plus Ticket-Verteilung (`ticketsByStatus`, offene `ticketsByPriority`, `ticketsWeek` 7 Tage, `recentTickets`) sowie `wikiCount`/`fileCount` |
 | GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung als TipTap-JSON, Priorität) |
 | GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
@@ -165,7 +168,7 @@ Agent (öffentlich, ohne Staff-Session):
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
-| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`platform`. Antwort: `{ ok, assigned, updateNow, latestAgent?: { platform, version, sha256 } }` |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`platform`. Antwort: `{ ok, assigned, updateNow, uninstall, latestAgent?: { platform, version, sha256 } }` |
 | GET | `/api/monitoring/agent/latest?platform=` | Aktuelles Paket-Metadatum. Auth: Staff-Cookie, Query `key=` (Enrollment) oder Bearer-Token |
 | GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64`). Gleiche Auth wie latest |
 
@@ -181,6 +184,8 @@ Staff:
 | GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste; Geräte inkl. `agentVersion` / `agentOutdated` |
 | GET | `/api/monitoring/pending` | Unzugeordnete Agenten + zuordbare Assets |
 | POST | `/api/monitoring/pending/:id/assign` | `{ assetId }` – Asset muss `monitoringEnabled` haben und frei sein |
+| POST | `/api/monitoring/agents/:id/uninstall` | Remote-Deinstallation: Agent erhält `uninstall` beim nächsten Heartbeat und wird danach aus der Flotte gelöscht |
+| DELETE | `/api/monitoring/agents/:id` | Sofort aus der Liste nehmen (ohne zu warten); Dienst bleibt, bis der Befehl ankommt oder lokal deinstalliert wird |
 | GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden; UI: `/monitoring/customers/:customerId` |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms) |
 | PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }` |

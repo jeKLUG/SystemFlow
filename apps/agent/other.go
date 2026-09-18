@@ -31,7 +31,15 @@ func installService(cfgPath string) error {
 	return runLoop(cfgPath)
 }
 
-func uninstallService() error { return nil }
+func uninstallService() error {
+	_ = os.Remove(platformConfigPath())
+	return nil
+}
+
+func scheduleUninstall(cfgPath string) error {
+	_ = os.Remove(cfgPath)
+	return nil
+}
 
 func maybeRunService(cfgPath string) error {
 	return runLoop(cfgPath)

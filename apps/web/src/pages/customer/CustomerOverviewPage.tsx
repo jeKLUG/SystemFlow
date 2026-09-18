@@ -265,6 +265,7 @@ export function CustomerOverviewPage() {
 function PortalAccessPanel({ customerId, email }: { customerId: string; email: string | null }) {
   const [portal, setPortal] = useState<PortalUser | null>(null);
   const [username, setUsername] = useState(email?.split("@")[0] ?? "");
+  const [notifyEmail, setNotifyEmail] = useState(email ?? "");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -282,6 +283,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setPortal(row);
     setEnabled(Boolean(row?.enabled));
     setUsername(row?.username || email?.split("@")[0] || "");
+    setNotifyEmail(row?.email || email || "");
     setPassword("");
     setPasswordConfirm("");
     setShowPassword(false);
@@ -342,7 +344,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     }
     setBusy("save");
     try {
-      const body: Record<string, unknown> = { username, enabled: exists ? enabled : true };
+      const body: Record<string, unknown> = { username, enabled: exists ? enabled : true, email: notifyEmail };
       if (changingPassword) body.password = password;
       const res = await api.upsertPortalUser(customerId, body);
       applyPortal(res.portalUser);
@@ -367,6 +369,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setPasswordConfirm("");
     setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
+    setNotifyEmail(portal?.email || email || "");
   }
 
   function cancelEdit() {
@@ -375,6 +378,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setPasswordConfirm("");
     setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
+    setNotifyEmail(portal?.email || email || "");
     setError("");
     if (!exists) setEnabled(false);
   }
@@ -430,6 +434,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
             {exists && !showFields ? (
               <dl className="stammdaten-facts portal-access-facts">
                 <FactRow label="Benutzername" value={portal?.username ?? null} />
+                <FactRow label="E-Mail" value={portal?.email ?? null} />
                 <FactRow label="Passwort" value="Gesetzt" />
                 <FactRow label="Letzte Anmeldung" value={lastLogin} wide />
               </dl>
@@ -447,6 +452,15 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
                     autoComplete="off"
                   />
                   <span className="field-hint muted">Login für das Kundenportal unter /portal/login</span>
+                </label>
+                <label className="field">
+                  <span>E-Mail für Benachrichtigungen</span>
+                  <input
+                    type="email"
+                    value={notifyEmail}
+                    onChange={(e) => setNotifyEmail(e.target.value)}
+                    autoComplete="off"
+                  />
                 </label>
                 <div className="portal-access-secrets">
                   <p className="portal-access-secrets-lead muted">

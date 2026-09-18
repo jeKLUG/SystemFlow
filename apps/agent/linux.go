@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -118,7 +119,22 @@ func uninstallService() error {
 	_ = exec.Command("systemctl", "disable", "--now", "systemhaus-agent").Run()
 	_ = os.Remove("/etc/systemd/system/systemhaus-agent.service")
 	_ = exec.Command("systemctl", "daemon-reload").Run()
+	_ = os.Remove("/usr/local/bin/systemhaus-agent")
+	_ = os.Remove(platformConfigPath())
+	_ = os.Remove("/etc/systemhaus-agent")
 	return nil
+}
+
+func scheduleUninstall(cfgPath string) error {
+	scriptPath := filepath.Join(os.TempDir(), "systemhaus-agent-uninstall.sh")
+	script := fmt.Sprintf("#!/bin/bash\nsleep 2\nsystemctl disable --now systemhaus-agent >/dev/null 2>&1 || true\nrm -f /etc/systemd/system/systemhaus-agent.service\nsystemctl daemon-reload >/dev/null 2>&1 || true\nrm -f /usr/local/bin/systemhaus-agent %q\nrmdir /etc/systemhaus-agent >/dev/null 2>&1 || true\nrm -f %q\n",
+		cfgPath, scriptPath)
+	if err := os.WriteFile(scriptPath, []byte(script), 0o755); err != nil {
+		return err
+	}
+	cmd := exec.Command("bash", scriptPath)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	return cmd.Start()
 }
 
 func maybeRunService(cfgPath string) error {

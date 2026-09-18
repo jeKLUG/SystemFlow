@@ -1,7 +1,10 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../../auth";
+import { api } from "../../api";
+import { Checkbox } from "../../components/Checkbox";
 import { HelpHint } from "../../components/HelpHint";
 import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
+import { mailCustomerKinds, mailKindLabel, type PortalMailAccount } from "../../types";
 
 /**
  * Portal-Konto: Profil und Passwort ändern.
@@ -16,6 +19,21 @@ export function PortalAccountPage() {
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mailBusy, setMailBusy] = useState(false);
+  const [mailErr, setMailErr] = useState("");
+  const [mailOk, setMailOk] = useState("");
+  const [account, setAccount] = useState<PortalMailAccount | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+
+  useEffect(() => {
+    void api
+      .portalAccount()
+      .then((row) => {
+        setAccount(row);
+        setNotifyEmail(row.email);
+      })
+      .catch((e) => setMailErr(e instanceof Error ? e.message : "Laden fehlgeschlagen"));
+  }, []);
 
   const username = user?.username ?? "";
   const displayName = user?.customerName || username || "Konto";
@@ -49,6 +67,26 @@ export function PortalAccountPage() {
     }
   }
 
+  async function saveMail(e: FormEvent) {
+    e.preventDefault();
+    setMailErr("");
+    setMailOk("");
+    setMailBusy(true);
+    try {
+      const updated = await api.updatePortalAccount({
+        email: notifyEmail,
+        notify: account?.notify,
+      });
+      setAccount(updated);
+      setNotifyEmail(updated.email);
+      setMailOk("Benachrichtigungen gespeichert.");
+    } catch (err) {
+      setMailErr(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setMailBusy(false);
+    }
+  }
+
   return (
     <div className="page">
       <header className="page-head">
@@ -79,6 +117,51 @@ export function PortalAccountPage() {
               <span className="portal-account-handle is-plain">Portal-Benutzer</span>
             )}
           </span>
+        </section>
+        <section className="panel settings-card portal-account-card">
+          <header className="settings-card-head">
+            <div>
+              <p className="eyebrow">Benachrichtigungen</p>
+              <div className="page-head-title">
+                <h3>E-Mail</h3>
+                <HelpHint text="An diese Adresse gehen Ticket- und Termin-Mails. Typen, die Ihr Systemhaus ausgeschaltet hat, erscheinen nicht." />
+              </div>
+            </div>
+          </header>
+          <form className="stack-form" onSubmit={(e) => void saveMail(e)}>
+            <label className="field">
+              <span>E-Mail-Adresse</span>
+              <input
+                type="email"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
+                autoComplete="email"
+              />
+            </label>
+            {account ? (
+              <div className="mail-reminder-row">
+                {mailCustomerKinds.map((kind) =>
+                  account.allowed[kind] ? (
+                    <Checkbox
+                      key={kind}
+                      checked={account.notify[kind]}
+                      onChange={(checked) =>
+                        setAccount((a) =>
+                          a ? { ...a, notify: { ...a.notify, [kind]: checked } } : a,
+                        )
+                      }
+                      label={mailKindLabel[kind]}
+                    />
+                  ) : null,
+                )}
+              </div>
+            ) : null}
+            {mailErr ? <p className="form-error">{mailErr}</p> : null}
+            {mailOk ? <p className="form-success">{mailOk}</p> : null}
+            <button className="btn btn-primary" type="submit" disabled={mailBusy}>
+              {mailBusy ? "Speichern…" : "Benachrichtigungen speichern"}
+            </button>
+          </form>
         </section>
         <section className="panel settings-card portal-account-card">
           <header className="settings-card-head">

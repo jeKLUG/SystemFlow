@@ -9,8 +9,10 @@ import {
   assets,
   contracts,
   customers,
+  customerUsers,
   documents,
   fileFolders,
+  orgSettings,
   ticketMessages,
   tickets,
   ticketPriorities,
@@ -30,6 +32,14 @@ import { saveFirstUpload } from "../lib/uploads.js";
 import { richTextHasContent } from "../lib/richtext.js";
 import { requirePortal } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
+import { notifyTicketComment, notifyTicketCreated } from "../lib/notify.js";
+import { isEmail } from "../lib/mail.js";
+import {
+  mailCustomerKinds,
+  parseCustomerMailNotify,
+  parseMailNotify,
+  type CustomerMailNotify,
+} from "../lib/mailNotify.js";
 
 const createBody = z.object({
   title: z.string().min(1).max(300),
@@ -266,6 +276,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     await db.insert(tickets).values(row);
 
     await addActivity(db, customerId, `Ticket ${row.number} vom Portal`, row.title, now);
+    await notifyTicketCreated(db, row);
     return reply.code(201).send({ ...row, ...slaFlags(row), messages: [], attachments: [] });
   });
 
@@ -312,6 +323,8 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
         updatedAt: now,
       })
       .where(eq(tickets.id, id));
+
+    await notifyTicketComment(db, { ...ticket, status: nextStatus, updatedAt: now }, parsed.data.body.trim(), "customer");
 
     return reply.code(201).send(message);
   });
@@ -460,5 +473,54 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       .orderBy(desc(assets.updatedAt))
       .all();
     return rows.map(publicAsset);
+  });
+
+  app.get("/api/portal/account", async (request) => {
+    const { userId } = request.portal!;
+    const row = await db.select().from(customerUsers).where(eq(customerUsers.id, userId)).get();
+    const org = await db.select().from(orgSettings).where(eq(orgSettings.id, "default")).get();
+    const global = parseMailNotify(org?.mailNotifyJson);
+    const notify = parseCustomerMailNotify(row?.mailNotifyJson);
+    const allowed = Object.fromEntries(
+      mailCustomerKinds.map((kind) => [kind, global.customer[kind]]),
+    ) as Record<(typeof mailCustomerKinds)[number], boolean>;
+    return {
+      email: row?.email ?? "",
+      notify,
+      allowed,
+    };
+  });
+
+  app.put("/api/portal/account", async (request, reply) => {
+    const { userId } = request.portal!;
+    const parsed = z
+      .object({
+        email: z.string().max(200).optional().nullable(),
+        notify: z.record(z.boolean()).optional(),
+      })
+      .safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
+    }
+    const row = await db.select().from(customerUsers).where(eq(customerUsers.id, userId)).get();
+    if (!row) return reply.code(401).send({ error: "Nicht angemeldet" });
+    const email = parsed.data.email !== undefined ? (parsed.data.email?.trim() || null) : row.email;
+    if (email && !isEmail(email)) return reply.code(400).send({ error: "E-Mail-Adresse ungültig" });
+    const notify = parseCustomerMailNotify(row.mailNotifyJson);
+    if (parsed.data.notify) {
+      for (const kind of mailCustomerKinds) {
+        if (typeof parsed.data.notify[kind] === "boolean") notify[kind] = parsed.data.notify[kind]!;
+      }
+    }
+    await db
+      .update(customerUsers)
+      .set({ email, mailNotifyJson: JSON.stringify(notify), updatedAt: new Date() })
+      .where(eq(customerUsers.id, userId));
+    const org = await db.select().from(orgSettings).where(eq(orgSettings.id, "default")).get();
+    const global = parseMailNotify(org?.mailNotifyJson);
+    const allowed = Object.fromEntries(
+      mailCustomerKinds.map((kind) => [kind, global.customer[kind]]),
+    ) as CustomerMailNotify;
+    return { email: email ?? "", notify, allowed };
   });
 }

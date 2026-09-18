@@ -22,6 +22,7 @@ import { addActivity } from "../routes/activities.js";
 import { createId } from "./id.js";
 import { compareAgentVersions, platformFromAgent } from "./agentPackages.js";
 import { findActiveContract, isOpenStatus, nextTicketNumber, slaFromContract } from "./tickets.js";
+import { notifyMonitoringClose, notifyMonitoringOpen } from "./notify.js";
 
 export const MONITORING_OFFLINE_MS = 2 * 60 * 1000;
 export const MONITORING_SAMPLE_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -695,12 +696,15 @@ export async function syncMonitoringTickets(
       };
       await db.insert(tickets).values(row);
       await addActivity(db, agent.customerId, `Ticket ${row.number} angelegt`, row.title, now);
+      await notifyMonitoringOpen(db, row);
       next[slot.key] = row.id;
       continue;
     }
 
     if (openExisting) {
-      await closeTicket(db, openExisting.id, authorId, now, slot.enabled ? slot.closeOk : slot.closeOff);
+      const reason = slot.enabled ? slot.closeOk : slot.closeOff;
+      await closeTicket(db, openExisting.id, authorId, now, reason);
+      await notifyMonitoringClose(db, { ...openExisting, status: "closed" }, reason);
     }
   }
 
@@ -725,6 +729,17 @@ export async function ensureEnrollmentKey(db: Db): Promise<string> {
       defaultVatPercent: 19,
       invoiceNote: null,
       monitoringEnrollmentKey: key,
+      smtpHost: null,
+      smtpPort: null,
+      smtpSecure: "starttls",
+      smtpUser: null,
+      smtpPassEnc: null,
+      mailFromEmail: null,
+      mailFromName: null,
+      mailReplyTo: null,
+      mailPublicUrl: null,
+      mailStaffInbox: null,
+      mailNotifyJson: "{}",
       updatedAt: now,
     });
   }
@@ -892,7 +907,7 @@ export function alertedIssues(detected: MonitoringIssueKind[], config: AlertConf
  * Tickets eines zugeordneten Agenten an aktuelle Warnungen und Geräte-Konfig anpassen.
  */
 export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now = new Date()): Promise<void> {
-  if (!agent.assetId || !agent.customerId) return;
+  if (!agent.assetId || !agent.customerId || agent.uninstallRequestedAt) return;
   const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
   const config = parseAlertConfig(asset ?? undefined);
   const online = isAgentOnline(agent.lastSeenAt, now);
@@ -982,7 +997,20 @@ export function mapPendingAgent(agent: MonitoringAgent) {
     agentVersion: agent.agentVersion,
     lastSeenAt: agent.lastSeenAt,
     createdAt: agent.createdAt,
+    uninstallRequested: Boolean(agent.uninstallRequestedAt),
   };
+}
+
+/**
+ * Schließt offene Monitoring-Tickets und entfernt Agent samt Verlauf.
+ */
+export async function purgeMonitoringAgent(db: Db, agent: MonitoringAgent): Promise<void> {
+  if (agent.assetId) {
+    const name = await deviceNameFor(db, agent);
+    await syncMonitoringTickets(db, agent, [], emptyAlertConfig(false), name, []);
+  }
+  await db.delete(monitoringSamples).where(eq(monitoringSamples.agentId, agent.id));
+  await db.delete(monitoringAgents).where(eq(monitoringAgents.id, agent.id));
 }
 
 export async function mapDeviceSummary(
@@ -1063,6 +1091,7 @@ export async function mapDeviceSummary(
     latestAgentVersion: latest?.version ?? null,
     agentOutdated,
     updateRequested: Boolean(agent.updateRequestedAt),
+    uninstallRequested: Boolean(agent.uninstallRequestedAt),
     cpuPercent: snapshot?.cpuPercent ?? null,
     ramPercent: usedPct(snapshot?.ramUsedBytes ?? 0, snapshot?.ramTotalBytes ?? 0),
     diskUsedPct: worstDiskUsedPct(snapshot?.disks),

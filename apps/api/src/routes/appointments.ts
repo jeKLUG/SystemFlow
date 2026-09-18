@@ -7,6 +7,11 @@ import { todayIso } from "../lib/dates.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
 import { addActivity } from "./activities.js";
+import {
+  notifyAppointmentCancelled,
+  notifyAppointmentChanged,
+  notifyAppointmentCreated,
+} from "../lib/notify.js";
 
 const kindEnum = z.enum(["customer", "internal", "personal", "other"]);
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -201,6 +206,7 @@ export async function appointmentRoutes(app: FastifyInstance, db: Db) {
       endTime: allDay ? null : emptyToNull(parsed.data.endTime),
       allDay,
       location: emptyToNull(parsed.data.location),
+      remindersSentJson: "{}",
       createdAt: now,
       updatedAt: now,
     };
@@ -217,6 +223,7 @@ export async function appointmentRoutes(app: FastifyInstance, db: Db) {
       );
     }
 
+    await notifyAppointmentCreated(db, row);
     return reply.code(201).send(row);
   });
 
@@ -261,6 +268,10 @@ export async function appointmentRoutes(app: FastifyInstance, db: Db) {
     if (!normalized.ok) return reply.code(400).send({ error: normalized.error });
 
     const allDay = merged.allDay ?? !merged.startTime;
+    const timeChanged =
+      existing.startDate !== merged.startDate ||
+      (existing.startTime ?? "") !== (allDay ? "" : emptyToNull(merged.startTime) ?? "") ||
+      existing.allDay !== allDay;
     const updated = {
       title: merged.title.trim(),
       description: emptyToNull(merged.description),
@@ -272,17 +283,21 @@ export async function appointmentRoutes(app: FastifyInstance, db: Db) {
       endTime: allDay ? null : emptyToNull(merged.endTime),
       allDay,
       location: emptyToNull(merged.location),
+      remindersSentJson: timeChanged ? "{}" : existing.remindersSentJson,
       updatedAt: new Date(),
     };
 
     await db.update(appointments).set(updated).where(eq(appointments.id, id));
-    return { ...existing, ...updated };
+    const next = { ...existing, ...updated };
+    await notifyAppointmentChanged(db, next);
+    return next;
   });
 
   app.delete("/api/appointments/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const existing = await db.select().from(appointments).where(eq(appointments.id, id)).get();
     if (!existing) return reply.code(404).send({ error: "Termin nicht gefunden" });
+    await notifyAppointmentCancelled(db, existing);
     await db.delete(appointments).where(eq(appointments.id, id));
     return { ok: true };
   });

@@ -38,6 +38,8 @@ import { backupRoutes } from "./routes/backup.js";
 import { emailRoutes } from "./routes/emails.js";
 import { monitoringRoutes } from "./routes/monitoring.js";
 import { startMonitoringLoop } from "./lib/monitoringLoop.js";
+import { startMailLoop } from "./lib/mailLoop.js";
+import { mailSettingsRoutes } from "./routes/mailSettings.js";
 
 /**
  * Startet die Systemhaus-Ess API und liefert optional das Frontend aus.
@@ -94,6 +96,7 @@ async function main() {
   await app.register(async (scoped) => appointmentRoutes(scoped, db));
   await app.register(async (scoped) => vaultRoutes(scoped, db));
   await app.register(async (scoped) => pricingRoutes(scoped, db));
+  await app.register(async (scoped) => mailSettingsRoutes(scoped, db));
   await app.register(async (scoped) => contractRoutes(scoped, db));
   await app.register(async (scoped) => reminderRoutes(scoped, db));
   await app.register(async (scoped) => searchRoutes(scoped, db));
@@ -109,6 +112,7 @@ async function main() {
   await monitoringRoutes(app, db, config.uploadDir);
 
   startMonitoringLoop(db);
+  startMailLoop(db);
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));
 

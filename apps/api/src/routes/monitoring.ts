@@ -46,6 +46,7 @@ import {
   type AgentSnapshot,
   findAssignableAssets,
   isAgentOnline,
+  purgeMonitoringAgent,
 } from "../lib/monitoring.js";
 
 const enrollBody = z.object({
@@ -348,6 +349,13 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     }
 
     const snapshot = parsed.data as AgentSnapshot;
+    const reportedVersion = snapshot.agentVersion?.trim() || agent.agentVersion || "";
+    const canRemoteUninstall = compareAgentVersions(reportedVersion || "0", "1.0.4") >= 0;
+    if (agent.uninstallRequestedAt && canRemoteUninstall) {
+      await purgeMonitoringAgent(db, agent);
+      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null };
+    }
+
     const now = new Date();
     const config = await loadAlertConfig(db, agent.assetId);
     const evald = evaluateHeartbeatIssues(snapshot, agent, config);
@@ -370,11 +378,14 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     const latestAgent = pkg
       ? { platform: pkg.platform, version: pkg.version, sha256: pkg.sha256 }
       : null;
-    const reportedVersion = snapshot.agentVersion?.trim() || agent.agentVersion || "";
     const versionCurrent = Boolean(
       latestAgent && reportedVersion && compareAgentVersions(reportedVersion, latestAgent.version) >= 0,
     );
-    const updateNow = Boolean(agent.updateRequestedAt && latestAgent);
+    const updateNow = Boolean(
+      latestAgent &&
+        (agent.updateRequestedAt || agent.uninstallRequestedAt) &&
+        !versionCurrent,
+    );
 
     await db
       .update(monitoringAgents)
@@ -391,7 +402,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         openTicketId: firstTicket,
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
-        updateRequestedAt: versionCurrent ? null : agent.updateRequestedAt,
+        updateRequestedAt: versionCurrent && !agent.uninstallRequestedAt ? null : agent.updateRequestedAt,
         updatedAt: now,
       })
       .where(eq(monitoringAgents.id, agent.id));
@@ -407,7 +418,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       }
     }
 
-    return { ok: true, assigned: Boolean(agent.assetId), updateNow, latestAgent };
+    return { ok: true, assigned: Boolean(agent.assetId), updateNow, uninstall: Boolean(agent.uninstallRequestedAt), latestAgent };
   });
 
   app.get("/api/monitoring/agent/latest", async (request, reply) => {
@@ -513,6 +524,30 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       if (!platform) return reply.code(400).send({ error: "Unbekannte Plattform" });
       const ok = await deleteAgentPackage(db, uploadDir, platform);
       if (!ok) return reply.code(404).send({ error: "Kein Paket für diese Plattform" });
+      return { ok: true };
+    });
+
+    scoped.post("/api/monitoring/agents/:id/uninstall", async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const agent = await db.select().from(monitoringAgents).where(eq(monitoringAgents.id, id)).get();
+      if (!agent) return reply.code(404).send({ error: "Agent nicht gefunden" });
+      const now = new Date();
+      await db
+        .update(monitoringAgents)
+        .set({
+          uninstallRequestedAt: agent.uninstallRequestedAt ?? now,
+          updateRequestedAt: agent.updateRequestedAt ?? now,
+          updatedAt: now,
+        })
+        .where(eq(monitoringAgents.id, agent.id));
+      return { ok: true, uninstallRequested: true };
+    });
+
+    scoped.delete("/api/monitoring/agents/:id", async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const agent = await db.select().from(monitoringAgents).where(eq(monitoringAgents.id, id)).get();
+      if (!agent) return reply.code(404).send({ error: "Agent nicht gefunden" });
+      await purgeMonitoringAgent(db, agent);
       return { ok: true };
     });
 
@@ -685,6 +720,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         .set({
           assetId: asset.id,
           customerId: asset.customerId,
+          uninstallRequestedAt: null,
           updatedAt: now,
         })
         .where(eq(monitoringAgents.id, agent.id));

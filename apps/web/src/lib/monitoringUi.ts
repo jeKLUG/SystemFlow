@@ -54,6 +54,35 @@ export function formatUptime(sec: number | null | undefined): string {
   return `${m} min`;
 }
 
+/** Heartbeat gilt 2 Minuten als online – analog zum Server. */
+export const MONITORING_ONLINE_MS = 2 * 60 * 1000;
+
+export function isMonitoringOnline(iso: string | Date | null | undefined): boolean {
+  if (!iso) return false;
+  const t = sampleTime(iso);
+  return t > 0 && Date.now() - t < MONITORING_ONLINE_MS;
+}
+
+/** Grober Versionsvergleich (1.0.4, 1.0.4-next). */
+export function agentVersionAtLeast(version: string | null | undefined, min: string): boolean {
+  if (!version) return false;
+  const parse = (v: string) =>
+    v
+      .split(/[^\d]+/)
+      .filter(Boolean)
+      .map((n) => Number(n) || 0);
+  const a = parse(version);
+  const b = parse(min);
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i += 1) {
+    const da = a[i] ?? 0;
+    const db = b[i] ?? 0;
+    if (da > db) return true;
+    if (da < db) return false;
+  }
+  return true;
+}
+
 export function relSeen(iso: string | null | undefined): string {
   if (!iso) return "nie";
   const t = sampleTime(iso);

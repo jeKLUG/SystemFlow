@@ -661,6 +661,20 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  mailSettings: () => request<import("./types").MailSettings>("/api/settings/mail"),
+  updateMailSettings: (body: Record<string, unknown>) =>
+    request<import("./types").MailSettings>("/api/settings/mail", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  testMailSettings: () =>
+    request<{ ok: boolean }>("/api/settings/mail/test", { method: "POST" }),
+  portalAccount: () => request<import("./types").PortalMailAccount>("/api/portal/account"),
+  updatePortalAccount: (body: Record<string, unknown>) =>
+    request<import("./types").PortalMailAccount>("/api/portal/account", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
   priceItems: (opts?: { activeOnly?: boolean; kind?: string }) => {
     const params = new URLSearchParams();
     if (opts?.activeOnly) params.set("activeOnly", "true");
@@ -828,6 +842,12 @@ export const api = {
       `/api/monitoring/devices/${assetId}/update-agent`,
       { method: "POST" },
     ),
+  requestMonitoringUninstall: (id: string) =>
+    request<{ ok: boolean; uninstallRequested: boolean }>(`/api/monitoring/agents/${id}/uninstall`, {
+      method: "POST",
+    }),
+  removeMonitoringAgent: (id: string) =>
+    request<{ ok: boolean }>(`/api/monitoring/agents/${id}`, { method: "DELETE" }),
 };
 
 async function downloadPdf(url: string, fallbackName: string) {
