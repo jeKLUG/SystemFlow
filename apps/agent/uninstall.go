@@ -1,6 +1,9 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 
 // maybeRemoteUninstall startet die Deinstallation, wenn der Server das im Heartbeat anfordert.
 // Gibt true zurück, wenn der Agent beendet werden soll (nicht aus dem Dienst heraus sc stop aufrufen).

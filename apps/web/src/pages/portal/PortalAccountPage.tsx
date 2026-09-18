@@ -145,22 +145,13 @@ export function PortalAccountPage() {
             </button>
           </header>
           {account ? (
-            <div className="mail-config-copy portal-mail-summary">
-              <p className="muted">{notifyEmail || "Keine Adresse hinterlegt."}</p>
-              <div className="mail-config-chips">
-                {mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length === 0 ? (
-                  <span className="mail-config-chip is-off">Keine Mails</span>
-                ) : (
-                  mailCustomerKinds
-                    .filter((k) => account.allowed[k] && account.notify[k])
-                    .map((k) => (
-                      <span key={k} className="mail-config-chip">
-                        {mailKindLabel[k]}
-                      </span>
-                    ))
-                )}
-              </div>
-            </div>
+            <p className="muted portal-mail-summary">
+              {notifyEmail || "Keine Adresse hinterlegt."}
+              {" · "}
+              {mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length === 0
+                ? "keine Mails"
+                : `${mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length} Typen aktiv`}
+            </p>
           ) : (
             <p className="muted">Lade…</p>
           )}

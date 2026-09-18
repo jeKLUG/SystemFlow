@@ -57,9 +57,9 @@ function enabledCount(values: Record<string, boolean>): number {
 
 function reminderChips(r: MailNotifyConfig["reminders"]): string[] {
   return [
-    r.hours24 ? "24 Stunden vorher" : null,
-    r.hours1 ? "1 Stunde vorher" : null,
-    r.morning ? "Am Termin-Tag 08:00" : null,
+    r.hours24 ? "24h" : null,
+    r.hours1 ? "1h" : null,
+    r.morning ? "08:00" : null,
   ].filter((v): v is string => Boolean(v));
 }
 
@@ -212,7 +212,7 @@ export function MailSettingsCard() {
     .join(" · ");
 
   return (
-    <section className="panel settings-card">
+    <section className="panel settings-card settings-card-mail">
       <header className="settings-card-head">
         <div>
           <p className="eyebrow">Benachrichtigungen</p>
@@ -229,14 +229,11 @@ export function MailSettingsCard() {
           <li className={`mail-config-row${smtpReady ? " is-on" : " is-off"}`}>
             <span className={`mon-dot${smtpReady ? " is-on" : " is-off"}`} aria-hidden />
             <div className="mail-config-copy">
-              <span className="mail-config-kind">{smtpReady ? "Bereit" : "Unvollständig"}</span>
-              <strong>SMTP-Versand</strong>
-              <p className="muted">{smtpMeta || "Host, Absender und Staff-Adresse fehlen noch."}</p>
-              <div className="mail-config-chips">
-                {passwordSet ? <span className="mail-config-chip">Passwort gesetzt</span> : null}
-                {form.mailFromName ? <span className="mail-config-chip">{form.mailFromName}</span> : null}
-                {form.mailPublicUrl ? <span className="mail-config-chip">{form.mailPublicUrl}</span> : null}
-              </div>
+              <strong>SMTP</strong>
+              <p className="muted">
+                {smtpReady ? smtpMeta : "Host, Absender und Staff-Adresse fehlen"}
+                {smtpReady && passwordSet ? " · Passwort gesetzt" : ""}
+              </p>
             </div>
             <div className="mail-config-actions">
               <button
@@ -245,7 +242,7 @@ export function MailSettingsCard() {
                 disabled={Boolean(busy) || !smtpReady}
                 onClick={() => void test()}
               >
-                {busy === "test" ? "Sendet…" : "Testmail"}
+                {busy === "test" ? "…" : "Test"}
               </button>
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openEdit("smtp")}>
                 Bearbeiten
@@ -255,25 +252,12 @@ export function MailSettingsCard() {
           <li className={`mail-config-row${staffOn > 0 ? " is-on" : " is-off"}`}>
             <span className={`mon-dot${staffOn > 0 ? " is-on" : " is-off"}`} aria-hidden />
             <div className="mail-config-copy">
-              <span className="mail-config-kind">Admin</span>
-              <strong>Staff-Benachrichtigungen</strong>
+              <strong>Staff</strong>
               <p className="muted">
-                {staffOn} von {mailStaffKinds.length} Typen
-                {reminders.length ? ` · Erinnerung: ${reminders.join(", ")}` : " · keine Terminerinnerung"}
+                {staffOn === 0
+                  ? "Keine Mails"
+                  : `${staffOn}/${mailStaffKinds.length} Typen${reminders.length ? ` · Erinnerung ${reminders.join(", ")}` : ""}`}
               </p>
-              <div className="mail-config-chips">
-                {staffOn === 0 ? (
-                  <span className="mail-config-chip is-off">Keine Mails</span>
-                ) : (
-                  mailStaffKinds
-                    .filter((k) => notify.staff[k])
-                    .map((k) => (
-                      <span key={k} className="mail-config-chip">
-                        {mailKindLabel[k]}
-                      </span>
-                    ))
-                )}
-              </div>
             </div>
             <div className="mail-config-actions">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openEdit("staff")}>
@@ -284,24 +268,12 @@ export function MailSettingsCard() {
           <li className={`mail-config-row${customerOn > 0 ? " is-on" : " is-off"}`}>
             <span className={`mon-dot${customerOn > 0 ? " is-on" : " is-off"}`} aria-hidden />
             <div className="mail-config-copy">
-              <span className="mail-config-kind">Kunde</span>
-              <strong>Kunden-Benachrichtigungen</strong>
+              <strong>Kunden</strong>
               <p className="muted">
-                {customerOn} von {mailCustomerKinds.length} Typen · Opt-out bleibt am Portal-Konto möglich
+                {customerOn === 0
+                  ? "Keine Mails"
+                  : `${customerOn}/${mailCustomerKinds.length} Typen · Opt-out am Portal-Konto`}
               </p>
-              <div className="mail-config-chips">
-                {customerOn === 0 ? (
-                  <span className="mail-config-chip is-off">Keine Mails</span>
-                ) : (
-                  mailCustomerKinds
-                    .filter((k) => notify.customer[k])
-                    .map((k) => (
-                      <span key={k} className="mail-config-chip">
-                        {mailKindLabel[k]}
-                      </span>
-                    ))
-                )}
-              </div>
             </div>
             <div className="mail-config-actions">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openEdit("customer")}>

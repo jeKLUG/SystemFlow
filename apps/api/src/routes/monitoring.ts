@@ -1,6 +1,6 @@
 import { and, eq, gte, isNull, lte } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
-import { createReadStream, existsSync } from "node:fs";
+import { createReadStream, existsSync, statSync } from "node:fs";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { assets, customers, monitoringAgents, monitoringSamples, ticketPriorities } from "../db/schema.js";
@@ -455,8 +455,11 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     if (!existsSync(filePath)) {
       return reply.code(404).send({ error: "Paketdatei fehlt auf dem Server" });
     }
+    const size = statSync(filePath).size;
     return reply
       .header("Content-Type", "application/octet-stream")
+      .header("Content-Length", String(size))
+      .header("Cache-Control", "no-store")
       .header("Content-Disposition", `attachment; filename="${pkg.filename.replace(/"/g, "")}"`)
       .header("X-Agent-Version", pkg.version)
       .header("X-Agent-SHA256", pkg.sha256)

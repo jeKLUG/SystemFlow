@@ -18,12 +18,41 @@ import (
 
 const serviceName = "SystemhausAgent"
 
-func platformConfigPath() string {
+const (
+	createNewProcessGroup  = 0x00000200
+	detachedProcess        = 0x00000008
+	createBreakawayFromJob = 0x01000000
+)
+
+func programDataDir() string {
 	base := os.Getenv("PROGRAMDATA")
 	if base == "" {
 		base = `C:\ProgramData`
 	}
-	return filepath.Join(base, "SystemhausEss", "agent.json")
+	return filepath.Join(base, "SystemhausEss")
+}
+
+func platformConfigPath() string {
+	return filepath.Join(programDataDir(), "agent.json")
+}
+
+func installedExePath() string {
+	return filepath.Join(programDataDir(), "systemhaus-agent.exe")
+}
+
+func startDetached(bat string) error {
+	run := func(flags uint32) error {
+		cmd := exec.Command("cmd.exe", "/C", bat)
+		cmd.SysProcAttr = &syscall.SysProcAttr{
+			HideWindow:    true,
+			CreationFlags: flags,
+		}
+		return cmd.Start()
+	}
+	if err := run(createNewProcessGroup | detachedProcess | createBreakawayFromJob); err == nil {
+		return nil
+	}
+	return run(createNewProcessGroup | detachedProcess)
 }
 
 func machineID() string {
@@ -128,11 +157,7 @@ func installBinaryPath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	base := os.Getenv("PROGRAMDATA")
-	if base == "" {
-		base = `C:\ProgramData`
-	}
-	dest := filepath.Join(base, "SystemhausEss", "systemhaus-agent.exe")
+	dest := installedExePath()
 	if err := copyFile(src, dest); err != nil {
 		if samePath(src, dest) {
 			return dest, nil
@@ -205,31 +230,19 @@ func uninstallService() error {
 }
 
 func removeInstallFiles() {
-	cfg := platformConfigPath()
-	_ = os.Remove(cfg)
-	base := os.Getenv("PROGRAMDATA")
-	if base == "" {
-		base = `C:\ProgramData`
-	}
-	dir := filepath.Join(base, "SystemhausEss")
-	_ = os.Remove(filepath.Join(dir, "systemhaus-agent.exe"))
-	_ = os.Remove(filepath.Join(dir, "apply-update.cmd"))
+	_ = os.Remove(platformConfigPath())
+	_ = os.Remove(installedExePath())
+	_ = os.Remove(filepath.Join(programDataDir(), "apply-update.cmd"))
 }
 
 func scheduleUninstall(cfgPath string) error {
-	dir := filepath.Dir(platformConfigPath())
-	exe := filepath.Join(dir, "systemhaus-agent.exe")
-	if self, err := os.Executable(); err == nil {
-		if abs, absErr := filepath.Abs(self); absErr == nil {
-			exe = abs
-		}
-	}
+	exe := installedExePath()
 	bat := filepath.Join(os.TempDir(), "systemhaus-agent-uninstall.cmd")
 	script := fmt.Sprintf("@echo off\r\n"+
 		"timeout /t 3 /nobreak >nul\r\n"+
 		"sc stop %s >nul 2>&1\r\n"+
 		"sc delete %s >nul 2>&1\r\n"+
-		"timeout /t 1 /nobreak >nul\r\n"+
+		"timeout /t 2 /nobreak >nul\r\n"+
 		"del /f /q \"%s\" >nul 2>&1\r\n"+
 		"del /f /q \"%s\" >nul 2>&1\r\n"+
 		"del /f /q \"%%~f0\" >nul 2>&1\r\n",
@@ -237,9 +250,7 @@ func scheduleUninstall(cfgPath string) error {
 	if err := os.WriteFile(bat, []byte(script), 0o755); err != nil {
 		return err
 	}
-	cmd := exec.Command("cmd.exe", "/C", "start", "/MIN", "", bat)
-	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
-	return cmd.Start()
+	return startDetached(bat)
 }
 
 type agentService struct {

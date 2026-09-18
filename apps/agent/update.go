@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -42,6 +44,32 @@ func currentExeSHA() string {
 	return sum
 }
 
+func updateLog(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	dir := filepath.Dir(platformConfigPath())
+	f, err := os.OpenFile(filepath.Join(dir, "update.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s %s\n", time.Now().UTC().Format(time.RFC3339), msg)
+}
+
+func downloadClient() *http.Client {
+	return &http.Client{
+		Timeout: 3 * time.Minute,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) == 0 {
+				return nil
+			}
+			if auth := via[0].Header.Get("Authorization"); auth != "" && req.Header.Get("Authorization") == "" {
+				req.Header.Set("Authorization", auth)
+			}
+			return nil
+		},
+	}
+}
+
 // maybeSelfUpdate lädt bei Bedarf das aktuelle Binary und ersetzt den laufenden Agenten.
 // Täglich, wenn die Version älter ist; sofort, wenn der Server updateNow sendet.
 func maybeSelfUpdate(cfgPath string, cfg *config, hb *heartbeatResponse) {
@@ -58,8 +86,6 @@ func maybeSelfUpdate(cfgPath string, cfg *config, hb *heartbeatResponse) {
 			return
 		}
 	}
-	cfg.LastUpdateCheck = time.Now().UTC().Format(time.RFC3339)
-	_ = saveConfig(cfgPath, cfg)
 
 	go func() {
 		updateMu.Lock()
@@ -74,9 +100,14 @@ func maybeSelfUpdate(cfgPath string, cfg *config, hb *heartbeatResponse) {
 			updateBusy = false
 			updateMu.Unlock()
 		}()
+		updateLog(fmt.Sprintf("self-update start → %s (%s)", latest.Version, latest.Platform))
 		if err := downloadAndApply(cfg, latest); err != nil {
-			fmt.Fprintf(os.Stderr, "self-update: %v\n", err)
+			updateLog("self-update: " + err.Error())
+			return
 		}
+		cfg.LastUpdateCheck = time.Now().UTC().Format(time.RFC3339)
+		_ = saveConfig(cfgPath, cfg)
+		updateLog("self-update: apply gestartet")
 	}()
 }
 
@@ -88,14 +119,16 @@ func downloadAndApply(cfg *config, latest *latestAgentInfo) error {
 	if platform == "" {
 		platform = agentPlatformID()
 	}
-	url := apiURL(cfg.ServerURL, "/api/monitoring/agent/download/"+platform)
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	path := "/api/monitoring/agent/download/" + platform
+	if cfg.EnrollmentKey != "" {
+		path += "?key=" + url.QueryEscape(cfg.EnrollmentKey)
+	}
+	req, err := http.NewRequest(http.MethodGet, apiURL(cfg.ServerURL, path), nil)
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
-	client := &http.Client{Timeout: 3 * time.Minute}
-	res, err := client.Do(req)
+	res, err := downloadClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -104,11 +137,7 @@ func downloadAndApply(cfg *config, latest *latestAgentInfo) error {
 		raw, _ := io.ReadAll(io.LimitReader(res.Body, 2048))
 		return fmt.Errorf("download %s: %s", res.Status, raw)
 	}
-	exe, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	dest := exe + ".new"
+	dest := filepath.Join(os.TempDir(), "systemhaus-agent-update.bin")
 	out, err := os.OpenFile(dest, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
 	if err != nil {
 		return err

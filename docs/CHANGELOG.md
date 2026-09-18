@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.169 – 2026-09-18
+
+- Einstellungen: E-Mail-Bereich als kompakte Zeilen ohne Chip-Wolke
+
+## 1.5.168 – 2026-09-18
+
+- Monitoring-Agent 1.0.5: Windows-Update löst den Hilfsprozess vom Dienst (vorher starb er beim Stopp); Download mit Enrollment-Key und voller Dateigröße. Einmal neu installieren bzw. 1.0.5 hochladen, danach funktionieren Folgeschritte.
+
 ## 1.5.167 – 2026-09-18
 
 - Einstellungen: SMTP, Staff- und Kunden-Mails als eingeklappte Karten; Bearbeitung im Dialog. Portal-Konto ebenso.
