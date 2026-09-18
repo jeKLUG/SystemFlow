@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.173 – 2026-09-18
+
+- E-Mail: schlichtes HTML (helle Karte, Infotabelle, Button) mit Kunde, Ticket/Status/Priorität, Terminzeit/Ort und Erinnerungsgrund
+
 ## 1.5.172 – 2026-09-18
 
 - Monitoring: Hinweise unter „Unzugeordnet“ und „Kunden“ als Hilfe-Kreis an der Überschrift

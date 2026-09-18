@@ -173,10 +173,20 @@ export async function mailSettingsRoutes(app: FastifyInstance, db: Db) {
       to: settings.mailStaffInbox,
       subject: "Testmail Systemhaus-Ess",
       ...mailHtml({
-        title: "Testmail",
-        intro: "SMTP ist eingerichtet. Diese Nachricht ging an die Staff-Sammeladresse.",
+        brand: settings.mailFromName || "Systemhaus-Ess",
+        kicker: "SMTP-Test",
+        title: "SMTP ist eingerichtet",
+        intro: "Diese Testmail ging an die Staff-Sammeladresse. Versand und HTML-Vorlage funktionieren.",
+        facts: [
+          { label: "Absender", value: settings.mailFromEmail },
+          { label: "Staff", value: settings.mailStaffInbox },
+          { label: "Host", value: `${settings.smtpHost}:${settings.smtpPort}` },
+          { label: "App-URL", value: settings.mailPublicUrl },
+        ],
         href: settings.mailPublicUrl || undefined,
         button: settings.mailPublicUrl ? "App öffnen" : undefined,
+        tone: "ok",
+        footer: `Automatische Nachricht von ${settings.mailFromName || "Systemhaus-Ess"}.`,
       }),
     });
     if (!ok) return reply.code(502).send({ error: "Versand fehlgeschlagen. Server-Log prüfen." });

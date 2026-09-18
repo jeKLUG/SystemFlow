@@ -46,19 +46,19 @@ export async function processAppointmentReminders(db: Db): Promise<void> {
     let changed = false;
 
     if (hours1 && !sent.hours1 && now >= start - 60 * 60 * 1000) {
-      await notifyAppointmentReminder(db, apt);
+      await notifyAppointmentReminder(db, apt, "hours1");
       const iso = new Date().toISOString();
       sent.hours1 = iso;
       if (!sent.hours24) sent.hours24 = iso;
       changed = true;
     } else if (hours24 && !sent.hours24 && now >= start - 24 * 60 * 60 * 1000) {
-      await notifyAppointmentReminder(db, apt);
+      await notifyAppointmentReminder(db, apt, "hours24");
       sent.hours24 = new Date().toISOString();
       changed = true;
     }
 
     if (morning && !sent.morning && apt.startDate === today && nowTime(APP_TIMEZONE) >= "08:00") {
-      await notifyAppointmentReminder(db, apt);
+      await notifyAppointmentReminder(db, apt, "morning");
       sent.morning = new Date().toISOString();
       changed = true;
     }
