@@ -500,7 +500,7 @@ export async function notifyMonitoringOpen(db: Db, ticket: Ticket): Promise<void
 }
 
 /**
- * Monitoring-Entwarnung (nur Staff).
+ * Monitoring-Entwarnung (Staff und Kunde).
  */
 export async function notifyMonitoringClose(db: Db, ticket: Ticket, reason: string): Promise<void> {
   try {
@@ -523,6 +523,23 @@ export async function notifyMonitoringClose(db: Db, ticket: Ticket, reason: stri
         footer: staffFooter(ctx.brand),
       }),
     });
+    await sendCustomer(db, ticket.customerId, "monitoringClose", (href) => ({
+      to: "",
+      subject: `Ticket ${ticket.number} erledigt: ${ticket.title}`,
+      ...mailHtml({
+        brand: ctx.brand,
+        kicker: "Monitoring",
+        title: ticket.title,
+        intro: "Die Warnung an Ihrem Gerät ist behoben. Das Ticket wurde automatisch geschlossen.",
+        facts: ticketFacts(ticket, name, "customer"),
+        body: reason || undefined,
+        bodyLabel: reason ? "Grund" : undefined,
+        href: href ? `${href}/tickets/${ticket.id}` : undefined,
+        button: "Im Portal öffnen",
+        tone: "ok",
+        footer: customerFooter(ctx.brand, Boolean(href)),
+      }),
+    }));
   } catch (err) {
     console.error("Mail notifyMonitoringClose:", err);
   }

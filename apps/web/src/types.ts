@@ -326,6 +326,7 @@ export const mailCustomerKinds = [
   "appointmentChanged",
   "appointmentReminder",
   "monitoringOpen",
+  "monitoringClose",
 ] as const;
 export type MailCustomerKind = (typeof mailCustomerKinds)[number];
 

@@ -85,7 +85,7 @@ Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` übersch
 
 ## E-Mail-Benachrichtigungen
 
-SMTP liegt in `org_settings` (Passwort AES-256-GCM mit Schlüssel aus `SESSION_SECRET`). Staff-Mails gehen an eine Sammeladresse; Kunden an `customer_users.email`, sonst die Stammdaten-E-Mail am Kunden. Globale Typ-Schalter in `/settings` (SMTP, Staff und Kunde als kompakte Zeilen, Bearbeiten öffnet einen Dialog); Kunden können erlaubte Typen unter `/portal/account` abschalten (ebenfalls Übersicht + Dialog). Versand synchron beim Ereignis (Fehler nur im Log). HTML-Mails im App-Look (dunkel, Akzent `#3b82f6`, Infotabelle, Button); Klartext-Alternative und bei Terminen `.ics`. Erinnerungen (24h / 1h / morgens 08:00) laufen im API-Prozess. Interne Ticket-Notizen erzeugen keine Mail. Monitoring-Ticket (Warnung) an Staff und Kunde; Entwarnung nur Staff. Keine Einladungs-Mails.
+SMTP liegt in `org_settings` (Passwort AES-256-GCM mit Schlüssel aus `SESSION_SECRET`). Staff-Mails gehen an eine Sammeladresse; Kunden an `customer_users.email`, sonst die Stammdaten-E-Mail am Kunden. Globale Typ-Schalter in `/settings` (SMTP, Staff und Kunde als kompakte Zeilen, Bearbeiten öffnet einen Dialog); Kunden können erlaubte Typen unter `/portal/account` abschalten (ebenfalls Übersicht + Dialog). Versand synchron beim Ereignis (Fehler nur im Log). HTML-Mails im App-Look (dunkel, Akzent `#3b82f6`, Infotabelle, Button); Klartext-Alternative und bei Terminen `.ics`. Erinnerungen (24h / 1h / morgens 08:00) laufen im API-Prozess. Interne Ticket-Notizen erzeugen keine Mail. Monitoring-Ticket und Entwarnung an Staff und Kunde. Keine Einladungs-Mails.
 
 ## Deploy-Flow
 
