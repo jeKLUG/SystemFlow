@@ -191,7 +191,7 @@ Staff:
 | PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }` |
 | POST | `/api/monitoring/devices/:assetId/update-agent` | Sofort-Update: Agent zieht das aktuelle Paket beim nächsten Heartbeat |
 
-Ticket-Quelle zusätzlich `monitoring`. Pro Gerät und Warnungstyp höchstens ein offenes Ticket; Datenträger **je Laufwerk** (`openTicketsJson` Key `disk:C:`). Priorität aus der Geräte-Konfiguration, Auto-Close mit Lösungstext wenn der Typ bzw. das Laufwerk wieder ok ist.
+Ticket-Quelle zusätzlich `monitoring`. Pro Gerät und Warnungstyp höchstens ein offenes Ticket; Datenträger **je Laufwerk** (`openTicketsJson` Key `disk:C:`). Heartbeat und Offline-Loop serialisieren den Sync pro Agent; bestehende offene Tickets mit gleichem Titel werden wiederverwendet, Dubletten geschlossen. Priorität aus der Geräte-Konfiguration, Auto-Close mit Lösungstext wenn der Typ bzw. das Laufwerk wieder ok ist.
 
 ## Historie
 

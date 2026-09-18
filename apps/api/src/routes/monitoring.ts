@@ -43,7 +43,8 @@ import {
   sampleFromSnapshot,
   serializeAlertConfig,
   serializeDetectedIssues,
-  syncMonitoringTickets,
+  syncAssignedAgentTickets,
+  emitMonitoringTicketMails,
   refreshTicketsForAsset,
   type AgentSnapshot,
   findAssignableAssets,
@@ -363,10 +364,9 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     const evald = evaluateHeartbeatIssues(snapshot, agent, config);
     const issues = evald.issues;
     const name = await deviceNameFor(db, agent);
-    const openTickets = agent.assetId
-      ? await syncMonitoringTickets(db, { ...agent, lastSeenAt: now }, issues, config, name, evald.firingDisks)
-      : {};
-    const firstTicket = Object.values(openTickets)[0] ?? null;
+    const ticketSync = agent.assetId
+      ? await syncAssignedAgentTickets(db, agent, issues, config, name, evald.firingDisks, now)
+      : { openTickets: {}, opened: [], closed: [] };
 
     await db.insert(monitoringSamples).values(sampleFromSnapshot(snapshot, agent.id, now));
 
@@ -400,8 +400,6 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         lastSeenAt: now,
         lastSnapshotJson: JSON.stringify(snapshot),
         currentIssuesJson: serializeDetectedIssues(issues, evald.firingDisks.map((d) => d.id)),
-        openTicketsJson: JSON.stringify(openTickets),
-        openTicketId: firstTicket,
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
         updateRequestedAt: versionCurrent && !agent.uninstallRequestedAt ? null : agent.updateRequestedAt,
@@ -419,6 +417,8 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         }
       }
     }
+
+    await emitMonitoringTicketMails(db, ticketSync);
 
     return { ok: true, assigned: Boolean(agent.assetId), updateNow, uninstall: Boolean(agent.uninstallRequestedAt), latestAgent };
   });

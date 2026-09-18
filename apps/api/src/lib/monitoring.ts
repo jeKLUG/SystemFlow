@@ -1,5 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { eq, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import {
   assets,
@@ -14,6 +14,7 @@ import {
   type Asset,
   type MonitoringAgent,
   type MonitoringIssueKind,
+  type Ticket,
   type TicketPriority,
   type TicketStatus,
   ticketPriorities,
@@ -65,6 +66,61 @@ export type AlertConfig = {
 };
 export type OpenTicketMap = Record<string, string>;
 export type FiringDisk = { id: string; name: string; usedPct: number; warnUsedPct: number };
+export type MonitoringTicketSync = {
+  openTickets: OpenTicketMap;
+  opened: Ticket[];
+  closed: { ticket: Ticket; reason: string }[];
+};
+
+const agentTicketLocks = new Map<string, Promise<unknown>>();
+
+async function withAgentTicketLock<T>(agentId: string, fn: () => Promise<T>): Promise<T> {
+  const prev = agentTicketLocks.get(agentId) ?? Promise.resolve();
+  let release: () => void = () => undefined;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const queued = prev.then(() => gate);
+  agentTicketLocks.set(agentId, queued);
+  try {
+    await prev;
+    return await fn();
+  } finally {
+    release();
+    if (agentTicketLocks.get(agentId) === queued) agentTicketLocks.delete(agentId);
+  }
+}
+
+export async function emitMonitoringTicketMails(db: Db, sync: MonitoringTicketSync): Promise<void> {
+  for (const row of sync.opened) await notifyMonitoringOpen(db, row);
+  for (const item of sync.closed) {
+    await notifyMonitoringClose(db, { ...item.ticket, status: "closed" }, item.reason);
+  }
+}
+
+function ticketCreatedMs(ticket: Ticket): number {
+  const at = ticket.createdAt;
+  if (at instanceof Date) return at.getTime();
+  return typeof at === "number" ? at : 0;
+}
+
+/**
+ * Offene Monitoring-Tickets zum selben Titel (ältestes bleibt).
+ */
+async function openMonitoringTicketsByTitle(
+  db: Db,
+  customerId: string,
+  title: string,
+): Promise<Ticket[]> {
+  const rows = await db
+    .select()
+    .from(tickets)
+    .where(and(eq(tickets.customerId, customerId), eq(tickets.source, "monitoring"), eq(tickets.title, title)))
+    .all();
+  return rows
+    .filter((row) => isOpenStatus(row.status))
+    .sort((a, b) => ticketCreatedMs(a) - ticketCreatedMs(b) || a.number.localeCompare(b.number));
+}
 
 /** Leere Konfiguration: alle Typen aus, mit Standard-Priorität. */
 export function emptyAlertConfig(allEnabled = false): AlertConfig {
@@ -558,6 +614,7 @@ type TicketSlot = {
 
 /**
  * Ein offenes Ticket je Warnung; Datenträger je Laufwerk. Schließt Tickets, deren Warnung weg ist.
+ * Heartbeat und Offline-Loop müssen denselben Agenten nicht parallel anfassen (siehe withAgentTicketLock).
  */
 export async function syncMonitoringTickets(
   db: Db,
@@ -566,7 +623,7 @@ export async function syncMonitoringTickets(
   config: AlertConfig,
   deviceName: string,
   firingDisks: FiringDisk[] = [],
-): Promise<OpenTicketMap> {
+): Promise<MonitoringTicketSync> {
   const now = new Date();
   const authorId = await adminUserId(db);
   const openMap = parseOpenTickets(agent.openTicketsJson);
@@ -581,7 +638,8 @@ export async function syncMonitoringTickets(
     if (!openMap[key]) openMap[key] = openMap.disk;
     if (openMap[key] === openMap.disk) delete openMap.disk;
   }
-  if (!authorId || !agent.customerId) return openMap;
+  const empty: MonitoringTicketSync = { openTickets: openMap, opened: [], closed: [] };
+  if (!authorId || !agent.customerId) return empty;
 
   const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && config[kind].enabled));
   const slots: TicketSlot[] = [];
@@ -651,24 +709,32 @@ export async function syncMonitoringTickets(
 
   const next: OpenTicketMap = {};
   const seen = new Set<string>();
+  const opened: Ticket[] = [];
+  const closed: { ticket: Ticket; reason: string }[] = [];
   for (const slot of slots) {
     if (seen.has(slot.key)) continue;
     seen.add(slot.key);
-    const existingId = openMap[slot.key];
-    const existing = existingId
-      ? await db.select().from(tickets).where(eq(tickets.id, existingId)).get()
+    const mappedId = openMap[slot.key];
+    const mappedRow = mappedId
+      ? await db.select().from(tickets).where(eq(tickets.id, mappedId)).get()
       : undefined;
-    const openExisting = existing && isOpenStatus(existing.status) ? existing : null;
+    const mappedOpen = mappedRow && isOpenStatus(mappedRow.status) ? mappedRow : null;
+    const twins = await openMonitoringTicketsByTitle(db, agent.customerId, slot.title);
+    const keep = mappedOpen ?? twins[0] ?? null;
+    const extras = twins.filter((t) => t.id !== keep?.id);
+    for (const extra of extras) {
+      await closeTicket(db, extra.id, authorId, now, "Doppeltes Monitoring-Ticket zum selben Problem.");
+    }
 
     if (slot.firing) {
-      if (openExisting) {
+      if (keep) {
         const patch: { priority?: TicketPriority; title?: string; updatedAt: Date } = { updatedAt: now };
-        if (openExisting.priority !== slot.priority) patch.priority = slot.priority;
-        if (openExisting.title !== slot.title) patch.title = slot.title;
+        if (keep.priority !== slot.priority) patch.priority = slot.priority;
+        if (keep.title !== slot.title) patch.title = slot.title;
         if (patch.priority || patch.title) {
-          await db.update(tickets).set(patch).where(eq(tickets.id, openExisting.id));
+          await db.update(tickets).set(patch).where(eq(tickets.id, keep.id));
         }
-        next[slot.key] = openExisting.id;
+        next[slot.key] = keep.id;
         continue;
       }
       const contract = await findActiveContract(db, agent.customerId);
@@ -696,19 +762,55 @@ export async function syncMonitoringTickets(
       };
       await db.insert(tickets).values(row);
       await addActivity(db, agent.customerId, `Ticket ${row.number} angelegt`, row.title, now);
-      await notifyMonitoringOpen(db, row);
+      opened.push(row);
       next[slot.key] = row.id;
       continue;
     }
 
-    if (openExisting) {
+    if (keep) {
       const reason = slot.enabled ? slot.closeOk : slot.closeOff;
-      await closeTicket(db, openExisting.id, authorId, now, reason);
-      await notifyMonitoringClose(db, { ...openExisting, status: "closed" }, reason);
+      await closeTicket(db, keep.id, authorId, now, reason);
+      closed.push({ ticket: keep, reason });
     }
   }
 
-  return next;
+  return { openTickets: next, opened, closed };
+}
+
+/**
+ * Ticket-Sync eines Agenten, serialisiert. Liest `openTicketsJson` frisch aus der DB.
+ */
+export async function syncAssignedAgentTickets(
+  db: Db,
+  agent: MonitoringAgent,
+  detected: MonitoringIssueKind[],
+  config: AlertConfig,
+  deviceName: string,
+  firingDisks: FiringDisk[] = [],
+  now = new Date(),
+): Promise<MonitoringTicketSync> {
+  return withAgentTicketLock(agent.id, async () => {
+    const fresh =
+      (await db.select().from(monitoringAgents).where(eq(monitoringAgents.id, agent.id)).get()) ?? agent;
+    const result = await syncMonitoringTickets(
+      db,
+      { ...fresh, lastSeenAt: now },
+      detected,
+      config,
+      deviceName,
+      firingDisks,
+    );
+    const firstTicket = Object.values(result.openTickets)[0] ?? null;
+    await db
+      .update(monitoringAgents)
+      .set({
+        openTicketsJson: JSON.stringify(result.openTickets),
+        openTicketId: firstTicket,
+        updatedAt: now,
+      })
+      .where(eq(monitoringAgents.id, agent.id));
+    return result;
+  });
 }
 
 export async function ensureEnrollmentKey(db: Db): Promise<string> {
@@ -918,24 +1020,18 @@ export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now =
   if (firingDisks.length) issues.push("disk");
   if (!online) issues.unshift("offline");
   const name = asset?.name || agent.hostname || agent.machineId;
-  const openTickets = await syncMonitoringTickets(db, agent, issues, config, name, firingDisks);
-  const firstTicket = Object.values(openTickets)[0] ?? null;
+  const ticketSync = await syncAssignedAgentTickets(db, agent, issues, config, name, firingDisks, now);
   const issuesJson = serializeDetectedIssues(issues, firingDisks.map((d) => d.id));
-  if (
-    issuesJson !== (agent.currentIssuesJson || "[]") ||
-    JSON.stringify(openTickets) !== (agent.openTicketsJson || "{}") ||
-    firstTicket !== agent.openTicketId
-  ) {
+  if (issuesJson !== (agent.currentIssuesJson || "[]")) {
     await db
       .update(monitoringAgents)
       .set({
         currentIssuesJson: issuesJson,
-        openTicketsJson: JSON.stringify(openTickets),
-        openTicketId: firstTicket,
         updatedAt: now,
       })
       .where(eq(monitoringAgents.id, agent.id));
   }
+  await emitMonitoringTicketMails(db, ticketSync);
 }
 
 /** Ticket-Sync nach Änderung der Warnungs-Konfiguration am Inventar-Eintrag. */
@@ -1007,7 +1103,15 @@ export function mapPendingAgent(agent: MonitoringAgent) {
 export async function purgeMonitoringAgent(db: Db, agent: MonitoringAgent): Promise<void> {
   if (agent.assetId) {
     const name = await deviceNameFor(db, agent);
-    await syncMonitoringTickets(db, agent, [], emptyAlertConfig(false), name, []);
+    const ticketSync = await syncAssignedAgentTickets(
+      db,
+      agent,
+      [],
+      emptyAlertConfig(false),
+      name,
+      [],
+    );
+    await emitMonitoringTicketMails(db, ticketSync);
   }
   await db.delete(monitoringSamples).where(eq(monitoringSamples.agentId, agent.id));
   await db.delete(monitoringAgents).where(eq(monitoringAgents.id, agent.id));
