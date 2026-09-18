@@ -131,25 +131,9 @@ const BRAND = {
   accent: "#3b82f6",
   accentBright: "#6babff",
   border: "#2a384c",
-  ok: "#34d399",
-  warn: "#fbbf24",
 };
 
 const FONT = "Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif";
-
-const TONE_LABEL: Record<MailTone, string> = {
-  neutral: "",
-  info: "",
-  warn: "Warnung",
-  ok: "Erledigt",
-};
-
-const TONE_COLOR: Record<MailTone, string> = {
-  neutral: BRAND.accentBright,
-  info: BRAND.accentBright,
-  warn: BRAND.warn,
-  ok: BRAND.ok,
-};
 
 function htmlLines(value: string): string {
   return escapeHtml(value).replace(/\n/g, "<br>");
@@ -173,9 +157,6 @@ export function mailHtml(opts: {
   note?: string;
 }): { html: string; text: string } {
   const brand = opts.brand?.trim() || "Systemhaus-Ess";
-  const tone = opts.tone ?? "neutral";
-  const toneLabel = TONE_LABEL[tone];
-  const toneColor = TONE_COLOR[tone];
   const facts = (opts.facts ?? []).filter((f) => f.value.trim());
   const factRows = facts
     .map((f, i) => {
@@ -217,9 +198,6 @@ export function mailHtml(opts: {
   const footer =
     opts.footer ||
     "Automatische Benachrichtigung. Bitte nicht auf diese Nachricht antworten, sofern nicht anders angegeben.";
-  const badge = toneLabel
-    ? `<span style="display:inline-block;margin-left:10px;padding:3px 9px;border-radius:999px;font-size:10px;letter-spacing:0.06em;text-transform:uppercase;color:${BRAND.bg};background:${toneColor};font-weight:700;vertical-align:middle">${escapeHtml(toneLabel)}</span>`
-    : "";
   const kickerLine = opts.kicker
     ? `<span style="color:${BRAND.muted}"> · ${escapeHtml(opts.kicker)}</span>`
     : "";
@@ -247,7 +225,7 @@ export function mailHtml(opts: {
         <tr>
           <td style="padding:28px 32px 10px;font-family:${FONT}">
             <p style="margin:0 0 14px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;font-weight:650">
-              <span style="color:${BRAND.accentBright}">${escapeHtml(brand)}</span>${kickerLine}${badge}
+              <span style="color:${BRAND.accentBright}">${escapeHtml(brand)}</span>${kickerLine}
             </p>
             <h1 style="margin:0 0 12px;font-size:22px;line-height:1.35;font-weight:650;color:${BRAND.text}">${escapeHtml(opts.title)}</h1>
             ${intro}
@@ -268,7 +246,7 @@ export function mailHtml(opts: {
 </table>
 </body>
 </html>`;
-  const kickerText = [brand, opts.kicker, toneLabel].filter(Boolean).join(" · ");
+  const kickerText = [brand, opts.kicker].filter(Boolean).join(" · ");
   const text = [
     kickerText,
     opts.title,

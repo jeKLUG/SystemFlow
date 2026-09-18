@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.177 – 2026-09-18
+
+- E-Mail: gelbes Warnung-/Erledigt-Label in der Kopfzeile entfernt
+
 ## 1.5.176 – 2026-09-18
 
 - E-Mail: Kunden-Mails gehen an die Portal-Adresse, sonst an die Stammdaten-E-Mail (vorher still übersprungen)
