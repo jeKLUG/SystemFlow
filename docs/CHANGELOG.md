@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.172 – 2026-09-18
+
+- Monitoring: Hinweise unter „Unzugeordnet“ und „Kunden“ als Hilfe-Kreis an der Überschrift
+
 ## 1.5.171 – 2026-09-18
 
 - Monitoring: Paket-Upload liest die Version aus der Binary; Install-Skript stoppt den Dienst, ersetzt die Datei per Temp-Download und prüft SHA-256

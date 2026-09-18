@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerPicker } from "../../components/CustomerPicker";
+import { HelpHint } from "../../components/HelpHint";
 import { InventoryPicker } from "../../components/InventoryPicker";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
 import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
@@ -283,9 +284,9 @@ export function MonitoringPage() {
       {pending.length > 0 ? (
         <section className="panel mon-panel" aria-label="Unzugeordnet">
           <div className="section-head row-between">
-            <div>
+            <div className="page-head-title">
               <h2>Unzugeordnet</h2>
-              <p>Neuen Client einem Inventar-Eintrag zuordnen oder den Dienst remote entfernen</p>
+              <HelpHint text="Neuen Client einem Inventar-Eintrag zuordnen oder den Dienst remote entfernen." />
             </div>
             <span className="mon-count-badge is-warn">{pending.length}</span>
           </div>
@@ -381,9 +382,9 @@ export function MonitoringPage() {
 
       <section className="panel mon-panel" id="mon-fleet" aria-label="Kunden">
         <div className="section-head row-between">
-          <div>
+          <div className="page-head-title">
             <h2>Kunden</h2>
-            <p>Monitoring-Seite mit Diagrammen und Geräten</p>
+            <HelpHint text="Monitoring-Seite mit Diagrammen und Geräten." />
           </div>
           <CustomerPicker
             className="mon-customer-picker"
