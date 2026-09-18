@@ -201,7 +201,7 @@ export function MonitoringDeviceDetail({
         ips={snapshot?.ips}
         services={snapshot?.services}
         software={snapshot?.software}
-        customerId={device.customerId}
+        customerId={device.customerId ?? undefined}
       />
 
       {snapshot?.events?.length ? (
