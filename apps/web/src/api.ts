@@ -813,10 +813,13 @@ export const api = {
     if (!res.ok) {
       let message = "Upload fehlgeschlagen";
       try {
-        const data = (await res.json()) as { error?: string };
-        if (data.error) message = data.error;
+        const data = (await res.json()) as { error?: string; message?: string; code?: string };
+        if (data.code === "FST_ERR_CTP_BODY_TOO_LARGE" || res.status === 413) {
+          message = "Datei zu groß";
+        } else if (data.error) message = data.error;
+        else if (data.message) message = data.message;
       } catch {
-        /* ignore */
+        if (res.status === 413) message = "Datei zu groß";
       }
       throw new Error(message);
     }

@@ -491,12 +491,21 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         await unlink(uploaded.tmpPath).catch(() => undefined);
         return reply.code(400).send({ error: "Version fehlt oder ungültig (z. B. 1.0.3)" });
       }
-      const pkg = await commitAgentPackage(db, uploadDir, {
-        platform: platformRaw,
-        version,
-        uploaded,
-      });
-      return reply.code(201).send(pkg);
+      try {
+        const pkg = await commitAgentPackage(db, uploadDir, {
+          platform: platformRaw,
+          version,
+          uploaded,
+        });
+        return reply.code(201).send(pkg);
+      } catch (err) {
+        const { unlink } = await import("node:fs/promises");
+        await unlink(uploaded.tmpPath).catch(() => undefined);
+        request.log.error(err);
+        return reply.code(500).send({
+          error: err instanceof Error ? err.message : "Paket konnte nicht gespeichert werden",
+        });
+      }
     });
 
     scoped.delete("/api/monitoring/agent-packages/:platform", async (request, reply) => {

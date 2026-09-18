@@ -48,7 +48,7 @@ async function main() {
   const db = await createDb(config.databasePath);
   await ensureAdmin(db, config.adminUsername, config.adminPassword);
 
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, bodyLimit: 512 * 1024 * 1024 });
 
   await app.register(cors, {
     origin: config.isProd ? false : config.corsOrigin,

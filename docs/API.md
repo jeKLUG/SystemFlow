@@ -157,7 +157,7 @@ Suche findet auch Hostname, IP, MAC und Standort.
 
 ## Monitoring
 
-Staff-UI `/monitoring`. Agenten ohne Session, mit Enrollment-Key bzw. Geräte-Token. Heartbeat-Takt 1 Minute, offline nach 2 Minuten. Verlauf 30 Tage.
+Staff-UI `/monitoring` (Flotte) und `/monitoring/setup` (Pakete, Key, Install-Skripte). Agenten ohne Session, mit Enrollment-Key bzw. Geräte-Token. Heartbeat-Takt 1 Minute, offline nach 2 Minuten. Verlauf 30 Tage.
 
 Agent (öffentlich, ohne Staff-Session):
 

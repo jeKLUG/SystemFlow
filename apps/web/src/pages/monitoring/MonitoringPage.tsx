@@ -242,7 +242,7 @@ export function MonitoringPage() {
           <h2>Monitoring</h2>
           <p className="muted">Live-Status der Agenten, Zuordnung zum Inventar, Warnungen und Verlauf.</p>
         </div>
-        <Link className="btn btn-ghost" to="/settings">
+        <Link className="btn btn-ghost" to="/monitoring/setup">
           Agent einrichten
         </Link>
       </header>

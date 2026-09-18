@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { createReadStream, createWriteStream, existsSync } from "node:fs";
+import { createReadStream, createWriteStream, existsSync, statSync } from "node:fs";
 import { mkdir, rename, unlink } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -177,10 +177,11 @@ export async function saveAgentPackageUpload(
         await unlink(tmpPath).catch(() => undefined);
         throw new Error("UPLOAD_ABORTED");
       }
+      const bytesRead = Number(part.file.bytesRead || 0) || statSync(tmpPath).size;
       uploaded = {
         id,
         filename: part.filename || safeName,
-        bytesRead: Number(part.file.bytesRead || 0),
+        bytesRead,
         tmpPath,
       };
     } else {

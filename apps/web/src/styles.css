@@ -18274,6 +18274,12 @@ button.portal-doc-card {
   border-radius: 10px;
 }
 
+.settings-agent-pkg > .form-error,
+.settings-agent-pkg > .form-success {
+  margin: 0;
+  flex: 1 1 100%;
+}
+
 .settings-agent-pkg p {
   margin: 0.2rem 0 0;
 }
