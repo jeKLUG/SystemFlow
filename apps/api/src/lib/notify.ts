@@ -452,12 +452,14 @@ export async function notifyAppointmentReminder(
 }
 
 /**
- * Monitoring-Warnung neu (nur Staff).
+ * Monitoring-Warnung neu (Staff und Kunde).
  */
 export async function notifyMonitoringOpen(db: Db, ticket: Ticket): Promise<void> {
   try {
     const ctx = await mailCtx(db);
     const name = await customerName(db, ticket.customerId);
+    const excerpt = richTextPlain(ticket.description, 800);
+    const detected = formatDateTime(ticket.createdAt);
     await sendStaff(db, "monitoringOpen", {
       to: "",
       subject: `[${ticket.number}] Monitoring: ${ticket.title}`,
@@ -466,10 +468,8 @@ export async function notifyMonitoringOpen(db: Db, ticket: Ticket): Promise<void
         kicker: "Monitoring-Warnung",
         title: ticket.title,
         intro: `Neue Warnung bei ${name}.`,
-        facts: ticketFacts(ticket, name, "staff", [
-          { label: "Erkannt", value: formatDateTime(ticket.createdAt) },
-        ]),
-        body: richTextPlain(ticket.description, 800) || undefined,
+        facts: ticketFacts(ticket, name, "staff", [{ label: "Erkannt", value: detected }]),
+        body: excerpt || undefined,
         bodyLabel: "Meldung",
         href: ctx.staffHref(`/tickets/${ticket.id}`),
         button: "Ticket öffnen",
@@ -477,6 +477,23 @@ export async function notifyMonitoringOpen(db: Db, ticket: Ticket): Promise<void
         footer: staffFooter(ctx.brand),
       }),
     });
+    await sendCustomer(db, ticket.customerId, "monitoringOpen", (href) => ({
+      to: "",
+      subject: `Ticket ${ticket.number}: ${ticket.title}`,
+      ...mailHtml({
+        brand: ctx.brand,
+        kicker: "Monitoring",
+        title: ticket.title,
+        intro: "An einem Ihrer Geräte ist eine Warnung aufgetreten. Wir haben automatisch ein Ticket eröffnet.",
+        facts: ticketFacts(ticket, name, "customer", [{ label: "Erkannt", value: detected }]),
+        body: excerpt || undefined,
+        bodyLabel: excerpt ? "Meldung" : undefined,
+        href: href ? `${href}/tickets/${ticket.id}` : undefined,
+        button: "Im Portal öffnen",
+        tone: "warn",
+        footer: customerFooter(ctx.brand, Boolean(href)),
+      }),
+    }));
   } catch (err) {
     console.error("Mail notifyMonitoringOpen:", err);
   }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.178 – 2026-09-18
+
+- E-Mail: Kunden erhalten eine Benachrichtigung, wenn Monitoring automatisch ein Ticket anlegt
+
 ## 1.5.177 – 2026-09-18
 
 - E-Mail: gelbes Warnung-/Erledigt-Label in der Kopfzeile entfernt
