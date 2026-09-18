@@ -414,39 +414,55 @@ export function MonitoringCustomerPage() {
       </section>
 
       <section className="panel mon-panel">
-        <div className="section-head row-between">
-          <div>
-            <h2>Geräte</h2>
-            <p>
-              {visibleDevices.length + visibleWaiting.length} von {devices.length + waiting}{" "}
-              {devices.length + waiting === 1 ? "Eintrag" : "Einträgen"}
-            </p>
-          </div>
+        <div className="section-head">
+          <h2>Geräte</h2>
+          <p>
+            {visibleDevices.length + visibleWaiting.length} von {devices.length + waiting}{" "}
+            {devices.length + waiting === 1 ? "Eintrag" : "Einträgen"}
+          </p>
+        </div>
+
+        <div className="mon-cust-toolbar">
           <label className="mon-cust-search">
-            <span className="sr-only">Geräte suchen</span>
+            <span className="mon-cust-search-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <circle cx="11" cy="11" r="6.5" />
+                <path d="M16.2 16.2 21 21" strokeLinecap="round" />
+              </svg>
+            </span>
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Gerät, Hostname oder IP…"
+              aria-label="Geräte suchen"
             />
-          </label>
-        </div>
-
-        <div className="mon-customer-switch" aria-label="Geräte filtern">
-          {filters.map((f) =>
-            f.count === 0 && f.id !== "all" ? null : (
+            {query ? (
               <button
-                key={f.id}
                 type="button"
-                className={`chip${filter === f.id ? " chip-active" : ""}${f.id === "warn" && f.count > 0 ? " mon-chip-warn" : ""}`}
-                onClick={() => setFilter(f.id)}
+                className="mon-cust-search-clear"
+                aria-label="Suche leeren"
+                onClick={() => setQuery("")}
               >
-                {f.label}
-                <span className="mon-chip-count">{f.count}</span>
+                ×
               </button>
-            ),
-          )}
+            ) : null}
+          </label>
+          <div className="mon-customer-switch" aria-label="Geräte filtern">
+            {filters.map((f) =>
+              f.count === 0 && f.id !== "all" ? null : (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={`chip${filter === f.id ? " chip-active" : ""}${f.id === "warn" && f.count > 0 ? " mon-chip-warn" : ""}`}
+                  onClick={() => setFilter(f.id)}
+                >
+                  {f.label}
+                  <span className="mon-chip-count">{f.count}</span>
+                </button>
+              ),
+            )}
+          </div>
         </div>
 
         {loading ? (

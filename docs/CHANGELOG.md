@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.164 – 2026-09-18
+
+- Monitoring: Datenträger-Schwellen als Kapsel mit %; Schieberegler und Belegt-Balken mit Warnmarke
+
+## 1.5.163 – 2026-09-18
+
+- Monitoring Kundenseite: Gerätesuche als volle Leiste mit Icon statt abgeschnittener Kopfzeile
+
+## 1.5.162 – 2026-09-18
+
+- Kundenportal Inventar: Badge ob ein Gerät vom Monitoring überwacht wird
+
 ## 1.5.161 – 2026-09-18
 
 - Monitoring Setup: Enrollment-Key als Schlüsselzeile mit Kopieren; Hinweis im Hilfe-Kreis

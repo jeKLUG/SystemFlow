@@ -51,10 +51,13 @@ function publicContract(row: typeof contracts.$inferSelect) {
   return rest;
 }
 
+/**
+ * Inventar fürs Portal: ohne interne Notizen und ohne Warnungs-Konfiguration.
+ * `monitoringEnabled` bleibt, damit sichtbar ist, ob das Gerät überwacht wird.
+ */
 function publicAsset(row: typeof assets.$inferSelect) {
   const {
     notes: _notes,
-    monitoringEnabled: _me,
     monitoringAlertEnabled: _ma,
     monitoringAlertsJson: _mj,
     ...rest

@@ -101,26 +101,30 @@ function ThreshField({
 }) {
   const n = Math.min(99, Math.max(1, value || 90));
   return (
-    <label className="mon-alert-thresh">
-      <span>{label}</span>
+    <label className={`mon-alert-thresh${disabled ? " is-off" : ""}`}>
+      <span className="mon-alert-thresh-label">{label}</span>
       <input
         type="range"
+        className="mon-alert-range"
         min={1}
         max={99}
         disabled={disabled}
         value={n}
+        style={{ ["--mon-range" as string]: `${n}%` }}
         onChange={(e) => onChange(Number(e.target.value) || 90)}
       />
-      <span className="mon-alert-thresh-val">
+      <span className="mon-alert-pct">
         <input
           type="number"
           min={1}
           max={99}
+          inputMode="numeric"
           disabled={disabled}
           value={n}
+          aria-label={`${label} in Prozent`}
           onChange={(e) => onChange(Number(e.target.value) || 90)}
         />
-        %
+        <span className="mon-alert-pct-unit">%</span>
       </span>
     </label>
   );
@@ -225,26 +229,33 @@ export function MonitoringAlertConfigFields({
                               key={id}
                               className={`mon-disk-volume${over ? " is-over" : ""}${vol.enabled ? "" : " is-off"}`}
                             >
-                              <Checkbox
-                                checked={vol.enabled}
-                                disabled={disabled}
-                                onChange={(enabled) => patchVolume(id, { enabled })}
-                                label={
-                                  <span className="mon-disk-volume-meta">
-                                    <strong>{d.name || id}</strong>
-                                    <span className="muted">
-                                      {d.totalBytes
-                                        ? `${formatBytes(d.freeBytes)} frei · ${pct != null ? `${Math.round(pct)} % belegt` : ""}`
-                                        : "aktuell nicht gemeldet"}
-                                    </span>
-                                    {pct != null ? (
-                                      <span className="mon-disk-bar" aria-hidden>
-                                        <span style={{ width: `${Math.round(pct)}%` }} />
-                                      </span>
-                                    ) : null}
+                              <div className="mon-disk-volume-head">
+                                <Checkbox
+                                  checked={vol.enabled}
+                                  disabled={disabled}
+                                  onChange={(enabled) => patchVolume(id, { enabled })}
+                                  label={<strong>{d.name || id}</strong>}
+                                />
+                                {pct != null ? (
+                                  <span className={`mon-disk-volume-used${over ? " is-over" : ""}`}>
+                                    {Math.round(pct)} %
                                   </span>
-                                }
-                              />
+                                ) : null}
+                              </div>
+                              <p className="muted mon-disk-volume-free">
+                                {d.totalBytes
+                                  ? `${formatBytes(d.freeBytes)} frei · ${pct != null ? `${Math.round(pct)} % belegt` : ""}`
+                                  : "aktuell nicht gemeldet"}
+                              </p>
+                              {pct != null ? (
+                                <span className="mon-disk-bar" aria-hidden>
+                                  <span className="mon-disk-bar-fill" style={{ width: `${Math.round(pct)}%` }} />
+                                  <span
+                                    className="mon-disk-bar-mark"
+                                    style={{ left: `${vol.warnUsedPct}%` }}
+                                  />
+                                </span>
+                              ) : null}
                               {vol.enabled ? (
                                 <ThreshField
                                   label="Warnen ab"

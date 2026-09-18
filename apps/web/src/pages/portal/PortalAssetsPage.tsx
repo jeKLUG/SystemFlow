@@ -2,7 +2,10 @@ import { useMemo, useState, useEffect } from "react";
 import { api } from "../../api";
 import { AssetFacts } from "../../components/AssetFacts";
 import { HelpHint } from "../../components/HelpHint";
-import { assetKindDetailRows } from "../../lib/assetFields";
+import {
+  assetKindDetailRows,
+  assetKindShowsMonitoring,
+} from "../../lib/assetFields";
 import {
   assetKindLabel,
   assetOwnershipLabel,
@@ -45,7 +48,7 @@ export function PortalAssetsPage() {
       <header className="page-head">
         <div className="page-head-title">
           <h2>Inventar</h2>
-          <HelpHint text="Freigegebene Geräte, Lizenzen und Software." />
+          <HelpHint text="Freigegebene Geräte, Lizenzen und Software. Bei PCs sehen Sie, ob Monitoring aktiv ist." />
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}
@@ -79,6 +82,13 @@ export function PortalAssetsPage() {
                             {assetOwnershipLabel[ownership]}
                           </span>
                           <span className={`badge badge-asset-${status}`}>{assetStatusLabel[status]}</span>
+                          {assetKindShowsMonitoring(asset.kind) || asset.monitoringEnabled ? (
+                            <span
+                              className={`badge ${asset.monitoringEnabled ? "badge-monitoring" : "badge-monitoring-off"}`}
+                            >
+                              {asset.monitoringEnabled ? "Überwacht" : "Nicht überwacht"}
+                            </span>
+                          ) : null}
                           <span className="muted portal-asset-more">{open ? "Weniger" : "Mehr"}</span>
                         </div>
                         <AssetFacts asset={asset} />

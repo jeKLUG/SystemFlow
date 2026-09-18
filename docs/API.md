@@ -79,7 +79,7 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | GET | `/api/portal/documents/:id` | Read-only |
 | GET | `/api/portal/files` | Freigegebene Dateien (einzeln oder über Ordner; ohne `storedName`, mit `folderId`) |
 | GET | `/api/portal/folders` | Freigegebene Ordner inkl. Unterordner |
-| GET | `/api/portal/assets` | Nur `portalVisible`, ohne `notes` |
+| GET | `/api/portal/assets` | Nur `portalVisible`, ohne `notes` und Warnungs-Konfiguration; `monitoringEnabled` bleibt |
 
 ## Wiki / Dokumente
 
