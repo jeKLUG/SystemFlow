@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.167 – 2026-09-18
+
+- Einstellungen: SMTP, Staff- und Kunden-Mails als eingeklappte Karten; Bearbeitung im Dialog. Portal-Konto ebenso.
+
 ## 1.5.166 – 2026-09-18
 
 - E-Mail: SMTP in den Einstellungen; Tickets, Termine (.ics, Erinnerung) und Monitoring an Staff-Sammeladresse und Portal-Kunden

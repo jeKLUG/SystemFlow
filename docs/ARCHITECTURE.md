@@ -67,7 +67,7 @@ PWA: `vite-plugin-pwa` – Shell offline, NetworkFirst für Lese-APIs; zusätzli
 Nav „Tickets“ (`/tickets`): Helpdesk-Queue mit Restzeit für Reaktion/Lösung. Anlegen wie im Kundenportal (Editor, Priorität mit SLA-Zeiten, Anhänge) plus Kundenwahl. Ticketdetail: Kopf mit Status/Priorität als Badges und Zeiten als Kacheln; rechte Leiste gegliedert in Steuerung, Zeiten und Arbeit; Staff kann das Ticket löschen (Nachrichten/Anhänge weg, Aufgaben und Zeiten bleiben). Anhänge und Kommentarfeld über dem Verlauf (neueste Kommentare zuerst; Staff/Kunde, interne Notizen gestrichelt); Kommentare im TipTap-Editor. Status `resolved`/`closed` nur mit dokumentierter öffentlicher Lösung (Kunde sieht sie im Portal). Kundenakte-Tab „Tickets“. Kundenportal unter `/portal` (Login `/portal/login`): Ticketkarten mit Status, Priorität, Zeiten und SLA; beim Anlegen zeigt jede Priorität Reaktions-/Lösungszeit aus dem Vertrag.
 Nav „Monitoring“ (`/monitoring`): Flotte, Warnungszeilen, Agent-Zuordnung, Kundenzeilen. Kundenseite (`/monitoring/customers/:id`): Diagramme, Meldungen, durchsuchbare Geräteliste und Gerätedetail. Agent einrichten (`/monitoring/setup`): Enrollment-Key, Pakete, Install-Skripte.
 Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block (Garantien/Verträge). Kundenbezogene Tasks bleiben unter `/customers/:id/tasks` synchron.
-Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Passwort, E-Mail-SMTP/Typen und Sicherung.
+Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Passwort, E-Mail (SMTP/Typen als eingeklappte Karten, Bearbeitung im Dialog) und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
 
 ## Zeitzone
@@ -85,7 +85,7 @@ Admin wird einmalig geseedet; Passwort nur bei `ADMIN_PASSWORD_FORCE=1` übersch
 
 ## E-Mail-Benachrichtigungen
 
-SMTP liegt in `org_settings` (Passwort AES-256-GCM mit Schlüssel aus `SESSION_SECRET`). Staff-Mails gehen an eine Sammeladresse; Kunden mit Portal-Zugang an `customer_users.email`. Globale Typ-Schalter in `/settings`; Kunden können erlaubte Typen unter `/portal/account` abschalten. Versand synchron beim Ereignis (Fehler nur im Log). Termine hängen eine `.ics` an; Erinnerungen (24h / 1h / morgens 08:00) laufen im API-Prozess. Interne Ticket-Notizen erzeugen keine Mail. Monitoring-Auf/Zu nur an Staff. Keine Einladungs-Mails.
+SMTP liegt in `org_settings` (Passwort AES-256-GCM mit Schlüssel aus `SESSION_SECRET`). Staff-Mails gehen an eine Sammeladresse; Kunden mit Portal-Zugang an `customer_users.email`. Globale Typ-Schalter in `/settings` (SMTP, Staff und Kunde jeweils eingeklappt, Bearbeiten öffnet einen Dialog); Kunden können erlaubte Typen unter `/portal/account` abschalten (ebenfalls Übersicht + Dialog). Versand synchron beim Ereignis (Fehler nur im Log). Termine hängen eine `.ics` an; Erinnerungen (24h / 1h / morgens 08:00) laufen im API-Prozess. Interne Ticket-Notizen erzeugen keine Mail. Monitoring-Auf/Zu nur an Staff. Keine Einladungs-Mails.
 
 ## Deploy-Flow
 

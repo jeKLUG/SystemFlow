@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useAuth } from "../../auth";
 import { api } from "../../api";
-import { Checkbox } from "../../components/Checkbox";
 import { HelpHint } from "../../components/HelpHint";
+import { MailNotifyList } from "../../components/MailNotifyList";
+import { Modal } from "../../components/Modal";
 import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
 import { mailCustomerKinds, mailKindLabel, type PortalMailAccount } from "../../types";
 
@@ -24,6 +25,9 @@ export function PortalAccountPage() {
   const [mailOk, setMailOk] = useState("");
   const [account, setAccount] = useState<PortalMailAccount | null>(null);
   const [notifyEmail, setNotifyEmail] = useState("");
+  const [mailOpen, setMailOpen] = useState(false);
+  const [draftEmail, setDraftEmail] = useState("");
+  const [draftNotify, setDraftNotify] = useState<PortalMailAccount["notify"] | null>(null);
 
   useEffect(() => {
     void api
@@ -74,17 +78,26 @@ export function PortalAccountPage() {
     setMailBusy(true);
     try {
       const updated = await api.updatePortalAccount({
-        email: notifyEmail,
-        notify: account?.notify,
+        email: draftEmail,
+        notify: draftNotify ?? account?.notify,
       });
       setAccount(updated);
       setNotifyEmail(updated.email);
       setMailOk("Benachrichtigungen gespeichert.");
+      setMailOpen(false);
     } catch (err) {
       setMailErr(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     } finally {
       setMailBusy(false);
     }
+  }
+
+  function openMail() {
+    setMailErr("");
+    setMailOk("");
+    setDraftEmail(notifyEmail);
+    setDraftNotify(account ? { ...account.notify } : null);
+    setMailOpen(true);
   }
 
   return (
@@ -127,41 +140,32 @@ export function PortalAccountPage() {
                 <HelpHint text="An diese Adresse gehen Ticket- und Termin-Mails. Typen, die Ihr Systemhaus ausgeschaltet hat, erscheinen nicht." />
               </div>
             </div>
+            <button type="button" className="btn btn-primary btn-sm" onClick={openMail} disabled={!account}>
+              Bearbeiten
+            </button>
           </header>
-          <form className="stack-form" onSubmit={(e) => void saveMail(e)}>
-            <label className="field">
-              <span>E-Mail-Adresse</span>
-              <input
-                type="email"
-                value={notifyEmail}
-                onChange={(e) => setNotifyEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </label>
-            {account ? (
-              <div className="mail-reminder-row">
-                {mailCustomerKinds.map((kind) =>
-                  account.allowed[kind] ? (
-                    <Checkbox
-                      key={kind}
-                      checked={account.notify[kind]}
-                      onChange={(checked) =>
-                        setAccount((a) =>
-                          a ? { ...a, notify: { ...a.notify, [kind]: checked } } : a,
-                        )
-                      }
-                      label={mailKindLabel[kind]}
-                    />
-                  ) : null,
+          {account ? (
+            <div className="mail-config-copy portal-mail-summary">
+              <p className="muted">{notifyEmail || "Keine Adresse hinterlegt."}</p>
+              <div className="mail-config-chips">
+                {mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length === 0 ? (
+                  <span className="mail-config-chip is-off">Keine Mails</span>
+                ) : (
+                  mailCustomerKinds
+                    .filter((k) => account.allowed[k] && account.notify[k])
+                    .map((k) => (
+                      <span key={k} className="mail-config-chip">
+                        {mailKindLabel[k]}
+                      </span>
+                    ))
                 )}
               </div>
-            ) : null}
-            {mailErr ? <p className="form-error">{mailErr}</p> : null}
-            {mailOk ? <p className="form-success">{mailOk}</p> : null}
-            <button className="btn btn-primary" type="submit" disabled={mailBusy}>
-              {mailBusy ? "Speichern…" : "Benachrichtigungen speichern"}
-            </button>
-          </form>
+            </div>
+          ) : (
+            <p className="muted">Lade…</p>
+          )}
+          {mailErr && !mailOpen ? <p className="form-error">{mailErr}</p> : null}
+          {mailOk ? <p className="form-success">{mailOk}</p> : null}
         </section>
         <section className="panel settings-card portal-account-card">
           <header className="settings-card-head">
@@ -219,6 +223,54 @@ export function PortalAccountPage() {
           </button>
         </section>
       </div>
+
+      <Modal
+        open={mailOpen}
+        title="Benachrichtigungen"
+        onClose={() => {
+          if (!mailBusy) setMailOpen(false);
+        }}
+        className="modal-mail"
+      >
+        <form className="stack-form" onSubmit={(e) => void saveMail(e)}>
+          <label className="field">
+            <span>E-Mail-Adresse</span>
+            <input
+              type="email"
+              value={draftEmail}
+              onChange={(e) => setDraftEmail(e.target.value)}
+              autoComplete="email"
+            />
+          </label>
+          {account && draftNotify ? (
+            <MailNotifyList
+              items={mailCustomerKinds
+                .filter((kind) => account.allowed[kind])
+                .map((kind) => ({
+                  id: kind,
+                  label: mailKindLabel[kind],
+                  checked: draftNotify[kind],
+                  onChange: (checked) =>
+                    setDraftNotify((n) => (n ? { ...n, [kind]: checked } : n)),
+                }))}
+            />
+          ) : null}
+          {mailErr ? <p className="form-error">{mailErr}</p> : null}
+          <div className="mail-settings-actions modal-actions">
+            <button className="btn btn-primary" type="submit" disabled={mailBusy}>
+              {mailBusy ? "Speichern…" : "Speichern"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={mailBusy}
+              onClick={() => setMailOpen(false)}
+            >
+              Abbrechen
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
