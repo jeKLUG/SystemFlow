@@ -9,13 +9,14 @@ import (
 	"time"
 )
 
-const agentVersion = "1.0.2"
+const agentVersion = "1.0.3"
 
 type config struct {
-	ServerURL     string `json:"serverUrl"`
-	EnrollmentKey string `json:"enrollmentKey"`
-	Token         string `json:"token,omitempty"`
-	AgentID       string `json:"agentId,omitempty"`
+	ServerURL        string `json:"serverUrl"`
+	EnrollmentKey    string `json:"enrollmentKey"`
+	Token            string `json:"token,omitempty"`
+	AgentID          string `json:"agentId,omitempty"`
+	LastUpdateCheck  string `json:"lastUpdateCheck,omitempty"`
 }
 
 func defaultConfigPath() string {
@@ -85,7 +86,8 @@ func runLoop(cfgPath string) error {
 	defer ticker.Stop()
 
 	send := func() {
-		if err := heartbeat(cfg); err != nil {
+		hb, err := heartbeat(cfg)
+		if err != nil {
 			fmt.Fprintf(os.Stderr, "heartbeat: %v\n", err)
 			if isUnauthorized(err) {
 				cfg.Token = ""
@@ -94,7 +96,9 @@ func runLoop(cfgPath string) error {
 					*cfg = *next
 				}
 			}
+			return
 		}
+		maybeSelfUpdate(cfgPath, cfg, hb)
 	}
 	send()
 	for range ticker.C {

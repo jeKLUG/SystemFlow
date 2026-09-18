@@ -106,7 +106,7 @@ async function main() {
   await app.register(async (scoped) => portalUserRoutes(scoped, db));
   await app.register(async (scoped) => ticketRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => portalRoutes(scoped, db, config.uploadDir));
-  await monitoringRoutes(app, db);
+  await monitoringRoutes(app, db, config.uploadDir);
 
   startMonitoringLoop(db);
 

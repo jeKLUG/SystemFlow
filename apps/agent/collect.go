@@ -54,6 +54,7 @@ type AgentSnapshot struct {
 	Arch         string            `json:"arch,omitempty"`
 	UptimeSec    uint64            `json:"uptimeSec,omitempty"`
 	AgentVersion string            `json:"agentVersion,omitempty"`
+	Platform     string            `json:"platform,omitempty"`
 	IP           string            `json:"ip,omitempty"`
 	IPs          []string          `json:"ips,omitempty"`
 	MAC          string            `json:"mac,omitempty"`
@@ -92,6 +93,7 @@ func collectSnapshot() (AgentSnapshot, error) {
 	snap.Arch = runtime.GOARCH
 	snap.OS = goosName()
 	snap.AgentVersion = agentVersion
+	snap.Platform = agentPlatformID()
 
 	if info, err := host.Info(); err == nil {
 		snap.Hostname = info.Hostname

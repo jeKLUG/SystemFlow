@@ -20,6 +20,7 @@ import {
 } from "../db/schema.js";
 import { addActivity } from "../routes/activities.js";
 import { createId } from "./id.js";
+import { compareAgentVersions, platformFromAgent } from "./agentPackages.js";
 import { findActiveContract, isOpenStatus, nextTicketNumber, slaFromContract } from "./tickets.js";
 
 export const MONITORING_OFFLINE_MS = 2 * 60 * 1000;
@@ -283,6 +284,8 @@ export type AgentSnapshot = {
   updates?: { pendingCount?: number; lastInstalled?: string | null };
   events?: EventSnapshot[];
   hardware?: HardwareInventory;
+  /** z.B. `windows-amd64` – vom Agent gemeldet. */
+  platform?: string;
 };
 
 /**
@@ -960,6 +963,7 @@ export async function mapDeviceSummary(
   asset: Asset | undefined,
   customerName: string | null,
   now = new Date(),
+  packages?: Map<string, { version: string }>,
 ) {
   const config = parseAlertConfig(asset);
   const detected = parseIssues(agent.currentIssuesJson);
@@ -969,6 +973,15 @@ export async function mapDeviceSummary(
   const warn = issues.length > 0;
   const openMap = parseOpenTickets(agent.openTicketsJson);
   const firingDisks = firingDisksFrom(snapshot?.disks, config);
+  const platform = platformFromAgent({
+    platform: snapshot?.platform,
+    os: snapshot?.os ?? agent.os,
+    arch: snapshot?.arch,
+  });
+  const latest = platform ? packages?.get(platform) : undefined;
+  const agentOutdated = Boolean(
+    latest && (!agent.agentVersion || compareAgentVersions(agent.agentVersion, latest.version) < 0),
+  );
   const ticketRows: {
     kind: MonitoringIssueKind;
     diskId?: string;
@@ -1017,6 +1030,11 @@ export async function mapDeviceSummary(
     tickets: ticketRows,
     ticketId: ticketRows[0]?.ticketId ?? null,
     ticketNumber: ticketRows[0]?.ticketNumber ?? null,
+    agentVersion: agent.agentVersion,
+    agentPlatform: platform,
+    latestAgentVersion: latest?.version ?? null,
+    agentOutdated,
+    updateRequested: Boolean(agent.updateRequestedAt),
     cpuPercent: snapshot?.cpuPercent ?? null,
     ramPercent: usedPct(snapshot?.ramUsedBytes ?? 0, snapshot?.ramTotalBytes ?? 0),
     diskUsedPct: worstDiskUsedPct(snapshot?.disks),

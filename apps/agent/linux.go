@@ -77,23 +77,31 @@ func collectEvents() []EventSnapshot {
 }
 
 func installService(cfgPath string) error {
-	exe, err := os.Executable()
+	src, err := os.Executable()
 	if err != nil {
 		return err
 	}
-	exe, err = filepath.Abs(exe)
+	src, err = filepath.Abs(src)
 	if err != nil {
+		return err
+	}
+	exe := "/usr/local/bin/systemhaus-agent"
+	if err := copyFile(src, exe); err != nil {
+		return err
+	}
+	if err := os.Chmod(exe, 0o755); err != nil {
 		return err
 	}
 	unit := fmt.Sprintf(`[Unit]
 Description=Systemhaus-Ess Monitoring Agent
 After=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
 ExecStart=%s run %s
 Restart=always
-RestartSec=15
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target

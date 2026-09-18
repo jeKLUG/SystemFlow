@@ -27,6 +27,19 @@ type enrollResponse struct {
 	AssetID  string `json:"assetId"`
 }
 
+type latestAgentInfo struct {
+	Platform string `json:"platform"`
+	Version  string `json:"version"`
+	SHA256   string `json:"sha256"`
+}
+
+type heartbeatResponse struct {
+	OK          bool             `json:"ok"`
+	Assigned    bool             `json:"assigned"`
+	UpdateNow   bool             `json:"updateNow"`
+	LatestAgent *latestAgentInfo `json:"latestAgent"`
+}
+
 type httpError struct {
 	status int
 	msg    string
@@ -80,31 +93,36 @@ func enroll(cfgPath string, cfg *config) error {
 	return saveConfig(cfgPath, cfg)
 }
 
-func heartbeat(cfg *config) error {
+func heartbeat(cfg *config) (*heartbeatResponse, error) {
 	snap, err := collectSnapshot()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	snap.AgentVersion = agentVersion
+	snap.Platform = agentPlatformID()
 	body, err := json.Marshal(snap)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req, err := http.NewRequest(http.MethodPost, apiURL(cfg.ServerURL, "/api/monitoring/heartbeat"), bytes.NewReader(body))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+cfg.Token)
 	client := &http.Client{Timeout: 45 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(res.Body)
 	if res.StatusCode >= 300 {
-		return &httpError{status: res.StatusCode, msg: fmt.Sprintf("heartbeat %s: %s", res.Status, raw)}
+		return nil, &httpError{status: res.StatusCode, msg: fmt.Sprintf("heartbeat %s: %s", res.Status, raw)}
 	}
-	return nil
+	var out heartbeatResponse
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return &heartbeatResponse{OK: true}, nil
+	}
+	return &out, nil
 }

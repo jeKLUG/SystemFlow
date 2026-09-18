@@ -159,26 +159,31 @@ Suche findet auch Hostname, IP, MAC und Standort.
 
 Staff-UI `/monitoring`. Agenten ohne Session, mit Enrollment-Key bzw. Geräte-Token. Heartbeat-Takt 1 Minute, offline nach 2 Minuten. Verlauf 30 Tage.
 
-Agent (öffentlich):
+Agent (öffentlich, ohne Staff-Session):
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
-| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware` (System, CPU, RAM-Riegel, physische Datenträger, GPU, NICs)/NICs/Prozesse/Updates/Events. Speichert Sample + Snapshot |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`platform`. Antwort: `{ ok, assigned, updateNow, latestAgent?: { platform, version, sha256 } }` |
+| GET | `/api/monitoring/agent/latest?platform=` | Aktuelles Paket-Metadatum. Auth: Staff-Cookie, Query `key=` (Enrollment) oder Bearer-Token |
+| GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64`). Gleiche Auth wie latest |
 
 Staff:
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET | `/api/monitoring/settings` | `{ enrollmentKey }` |
-| POST | `/api/monitoring/settings/rotate-key` | Neuen Enrollment-Key erzeugen |
+| GET | `/api/monitoring/settings` | `{ enrollmentKey, platforms[], packages[] }` |
+| POST | `/api/monitoring/settings/rotate-key` | Neuen Enrollment-Key erzeugen (gleiche Antwortform) |
+| POST | `/api/monitoring/agent-packages` | Multipart `platform`, `version`, `file` – ersetzt das Binary der Plattform |
+| DELETE | `/api/monitoring/agent-packages/:platform` | Paket löschen |
 | GET | `/api/monitoring/stats` | `{ warningCount, pendingCount }` (Navbar-Badge) |
-| GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste |
+| GET | `/api/monitoring/overview` | Flotte, Warnungen, Kundenliste; Geräte inkl. `agentVersion` / `agentOutdated` |
 | GET | `/api/monitoring/pending` | Unzugeordnete Agenten + zuordbare Assets |
 | POST | `/api/monitoring/pending/:id/assign` | `{ assetId }` – Asset muss `monitoringEnabled` haben und frei sein |
 | GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms) |
 | PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }` |
+| POST | `/api/monitoring/devices/:assetId/update-agent` | Sofort-Update: Agent zieht das aktuelle Paket beim nächsten Heartbeat |
 
 Ticket-Quelle zusätzlich `monitoring`. Pro Gerät und Warnungstyp höchstens ein offenes Ticket; Datenträger **je Laufwerk** (`openTicketsJson` Key `disk:C:`). Priorität aus der Geräte-Konfiguration, Auto-Close mit Lösungstext wenn der Typ bzw. das Laufwerk wieder ok ist.
 

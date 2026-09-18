@@ -1,10 +1,24 @@
 import { and, eq, gte, isNull, lte } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyRequest } from "fastify";
+import { createReadStream, existsSync } from "node:fs";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
 import { assets, customers, monitoringAgents, monitoringSamples, ticketPriorities } from "../db/schema.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { createId } from "../lib/id.js";
+import {
+  AGENT_PACKAGE_PLATFORMS,
+  agentPackageVersionMap,
+  commitAgentPackage,
+  compareAgentVersions,
+  deleteAgentPackage,
+  getAgentPackage,
+  isAgentPackagePlatform,
+  listAgentPackages,
+  packageFilePath,
+  platformFromAgent,
+  saveAgentPackageUpload,
+} from "../lib/agentPackages.js";
 import {
   alertedIssues,
   anyAlertEnabled,
@@ -60,6 +74,7 @@ const heartbeatBody = z.object({
   arch: z.string().max(40).optional(),
   uptimeSec: z.number().nonnegative().optional(),
   agentVersion: z.string().max(40).optional(),
+  platform: z.string().max(40).optional(),
   ip: z.string().max(80).optional(),
   ips: z.array(z.string().max(80)).max(16).optional(),
   mac: z.string().max(80).optional(),
@@ -205,10 +220,49 @@ function customerLabel(c: { company: string | null; name: string } | undefined):
   return c.company?.trim() || c.name;
 }
 
+function enrollmentKeyFromRequest(request: FastifyRequest): string | null {
+  const q = request.query as { key?: string };
+  if (typeof q?.key === "string" && q.key.trim()) return q.key.trim();
+  const header = request.headers["x-enrollment-key"];
+  if (typeof header === "string" && header.trim()) return header.trim();
+  return null;
+}
+
+function isStaffSession(request: FastifyRequest): boolean {
+  const userId = request.session.get("userId");
+  if (!userId) return false;
+  return request.session.get("role") !== "customer";
+}
+
+/**
+ * Download der Agent-Binary: Staff, Enrollment-Key oder Geräte-Token.
+ */
+async function authorizeAgentBinaryAccess(request: FastifyRequest, db: Db): Promise<boolean> {
+  if (isStaffSession(request)) return true;
+  const key = enrollmentKeyFromRequest(request);
+  if (key) {
+    const expected = await ensureEnrollmentKey(db);
+    if (hashesEqual(hashToken(expected), hashToken(key))) return true;
+  }
+  const token = bearerToken(request.headers.authorization);
+  if (!token) return false;
+  const agent = await db
+    .select({ id: monitoringAgents.id })
+    .from(monitoringAgents)
+    .where(eq(monitoringAgents.tokenHash, hashToken(token)))
+    .get();
+  return Boolean(agent);
+}
+
+function packagePlatformParam(value: string | undefined) {
+  const platform = (value ?? "").trim().toLowerCase();
+  return isAgentPackagePlatform(platform) ? platform : null;
+}
+
 /**
  * Agent-Ingest (Enrollment/Heartbeat) und Staff-Monitoring-API.
  */
-export async function monitoringRoutes(app: FastifyInstance, db: Db) {
+export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: string) {
   app.post("/api/monitoring/enroll", async (request, reply) => {
     const parsed = enrollBody.safeParse(request.body);
     if (!parsed.success) {
@@ -307,6 +361,21 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
     await db.insert(monitoringSamples).values(sampleFromSnapshot(snapshot, agent.id, now));
 
     const ip = primaryIp(snapshot);
+    const platform = platformFromAgent({
+      platform: snapshot.platform,
+      os: snapshot.os,
+      arch: snapshot.arch,
+    });
+    const pkg = platform ? await getAgentPackage(db, platform) : undefined;
+    const latestAgent = pkg
+      ? { platform: pkg.platform, version: pkg.version, sha256: pkg.sha256 }
+      : null;
+    const reportedVersion = snapshot.agentVersion?.trim() || agent.agentVersion || "";
+    const versionCurrent = Boolean(
+      latestAgent && reportedVersion && compareAgentVersions(reportedVersion, latestAgent.version) >= 0,
+    );
+    const updateNow = Boolean(agent.updateRequestedAt && latestAgent);
+
     await db
       .update(monitoringAgents)
       .set({
@@ -322,6 +391,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
         openTicketId: firstTicket,
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
+        updateRequestedAt: versionCurrent ? null : agent.updateRequestedAt,
         updatedAt: now,
       })
       .where(eq(monitoringAgents.id, agent.id));
@@ -337,7 +407,49 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       }
     }
 
-    return { ok: true, assigned: Boolean(agent.assetId) };
+    return { ok: true, assigned: Boolean(agent.assetId), updateNow, latestAgent };
+  });
+
+  app.get("/api/monitoring/agent/latest", async (request, reply) => {
+    if (!(await authorizeAgentBinaryAccess(request, db))) {
+      return reply.code(401).send({ error: "Nicht berechtigt" });
+    }
+    const q = request.query as { platform?: string; os?: string; arch?: string };
+    const platform =
+      packagePlatformParam(q.platform) ??
+      platformFromAgent({ os: q.os, arch: q.arch });
+    if (!platform) {
+      return reply.code(400).send({ error: "Plattform fehlt oder unbekannt" });
+    }
+    const pkg = await getAgentPackage(db, platform);
+    if (!pkg) return reply.code(404).send({ error: "Kein Agent-Paket für diese Plattform" });
+    return {
+      platform: pkg.platform,
+      version: pkg.version,
+      sha256: pkg.sha256,
+      sizeBytes: pkg.sizeBytes,
+      filename: pkg.filename,
+    };
+  });
+
+  app.get("/api/monitoring/agent/download/:platform", async (request, reply) => {
+    if (!(await authorizeAgentBinaryAccess(request, db))) {
+      return reply.code(401).send({ error: "Nicht berechtigt" });
+    }
+    const platform = packagePlatformParam((request.params as { platform: string }).platform);
+    if (!platform) return reply.code(400).send({ error: "Unbekannte Plattform" });
+    const pkg = await getAgentPackage(db, platform);
+    if (!pkg) return reply.code(404).send({ error: "Kein Agent-Paket für diese Plattform" });
+    const filePath = packageFilePath(uploadDir, pkg.storedName);
+    if (!existsSync(filePath)) {
+      return reply.code(404).send({ error: "Paketdatei fehlt auf dem Server" });
+    }
+    return reply
+      .header("Content-Type", "application/octet-stream")
+      .header("Content-Disposition", `attachment; filename="${pkg.filename.replace(/"/g, "")}"`)
+      .header("X-Agent-Version", pkg.version)
+      .header("X-Agent-SHA256", pkg.sha256)
+      .send(createReadStream(filePath));
   });
 
   await app.register(async (scoped) => {
@@ -345,12 +457,88 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
 
     scoped.get("/api/monitoring/settings", async () => {
       const key = await ensureEnrollmentKey(db);
-      return { enrollmentKey: key };
+      const packages = await listAgentPackages(db);
+      return { enrollmentKey: key, platforms: AGENT_PACKAGE_PLATFORMS, packages };
     });
 
     scoped.post("/api/monitoring/settings/rotate-key", async () => {
       const key = await rotateEnrollmentKey(db);
-      return { enrollmentKey: key };
+      const packages = await listAgentPackages(db);
+      return { enrollmentKey: key, platforms: AGENT_PACKAGE_PLATFORMS, packages };
+    });
+
+    scoped.post("/api/monitoring/agent-packages", async (request, reply) => {
+      let uploaded;
+      let fields: Record<string, string>;
+      try {
+        ({ uploaded, fields } = await saveAgentPackageUpload(request, uploadDir));
+      } catch (err) {
+        if (err instanceof Error && err.message === "UPLOAD_ABORTED") {
+          return reply.code(413).send({ error: "Datei zu groß" });
+        }
+        throw err;
+      }
+      if (!uploaded) return reply.code(400).send({ error: "Keine Datei" });
+      const platformRaw = (fields.platform ?? "").trim().toLowerCase();
+      if (!isAgentPackagePlatform(platformRaw)) {
+        const { unlink } = await import("node:fs/promises");
+        await unlink(uploaded.tmpPath).catch(() => undefined);
+        return reply.code(400).send({ error: "Unbekannte Plattform" });
+      }
+      const version = (fields.version ?? "").trim();
+      if (!/^[0-9A-Za-z][0-9A-Za-z.+_-]{0,39}$/.test(version)) {
+        const { unlink } = await import("node:fs/promises");
+        await unlink(uploaded.tmpPath).catch(() => undefined);
+        return reply.code(400).send({ error: "Version fehlt oder ungültig (z. B. 1.0.3)" });
+      }
+      const pkg = await commitAgentPackage(db, uploadDir, {
+        platform: platformRaw,
+        version,
+        uploaded,
+      });
+      return reply.code(201).send(pkg);
+    });
+
+    scoped.delete("/api/monitoring/agent-packages/:platform", async (request, reply) => {
+      const platform = packagePlatformParam((request.params as { platform: string }).platform);
+      if (!platform) return reply.code(400).send({ error: "Unbekannte Plattform" });
+      const ok = await deleteAgentPackage(db, uploadDir, platform);
+      if (!ok) return reply.code(404).send({ error: "Kein Paket für diese Plattform" });
+      return { ok: true };
+    });
+
+    scoped.post("/api/monitoring/devices/:assetId/update-agent", async (request, reply) => {
+      const { assetId } = request.params as { assetId: string };
+      const agent = await db
+        .select()
+        .from(monitoringAgents)
+        .where(eq(monitoringAgents.assetId, assetId))
+        .get();
+      if (!agent) return reply.code(404).send({ error: "Kein Agent zugeordnet" });
+      const snap = parseSnapshot(agent.lastSnapshotJson);
+      const platform = platformFromAgent({
+        platform: snap?.platform,
+        os: snap?.os ?? agent.os,
+        arch: snap?.arch,
+      });
+      if (!platform) {
+        return reply.code(409).send({ error: "Plattform des Geräts unbekannt" });
+      }
+      const pkg = await getAgentPackage(db, platform);
+      if (!pkg) {
+        return reply.code(409).send({ error: "Kein Agent-Paket für diese Plattform hochgeladen" });
+      }
+      const now = new Date();
+      await db
+        .update(monitoringAgents)
+        .set({ updateRequestedAt: now, updatedAt: now })
+        .where(eq(monitoringAgents.id, agent.id));
+      return {
+        ok: true,
+        platform,
+        latestVersion: pkg.version,
+        currentVersion: agent.agentVersion,
+      };
     });
 
     scoped.get("/api/monitoring/stats", async () => {
@@ -378,6 +566,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
 
     scoped.get("/api/monitoring/overview", async () => {
       const now = new Date();
+      const packages = await agentPackageVersionMap(db);
       const agents = await db.select().from(monitoringAgents).all();
       const assetRows = await db.select().from(assets).all();
       const customerRows = await db.select().from(customers).all();
@@ -407,6 +596,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
           asset,
           customer ? customerLabel(customer) : null,
           now,
+          packages,
         );
         if (summary.online) online += 1;
         else offline += 1;
@@ -506,6 +696,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
       if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
       const now = new Date();
+      const packages = await agentPackageVersionMap(db);
       const agents = await db
         .select()
         .from(monitoringAgents)
@@ -517,7 +708,14 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       for (const agent of agents) {
         if (!agent.assetId) continue;
         devices.push(
-          await mapDeviceSummary(db, agent, assetMap.get(agent.assetId), customerLabel(customer), now),
+          await mapDeviceSummary(
+            db,
+            agent,
+            assetMap.get(agent.assetId),
+            customerLabel(customer),
+            now,
+            packages,
+          ),
         );
       }
       const enabledWithoutAgent = assetRows.filter(
@@ -555,6 +753,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
 
       const customer = await db.select().from(customers).where(eq(customers.id, asset.customerId)).get();
       const now = new Date();
+      const packages = await agentPackageVersionMap(db);
       const to = q.to ? new Date(q.to) : now;
       const from = q.from ? new Date(q.from) : new Date(now.getTime() - MONITORING_DEFAULT_RANGE_MS);
 
@@ -573,7 +772,14 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db) {
       samples.sort((a, b) => a.ts.getTime() - b.ts.getTime());
 
       return {
-        device: await mapDeviceSummary(db, agent, asset, customer ? customerLabel(customer) : null, now),
+        device: await mapDeviceSummary(
+          db,
+          agent,
+          asset,
+          customer ? customerLabel(customer) : null,
+          now,
+          packages,
+        ),
         snapshot: parseSnapshot(agent.lastSnapshotJson),
         samples: samples.map((s) => ({
           ts: s.ts,

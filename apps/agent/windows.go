@@ -118,12 +118,40 @@ func collectEvents() []EventSnapshot {
 	return events
 }
 
-func installService(cfgPath string) error {
-	exe, err := os.Executable()
+func installBinaryPath() (string, error) {
+	src, err := os.Executable()
 	if err != nil {
-		return err
+		return "", err
 	}
-	exe, err = filepath.Abs(exe)
+	src, err = filepath.Abs(src)
+	if err != nil {
+		return "", err
+	}
+	base := os.Getenv("PROGRAMDATA")
+	if base == "" {
+		base = `C:\ProgramData`
+	}
+	dest := filepath.Join(base, "SystemhausEss", "systemhaus-agent.exe")
+	if err := copyFile(src, dest); err != nil {
+		if samePath(src, dest) {
+			return dest, nil
+		}
+		return "", err
+	}
+	return dest, nil
+}
+
+func configureServiceRecovery() {
+	cmd := exec.Command("sc.exe", "failure", serviceName, "reset=", "86400", "actions=", "restart/5000/restart/15000/restart/60000")
+	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_ = cmd.Run()
+	flag := exec.Command("sc.exe", "failureflag", serviceName, "1")
+	flag.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
+	_ = flag.Run()
+}
+
+func installService(cfgPath string) error {
+	exe, err := installBinaryPath()
 	if err != nil {
 		return err
 	}
@@ -142,8 +170,17 @@ func installService(cfgPath string) error {
 		if err != nil {
 			return err
 		}
+	} else {
+		cfg, cfgErr := s.Config()
+		if cfgErr == nil {
+			cfg.StartType = mgr.StartAutomatic
+			cfg.BinaryPathName = `"` + exe + `"`
+			cfg.DisplayName = "Systemhaus-Ess Monitoring"
+			_ = s.UpdateConfig(cfg)
+		}
 	}
 	defer s.Close()
+	configureServiceRecovery()
 	_ = s.Start()
 	return nil
 }

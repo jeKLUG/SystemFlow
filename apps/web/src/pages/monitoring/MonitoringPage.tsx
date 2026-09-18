@@ -219,6 +219,21 @@ export function MonitoringPage() {
     }
   }
 
+  async function requestAgentUpdate() {
+    const assetId = detail?.device.assetId;
+    if (!assetId) return;
+    setBusyId(assetId);
+    setError("");
+    try {
+      await api.requestAgentUpdate(assetId);
+      await reloadFleet();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Update konnte nicht angefordert werden");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="page monitoring-page">
       <header className="dashboard-hero">
@@ -445,6 +460,7 @@ export function MonitoringPage() {
                   <strong>{d.assetName}</strong>
                   <p className="muted">
                     {d.hostname || d.ipAddress || "–"} · {d.online ? "online" : "offline"}
+                    {d.agentOutdated ? " · Update" : ""}
                   </p>
                   <p className="mon-device-metrics">
                     CPU {pct(d.cpuPercent)} · RAM {pct(d.ramPercent)} · Disk {pct(d.diskUsedPct)}
@@ -474,6 +490,8 @@ export function MonitoringPage() {
           onSaveAlerts={(cfg) => {
             if (detail.device.assetId) void saveAlerts(detail.device.assetId, cfg);
           }}
+          onRequestUpdate={requestAgentUpdate}
+          updateBusy={busyId === detail.device.assetId}
         />
       ) : null}
     </div>
@@ -485,11 +503,15 @@ function DeviceDetail({
   rangeDays,
   onRange,
   onSaveAlerts,
+  onRequestUpdate,
+  updateBusy,
 }: {
   detail: MonitoringDeviceDetail;
   rangeDays: number;
   onRange: (days: number) => void;
   onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
+  onRequestUpdate: () => void;
+  updateBusy: boolean;
 }) {
   const { device, snapshot, samples } = detail;
   const pointsCpu = seriesFrom(samples, "cpuPct");
@@ -498,6 +520,7 @@ function DeviceDetail({
   const [alertConfig, setAlertConfig] = useState(
     device.alertConfig ?? emptyMonitoringAlertConfig(device.alertEnabled),
   );
+  const [updateMsg, setUpdateMsg] = useState("");
 
   return (
     <section className="panel mon-detail">
@@ -674,11 +697,44 @@ function DeviceDetail({
         </div>
       ) : null}
 
-      <p className="muted mon-os-line">
-        {[snapshot?.os, snapshot?.osVersion, snapshot?.arch, snapshot?.agentVersion && `Agent ${snapshot.agentVersion}`]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
+      <div className="mon-agent-update">
+        <p className="muted mon-os-line">
+          {[
+            snapshot?.os,
+            snapshot?.osVersion,
+            snapshot?.arch,
+            device.agentVersion && `Agent ${device.agentVersion}`,
+            device.latestAgentVersion &&
+              (device.agentOutdated
+                ? `aktuell ${device.latestAgentVersion}`
+                : `Paket ${device.latestAgentVersion}`),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </p>
+        {device.latestAgentVersion ? (
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            disabled={updateBusy || (!device.agentOutdated && !device.updateRequested)}
+            onClick={() => {
+              setUpdateMsg("Update wird beim nächsten Heartbeat geladen (ca. 1 Minute).");
+              onRequestUpdate();
+            }}
+          >
+            {updateBusy
+              ? "…"
+              : device.updateRequested
+                ? "Update angefordert"
+                : device.agentOutdated
+                  ? "Jetzt aktualisieren"
+                  : "Aktuell"}
+          </button>
+        ) : (
+          <p className="muted">Kein Agent-Paket für {device.agentPlatform || "diese Plattform"} in den Einstellungen.</p>
+        )}
+      </div>
+      {updateMsg ? <p className="form-success">{updateMsg}</p> : null}
     </section>
   );
 }

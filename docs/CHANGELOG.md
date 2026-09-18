@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.148 – 2026-09-18
+
+- Monitoring: Agent-Pakete in den Einstellungen hochladen; kopierbare Windows-/Linux-Installskripte; Dienst startet automatisch und nach Absturz; tägliches Self-Update und Sofort-Update am Gerät; Agent 1.0.3
+
 ## 1.5.147 – 2026-09-18
 
 - Inventar: Formularfelder je Gerätetyp; Monitoring füllt passende Hardware-/Netzfelder am zugeordneten Eintrag

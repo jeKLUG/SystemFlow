@@ -841,6 +841,11 @@ export interface MonitoringDeviceSummary {
   tickets?: MonitoringIssueTicket[];
   ticketId: string | null;
   ticketNumber: string | null;
+  agentVersion: string | null;
+  agentPlatform: string | null;
+  latestAgentVersion: string | null;
+  agentOutdated: boolean;
+  updateRequested: boolean;
   cpuPercent: number | null;
   ramPercent: number | null;
   diskUsedPct: number | null;
@@ -926,6 +931,7 @@ export interface MonitoringSnapshot {
   arch?: string;
   uptimeSec?: number;
   agentVersion?: string;
+  platform?: string;
   ip?: string;
   ips?: string[];
   mac?: string;
@@ -944,4 +950,21 @@ export interface MonitoringDeviceDetail {
   device: MonitoringDeviceSummary;
   snapshot: MonitoringSnapshot | null;
   samples: MonitoringSample[];
+}
+
+export type AgentPackagePlatform = "windows-amd64" | "linux-amd64" | "linux-arm64";
+
+export interface AgentPackageInfo {
+  platform: AgentPackagePlatform;
+  version: string;
+  filename: string;
+  sha256: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
+export interface MonitoringSettings {
+  enrollmentKey: string;
+  platforms: { id: AgentPackagePlatform; label: string; filename: string }[];
+  packages: AgentPackageInfo[];
 }

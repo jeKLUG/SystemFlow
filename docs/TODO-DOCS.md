@@ -9,7 +9,7 @@
 - [x] Monitoring-Warnungen je Typ und Gerät inkl. Ticket-Priorität
 - [x] Monitoring-Datenträger: Liste aller Laufwerke, Schwellwert und Ticket je Festplatte
 - [x] Monitoring: verbaute Hardware-Komponenten (CPU/RAM/Platten/GPU) in der Geräteansicht
-- [x] Inventar-Felder je Typ (PC, Firewall, Lizenz, …) inkl. Auto-Fill vom Agent
+- [x] Monitoring: Agent-Pakete im Portal, Install-Skripte, Auto-Start/Recovery, Self-Update
 - [ ] Optional: E-Mail-Einladung / Ticket-Benachrichtigungen (SMTP)
 - [ ] Optional: mehrere Portal-Benutzer pro Kunde
 - [ ] Optional: SLA nach Servicezeiten (`coverageHours`) statt Kalenderstunden

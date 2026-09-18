@@ -623,8 +623,25 @@ export const monitoringAgents = sqliteTable("monitoring_agents", {
   openTicketsJson: text("open_tickets_json").notNull().default("{}"),
   cpuHighStreak: integer("cpu_high_streak").notNull().default(0),
   ramHighStreak: integer("ram_high_streak").notNull().default(0),
+  /** Staff hat ein Sofort-Update angefordert; Agent zieht das aktuelle Paket beim nächsten Heartbeat. */
+  updateRequestedAt: integer("update_requested_at", { mode: "timestamp_ms" }),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Aktuelles Agent-Binary je Plattform (ein Eintrag ersetzt die vorherige Datei). */
+export const agentPackagePlatforms = ["windows-amd64", "linux-amd64", "linux-arm64"] as const;
+export type AgentPackagePlatform = (typeof agentPackagePlatforms)[number];
+
+export const monitoringAgentPackages = sqliteTable("monitoring_agent_packages", {
+  id: text("id").primaryKey(),
+  platform: text("platform").notNull().unique(),
+  version: text("version").notNull(),
+  filename: text("filename").notNull(),
+  sha256: text("sha256").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  storedName: text("stored_name").notNull(),
+  uploadedAt: integer("uploaded_at", { mode: "timestamp_ms" }).notNull(),
 });
 
 /** Minuten-Samples für Diagramme (30 Tage). */
@@ -668,3 +685,4 @@ export type Ticket = typeof tickets.$inferSelect;
 export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type MonitoringAgent = typeof monitoringAgents.$inferSelect;
 export type MonitoringSample = typeof monitoringSamples.$inferSelect;
+export type MonitoringAgentPackage = typeof monitoringAgentPackages.$inferSelect;

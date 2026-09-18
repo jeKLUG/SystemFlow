@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Installation: ./install-linux.sh --server https://ess.example.de --key enr_…
+# Nur für lokale Builds. Produktion: Skript aus den Konto-Einstellungen kopieren.
+# Usage: ./install-linux.sh --server https://ess.example.de --key enr_…
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BIN="${ROOT}/systemhaus-agent"
 if [[ ! -x "$BIN" ]]; then

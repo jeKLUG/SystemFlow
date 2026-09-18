@@ -797,9 +797,38 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
-  monitoringSettings: () => request<{ enrollmentKey: string }>("/api/monitoring/settings"),
+  monitoringSettings: () => request<import("./types").MonitoringSettings>("/api/monitoring/settings"),
   rotateMonitoringKey: () =>
-    request<{ enrollmentKey: string }>("/api/monitoring/settings/rotate-key", { method: "POST" }),
+    request<import("./types").MonitoringSettings>("/api/monitoring/settings/rotate-key", { method: "POST" }),
+  uploadAgentPackage: async (platform: string, version: string, file: File) => {
+    const body = new FormData();
+    body.append("platform", platform);
+    body.append("version", version);
+    body.append("file", file);
+    const res = await fetch("/api/monitoring/agent-packages", {
+      method: "POST",
+      credentials: "include",
+      body,
+    });
+    if (!res.ok) {
+      let message = "Upload fehlgeschlagen";
+      try {
+        const data = (await res.json()) as { error?: string };
+        if (data.error) message = data.error;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(message);
+    }
+    return res.json() as Promise<import("./types").AgentPackageInfo>;
+  },
+  deleteAgentPackage: (platform: string) =>
+    request<{ ok: boolean }>(`/api/monitoring/agent-packages/${platform}`, { method: "DELETE" }),
+  requestAgentUpdate: (assetId: string) =>
+    request<{ ok: boolean; platform: string; latestVersion: string; currentVersion: string | null }>(
+      `/api/monitoring/devices/${assetId}/update-agent`,
+      { method: "POST" },
+    ),
 };
 
 async function downloadPdf(url: string, fallbackName: string) {
