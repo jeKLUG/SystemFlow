@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { contractorPartyLines, customerPartyLines } from "../lib/orgAddress.js";
 import type { Db } from "../db/index.js";
 import {
   attachments,
@@ -411,7 +412,15 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
       .where(eq(contracts.customerId, customerId))
       .orderBy(desc(contracts.updatedAt))
       .all();
-    return rows.filter((c) => c.status === "active" || c.status === "paused").map(publicContract);
+    const [org, customer] = await Promise.all([
+      db.select().from(orgSettings).where(eq(orgSettings.id, "default")).get(),
+      db.select().from(customers).where(eq(customers.id, customerId)).get(),
+    ]);
+    return {
+      contractor: contractorPartyLines(org),
+      customer: customer ? customerPartyLines(customer) : [],
+      items: rows.filter((c) => c.status === "active" || c.status === "paused").map(publicContract),
+    };
   });
 
   app.get("/api/portal/documents", async (request) => {

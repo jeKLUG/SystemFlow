@@ -87,7 +87,10 @@ export const api = {
     }
     return (await res.json()) as import("./types").AttachmentItem;
   },
-  portalContracts: () => request<import("./types").ContractItem[]>("/api/portal/contracts"),
+  portalContracts: () =>
+    request<{ contractor: string[]; customer: string[]; items: import("./types").ContractItem[] }>(
+      "/api/portal/contracts",
+    ),
   portalDocuments: () => request<import("./types").DocumentItem[]>("/api/portal/documents"),
   portalDocument: (id: string) =>
     request<import("./types").DocumentItem>(`/api/portal/documents/${id}`),

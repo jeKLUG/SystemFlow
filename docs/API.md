@@ -17,7 +17,7 @@ UI: eigene App unter `/prices` (Navbar „Preise“). Keine Lexware-Anbindung �
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET/PUT | `/api/settings/org` | Standard-Stundensatz, Währung, MwSt.-Hinweis, Notiz |
+| GET/PUT | `/api/settings/org` | Standard-Stundensatz, Währung, MwSt.-Hinweis, Notiz, Firmenanschrift (`orgName`, `orgTagline`, `orgAddress`, `orgZip`, `orgCity`, `orgCountry`, `orgEmail`, `orgPhone`) |
 | GET/PUT | `/api/settings/mail` | SMTP (Host, Port, STARTTLS/SSL/none, User, Passwort verschlüsselt), Absender, Reply-To, Staff-Sammeladresse, öffentliche App-URL, Typ-Schalter Staff/Kunde, Erinnerungen (24h / 1h / 08:00). GET ohne Passwort, nur `smtpPasswordSet` |
 | POST | `/api/settings/mail/test` | Testmail an die Staff-Sammeladresse |
 | GET | `/api/price-items?activeOnly=&kind=` | Preiskatalog |
@@ -77,7 +77,7 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |
 | POST | `/api/portal/tickets/:id/attachments` | Anhang (multipart `file`); Portal-UI hängt Dateien direkt nach dem Anlegen an |
 | GET | `/api/portal/attachments/:id/download` | Ticket-, Wiki-/Inventar-Datei, explizit `portalVisible` oder Datei in einem freigegebenen Ordner |
-| GET | `/api/portal/contracts` | Aktive/pausierte Verträge ohne `notes` |
+| GET | `/api/portal/contracts` | `{ contractor, customer, items }` – Anschriften plus aktive/pausierte Verträge ohne `notes` |
 | GET | `/api/portal/documents` | Nur `portalVisible` Wiki-Seiten |
 | GET | `/api/portal/documents/:id` | Read-only |
 | GET | `/api/portal/files` | Freigegebene Dateien (einzeln oder über Ordner; ohne `storedName`, mit `folderId`) |
@@ -259,7 +259,7 @@ Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim An
 |---------|------|
 | GET/POST | `/api/customers/:id/contracts` |
 | PUT/DELETE | `/api/contracts/:id` |
-| GET | `/api/contracts/:id/pdf` | SLA/Vertrag als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl) |
+| GET | `/api/contracts/:id/pdf` | SLA/Vertrag als schlichtes PDF; Auftragnehmer aus Konto-Anschrift, Auftraggeber aus Kundenstamm |
 
 ## Anhänge / Dokumentenablage
 

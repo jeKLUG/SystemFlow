@@ -3,9 +3,34 @@ import { useAuth } from "../auth";
 import { api } from "../api";
 import { MailSettingsCard } from "../components/MailSettingsCard";
 import { PasswordField, PasswordMatchHint } from "../components/PasswordField";
+import type { OrgSettings } from "../types";
+
+const emptyOrgAddress = {
+  orgName: "",
+  orgTagline: "",
+  orgAddress: "",
+  orgZip: "",
+  orgCity: "",
+  orgCountry: "DE",
+  orgEmail: "",
+  orgPhone: "",
+};
+
+function orgAddressFromSettings(s: OrgSettings) {
+  return {
+    orgName: s.orgName ?? "",
+    orgTagline: s.orgTagline ?? "",
+    orgAddress: s.orgAddress ?? "",
+    orgZip: s.orgZip ?? "",
+    orgCity: s.orgCity ?? "",
+    orgCountry: s.orgCountry ?? "DE",
+    orgEmail: s.orgEmail ?? "",
+    orgPhone: s.orgPhone ?? "",
+  };
+}
 
 /**
- * Konto: Passwort und Datensicherung.
+ * Konto: Anschrift, Passwort, E-Mail und Datensicherung.
  */
 export function SettingsPage() {
   const { user, changePassword } = useAuth();
@@ -26,12 +51,46 @@ export function SettingsPage() {
     hint: string;
   } | null>(null);
 
+  const [orgForm, setOrgForm] = useState(emptyOrgAddress);
+  const [orgBusy, setOrgBusy] = useState(false);
+  const [orgMsg, setOrgMsg] = useState("");
+  const [orgErr, setOrgErr] = useState("");
+
   useEffect(() => {
     void api
       .backupInfo()
       .then((info) => setBackupInfo(info))
       .catch(() => setBackupInfo(null));
+    void api
+      .orgSettings()
+      .then((s) => setOrgForm(orgAddressFromSettings(s)))
+      .catch(() => undefined);
   }, []);
+
+  async function saveOrgAddress(e: FormEvent) {
+    e.preventDefault();
+    setOrgMsg("");
+    setOrgErr("");
+    setOrgBusy(true);
+    try {
+      const updated = await api.updateOrgSettings({
+        orgName: orgForm.orgName,
+        orgTagline: orgForm.orgTagline,
+        orgAddress: orgForm.orgAddress,
+        orgZip: orgForm.orgZip,
+        orgCity: orgForm.orgCity,
+        orgCountry: orgForm.orgCountry,
+        orgEmail: orgForm.orgEmail,
+        orgPhone: orgForm.orgPhone,
+      });
+      setOrgForm(orgAddressFromSettings(updated));
+      setOrgMsg("Anschrift gespeichert");
+    } catch (err) {
+      setOrgErr(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setOrgBusy(false);
+    }
+  }
 
   async function downloadBackup() {
     setBackupMsg("");
@@ -103,7 +162,7 @@ export function SettingsPage() {
       <div className="page-header">
         <div>
           <h2>Einstellungen</h2>
-          <p className="muted">Konto, E-Mail und Sicherung Â· {user?.username}</p>
+          <p className="muted">Konto, E-Mail und Sicherung · {user?.username}</p>
         </div>
       </div>
 
@@ -153,6 +212,95 @@ export function SettingsPage() {
           <div className="settings-span-all">
             <button className="btn btn-primary" type="submit" disabled={busy}>
               {busy ? "Speichert…" : "Passwort speichern"}
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <section className="panel settings-card">
+        <header className="settings-card-head">
+          <div>
+            <p className="eyebrow">Firma</p>
+            <h3>Anschrift</h3>
+          </div>
+        </header>
+        <p className="settings-card-lead muted">
+          Erscheint als Auftragnehmer auf Verträgen und im PDF-Export.
+        </p>
+        <form className="settings-address-form" onSubmit={(e) => void saveOrgAddress(e)}>
+          <label className="field">
+            <span>Name</span>
+            <input
+              value={orgForm.orgName}
+              onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
+              placeholder="Systemhaus-Ess"
+              maxLength={200}
+            />
+          </label>
+          <label className="field">
+            <span>Zusatz</span>
+            <input
+              value={orgForm.orgTagline}
+              onChange={(e) => setOrgForm({ ...orgForm, orgTagline: e.target.value })}
+              placeholder="IT-Dienstleistungen & Support"
+              maxLength={200}
+            />
+          </label>
+          <label className="field settings-span-all">
+            <span>Straße</span>
+            <input
+              value={orgForm.orgAddress}
+              onChange={(e) => setOrgForm({ ...orgForm, orgAddress: e.target.value })}
+              maxLength={300}
+            />
+          </label>
+          <label className="field">
+            <span>PLZ</span>
+            <input
+              value={orgForm.orgZip}
+              onChange={(e) => setOrgForm({ ...orgForm, orgZip: e.target.value })}
+              maxLength={20}
+            />
+          </label>
+          <label className="field">
+            <span>Ort</span>
+            <input
+              value={orgForm.orgCity}
+              onChange={(e) => setOrgForm({ ...orgForm, orgCity: e.target.value })}
+              maxLength={120}
+            />
+          </label>
+          <label className="field">
+            <span>Land</span>
+            <input
+              value={orgForm.orgCountry}
+              onChange={(e) => setOrgForm({ ...orgForm, orgCountry: e.target.value })}
+              placeholder="DE"
+              maxLength={80}
+            />
+          </label>
+          <label className="field">
+            <span>E-Mail</span>
+            <input
+              type="email"
+              value={orgForm.orgEmail}
+              onChange={(e) => setOrgForm({ ...orgForm, orgEmail: e.target.value })}
+              maxLength={200}
+            />
+          </label>
+          <label className="field">
+            <span>Telefon</span>
+            <input
+              value={orgForm.orgPhone}
+              onChange={(e) => setOrgForm({ ...orgForm, orgPhone: e.target.value })}
+              maxLength={80}
+            />
+          </label>
+          {orgErr ? <p className="form-error settings-span-all">{orgErr}</p> : null}
+          {orgMsg ? <p className="form-success settings-span-all">{orgMsg}</p> : null}
+          <div className="settings-span-all">
+            <button className="btn btn-primary" type="submit" disabled={orgBusy}>
+              {orgBusy ? "Speichert…" : "Anschrift speichern"}
             </button>
           </div>
         </form>

@@ -70,10 +70,14 @@ export function PortalTicketsPage() {
   async function reload() {
     const [tickets, contracts] = await Promise.all([
       api.portalTickets(),
-      api.portalContracts().catch(() => [] as ContractItem[]),
+      api.portalContracts().catch(() => ({
+        contractor: [] as string[],
+        customer: [] as string[],
+        items: [] as ContractItem[],
+      })),
     ]);
     setRows(tickets);
-    setSlaContract(pickSlaContract(contracts));
+    setSlaContract(pickSlaContract(contracts.items));
   }
 
   useEffect(() => {

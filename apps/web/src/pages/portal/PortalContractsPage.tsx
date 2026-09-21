@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { HelpHint } from "../../components/HelpHint";
+import { ContractParties } from "../../components/ContractParties";
 import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../../lib/labels";
 import type { ContractItem, ContractStatus } from "../../types";
 
@@ -58,13 +59,19 @@ function richTextHasContent(raw: string | null | undefined): boolean {
  */
 export function PortalContractsPage() {
   const [rows, setRows] = useState<ContractItem[]>([]);
+  const [contractor, setContractor] = useState<string[]>([]);
+  const [customerLines, setCustomerLines] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
     void api
       .portalContracts()
-      .then(setRows)
+      .then((data) => {
+        setRows(data.items);
+        setContractor(data.contractor);
+        setCustomerLines(data.customer);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Laden fehlgeschlagen"));
   }, []);
 
@@ -159,6 +166,8 @@ export function PortalContractsPage() {
                     </div>
                   ) : null}
                 </div>
+
+                <ContractParties contractor={contractor} customer={customerLines} />
 
                 <div className="sla-overview">
                   {priceValue != null ? (

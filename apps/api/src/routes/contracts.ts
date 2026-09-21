@@ -2,7 +2,7 @@ import { desc, eq, like } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { contractStatuses, contracts, customers } from "../db/schema.js";
+import { contracts, contractStatuses, customers, orgSettings } from "../db/schema.js";
 import { buildContractPdf } from "../lib/contract-pdf.js";
 import { createId } from "../lib/id.js";
 import { requireAuth } from "../plugins/auth.js";
@@ -186,7 +186,8 @@ export async function contractRoutes(app: FastifyInstance, db: Db) {
       .get();
     if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
 
-    const buffer = await buildContractPdf(customer, row);
+    const org = await db.select().from(orgSettings).where(eq(orgSettings.id, "default")).get();
+    const buffer = await buildContractPdf(customer, row, org);
     const base = (row.contractNumber || row.title)
       .replace(/[^\w\-äöüÄÖÜß]+/gi, "_")
       .replace(/_+/g, "_")

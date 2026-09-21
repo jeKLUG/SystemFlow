@@ -338,7 +338,7 @@ export const appointments = sqliteTable("appointments", {
 });
 
 /**
- * Organisations-Einstellungen (eine Zeile) – Stundensatz, Währung usw.
+ * Organisations-Einstellungen (eine Zeile) – Stundensatz, Währung, Firmenanschrift für Verträge.
  * Für spätere Rechnungsvorbereitung aus der Historie (Lexware extern).
  */
 export const orgSettings = sqliteTable("org_settings", {
@@ -347,6 +347,15 @@ export const orgSettings = sqliteTable("org_settings", {
   currency: text("currency").notNull().default("EUR"),
   defaultVatPercent: real("default_vat_percent"),
   invoiceNote: text("invoice_note"),
+  /** Firmenname auf Verträgen/PDF. */
+  orgName: text("org_name"),
+  orgTagline: text("org_tagline"),
+  orgAddress: text("org_address"),
+  orgZip: text("org_zip"),
+  orgCity: text("org_city"),
+  orgCountry: text("org_country"),
+  orgEmail: text("org_email"),
+  orgPhone: text("org_phone"),
   /** Gemeinsamer Schlüssel, mit dem Agenten sich anmelden (Klartext, nur Staff). */
   monitoringEnrollmentKey: text("monitoring_enrollment_key"),
   smtpHost: text("smtp_host"),

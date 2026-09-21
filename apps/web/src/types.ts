@@ -301,6 +301,14 @@ export interface OrgSettings {
   currency: string;
   defaultVatPercent: number | null;
   invoiceNote: string | null;
+  orgName: string | null;
+  orgTagline: string | null;
+  orgAddress: string | null;
+  orgZip: string | null;
+  orgCity: string | null;
+  orgCountry: string | null;
+  orgEmail: string | null;
+  orgPhone: string | null;
   updatedAt: string;
 }
 

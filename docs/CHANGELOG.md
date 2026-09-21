@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.193 – 2026-09-21
+
+- Konto: Firmenanschrift pflegen; erscheint als Auftragnehmer auf Verträgen (Staff und Portal) und im SLA-PDF
+
 ## 1.5.192 – 2026-09-21
 
 - Staff-Start: Diagramme füllen die Breite, Donut und Legende untereinander, Woche kompakter

@@ -1,5 +1,6 @@
 import PDFDocument from "pdfkit";
-import type { Contract, Customer } from "../db/schema.js";
+import type { Contract, Customer, OrgSettings } from "../db/schema.js";
+import { contractorPartyLines, customerPartyLines } from "./orgAddress.js";
 import {
   paintPdfFooter,
   paintPdfHeader,
@@ -30,7 +31,11 @@ const statusLabel: Record<string, string> = {
 /**
  * Erzeugt ein schlichtes SLA-/Vertrags-PDF (Kopfzeile, Seitenzahl, ohne Leerseiten).
  */
-export async function buildContractPdf(customer: Customer, contract: Contract): Promise<Buffer> {
+export async function buildContractPdf(
+  customer: Customer,
+  contract: Contract,
+  org?: OrgSettings | null,
+): Promise<Buffer> {
   const customerLabel = customer.company?.trim() || customer.name;
   const headerTitle = contract.title?.trim() || "SLA / Vertrag";
 
@@ -64,7 +69,7 @@ export async function buildContractPdf(customer: Customer, contract: Contract): 
 
   drawTitle(doc, contract, customerLabel);
   drawMeta(doc, contract);
-  drawParties(doc, customer);
+  drawParties(doc, customer, org);
   drawSection(doc, "Leistungsumfang", () => {
     const raw = contract.description?.trim() ?? "";
     if (!raw || !tiptapToText(raw).trim()) {
@@ -186,17 +191,9 @@ function drawMeta(doc: PDFKit.PDFDocument, contract: Contract) {
   doc.x = MARGIN;
 }
 
-function drawParties(doc: PDFKit.PDFDocument, customer: Customer) {
-  const leftLines = ["Systemhaus-Ess", "IT-Dienstleistungen & Support"];
-  const rightLines = [
-    customer.company || customer.name,
-    customer.contactPerson ? `z. Hd. ${customer.contactPerson}` : null,
-    customer.address,
-    [customer.zip, customer.city].filter(Boolean).join(" ") || null,
-    customer.country && customer.country !== "DE" ? customer.country : null,
-    customer.email,
-    customer.phone,
-  ].filter(Boolean) as string[];
+function drawParties(doc: PDFKit.PDFDocument, customer: Customer, org?: OrgSettings | null) {
+  const leftLines = contractorPartyLines(org);
+  const rightLines = customerPartyLines(customer);
 
   const colW = (contentWidth(doc) - 12) / 2;
   const leftH = partyBoxHeight(leftLines);
@@ -212,7 +209,7 @@ function drawParties(doc: PDFKit.PDFDocument, customer: Customer) {
 }
 
 function partyBoxHeight(lines: string[]): number {
-  return 28 + Math.min(lines.length, 6) * 13 + 12;
+  return 28 + Math.max(lines.length, 2) * 13 + 12;
 }
 
 function drawPartyBox(
@@ -232,7 +229,7 @@ function drawPartyBox(
   });
   doc.font("Helvetica").fontSize(9.5).fillColor(TEXT);
   let ty = y + 26;
-  for (const line of lines.slice(0, 6)) {
+  for (const line of lines.slice(0, 8)) {
     doc.text(line, x + 10, ty, { width: w - 20, lineBreak: false, ellipsis: true, height: 12 });
     ty += 13;
   }

@@ -13,6 +13,14 @@ const settingsBody = z.object({
   currency: z.string().min(1).max(8).optional(),
   defaultVatPercent: z.number().min(0).max(100).nullable().optional(),
   invoiceNote: z.string().max(5000).optional().or(z.literal("")),
+  orgName: z.string().max(200).optional().or(z.literal("")),
+  orgTagline: z.string().max(200).optional().or(z.literal("")),
+  orgAddress: z.string().max(300).optional().or(z.literal("")),
+  orgZip: z.string().max(20).optional().or(z.literal("")),
+  orgCity: z.string().max(120).optional().or(z.literal("")),
+  orgCountry: z.string().max(80).optional().or(z.literal("")),
+  orgEmail: z.string().max(200).optional().or(z.literal("")),
+  orgPhone: z.string().max(80).optional().or(z.literal("")),
 });
 
 const priceBody = z.object({
@@ -62,6 +70,14 @@ async function ensureSettings(db: Db) {
     currency: "EUR",
     defaultVatPercent: 19 as number | null,
     invoiceNote: null as string | null,
+    orgName: null as string | null,
+    orgTagline: null as string | null,
+    orgAddress: null as string | null,
+    orgZip: null as string | null,
+    orgCity: null as string | null,
+    orgCountry: null as string | null,
+    orgEmail: null as string | null,
+    orgPhone: null as string | null,
     monitoringEnrollmentKey: null as string | null,
     smtpHost: null as string | null,
     smtpPort: null as number | null,
@@ -142,6 +158,17 @@ export async function pricingRoutes(app: FastifyInstance, db: Db) {
         parsed.data.invoiceNote !== undefined
           ? emptyToNull(parsed.data.invoiceNote)
           : existing.invoiceNote,
+      orgName: parsed.data.orgName !== undefined ? emptyToNull(parsed.data.orgName) : existing.orgName,
+      orgTagline:
+        parsed.data.orgTagline !== undefined ? emptyToNull(parsed.data.orgTagline) : existing.orgTagline,
+      orgAddress:
+        parsed.data.orgAddress !== undefined ? emptyToNull(parsed.data.orgAddress) : existing.orgAddress,
+      orgZip: parsed.data.orgZip !== undefined ? emptyToNull(parsed.data.orgZip) : existing.orgZip,
+      orgCity: parsed.data.orgCity !== undefined ? emptyToNull(parsed.data.orgCity) : existing.orgCity,
+      orgCountry:
+        parsed.data.orgCountry !== undefined ? emptyToNull(parsed.data.orgCountry) : existing.orgCountry,
+      orgEmail: parsed.data.orgEmail !== undefined ? emptyToNull(parsed.data.orgEmail) : existing.orgEmail,
+      orgPhone: parsed.data.orgPhone !== undefined ? emptyToNull(parsed.data.orgPhone) : existing.orgPhone,
       updatedAt: new Date(),
     };
     await db.update(orgSettings).set(updated).where(eq(orgSettings.id, SETTINGS_ID));

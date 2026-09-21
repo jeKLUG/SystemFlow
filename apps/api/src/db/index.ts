@@ -152,6 +152,14 @@ export async function createDb(databasePath: string) {
       currency TEXT NOT NULL DEFAULT 'EUR',
       default_vat_percent REAL,
       invoice_note TEXT,
+      org_name TEXT,
+      org_tagline TEXT,
+      org_address TEXT,
+      org_zip TEXT,
+      org_city TEXT,
+      org_country TEXT,
+      org_email TEXT,
+      org_phone TEXT,
       monitoring_enrollment_key TEXT,
       smtp_host TEXT,
       smtp_port INTEGER,
@@ -581,6 +589,15 @@ export async function createDb(databasePath: string) {
       uploaded_at INTEGER NOT NULL
     )
   `);
+  await ensureColumn(client, "org_settings", "invoice_note", "TEXT");
+  await ensureColumn(client, "org_settings", "org_name", "TEXT");
+  await ensureColumn(client, "org_settings", "org_tagline", "TEXT");
+  await ensureColumn(client, "org_settings", "org_address", "TEXT");
+  await ensureColumn(client, "org_settings", "org_zip", "TEXT");
+  await ensureColumn(client, "org_settings", "org_city", "TEXT");
+  await ensureColumn(client, "org_settings", "org_country", "TEXT");
+  await ensureColumn(client, "org_settings", "org_email", "TEXT");
+  await ensureColumn(client, "org_settings", "org_phone", "TEXT");
   await ensureColumn(client, "org_settings", "monitoring_enrollment_key", "TEXT");
   await ensureColumn(client, "org_settings", "smtp_host", "TEXT");
   await ensureColumn(client, "org_settings", "smtp_port", "INTEGER");

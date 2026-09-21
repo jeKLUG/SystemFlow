@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
 import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../lib/labels";
-import type { ContractItem, ContractStatus } from "../types";
+import { contractorPartyLines, customerPartyLines } from "../lib/orgAddress";
+import type { ContractItem, ContractStatus, Customer, OrgSettings } from "../types";
+import { ContractParties } from "./ContractParties";
 import { DocumentEditor } from "./DocumentEditor";
 import { Modal } from "./Modal";
 
@@ -201,6 +203,13 @@ export function CustomerSlaPanel({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pdfBusyId, setPdfBusyId] = useState<string | null>(null);
   const lastCreateKey = useRef(0);
+  const [org, setOrg] = useState<OrgSettings | null>(null);
+  const [customer, setCustomer] = useState<Customer | null>(null);
+
+  useEffect(() => {
+    void api.orgSettings().then(setOrg).catch(() => undefined);
+    void api.customer(customerId).then(setCustomer).catch(() => undefined);
+  }, [customerId]);
 
   const sorted = useMemo(() => {
     const rank: Record<ContractStatus, number> = {
@@ -338,6 +347,9 @@ export function CustomerSlaPanel({
               },
             ] as const;
 
+            const contractorLines = contractorPartyLines(org);
+            const customerLines = customer ? customerPartyLines(customer) : [];
+
             return (
               <li key={c.id} className={`sla-card is-${c.status}`}>
                 <div className="sla-card-head">
@@ -396,6 +408,8 @@ export function CustomerSlaPanel({
                     </button>
                   </div>
                 </div>
+
+                <ContractParties contractor={contractorLines} customer={customerLines} />
 
                 <div className="sla-overview">
                   {priceValue != null ? (
