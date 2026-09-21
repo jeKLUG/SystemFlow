@@ -1173,6 +1173,63 @@ a.list-row {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.settings-address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.settings-address-preview {
+  max-width: 28rem;
+  padding: 1.05rem 1.15rem 1.15rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(59, 130, 246, 0.07), transparent 58%),
+    rgba(255, 255, 255, 0.02);
+}
+
+.settings-address-preview .eyebrow {
+  display: block;
+  margin: 0 0 0.45rem;
+  color: var(--accent-bright);
+}
+
+.settings-address-preview strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.settings-address-preview strong + p:not(.settings-address-tagline) {
+  margin-top: 0.55rem;
+}
+
+.settings-address-tagline {
+  margin: 0.2rem 0 0.65rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.settings-address-preview p {
+  margin: 0.12rem 0 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.settings-address-preview a {
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.settings-address-preview a:hover {
+  text-decoration: underline;
+}
+
 .settings-span-all {
   grid-column: 1 / -1;
 }
@@ -20035,6 +20092,36 @@ div.mon-alert-item-main {
   gap: 0.4rem;
 }
 
+.mon-hw-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7.25rem, 1fr));
+  gap: 0.7rem 0.85rem;
+  padding: 0.8rem 0 0.1rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mon-hw-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.mon-hw-fact strong {
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mon-hw-fact .muted {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.3;
+}
+
 .mon-hw-user {
   margin: 0.4rem 0 0;
   font-size: 0.88rem;
@@ -20162,7 +20249,8 @@ div.mon-alert-item-main {
 }
 
 .mon-hw-hero .mon-hw-cards {
-  padding-top: 0.15rem;
+  padding-top: 0.35rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .mon-hw-cards {
@@ -20196,12 +20284,18 @@ div.mon-alert-item-main {
 }
 
 .mon-hw-card strong {
-  font-size: 0.98rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
   line-height: 1.3;
+  letter-spacing: -0.02em;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.mon-hw-card .mon-hw-chips {
+  margin-top: 0.12rem;
 }
 
 .mon-hw-card p {
@@ -20825,6 +20919,10 @@ div.mon-alert-item-main {
   .agent-enroll-secret .btn {
     margin-left: auto;
   }
+
+  .mon-hw-hero .mon-hw-cards {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 720px) {
@@ -20882,6 +20980,7 @@ div.mon-alert-item-main {
     grid-row: 2;
   }
 
+  .mon-hw-hero .mon-hw-cards,
   .mon-hw-cards {
     grid-template-columns: 1fr 1fr;
   }

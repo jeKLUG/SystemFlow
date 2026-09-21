@@ -16,7 +16,9 @@ const emptyOrgAddress = {
   orgPhone: "",
 };
 
-function orgAddressFromSettings(s: OrgSettings) {
+type OrgAddressForm = typeof emptyOrgAddress;
+
+function orgAddressFromSettings(s: OrgSettings): OrgAddressForm {
   return {
     orgName: s.orgName ?? "",
     orgTagline: s.orgTagline ?? "",
@@ -29,8 +31,56 @@ function orgAddressFromSettings(s: OrgSettings) {
   };
 }
 
+const countryLabels: Record<string, string> = {
+  DE: "Deutschland",
+  AT: "Österreich",
+  CH: "Schweiz",
+};
+
+/** Land für die Anzeige, z. B. DE → Deutschland. */
+function countryDisplay(raw: string): string {
+  const t = raw.trim();
+  if (!t) return "";
+  return countryLabels[t.toUpperCase()] || t;
+}
+
 /**
- * Konto: Anschrift, Passwort, E-Mail und Datensicherung.
+ * Lesemodus der Firmenanschrift, analog zum Auftragnehmer-Block auf Verträgen.
+ */
+function AddressPreview({ value }: { value: OrgAddressForm }) {
+  const name = value.orgName.trim() || "Systemhaus-Ess";
+  const tagline =
+    value.orgTagline.trim() || (value.orgName.trim() ? "" : "IT-Dienstleistungen & Support");
+  const zipCity = [value.orgZip.trim(), value.orgCity.trim()].filter(Boolean).join(" ");
+  const country = countryDisplay(value.orgCountry);
+  const email = value.orgEmail.trim();
+  const phone = value.orgPhone.trim();
+  const street = value.orgAddress.trim();
+
+  return (
+    <article className="settings-address-preview">
+      <span className="eyebrow">Auftragnehmer</span>
+      <strong>{name}</strong>
+      {tagline ? <p className="settings-address-tagline">{tagline}</p> : null}
+      {street ? <p>{street}</p> : null}
+      {zipCity ? <p>{zipCity}</p> : null}
+      {country ? <p>{country}</p> : null}
+      {email ? (
+        <p>
+          <a href={`mailto:${email}`}>{email}</a>
+        </p>
+      ) : null}
+      {phone ? (
+        <p>
+          <a href={`tel:${phone.replace(/\s+/g, "")}`}>{phone}</a>
+        </p>
+      ) : null}
+    </article>
+  );
+}
+
+/**
+ * Konto: Anschrift (Anzeige, Bearbeitung nach Klick), Passwort, E-Mail und Datensicherung.
  */
 export function SettingsPage() {
   const { user, changePassword } = useAuth();
@@ -51,7 +101,9 @@ export function SettingsPage() {
     hint: string;
   } | null>(null);
 
+  const [orgSaved, setOrgSaved] = useState(emptyOrgAddress);
   const [orgForm, setOrgForm] = useState(emptyOrgAddress);
+  const [orgEditing, setOrgEditing] = useState(false);
   const [orgBusy, setOrgBusy] = useState(false);
   const [orgMsg, setOrgMsg] = useState("");
   const [orgErr, setOrgErr] = useState("");
@@ -63,7 +115,11 @@ export function SettingsPage() {
       .catch(() => setBackupInfo(null));
     void api
       .orgSettings()
-      .then((s) => setOrgForm(orgAddressFromSettings(s)))
+      .then((s) => {
+        const next = orgAddressFromSettings(s);
+        setOrgSaved(next);
+        setOrgForm(next);
+      })
       .catch(() => undefined);
   }, []);
 
@@ -83,7 +139,10 @@ export function SettingsPage() {
         orgEmail: orgForm.orgEmail,
         orgPhone: orgForm.orgPhone,
       });
-      setOrgForm(orgAddressFromSettings(updated));
+      const next = orgAddressFromSettings(updated);
+      setOrgSaved(next);
+      setOrgForm(next);
+      setOrgEditing(false);
       setOrgMsg("Anschrift gespeichert");
     } catch (err) {
       setOrgErr(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -223,87 +282,119 @@ export function SettingsPage() {
             <p className="eyebrow">Firma</p>
             <h3>Anschrift</h3>
           </div>
+          {!orgEditing ? (
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={() => {
+                setOrgForm(orgSaved);
+                setOrgEditing(true);
+                setOrgMsg("");
+                setOrgErr("");
+              }}
+            >
+              Bearbeiten
+            </button>
+          ) : null}
         </header>
         <p className="settings-card-lead muted">
           Erscheint als Auftragnehmer auf Verträgen und im PDF-Export.
         </p>
-        <form className="settings-address-form" onSubmit={(e) => void saveOrgAddress(e)}>
-          <label className="field">
-            <span>Name</span>
-            <input
-              value={orgForm.orgName}
-              onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
-              placeholder="Systemhaus-Ess"
-              maxLength={200}
-            />
-          </label>
-          <label className="field">
-            <span>Zusatz</span>
-            <input
-              value={orgForm.orgTagline}
-              onChange={(e) => setOrgForm({ ...orgForm, orgTagline: e.target.value })}
-              placeholder="IT-Dienstleistungen & Support"
-              maxLength={200}
-            />
-          </label>
-          <label className="field settings-span-all">
-            <span>Straße</span>
-            <input
-              value={orgForm.orgAddress}
-              onChange={(e) => setOrgForm({ ...orgForm, orgAddress: e.target.value })}
-              maxLength={300}
-            />
-          </label>
-          <label className="field">
-            <span>PLZ</span>
-            <input
-              value={orgForm.orgZip}
-              onChange={(e) => setOrgForm({ ...orgForm, orgZip: e.target.value })}
-              maxLength={20}
-            />
-          </label>
-          <label className="field">
-            <span>Ort</span>
-            <input
-              value={orgForm.orgCity}
-              onChange={(e) => setOrgForm({ ...orgForm, orgCity: e.target.value })}
-              maxLength={120}
-            />
-          </label>
-          <label className="field">
-            <span>Land</span>
-            <input
-              value={orgForm.orgCountry}
-              onChange={(e) => setOrgForm({ ...orgForm, orgCountry: e.target.value })}
-              placeholder="DE"
-              maxLength={80}
-            />
-          </label>
-          <label className="field">
-            <span>E-Mail</span>
-            <input
-              type="email"
-              value={orgForm.orgEmail}
-              onChange={(e) => setOrgForm({ ...orgForm, orgEmail: e.target.value })}
-              maxLength={200}
-            />
-          </label>
-          <label className="field">
-            <span>Telefon</span>
-            <input
-              value={orgForm.orgPhone}
-              onChange={(e) => setOrgForm({ ...orgForm, orgPhone: e.target.value })}
-              maxLength={80}
-            />
-          </label>
-          {orgErr ? <p className="form-error settings-span-all">{orgErr}</p> : null}
-          {orgMsg ? <p className="form-success settings-span-all">{orgMsg}</p> : null}
-          <div className="settings-span-all">
-            <button className="btn btn-primary" type="submit" disabled={orgBusy}>
-              {orgBusy ? "Speichert…" : "Anschrift speichern"}
-            </button>
-          </div>
-        </form>
+        {orgEditing ? (
+          <form className="settings-address-form" onSubmit={(e) => void saveOrgAddress(e)}>
+            <label className="field">
+              <span>Name</span>
+              <input
+                value={orgForm.orgName}
+                onChange={(e) => setOrgForm({ ...orgForm, orgName: e.target.value })}
+                placeholder="Systemhaus-Ess"
+                maxLength={200}
+              />
+            </label>
+            <label className="field">
+              <span>Zusatz</span>
+              <input
+                value={orgForm.orgTagline}
+                onChange={(e) => setOrgForm({ ...orgForm, orgTagline: e.target.value })}
+                placeholder="IT-Dienstleistungen & Support"
+                maxLength={200}
+              />
+            </label>
+            <label className="field settings-span-all">
+              <span>Straße</span>
+              <input
+                value={orgForm.orgAddress}
+                onChange={(e) => setOrgForm({ ...orgForm, orgAddress: e.target.value })}
+                maxLength={300}
+              />
+            </label>
+            <label className="field">
+              <span>PLZ</span>
+              <input
+                value={orgForm.orgZip}
+                onChange={(e) => setOrgForm({ ...orgForm, orgZip: e.target.value })}
+                maxLength={20}
+              />
+            </label>
+            <label className="field">
+              <span>Ort</span>
+              <input
+                value={orgForm.orgCity}
+                onChange={(e) => setOrgForm({ ...orgForm, orgCity: e.target.value })}
+                maxLength={120}
+              />
+            </label>
+            <label className="field">
+              <span>Land</span>
+              <input
+                value={orgForm.orgCountry}
+                onChange={(e) => setOrgForm({ ...orgForm, orgCountry: e.target.value })}
+                placeholder="DE"
+                maxLength={80}
+              />
+            </label>
+            <label className="field">
+              <span>E-Mail</span>
+              <input
+                type="email"
+                value={orgForm.orgEmail}
+                onChange={(e) => setOrgForm({ ...orgForm, orgEmail: e.target.value })}
+                maxLength={200}
+              />
+            </label>
+            <label className="field">
+              <span>Telefon</span>
+              <input
+                value={orgForm.orgPhone}
+                onChange={(e) => setOrgForm({ ...orgForm, orgPhone: e.target.value })}
+                maxLength={80}
+              />
+            </label>
+            {orgErr ? <p className="form-error settings-span-all">{orgErr}</p> : null}
+            <div className="settings-span-all settings-address-actions">
+              <button className="btn btn-primary" type="submit" disabled={orgBusy}>
+                {orgBusy ? "Speichert…" : "Speichern"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={orgBusy}
+                onClick={() => {
+                  setOrgForm(orgSaved);
+                  setOrgEditing(false);
+                  setOrgErr("");
+                }}
+              >
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        ) : (
+          <>
+            <AddressPreview value={orgSaved} />
+            {orgMsg ? <p className="form-success">{orgMsg}</p> : null}
+          </>
+        )}
       </section>
 
       <MailSettingsCard />

@@ -17,12 +17,66 @@ const memoryTypeMap: Record<string, string> = {
   "35": "LPDDR5",
 };
 
-function formatSize(n: number | null | undefined): string {
+function formatSize(n: number | null | undefined, whole = false): string {
   if (n == null || !Number.isFinite(n) || n <= 0) return "–";
   if (n < 1024 ** 3) return `${(n / 1024 ** 2).toFixed(0)} MB`;
   const gb = n / 1024 ** 3;
-  if (gb < 1024) return `${gb >= 10 ? gb.toFixed(0) : gb.toFixed(1)} GB`;
+  if (gb < 1024) {
+    if (whole || gb >= 10 || Math.abs(gb - Math.round(gb)) < 0.08) return `${Math.round(gb)} GB`;
+    return `${gb.toFixed(1)} GB`;
+  }
   return `${(gb / 1024).toFixed(1)} TB`;
+}
+
+const brandNames: Record<string, string> = {
+  LENOVO: "Lenovo",
+  DELL: "Dell",
+  HP: "HP",
+  "HEWLETT-PACKARD": "HP",
+  ASUS: "ASUS",
+  ASUSTEK: "ASUS",
+  ACER: "Acer",
+  MICROSOFT: "Microsoft",
+  APPLE: "Apple",
+  FUJITSU: "Fujitsu",
+  TOSHIBA: "Toshiba",
+  SAMSUNG: "Samsung",
+  GIGABYTE: "Gigabyte",
+  MSI: "MSI",
+};
+
+/** Hersteller lesbar, ohne SCHREIWEISE aus dem BIOS. */
+function prettyBrand(raw?: string | null): string {
+  const t = raw?.trim() || "";
+  return brandNames[t.toUpperCase()] || t;
+}
+
+function shortVendor(raw?: string | null): string | null {
+  const t = raw?.trim() || "";
+  if (!t) return null;
+  return t.replace(/\s+(technology|technologies|corp\.?|corporation|inc\.?)$/i, "").trim() || t;
+}
+
+/** Interne Board-Codes (z. B. LNVNB161216) gehören nicht in die Übersicht. */
+function isInternalBoardId(name: string, model?: string, title?: string): boolean {
+  if (!name || name === model || name === title) return false;
+  return /^[A-Z0-9]{8,}$/.test(name);
+}
+
+function isRamLikeSocket(socket?: string | null): boolean {
+  return /lpddr|ddr[2345]|dimm|sodimm/i.test(socket || "");
+}
+
+/** Entfernt die integrierte GPU aus dem CPU-Namen, wenn sie extra als Grafik steht. */
+function shortCpuName(name: string): string {
+  return name.replace(/\s+w\/\s+.+$/i, "").trim() || name;
+}
+
+function isIntegratedGpu(gpuName: string, cpuName?: string): boolean {
+  if (!cpuName) return false;
+  if (/radeon\s*\d+/i.test(gpuName) && /radeon\s*\d+/i.test(cpuName)) return true;
+  if (/(uhd|iris)\s*\d*/i.test(gpuName) && /(uhd|iris)/i.test(cpuName)) return true;
+  return false;
 }
 
 function joinParts(parts: Array<string | null | undefined>): string {
@@ -328,20 +382,40 @@ function NetAddr({
 function HwCard({
   label,
   value,
-  sub,
+  chips,
   warn,
 }: {
   label: string;
   value: string;
-  sub?: string | null;
+  chips?: Array<string | null | undefined>;
   warn?: boolean;
 }) {
+  const visible = (chips ?? []).map((c) => c?.trim()).filter((c): c is string => Boolean(c));
   return (
     <article className={`mon-hw-card${warn ? " is-warn" : ""}`}>
       <span className="mon-hw-card-label">{label}</span>
-      <strong>{value}</strong>
-      {sub ? <p>{sub}</p> : null}
+      <strong title={value}>{value}</strong>
+      {visible.length ? (
+        <ul className="mon-hw-chips">
+          {visible.map((chip) => (
+            <li key={chip}>{chip}</li>
+          ))}
+        </ul>
+      ) : null}
     </article>
+  );
+}
+
+/**
+ * Beschriftetes Kurzfeld in der Geräte-Übersicht (Hersteller, SN, Benutzer …).
+ */
+function Fact({ label, value, hint }: { label: string; value: string; hint?: string | null }) {
+  return (
+    <div className="mon-hw-fact">
+      <span className="mon-hw-card-label">{label}</span>
+      <strong title={value}>{value}</strong>
+      {hint ? <span className="muted">{hint}</span> : null}
+    </div>
   );
 }
 
@@ -362,16 +436,14 @@ function HealthChip({ health }: { health?: string | null }) {
   return <span className={`mon-hw-health is-${h}`}>{label}</span>;
 }
 
-function sessionLine(session?: MonitoringSnapshot["session"]): string | null {
-  if (!session) return null;
+/** Angemeldete Windows-/Linux-Benutzer ohne Duplikate. */
+function sessionUsers(session?: MonitoringSnapshot["session"]): string[] {
+  if (!session) return [];
   const users = [...(session.users ?? [])];
   if (session.user && !users.some((u) => u.toLowerCase() === session.user!.toLowerCase())) {
     users.unshift(session.user);
   }
-  if (!users.length) return session.lastLogon ? `Letzte Anmeldung ${session.lastLogon}` : null;
-  const extra = users.length > 1 ? ` · ${users.length} Sitzungen` : "";
-  const last = session.lastLogon ? ` · zuletzt ${session.lastLogon}` : "";
-  return `Angemeldet: ${users[0]}${extra}${last}`;
+  return users.map((u) => u.trim()).filter(Boolean);
 }
 
 /**
@@ -405,7 +477,8 @@ export function MonitoringHardwarePanel({
   const [softQuery, setSoftQuery] = useState("");
   const [softFilter, setSoftFilter] = useState<"all" | "match" | "missing">("all");
   const sysName = hardware ? systemTitle(hardware.system) : "";
-  const sysLine = joinParts([hardware?.system?.manufacturer, hardware?.system?.model]);
+  const manufacturer = prettyBrand(hardware?.system?.manufacturer);
+  const modelNr = hardware?.system?.model?.trim() || "";
   const boardName = hardware?.board?.product?.trim() || "";
   const boardSerial = hardware?.board?.serial?.trim() || "";
   const biosVersion = hardware?.bios?.version?.trim() || "";
@@ -418,7 +491,8 @@ export function MonitoringHardwarePanel({
   const storage = hardware?.storage ?? [];
   const gpus = hardware?.gpus ?? [];
   const nics = hardware?.nics ?? [];
-  const userLine = sessionLine(session);
+  const users = sessionUsers(session);
+  const hasSession = Boolean(users.length || session?.lastLogon);
   const hasNet = Boolean(
     network?.publicIp ||
       network?.gateway ||
@@ -444,7 +518,7 @@ export function MonitoringHardwarePanel({
     (disks?.length ?? 0) > 0 ||
       (processes?.length ?? 0) > 0 ||
       updates ||
-      userLine ||
+      hasSession ||
       hasNet ||
       (services?.length ?? 0) > 0 ||
       (software?.length ?? 0) > 0,
@@ -481,47 +555,57 @@ export function MonitoringHardwarePanel({
   const cpu = cpus[0];
   const ramHeadline =
     ramTotal > 0
-      ? formatSize(ramTotal)
+      ? formatSize(ramTotal, true)
       : ramGroups.length
-        ? formatSize(ramGroups.reduce((s, g) => s + g.sizeBytes * g.count, 0))
+        ? formatSize(ramGroups.reduce((s, g) => s + g.sizeBytes * g.count, 0), true)
         : null;
-  const ramSub = ramGroups
-    .map((g) => {
-      const piece = formatSize(g.sizeBytes);
-      const spec = joinParts([
-        g.type && g.speedMhz ? `${g.type}-${g.speedMhz}` : g.type,
-        g.speedMhz && !g.type ? `${g.speedMhz} MT/s` : null,
-      ]);
-      const qty = g.count > 1 ? `${g.count}× ${piece}` : piece;
-      return joinParts([qty, spec, g.manufacturer]);
-    })
-    .filter(Boolean)
-    .join(" · ");
+  const ramChips = ramGroups.flatMap((g) => {
+    const piece = formatSize(g.sizeBytes, true);
+    const qty = g.count > 1 ? `${g.count} × ${piece}` : ramGroups.length > 1 ? piece : null;
+    const spec = g.type && g.speedMhz ? `${g.type}-${g.speedMhz}` : g.type || (g.speedMhz ? `${g.speedMhz} MT/s` : null);
+    return [qty, spec, shortVendor(g.manufacturer)];
+  });
 
   const storageBytes = storage.reduce((s, d) => s + (d.sizeBytes ?? 0), 0);
   const hottestDisk = disks?.length
     ? disks.reduce((a, b) => (a.usedPct >= b.usedPct ? a : b))
     : undefined;
   const storageHealth = storage.some((s) => s.health === "fail" || s.health === "warn");
-  const storageSub = joinParts([
-    storage[0]
-      ? joinParts([storage[0].media, storage[0].bus, storage.length > 1 ? `${storage.length} Laufwerke` : null])
-      : null,
+  const storageChips = [
+    storage[0]?.media,
+    storage[0]?.bus && storage[0].bus !== storage[0].media ? storage[0].bus : null,
+    storage.length > 1 ? `${storage.length} Laufwerke` : null,
     hottestDisk ? `${Math.round(hottestDisk.usedPct)} % belegt` : null,
-  ]);
+  ];
 
   const gpu = pickGpu(gpus, cpu?.name);
+  const gpuIntegrated = gpu?.name ? isIntegratedGpu(gpu.name, cpu?.name) : false;
+  const cpuName = cpu?.name ? (gpu && gpuIntegrated ? shortCpuName(cpu.name) : cpu.name) : "";
   const dns = (network?.dns ?? []).filter(Boolean);
   const lan = pickLanAddresses(ip, ips, network?.publicIp || undefined);
-  const ident = joinParts([
-    hardware?.system?.manufacturer,
-    sysLine && sysLine !== sysName ? hardware?.system?.model : null,
-    boardName && boardName !== sysName && boardName !== hardware?.system?.model ? boardName : null,
-    systemSerial ? `SN ${systemSerial}` : boardSerial ? `SN ${boardSerial}` : null,
-    systemSerial && boardSerial && boardSerial !== systemSerial ? `Platine ${boardSerial}` : null,
-    biosVersion ? `BIOS ${biosVersion}` : biosDate,
-    biosVersion && biosDate ? biosDate : null,
-  ]);
+  const identityFacts = [
+    manufacturer && manufacturer.toLowerCase() !== sysName.toLowerCase()
+      ? { label: "Hersteller", value: manufacturer }
+      : null,
+    modelNr && modelNr !== sysName && modelNr.toLowerCase() !== manufacturer.toLowerCase()
+      ? { label: "Typ", value: modelNr }
+      : null,
+    boardName &&
+    !isInternalBoardId(boardName, modelNr, sysName) &&
+    boardName !== modelNr
+      ? { label: "Board", value: boardName }
+      : null,
+    systemSerial || boardSerial ? { label: "Seriennr.", value: systemSerial || boardSerial } : null,
+    biosVersion ? { label: "BIOS", value: biosVersion, hint: biosDate } : biosDate ? { label: "BIOS", value: biosDate } : null,
+    users.length
+      ? {
+          label: "Benutzer",
+          value: users.join(", "),
+          hint: users.length > 1 ? `${users.length} Sitzungen` : null,
+        }
+      : null,
+    session?.lastLogon ? { label: "Zuletzt", value: session.lastLogon } : null,
+  ].filter((f): f is { label: string; value: string; hint?: string | null } => Boolean(f));
   const lanMode = network?.dhcp == null ? null : network.dhcp ? "DHCP" : "Statisch";
   const adapterHint = (network?.adapter || "").trim().toLowerCase();
   const lanChips = [
@@ -532,14 +616,12 @@ export function MonitoringHardwarePanel({
 
   return (
     <div className="mon-hw">
-      {hasHw || userLine || updates?.pendingCount || updates?.rebootPending ? (
+      {hasHw || hasSession || updates?.pendingCount || updates?.rebootPending ? (
         <section className="mon-hw-hero">
           <div className="mon-hw-hero-top">
             <div>
               <p className="eyebrow">Ausstattung</p>
               <h3 className="mon-hw-model">{sysName || "Unbekanntes System"}</h3>
-              {ident ? <p className="muted">{ident}</p> : sysLine && sysLine !== sysName ? <p className="muted">{sysLine}</p> : null}
-              {userLine ? <p className="mon-hw-user">{userLine}</p> : null}
             </div>
             <div className="mon-hw-pills">
               {updates?.rebootPending ? <span className="mon-hw-update-pill is-reboot">Neustart nötig</span> : null}
@@ -548,26 +630,34 @@ export function MonitoringHardwarePanel({
               ) : null}
             </div>
           </div>
+          {identityFacts.length ? (
+            <div className="mon-hw-facts">
+              {identityFacts.map((f) => (
+                <Fact key={f.label} label={f.label} value={f.value} hint={f.hint} />
+              ))}
+            </div>
+          ) : null}
           <div className="mon-hw-cards">
             {cpu ? (
               <HwCard
                 label="CPU"
-                value={cpu.name || "Prozessor"}
-                sub={joinParts([
-                  cpu.cores != null
-                    ? `${cpu.cores} Kerne${cpu.threads && cpu.threads !== cpu.cores ? ` · ${cpu.threads} Threads` : ""}`
-                    : null,
+                value={cpuName || cpu.name || "Prozessor"}
+                chips={[
+                  cpu.cores != null ? `${cpu.cores} Kerne` : null,
+                  cpu.threads && cpu.threads !== cpu.cores ? `${cpu.threads} Threads` : null,
                   formatClock(cpu.mhz),
-                  cpu.socket,
-                ])}
+                  cpu.socket && !isRamLikeSocket(cpu.socket) ? cpu.socket : null,
+                ]}
               />
             ) : null}
-            {ramHeadline ? <HwCard label="RAM" value={ramHeadline} sub={ramSub || `${ramModules.length} Riegel`} /> : null}
+            {ramHeadline ? (
+              <HwCard label="RAM" value={ramHeadline} chips={ramChips.length ? ramChips : [`${ramModules.length} Riegel`]} />
+            ) : null}
             {storageBytes > 0 || hottestDisk ? (
               <HwCard
                 label="Speicher"
-                value={storageBytes > 0 ? formatSize(storageBytes) : hottestDisk?.totalLabel || "–"}
-                sub={storageSub || storage[0]?.model}
+                value={storageBytes > 0 ? formatSize(storageBytes, true) : hottestDisk?.totalLabel || "–"}
+                chips={storageChips.length ? storageChips : [storage[0]?.model]}
                 warn={Boolean(hottestDisk?.over || storageHealth)}
               />
             ) : null}
@@ -575,7 +665,10 @@ export function MonitoringHardwarePanel({
               <HwCard
                 label="Grafik"
                 value={gpu.name || "GPU"}
-                sub={joinParts([gpu.vramBytes ? formatSize(gpu.vramBytes) : null, gpu.driver ? `Treiber ${gpu.driver}` : null])}
+                chips={[
+                  gpuIntegrated ? "integriert" : null,
+                  gpu.vramBytes ? formatSize(gpu.vramBytes) : null,
+                ]}
               />
             ) : null}
           </div>

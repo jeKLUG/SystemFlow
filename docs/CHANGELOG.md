@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.195 – 2026-09-21
+
+- Konto Anschrift: Lesemodus wie auf dem Vertrag; Formular erst nach „Bearbeiten“
+
+## 1.5.194 – 2026-09-21
+
+- Monitoring Gerät: Ausstattung als Übersicht – Hersteller/Typ/SN/BIOS und Anmeldung als Felder, Specs als Chips statt einer Code-Zeile
+
 ## 1.5.193 – 2026-09-21
 
 - Konto: Firmenanschrift pflegen; erscheint als Auftragnehmer auf Verträgen (Staff und Portal) und im SLA-PDF
