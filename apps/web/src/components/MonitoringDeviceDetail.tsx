@@ -5,12 +5,11 @@ import { Modal } from "./Modal";
 import {
   MonitoringAlertConfigFields,
   monitoringAlertEnabledCount,
-  monitoringAlertSummary,
 } from "./MonitoringAlertConfigFields";
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import {
   agentVersionAtLeast,
-  deviceIssueText,
+  deviceIssueChips,
   formatBytes,
   formatUptime,
   monitoringIssueLabel,
@@ -56,7 +55,7 @@ export function MonitoringDeviceDetail({
   const [updateMsg, setUpdateMsg] = useState("");
   const [uninstallMsg, setUninstallMsg] = useState("");
   const alertCount = monitoringAlertEnabledCount(alertConfig);
-  const alertLabels = monitoringAlertSummary(alertConfig);
+  const liveIssues = device.warning ? deviceIssueChips(device) : [];
 
   return (
     <section className="panel mon-detail" id="mon-device-detail">
@@ -85,18 +84,24 @@ export function MonitoringDeviceDetail({
             </Link>
           ))}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAlertsOpen(true)}>
-            Warnungen konfigurieren
+            Ticket-Typen
             {alertCount ? <span className="mon-alert-btn-count">{alertCount}</span> : null}
           </button>
         </div>
       </div>
 
       <div className="mon-detail-toggles">
-        <p className="mon-alert-summary muted">
-          {alertCount
-            ? `${alertCount} ${alertCount === 1 ? "Warnung aktiv" : "Warnungen aktiv"}: ${alertLabels.join(" · ")}`
-            : "Keine Warnungen aktiv – das Gerät erzeugt keine Tickets."}
-        </p>
+        {liveIssues.length ? (
+          <div className="mon-live-issues" aria-label="Aktuelle Warnungen">
+            {liveIssues.map((label) => (
+              <span key={label} className="mon-issue-chip">
+                {label}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="muted mon-alert-summary">Keine aktuelle Warnung</p>
+        )}
         <div className="mon-range">
           {[1, 7, 30].map((d) => (
             <button
@@ -113,7 +118,7 @@ export function MonitoringDeviceDetail({
 
       <Modal
         open={alertsOpen}
-        title="Warnungen konfigurieren"
+        title="Welche Probleme ein Ticket erzeugen"
         onClose={() => setAlertsOpen(false)}
         className="modal-wide mon-alert-modal"
       >
@@ -126,8 +131,6 @@ export function MonitoringDeviceDetail({
           }}
         />
       </Modal>
-
-      {device.warning ? <p className="mon-warn-banner">{deviceIssueText(device)}</p> : null}
 
       <div className="mon-kpis-mini">
         <div>

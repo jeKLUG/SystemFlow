@@ -128,7 +128,7 @@ export function PortalAccountPage() {
             )}
           </span>
         </section>
-        <section className="panel settings-card portal-account-card">
+        <section className="panel settings-card portal-account-card portal-account-mail">
           <header className="settings-card-head">
             <div>
               <p className="eyebrow">Benachrichtigungen</p>
@@ -156,7 +156,7 @@ export function PortalAccountPage() {
           {mailErr && !mailOpen ? <p className="form-error">{mailErr}</p> : null}
           {mailOk ? <p className="form-success">{mailOk}</p> : null}
         </section>
-        <section className="panel settings-card portal-account-card">
+        <section className="panel settings-card portal-account-card portal-account-security">
           <header className="settings-card-head">
             <div>
               <p className="eyebrow">Sicherheit</p>
@@ -166,7 +166,7 @@ export function PortalAccountPage() {
               </div>
             </div>
           </header>
-          <form className="stack-form" onSubmit={(e) => void onSubmit(e)}>
+          <form className="stack-form portal-account-pass" onSubmit={(e) => void onSubmit(e)}>
             <PasswordField
               label="Aktuelles Passwort"
               value={currentPassword}

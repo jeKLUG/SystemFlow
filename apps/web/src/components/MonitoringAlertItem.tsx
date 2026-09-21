@@ -3,7 +3,7 @@ import { monitoringIssueLabel } from "../lib/monitoringUi";
 import type { MonitoringIssueTicket } from "../types";
 
 /**
- * Eine Meldung oder Warnung in der Monitoring-Übersicht.
+ * Eine Meldung in der Monitoring-Übersicht: Gerät, Ursache, Ticket, Zeitpunkt.
  */
 export function MonitoringAlertItem({
   title,
@@ -17,13 +17,14 @@ export function MonitoringAlertItem({
 }: {
   title: string;
   subtitle?: string | null;
-  kindLabel: string;
+  kindLabel?: string;
   tone: "warn" | "off" | "info";
   chips?: string[];
   seen?: string;
   tickets?: MonitoringIssueTicket[];
   href?: string;
 }) {
+  const showKind = Boolean(kindLabel && kindLabel !== "Warnung");
   const main = (
     <>
       <span
@@ -31,10 +32,10 @@ export function MonitoringAlertItem({
         aria-hidden
       />
       <div className="mon-alert-item-copy">
-        <span className="mon-alert-item-kind">{kindLabel}</span>
         <strong>{title}</strong>
-        {subtitle ? <p className="muted">{subtitle}</p> : null}
+        {subtitle ? <span className="muted">{subtitle}</span> : null}
       </div>
+      {showKind ? <span className={`mon-alert-item-kind is-${tone}`}>{kindLabel}</span> : null}
       {chips?.length ? (
         <div className="mon-alert-item-chips">
           {chips.map((label) => (
@@ -44,7 +45,6 @@ export function MonitoringAlertItem({
           ))}
         </div>
       ) : null}
-      {seen ? <span className="mon-alert-item-seen">{seen}</span> : null}
     </>
   );
 
@@ -60,13 +60,18 @@ export function MonitoringAlertItem({
       {tickets?.length ? (
         <div className="mon-alert-item-tickets">
           {tickets.map((t) => (
-            <Link key={t.ticketId} className="mon-warn-ticket" to={`/tickets/${t.ticketId}`}>
+            <Link
+              key={t.ticketId}
+              className="mon-warn-ticket"
+              to={`/tickets/${t.ticketId}`}
+              title={t.diskId ?? monitoringIssueLabel[t.kind]}
+            >
               {t.ticketNumber}
-              <span>{t.diskId ?? monitoringIssueLabel[t.kind]}</span>
             </Link>
           ))}
         </div>
       ) : null}
+      {seen ? <span className="mon-alert-item-seen">{seen}</span> : null}
     </article>
   );
 }

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Link } from "react-router-dom";
 
 type Slice = { label: string; value: number; color: string };
@@ -18,24 +19,38 @@ export function DonutChart({
   centerLabel?: string;
   centerValue?: string | number;
 }) {
+  const uid = useId().replace(/:/g, "");
   const total = slices.reduce((s, x) => s + Math.max(0, x.value), 0) || 1;
   const r = (size - thickness) / 2;
   const c = 2 * Math.PI * r;
-  let offset = 0;
+  const active = slices.filter((s) => s.value > 0);
+  const gap = active.length > 1 ? Math.min(14, c * 0.028) : 0;
+  let offset = gap / 2;
 
   return (
     <div className="dash-donut" style={{ width: size, height: size }}>
       <svg viewBox={`0 0 ${size} ${size}`} width={size} height={size} aria-hidden>
+        <defs>
+          <filter id={`dash-donut-glow-${uid}`} x="-25%" y="-25%" width="150%" height="150%">
+            <feGaussianBlur stdDeviation="1.4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="rgba(148,163,184,0.1)"
+          stroke="rgba(148,163,184,0.12)"
           strokeWidth={thickness}
         />
         {slices.map((slice) => {
-          const len = (Math.max(0, slice.value) / total) * c;
+          if (slice.value <= 0) return null;
+          const raw = (slice.value / total) * c;
+          const len = Math.max(0.01, raw - gap);
           const el = (
             <circle
               key={slice.label}
@@ -48,10 +63,11 @@ export function DonutChart({
               strokeDasharray={`${len} ${c - len}`}
               strokeDashoffset={-offset}
               strokeLinecap="round"
+              filter={`url(#dash-donut-glow-${uid})`}
               transform={`rotate(-90 ${size / 2} ${size / 2})`}
             />
           );
-          offset += len;
+          offset += raw;
           return el;
         })}
       </svg>
@@ -129,12 +145,12 @@ export function ColumnChart({
           key={col.label}
           className={`dash-col${col.active ? " is-active" : ""}${col.value === 0 ? " is-empty" : ""}`}
         >
-          <span className="dash-col-value">{col.value || ""}</span>
+          <span className="dash-col-value">{col.value > 0 ? col.value : ""}</span>
           <div className="dash-col-bar-wrap">
             <div
               className="dash-col-bar"
               style={{
-                height: `${Math.max(col.value ? 8 : 3, (col.value / peak) * 100)}%`,
+                height: `${Math.max(col.value ? 12 : 4, (col.value / peak) * 100)}%`,
                 background: col.tone || undefined,
               }}
             />

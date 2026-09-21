@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
+import { HelpHint } from "../../components/HelpHint";
 import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
 import { MonitoringDeviceDetail } from "../../components/MonitoringDeviceDetail";
 import {
@@ -402,9 +403,9 @@ export function MonitoringCustomerPage() {
 
       <section className="panel mon-panel">
         <div className="section-head row-between">
-          <div>
+          <div className="page-head-title">
             <h2>Aktuelle Meldungen</h2>
-            <p>Zum Gerät oder Ticket springen</p>
+            <HelpHint text="Störungen, Offline und Agent-Hinweise. Klick öffnet das Gerät, die Nummer das Ticket." />
           </div>
           <span className={`mon-count-badge${messages.length > 0 ? " is-warn" : ""}`}>
             {loading ? "…" : messages.length}

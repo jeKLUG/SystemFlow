@@ -16,14 +16,22 @@ import {
 } from "../lib/tasks";
 import type {
   AppointmentItem,
+  MonitoringOverview,
   Reminders,
   Stats,
   TaskItem,
   TaskPriority,
 } from "../types";
 
+type AttentionChip = {
+  to: string;
+  count: number;
+  label: string;
+  tone: "danger" | "warn" | "info";
+};
+
 /**
- * Kompaktes Start-Dashboard: Kennzahlen, Diagramme und Heute-Liste.
+ * Staff-Start: Lage auf einen Blick – Kennzahlen, Donuts, Woche, Fokus.
  */
 export function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
@@ -31,7 +39,9 @@ export function DashboardPage() {
   const [reminders, setReminders] = useState<Reminders | null>(null);
   const [appointments, setAppointments] = useState<AppointmentItem[]>([]);
   const [ticketOpen, setTicketOpen] = useState(0);
+  const [ticketWaiting, setTicketWaiting] = useState(0);
   const [ticketSla, setTicketSla] = useState(0);
+  const [fleet, setFleet] = useState<MonitoringOverview | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
@@ -47,16 +57,19 @@ export function DashboardPage() {
         api.reminders(30),
         api.appointments({ from: todayIso, to: weekEnd }),
         api.ticketStats(),
+        api.monitoringOverview().catch(() => null),
       ]),
     )
       .then(({ data, fromCache: cached }) => {
-        const [s, t, rem, appts, tstats] = data;
+        const [s, t, rem, appts, tstats, mon] = data;
         setStats(s);
         setOpenTasks(sortTasks(t, "due"));
         setReminders(rem);
         setAppointments(appts);
         setTicketOpen(tstats.openCount);
+        setTicketWaiting(tstats.waitingCount);
         setTicketSla(tstats.slaBreachedCount);
+        setFleet(mon);
         setFromCache(cached);
       })
       .finally(() => setLoading(false));
@@ -64,6 +77,8 @@ export function DashboardPage() {
 
   const summary = useMemo(() => summarizeTasks(openTasks), [openTasks]);
 
+  const reminderWarranties = reminders?.warranties.length ?? 0;
+  const reminderContracts = reminders?.contracts.length ?? 0;
   const reminderTotal = useMemo(() => {
     if (!reminders) return 0;
     return reminders.warranties.length + reminders.contracts.length + reminders.tasks.length;
@@ -79,12 +94,12 @@ export function DashboardPage() {
     return [...today, ...rest].slice(0, 5);
   }, [openTasks]);
 
+  const todayApptCount = appointments.filter((a) => a.startDate === todayIso).length;
   const todayAppts = appointments.filter((a) => a.startDate === todayIso).slice(0, 4);
-  const soonAppts = appointments
-    .filter((a) => a.startDate !== todayIso)
-    .slice(0, 3);
+  const soonAppts = appointments.filter((a) => a.startDate !== todayIso).slice(0, 3);
+  const weekApptCount = appointments.length;
 
-  const statusSlices = useMemo(
+  const taskSlices = useMemo(
     () =>
       [
         { label: "Überfällig", value: summary.overdue, color: "#f87171" },
@@ -103,6 +118,29 @@ export function DashboardPage() {
     [summary, openTasks],
   );
 
+  const ticketSlices = useMemo(
+    () =>
+      [
+        {
+          label: "In Arbeit",
+          value: Math.max(0, ticketOpen - ticketWaiting),
+          color: "#60a5fa",
+        },
+        { label: "Wartet", value: ticketWaiting, color: "#c4b5fd" },
+      ].filter((s) => s.value > 0),
+    [ticketOpen, ticketWaiting],
+  );
+
+  const fleetAssigned = (fleet?.online ?? 0) + (fleet?.offline ?? 0);
+  const fleetSlices = useMemo(
+    () =>
+      [
+        { label: "Online", value: fleet?.online ?? 0, color: "#34d399" },
+        { label: "Offline", value: fleet?.offline ?? 0, color: "#94a3b8" },
+      ].filter((s) => s.value > 0),
+    [fleet],
+  );
+
   const weekColumns = useMemo(() => {
     return Array.from({ length: 7 }, (_, i) => {
       const iso = addDaysIso(todayIso, i);
@@ -115,10 +153,47 @@ export function DashboardPage() {
         label,
         value,
         active: iso === todayIso,
-        tone: value > 0 ? "linear-gradient(180deg, #93c5fd, #3b82f6)" : undefined,
+        tone: value > 0 ? "linear-gradient(180deg, #93c5fd, #2563eb)" : undefined,
       };
     });
   }, [appointments, todayIso]);
+
+  const attention = useMemo(() => {
+    const items: AttentionChip[] = [];
+    if (summary.overdue) {
+      items.push({
+        to: "/tasks",
+        count: summary.overdue,
+        label: summary.overdue === 1 ? "Aufgabe überfällig" : "Aufgaben überfällig",
+        tone: "danger",
+      });
+    }
+    if (ticketSla) {
+      items.push({
+        to: "/tickets",
+        count: ticketSla,
+        label: ticketSla === 1 ? "SLA überschritten" : "SLAs überschritten",
+        tone: "danger",
+      });
+    }
+    if ((fleet?.warning ?? 0) > 0) {
+      items.push({
+        to: "/monitoring",
+        count: fleet!.warning,
+        label: fleet!.warning === 1 ? "Gerät gestört" : "Geräte gestört",
+        tone: "warn",
+      });
+    }
+    if ((fleet?.pending ?? 0) > 0) {
+      items.push({
+        to: "/monitoring",
+        count: fleet!.pending,
+        label: fleet!.pending === 1 ? "Client unzugeordnet" : "Clients unzugeordnet",
+        tone: "info",
+      });
+    }
+    return items;
+  }, [summary.overdue, ticketSla, fleet]);
 
   async function toggleDone(task: TaskItem) {
     setBusyId(task.id);
@@ -170,47 +245,96 @@ export function DashboardPage() {
             <p className="muted">Offline-Stand – zuletzt synchronisierte Daten</p>
           ) : null}
         </div>
+        {!loading && attention.length ? (
+          <ul className="dash-attention" aria-label="Handlungsbedarf">
+            {attention.map((item) => (
+              <li key={`${item.to}-${item.label}`}>
+                <Link className={`dash-attention-chip is-${item.tone}`} to={item.to}>
+                  <strong>{item.count}</strong>
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : !loading ? (
+          <p className="dash-all-clear">Keine überfälligen Punkte</p>
+        ) : null}
       </header>
 
-      <section className="dash-kpis dash-kpis-compact" aria-label="Kennzahlen">
-        <Link className="dash-kpi" to="/customers">
-          <span className="dash-kpi-label">Kontakte</span>
-          <strong>{loading ? "–" : (stats?.activeCount ?? "–")}</strong>
-          <span className="dash-kpi-meta">aktiv</span>
-        </Link>
-        <div className={`dash-kpi${summary.today > 0 ? " is-warn" : ""}`}>
-          <span className="dash-kpi-label">Heute</span>
-          <strong>{loading ? "–" : summary.today}</strong>
-          <span className="dash-kpi-meta">
-            {summary.overdue > 0 ? `${summary.overdue} überfällig` : "Aufgaben"}
-          </span>
-        </div>
-        <Link className="dash-kpi" to="/tickets">
-          <span className="dash-kpi-label">Tickets</span>
-          <strong>{loading ? "–" : ticketOpen}</strong>
-          <span className="dash-kpi-meta">
-            {ticketSla > 0 ? `${ticketSla} SLA überfällig` : "offen"}
-          </span>
-        </Link>
-        <Link className="dash-kpi" to="/calendar">
-          <span className="dash-kpi-label">Termine</span>
-          <strong>{loading ? "–" : todayAppts.length}</strong>
-          <span className="dash-kpi-meta">{appointments.length} diese Woche</span>
-        </Link>
-        <Link className="dash-kpi" to="/tasks">
-          <span className="dash-kpi-label">Abläufe</span>
-          <strong>{loading ? "–" : reminderTotal}</strong>
-          <span className="dash-kpi-meta">30 Tage</span>
-        </Link>
+      <section className="dash-kpis dash-kpis-board" aria-label="Kennzahlen">
+        <DashKpi
+          to="/tickets"
+          label="Tickets"
+          value={loading ? "–" : ticketOpen}
+          meta={ticketSla > 0 ? `${ticketSla} SLA überfällig` : ticketWaiting ? `${ticketWaiting} wartet` : "offen"}
+          tone={ticketSla > 0 ? "danger" : ticketWaiting > 0 ? "warn" : ticketOpen > 0 ? "ok" : undefined}
+          meter={ticketOpen > 0 ? Math.round(((ticketSla || ticketWaiting) / ticketOpen) * 100) : 0}
+        />
+        <DashKpi
+          to="/tasks"
+          label="Aufgaben"
+          value={loading ? "–" : summary.today}
+          meta={summary.overdue > 0 ? `${summary.overdue} überfällig` : `${summary.open} offen`}
+          tone={summary.overdue > 0 ? "danger" : summary.today > 0 ? "warn" : undefined}
+          meter={summary.open > 0 ? Math.round((summary.overdue / summary.open) * 100) : 0}
+        />
+        <DashKpi
+          to="/calendar"
+          label="Termine"
+          value={loading ? "–" : todayApptCount}
+          meta={`${weekApptCount} diese Woche`}
+          tone={todayApptCount > 0 ? "ok" : undefined}
+          meter={weekApptCount > 0 ? Math.round((todayApptCount / Math.max(weekApptCount, 1)) * 100) : 0}
+        />
+        <DashKpi
+          to="/monitoring"
+          label="Flotte"
+          value={loading ? "–" : fleetAssigned}
+          meta={
+            (fleet?.warning ?? 0) > 0
+              ? `${fleet!.warning} mit Störung`
+              : fleetAssigned
+                ? `${fleet?.online ?? 0} online`
+                : "keine Agenten"
+          }
+          tone={(fleet?.warning ?? 0) > 0 ? "danger" : fleetAssigned ? "ok" : undefined}
+          meter={
+            fleetAssigned <= 0
+              ? 0
+              : (fleet?.warning ?? 0) > 0
+                ? Math.round((fleet!.warning / fleetAssigned) * 100)
+                : Math.round(((fleet?.online ?? 0) / fleetAssigned) * 100)
+          }
+        />
+        <DashKpi
+          to="/tasks"
+          label="Abläufe"
+          value={loading ? "–" : reminderTotal}
+          meta={
+            reminderWarranties || reminderContracts
+              ? `${reminderWarranties} Garantien · ${reminderContracts} Verträge`
+              : "30 Tage"
+          }
+          tone={reminderTotal > 0 ? "warn" : undefined}
+        />
+        <DashKpi
+          to="/customers"
+          label="Kontakte"
+          value={loading ? "–" : (stats?.activeCount ?? "–")}
+          meta="aktiv"
+        />
       </section>
 
-      <section className="dash-analytics dash-analytics-compact" aria-label="Diagramme">
+      <section className="dash-analytics dash-analytics-board" aria-label="Diagramme">
         <article className="panel dash-chart-card">
           <div className="dash-chart-head">
             <div>
               <h3>Aufgaben</h3>
-              <p className="muted">Offene To-dos</p>
+              <p className="muted">Offene To-dos nach Fälligkeit</p>
             </div>
+            <Link className="btn btn-ghost btn-sm" to="/tasks">
+              Alle
+            </Link>
           </div>
           {loading ? (
             <p className="empty">Lade…</p>
@@ -219,21 +343,49 @@ export function DashboardPage() {
           ) : (
             <div className="dash-chart-body is-split">
               <DonutChart
-                slices={
-                  statusSlices.length
-                    ? statusSlices
-                    : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
-                }
-                size={96}
-                thickness={7}
+                slices={taskSlices.length ? taskSlices : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]}
+                size={128}
+                thickness={12}
                 centerValue={summary.open}
                 centerLabel="offen"
               />
               <ChartLegend
+                slices={taskSlices.length ? taskSlices : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]}
+              />
+            </div>
+          )}
+        </article>
+
+        <article className="panel dash-chart-card">
+          <div className="dash-chart-head">
+            <div>
+              <h3>Tickets</h3>
+              <p className="muted">
+                {ticketSla > 0 ? `${ticketSla} über der SLA` : "Queue und Wartezeit"}
+              </p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/tickets">
+              Öffnen
+            </Link>
+          </div>
+          {loading ? (
+            <p className="empty">Lade…</p>
+          ) : ticketOpen === 0 ? (
+            <p className="empty">Keine offenen Tickets.</p>
+          ) : (
+            <div className="dash-chart-body is-split">
+              <DonutChart
+                slices={ticketSlices.length ? ticketSlices : [{ label: "Offen", value: ticketOpen, color: "#60a5fa" }]}
+                size={128}
+                thickness={12}
+                centerValue={ticketOpen}
+                centerLabel="offen"
+              />
+              <ChartLegend
                 slices={
-                  statusSlices.length
-                    ? statusSlices
-                    : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]
+                  ticketSlices.length
+                    ? ticketSlices
+                    : [{ label: "Offen", value: ticketOpen, color: "#60a5fa" }]
                 }
               />
             </div>
@@ -243,11 +395,57 @@ export function DashboardPage() {
         <article className="panel dash-chart-card">
           <div className="dash-chart-head">
             <div>
+              <h3>Flotte</h3>
+              <p className="muted">
+                {(fleet?.warning ?? 0) > 0
+                  ? `${fleet!.warning} mit Störung`
+                  : "Online und Offline"}
+              </p>
+            </div>
+            <Link className="btn btn-ghost btn-sm" to="/monitoring">
+              Öffnen
+            </Link>
+          </div>
+          {loading ? (
+            <p className="empty">Lade…</p>
+          ) : fleetAssigned === 0 && !(fleet?.pending ?? 0) ? (
+            <p className="empty">Noch keine Agenten.</p>
+          ) : (
+            <div className="dash-chart-body is-split">
+              <DonutChart
+                slices={
+                  fleetSlices.length
+                    ? fleetSlices
+                    : [{ label: "Geräte", value: fleetAssigned || 1, color: "#34d399" }]
+                }
+                size={128}
+                thickness={12}
+                centerValue={(fleet?.warning ?? 0) > 0 ? fleet!.warning : fleetAssigned}
+                centerLabel={(fleet?.warning ?? 0) > 0 ? "Störung" : "Geräte"}
+              />
+              <ChartLegend
+                slices={
+                  fleetSlices.length
+                    ? fleetSlices
+                    : [{ label: "Geräte", value: fleetAssigned, color: "#34d399" }]
+                }
+              />
+            </div>
+          )}
+        </article>
+
+        <article className="panel dash-chart-card dash-chart-week">
+          <div className="dash-chart-head">
+            <div>
               <h3>Woche</h3>
-              <p className="muted">Termine · 7 Tage</p>
+              <p className="muted">
+                {weekApptCount
+                  ? `${weekApptCount} Termin${weekApptCount === 1 ? "" : "e"} · heute ${todayApptCount}`
+                  : "Keine Termine in den nächsten 7 Tagen"}
+              </p>
             </div>
             <Link className="btn btn-ghost btn-sm" to="/calendar">
-              Öffnen
+              Kalender
             </Link>
           </div>
           {loading ? <p className="empty">Lade…</p> : <ColumnChart columns={weekColumns} />}
@@ -347,15 +545,40 @@ export function DashboardPage() {
   );
 }
 
+function DashKpi({
+  to,
+  label,
+  value,
+  meta,
+  tone,
+  meter,
+}: {
+  to: string;
+  label: string;
+  value: string | number;
+  meta: string;
+  tone?: "ok" | "warn" | "danger";
+  meter?: number;
+}) {
+  return (
+    <Link className={`dash-kpi${tone ? ` is-${tone}` : ""}`} to={to}>
+      <span className="dash-kpi-label">{label}</span>
+      <strong>{value}</strong>
+      <span className="dash-kpi-meta">{meta}</span>
+      {meter != null ? (
+        <span className="dash-kpi-meter" aria-hidden>
+          <i style={{ width: `${Math.min(100, Math.max(0, meter))}%` }} />
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
 function ApptRow({ appointment: a, today }: { appointment: AppointmentItem; today?: boolean }) {
   return (
     <Link className="dash-side-row" to="/calendar">
       <span className={`dash-side-when${today ? " is-today" : ""}`}>
-        {today
-          ? a.allDay
-            ? "Ganztägig"
-            : a.startTime?.slice(0, 5) || "–"
-          : formatDateOnly(a.startDate)}
+        {today ? (a.allDay ? "Ganztägig" : a.startTime?.slice(0, 5) || "–") : formatDateOnly(a.startDate)}
       </span>
       <span className="dash-side-body">
         <strong>{a.title}</strong>

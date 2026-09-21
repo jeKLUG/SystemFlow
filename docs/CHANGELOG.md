@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.5.189 – 2026-09-21
+
+- Staff-Start: Lage auf einen Blick – sechs Kennzahlen, Donuts für Aufgaben/Tickets/Flotte, Wochenbalken, Handlungsbedarf oben
+
+## 1.5.188 – 2026-09-21
+
+- Monitoring Gerät: Ausstattung kompakter — Identität unter dem Modell, LAN statt APIPA, Grafik ohne USB-Dongle, Gateway/DNS als Faktenzeile
+
+## 1.5.187 – 2026-09-21
+
+- Monitoring: Warnungen als kompakte Zeilen; am Gerät aktuelle Störungen statt der konfigurierten Ticket-Typen
+
+## 1.5.186 – 2026-09-21
+
+- Kundenportal Konto: Einstellungen über die volle Breite, Benachrichtigungen in drei Spalten
+
 ## 1.5.185 – 2026-09-21
 
 - Kundenportal Start: „Zuletzt aktualisiert“ zeigt nur die drei neuesten Tickets

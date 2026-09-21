@@ -29,6 +29,46 @@ function joinParts(parts: Array<string | null | undefined>): string {
   return parts.map((p) => p?.trim()).filter(Boolean).join(" · ");
 }
 
+function isApipa(ip: string): boolean {
+  return ip.startsWith("169.254.");
+}
+
+function isPrivateLan(ip: string): boolean {
+  if (ip.startsWith("10.") || ip.startsWith("192.168.")) return true;
+  const m = ip.match(/^172\.(\d+)\./);
+  if (!m) return false;
+  const n = Number(m[1]);
+  return n >= 16 && n <= 31;
+}
+
+/** Bevorzugt eine echte LAN-Adresse, APIPA nur als Notnagel. */
+function pickLanAddresses(ip?: string, ips?: string[], publicIp?: string) {
+  const all = [...new Set([ip, ...(ips ?? [])].filter((v): v is string => Boolean(v?.trim())))].filter(
+    (v) => v !== publicIp,
+  );
+  const lan = all.filter(isPrivateLan);
+  const apipa = all.filter(isApipa);
+  const other = all.filter((v) => !isPrivateLan(v) && !isApipa(v));
+  const primary = lan[0] || other[0] || apipa[0] || "";
+  const extras = [...lan, ...other].filter((v) => v !== primary);
+  return { primary, extras, apipaOnly: Boolean(primary && isApipa(primary) && !lan.length) };
+}
+
+function isVirtualGpu(name?: string): boolean {
+  return /displaylink|usb|remote|microsoft basic|virtual|mirror/i.test(name || "");
+}
+
+/** Bevorzugt eine eingebaute GPU, überspringt USB-/DisplayLink-Adapter. */
+function pickGpu(
+  gpus: NonNullable<MonitoringHardware["gpus"]>,
+  cpuName?: string,
+): NonNullable<MonitoringHardware["gpus"]>[number] | null {
+  const real = gpus.filter((g) => !isVirtualGpu(g.name));
+  if (real.length) return real[0];
+  if (/radeon|uhd|iris|vega|graphics/i.test(cpuName || "")) return null;
+  return gpus[0] ?? null;
+}
+
 /** Version und Verlag, ohne Doppelung mit dem Programmnamen. */
 function softwareMeta(item: SoftItem): string {
   const version = item.version?.trim() || "";
@@ -194,7 +234,7 @@ function sessionLine(session?: MonitoringSnapshot["session"]): string | null {
   if (!users.length) return session.lastLogon ? `Letzte Anmeldung ${session.lastLogon}` : null;
   const extra = users.length > 1 ? ` · ${users.length} Sitzungen` : "";
   const last = session.lastLogon ? ` · zuletzt ${session.lastLogon}` : "";
-  return `${users[0]}${extra}${last}`;
+  return `Angemeldet: ${users[0]}${extra}${last}`;
 }
 
 /**
@@ -230,7 +270,6 @@ export function MonitoringHardwarePanel({
   const sysName = hardware ? systemTitle(hardware.system) : "";
   const sysLine = joinParts([hardware?.system?.manufacturer, hardware?.system?.model]);
   const boardName = hardware?.board?.product?.trim() || "";
-  const boardMaker = hardware?.board?.manufacturer?.trim() || "";
   const boardSerial = hardware?.board?.serial?.trim() || "";
   const biosVersion = hardware?.bios?.version?.trim() || "";
   const biosDate = formatBiosDate(hardware?.bios?.date);
@@ -243,7 +282,6 @@ export function MonitoringHardwarePanel({
   const gpus = hardware?.gpus ?? [];
   const nics = hardware?.nics ?? [];
   const userLine = sessionLine(session);
-  const lanIp = ip || ips?.[0] || "";
   const hasNet = Boolean(
     network?.publicIp ||
       network?.gateway ||
@@ -335,9 +373,29 @@ export function MonitoringHardwarePanel({
     hottestDisk ? `${Math.round(hottestDisk.usedPct)} % belegt` : null,
   ]);
 
-  const gpu = gpus[0];
-  const nic = nics[0];
+  const gpu = pickGpu(gpus, cpu?.name);
   const dns = (network?.dns ?? []).filter(Boolean);
+  const lan = pickLanAddresses(ip, ips, network?.publicIp || undefined);
+  const ident = joinParts([
+    hardware?.system?.manufacturer,
+    sysLine && sysLine !== sysName ? hardware?.system?.model : null,
+    boardName && boardName !== sysName && boardName !== hardware?.system?.model ? boardName : null,
+    systemSerial ? `SN ${systemSerial}` : boardSerial ? `SN ${boardSerial}` : null,
+    systemSerial && boardSerial && boardSerial !== systemSerial ? `Platine ${boardSerial}` : null,
+    biosVersion ? `BIOS ${biosVersion}` : biosDate,
+    biosVersion && biosDate ? biosDate : null,
+  ]);
+  const lanMode = network?.dhcp == null ? null : network.dhcp ? "DHCP" : "Statisch";
+  const lanLabel = lanMode ? `LAN · ${lanMode}` : "LAN";
+  const lanSub = lan.apipaOnly
+    ? "Keine gültige LAN-Adresse (APIPA)"
+    : lan.extras.length
+      ? lan.extras.slice(0, 3).join(" · ")
+      : null;
+  const adapterHint = (network?.adapter || "").trim().toLowerCase();
+  const netFacts: { label: string; value: string }[] = [];
+  if (network?.gateway) netFacts.push({ label: "Gateway", value: network.gateway });
+  if (dns[0]) netFacts.push({ label: "DNS", value: [dns[0], ...dns.slice(1)].join(" · ") });
 
   return (
     <div className="mon-hw">
@@ -347,7 +405,7 @@ export function MonitoringHardwarePanel({
             <div>
               <p className="eyebrow">Ausstattung</p>
               <h3 className="mon-hw-model">{sysName || "Unbekanntes System"}</h3>
-              {sysLine && sysLine !== sysName ? <p className="muted">{sysLine}</p> : null}
+              {ident ? <p className="muted">{ident}</p> : sysLine && sysLine !== sysName ? <p className="muted">{sysLine}</p> : null}
               {userLine ? <p className="mon-hw-user">{userLine}</p> : null}
             </div>
             <div className="mon-hw-pills">
@@ -357,40 +415,6 @@ export function MonitoringHardwarePanel({
               ) : null}
             </div>
           </div>
-          {systemSerial || boardName || boardSerial || biosVersion ? (
-            <dl className="mon-hw-specs">
-              {systemSerial ? (
-                <div>
-                  <dt>Seriennummer</dt>
-                  <dd>{systemSerial}</dd>
-                </div>
-              ) : null}
-              {boardName || boardMaker ? (
-                <div>
-                  <dt>Mainboard</dt>
-                  <dd>{boardName || boardMaker}</dd>
-                  {boardName &&
-                  boardMaker &&
-                  boardMaker.toLowerCase() !== hardware?.system?.manufacturer?.toLowerCase() ? (
-                    <dd className="muted">{boardMaker}</dd>
-                  ) : null}
-                </div>
-              ) : null}
-              {boardSerial ? (
-                <div>
-                  <dt>Board-SN</dt>
-                  <dd>{boardSerial}</dd>
-                </div>
-              ) : null}
-              {biosVersion || biosDate ? (
-                <div>
-                  <dt>BIOS</dt>
-                  <dd>{biosVersion || biosDate}</dd>
-                  {biosVersion && biosDate ? <dd className="muted">{biosDate}</dd> : null}
-                </div>
-              ) : null}
-            </dl>
-          ) : null}
           <div className="mon-hw-cards">
             {cpu ? (
               <HwCard
@@ -421,13 +445,6 @@ export function MonitoringHardwarePanel({
                 sub={joinParts([gpu.vramBytes ? formatSize(gpu.vramBytes) : null, gpu.driver ? `Treiber ${gpu.driver}` : null])}
               />
             ) : null}
-            {nic ? (
-              <HwCard
-                label="Adapter"
-                value={nic.name?.replace(/\s+/g, " ") || "NIC"}
-                sub={joinParts([nic.speedMbps ? `${nic.speedMbps} Mbit/s` : null, nic.mac])}
-              />
-            ) : null}
           </div>
         </section>
       ) : (
@@ -437,33 +454,50 @@ export function MonitoringHardwarePanel({
       {hasNet ? (
         <div className="mon-hw-section">
           <h4>Netzwerk</h4>
-          <div className="mon-hw-cards mon-hw-net-cards">
-            <HwCard label="LAN" value={lanIp || ips?.[0] || "–"} sub={joinParts([network?.adapter, ips && ips.length > 1 ? ips.slice(1).join(" · ") : null])} />
-            <HwCard label="Öffentlich" value={network?.publicIp || "–"} sub={network?.publicIp ? "WAN-Adresse" : "Nicht ermittelt"} />
-            <HwCard label="Gateway" value={network?.gateway || "–"} />
-            <HwCard
-              label="DNS"
-              value={dns[0] || "–"}
-              sub={joinParts([dns.slice(1).join(" · ") || null, network?.dhcp == null ? null : network.dhcp ? "DHCP" : "Statisch"])}
-            />
-          </div>
-          {network?.dhcp != null ? (
-            <p className="mon-hw-dhcp">
-              <span className={`mon-hw-health ${network.dhcp ? "is-ok" : "is-info"}`}>{network.dhcp ? "DHCP" : "Statisch"}</span>
-              {network.adapter ? <span className="muted"> {network.adapter}</span> : null}
-            </p>
+          {lan.primary || network?.publicIp ? (
+            <div className="mon-hw-cards mon-hw-net-cards">
+              <HwCard
+                label={lanLabel}
+                value={lan.primary || "–"}
+                sub={lanSub || (lan.primary ? null : "Keine Adresse")}
+                warn={lan.apipaOnly}
+              />
+              <HwCard
+                label="Öffentlich"
+                value={network?.publicIp || "–"}
+                sub={network?.publicIp ? "WAN-Adresse" : "Nicht ermittelt"}
+              />
+            </div>
           ) : null}
-          {nics.length > 1 ? (
-            <ul className="mon-hw-nics">
-              {nics.map((n, i) => (
-                <li key={`${n.mac}-${i}`}>
-                  <strong>{n.name || "NIC"}</strong>
-                  <span className="muted">
-                    {joinParts([n.manufacturer, n.speedMbps ? `${n.speedMbps} Mbit/s` : null, n.mac])}
-                  </span>
-                </li>
+          {netFacts.length ? (
+            <dl className="mon-hw-net-facts">
+              {netFacts.map((fact) => (
+                <div key={fact.label}>
+                  <dt>{fact.label}</dt>
+                  <dd>{fact.value}</dd>
+                </div>
               ))}
+            </dl>
+          ) : null}
+          {nics.length ? (
+            <>
+              <p className="mon-hw-nics-label">Adapter</p>
+              <ul className="mon-hw-nics">
+              {nics.map((n, i) => {
+                const name = n.name?.replace(/\s+/g, " ") || "Adapter";
+                const active = Boolean(
+                  adapterHint && (name.toLowerCase().includes(adapterHint) || adapterHint.includes(name.toLowerCase())),
+                );
+                return (
+                  <li key={`${n.mac}-${i}`} className={active ? "is-active" : undefined}>
+                    <strong title={name}>{name}</strong>
+                    <span className="mon-hw-nic-speed">{n.speedMbps ? `${n.speedMbps} Mbit/s` : "–"}</span>
+                    <span className="muted">{n.mac || n.manufacturer || ""}</span>
+                  </li>
+                );
+              })}
             </ul>
+            </>
           ) : null}
         </div>
       ) : null}

@@ -57,7 +57,7 @@ export function monitoringAlertEnabledCount(cfg: MonitoringAlertConfig): number 
   return monitoringIssueKinds.filter((kind) => cfg[kind].enabled).length;
 }
 
-/** Kurzlabels der aktiven Warnungen für die Geräteliste. */
+/** Kurzlabels der eingeschalteten Ticket-Typen. */
 export function monitoringAlertSummary(cfg: MonitoringAlertConfig): string[] {
   return monitoringIssueKinds.filter((kind) => cfg[kind].enabled).map((kind) => kindMeta[kind].title);
 }

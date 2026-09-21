@@ -249,9 +249,9 @@ export function MonitoringPage() {
 
       <section className="panel mon-panel" aria-label="Aktive Warnungen">
         <div className="section-head row-between">
-          <div>
+          <div className="page-head-title">
             <h2>Aktive Warnungen</h2>
-            <p>Zum Kunden, Gerät oder Ticket springen</p>
+            <HelpHint text="Geräte mit aktuellen Störungen. Klick öffnet das Gerät, die Nummer das Ticket." />
           </div>
           <span className={`mon-count-badge${(overview?.problems.length ?? 0) > 0 ? " is-warn" : ""}`}>
             {loading ? "…" : overview?.problems.length ?? 0}
