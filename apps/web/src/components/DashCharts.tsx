@@ -167,6 +167,7 @@ export function ColumnChart({
  */
 export function ChartLegend({ slices }: { slices: Slice[] }) {
   const total = slices.reduce((s, x) => s + x.value, 0) || 1;
+  const showPct = slices.length > 1;
   return (
     <ul className="dash-legend">
       {slices.map((s) => (
@@ -175,7 +176,7 @@ export function ChartLegend({ slices }: { slices: Slice[] }) {
           <span className="dash-legend-label">{s.label}</span>
           <span className="dash-legend-stats">
             <strong>{s.value}</strong>
-            <small>{Math.round((s.value / total) * 100)}%</small>
+            {showPct ? <small>{Math.round((s.value / total) * 100)}%</small> : null}
           </span>
         </li>
       ))}

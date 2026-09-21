@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #080d16;
   --bg-elevated: #101826;
   --surface: #121b29;
@@ -7515,6 +7515,10 @@ input[type="checkbox"]:not(.check-input):checked {
     grid-template-columns: 1fr;
   }
 
+  .dash-analytics.dash-analytics-board {
+    grid-template-columns: 1fr;
+  }
+
   .dash-analytics-board .dash-chart-card,
   .dash-analytics-board .dash-chart-card:nth-child(n),
   .dash-analytics-board .dash-chart-week,
@@ -13720,39 +13724,8 @@ button.agenda-item {
 }
 
 .dash-analytics-board {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
   margin-bottom: 0;
-}
-
-.dash-analytics-board .dash-chart-card,
-.dash-analytics-board .dash-chart-card:nth-child(n) {
-  grid-column: auto;
-  min-height: 16.25rem;
-  padding: 1.05rem 1.1rem 1.1rem;
-  margin-bottom: 0;
-}
-
-.dash-analytics-board .dash-chart-week,
-.dash-analytics-board .dash-chart-week:nth-child(n) {
-  grid-column: 1 / -1;
-  min-height: 14.5rem;
-}
-
-.dash-analytics-board .dash-chart-week .dash-cols {
-  min-height: 10rem;
-}
-
-.dash-analytics-board .dash-chart-week .dash-col-bar-wrap {
-  min-height: 7.25rem;
-}
-
-.dash-analytics-board .dash-donut-center strong {
-  font-size: 1.45rem;
-}
-
-.dash-analytics-board .dash-legend {
-  gap: 0.5rem;
 }
 
 .dash-kpis {
@@ -13872,6 +13845,60 @@ a.dash-kpi:hover,
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: 0.85rem;
   margin-bottom: 1rem;
+}
+
+.dash-analytics.dash-analytics-board {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0;
+}
+
+.dash-analytics.dash-analytics-board .dash-chart-card,
+.dash-analytics.dash-analytics-board .dash-chart-card:nth-child(n) {
+  grid-column: auto;
+  min-height: 0;
+  padding: 1rem 1.05rem 1.05rem;
+}
+
+.dash-analytics.dash-analytics-board .dash-chart-week,
+.dash-analytics.dash-analytics-board .dash-chart-week:nth-child(n) {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+.dash-analytics.dash-analytics-board .dash-chart-body.is-split {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.85rem;
+}
+
+.dash-analytics.dash-analytics-board .dash-legend {
+  width: 100%;
+  max-width: 14rem;
+  gap: 0.38rem;
+}
+
+.dash-analytics.dash-analytics-board .dash-chart-week .dash-cols {
+  min-height: 7.25rem;
+}
+
+.dash-analytics.dash-analytics-board .dash-chart-week .dash-col-bar-wrap {
+  min-height: 4.4rem;
+}
+
+.dash-chart-go {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.12rem;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.dash-chart-go:hover {
+  text-decoration: underline;
 }
 
 .dash-analytics-compact {
@@ -14265,12 +14292,12 @@ a.dash-kpi:hover,
     grid-column: span 6;
   }
 
-  .dash-analytics-board {
+  .dash-analytics.dash-analytics-board {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
-  .dash-analytics-board .dash-chart-card,
-  .dash-analytics-board .dash-chart-card:nth-child(n),
+  .dash-analytics.dash-analytics-board .dash-chart-card,
+  .dash-analytics.dash-analytics-board .dash-chart-card:nth-child(n),
   .dash-analytics:not(.dash-analytics-compact).dash-analytics-board .dash-chart-card,
   .dash-analytics:not(.dash-analytics-compact).dash-analytics-board .dash-chart-card:nth-child(1),
   .dash-analytics:not(.dash-analytics-compact).dash-analytics-board .dash-chart-card:nth-child(2),
@@ -14279,9 +14306,8 @@ a.dash-kpi:hover,
     grid-column: auto;
   }
 
-  .dash-analytics-board .dash-chart-week,
-  .dash-analytics-board .dash-chart-week:nth-child(n),
-  .dash-analytics:not(.dash-analytics-compact).dash-analytics-board .dash-chart-week {
+  .dash-analytics.dash-analytics-board .dash-chart-week,
+  .dash-analytics.dash-analytics-board .dash-chart-week:nth-child(n) {
     grid-column: 1 / -1;
   }
 
@@ -14318,6 +14344,10 @@ a.dash-kpi:hover,
   .dash-analytics:not(.dash-analytics-compact) .dash-chart-body.is-split {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .dash-analytics.dash-analytics-board {
+    grid-template-columns: 1fr;
   }
 
   .dash-cols {

@@ -330,9 +330,9 @@ export function DashboardPage() {
           <div className="dash-chart-head">
             <div>
               <h3>Aufgaben</h3>
-              <p className="muted">Offene To-dos nach Fälligkeit</p>
+              <p className="muted">Nach Fälligkeit</p>
             </div>
-            <Link className="btn btn-ghost btn-sm" to="/tasks">
+            <Link className="dash-chart-go" to="/tasks">
               Alle
             </Link>
           </div>
@@ -344,8 +344,8 @@ export function DashboardPage() {
             <div className="dash-chart-body is-split">
               <DonutChart
                 slices={taskSlices.length ? taskSlices : [{ label: "Offen", value: summary.open, color: "#60a5fa" }]}
-                size={128}
-                thickness={12}
+                size={112}
+                thickness={11}
                 centerValue={summary.open}
                 centerLabel="offen"
               />
@@ -364,7 +364,7 @@ export function DashboardPage() {
                 {ticketSla > 0 ? `${ticketSla} über der SLA` : "Queue und Wartezeit"}
               </p>
             </div>
-            <Link className="btn btn-ghost btn-sm" to="/tickets">
+            <Link className="dash-chart-go" to="/tickets">
               Öffnen
             </Link>
           </div>
@@ -376,8 +376,8 @@ export function DashboardPage() {
             <div className="dash-chart-body is-split">
               <DonutChart
                 slices={ticketSlices.length ? ticketSlices : [{ label: "Offen", value: ticketOpen, color: "#60a5fa" }]}
-                size={128}
-                thickness={12}
+                size={112}
+                thickness={11}
                 centerValue={ticketOpen}
                 centerLabel="offen"
               />
@@ -402,7 +402,7 @@ export function DashboardPage() {
                   : "Online und Offline"}
               </p>
             </div>
-            <Link className="btn btn-ghost btn-sm" to="/monitoring">
+            <Link className="dash-chart-go" to="/monitoring">
               Öffnen
             </Link>
           </div>
@@ -418,8 +418,8 @@ export function DashboardPage() {
                     ? fleetSlices
                     : [{ label: "Geräte", value: fleetAssigned || 1, color: "#34d399" }]
                 }
-                size={128}
-                thickness={12}
+                size={112}
+                thickness={11}
                 centerValue={(fleet?.warning ?? 0) > 0 ? fleet!.warning : fleetAssigned}
                 centerLabel={(fleet?.warning ?? 0) > 0 ? "Störung" : "Geräte"}
               />
@@ -444,7 +444,7 @@ export function DashboardPage() {
                   : "Keine Termine in den nächsten 7 Tagen"}
               </p>
             </div>
-            <Link className="btn btn-ghost btn-sm" to="/calendar">
+            <Link className="dash-chart-go" to="/calendar">
               Kalender
             </Link>
           </div>

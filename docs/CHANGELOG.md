@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.192 – 2026-09-21
+
+- Staff-Start: Diagramme füllen die Breite, Donut und Legende untereinander, Woche kompakter
+
 ## 1.5.191 – 2026-09-21
 
 - Monitoring Gerät: Datenträger als Karten – Belegt/Frei/Gesamt, dicker Balken, Modell und Schnittstelle als Chips
