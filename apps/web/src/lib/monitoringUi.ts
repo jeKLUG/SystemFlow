@@ -14,6 +14,7 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   firewall: "Firewall",
   crash: "Absturz",
   lan: "Netz",
+  ping: "Ping",
 };
 
 /**
@@ -22,18 +23,31 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
 export function deviceIssueChips(d: {
   issues: MonitoringIssueKind[];
   diskIssues?: { id: string; name: string }[];
+  pingIssues?: { id: string; host: string; label?: string }[];
 }): string[] {
-  const parts = d.issues.filter((i) => i !== "disk").map((i) => monitoringIssueLabel[i]);
+  const parts = d.issues.filter((i) => i !== "disk" && i !== "ping").map((i) => monitoringIssueLabel[i]);
   for (const disk of d.diskIssues ?? []) parts.push(`Datenträger ${disk.name}`);
   if (d.issues.includes("disk") && !(d.diskIssues ?? []).length) parts.push(monitoringIssueLabel.disk);
+  for (const ping of d.pingIssues ?? []) parts.push(`Ping ${ping.label || ping.host}`);
+  if (d.issues.includes("ping") && !(d.pingIssues ?? []).length) parts.push(monitoringIssueLabel.ping);
   return parts.length ? parts : ["Problem"];
 }
 
 export function deviceIssueText(d: {
   issues: MonitoringIssueKind[];
   diskIssues?: { id: string; name: string }[];
+  pingIssues?: { id: string; host: string; label?: string }[];
 }): string {
   return deviceIssueChips(d).join(", ");
+}
+
+/** Kurztext für ein Monitoring-Ticket (Laufwerk, Ping-Ziel oder Typ). */
+export function ticketIssueHint(t: {
+  kind: MonitoringIssueKind;
+  diskId?: string;
+  pingHost?: string;
+}): string {
+  return t.diskId ?? t.pingHost ?? monitoringIssueLabel[t.kind];
 }
 
 export function sampleTime(ts: string | number | Date): number {

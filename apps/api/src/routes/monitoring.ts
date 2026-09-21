@@ -31,14 +31,18 @@ import {
   hashesEqual,
   hashToken,
   hardwareAssetPatch,
-  loadAlertConfig,
   mapDeviceSummary,
   mapPendingAgent,
   matchInstalledSoftware,
   newAgentToken,
   parseAlertConfig,
+  parsePingTargets,
   parseIssues,
   parseSnapshot,
+  pingTargetsForAgent,
+  normalizePingTargets,
+  isValidPingHost,
+  serializePingTargets,
   primaryIp,
   rotateEnrollmentKey,
   sampleFromSnapshot,
@@ -259,6 +263,17 @@ const heartbeatBody = z.object({
       reason: z.string().max(200).optional(),
     })
     .optional(),
+  pings: z
+    .array(
+      z.object({
+        id: z.string().max(80),
+        host: z.string().max(253),
+        ok: z.boolean(),
+        ms: z.number().int().min(0).max(30_000).optional(),
+      }),
+    )
+    .max(8)
+    .optional(),
   services: z
     .array(
       z.object({
@@ -424,16 +439,30 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     const canRemoteUninstall = compareAgentVersions(reportedVersion || "0", "1.0.4") >= 0;
     if (agent.uninstallRequestedAt && canRemoteUninstall) {
       await purgeMonitoringAgent(db, agent);
-      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null };
+      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null, pingTargets: [] };
     }
 
     const now = new Date();
-    const config = await loadAlertConfig(db, agent.assetId);
-    const evald = evaluateHeartbeatIssues(snapshot, agent, config);
+    const assetRow = agent.assetId
+      ? await db.select().from(assets).where(eq(assets.id, agent.assetId)).get()
+      : undefined;
+    const config = parseAlertConfig(assetRow ?? undefined);
+    const pingTargets = parsePingTargets(assetRow);
+    const evald = evaluateHeartbeatIssues(snapshot, agent, config, pingTargets);
     const issues = evald.issues;
     const name = await deviceNameFor(db, agent);
     const ticketSync = agent.assetId
-      ? await syncAssignedAgentTickets(db, agent, issues, config, name, evald.firingDisks, now, snapshot)
+      ? await syncAssignedAgentTickets(
+          db,
+          agent,
+          issues,
+          config,
+          name,
+          evald.firingDisks,
+          now,
+          snapshot,
+          evald.firingPings,
+        )
       : { openTickets: {}, opened: [], closed: [] };
 
     await db.insert(monitoringSamples).values(sampleFromSnapshot(snapshot, agent.id, now));
@@ -467,7 +496,11 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         agentVersion: snapshot.agentVersion?.trim() || agent.agentVersion,
         lastSeenAt: now,
         lastSnapshotJson: JSON.stringify(snapshot),
-        currentIssuesJson: serializeDetectedIssues(issues, evald.firingDisks.map((d) => d.id)),
+        currentIssuesJson: serializeDetectedIssues(
+          issues,
+          evald.firingDisks.map((d) => d.id),
+          evald.failedPings.map((p) => p.id),
+        ),
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
         updateRequestedAt: versionCurrent && !agent.uninstallRequestedAt ? null : agent.updateRequestedAt,
@@ -476,19 +509,25 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       .where(eq(monitoringAgents.id, agent.id));
 
     if (agent.assetId) {
-      const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
-      if (asset) {
-        const patch: Partial<typeof asset> = { updatedAt: now };
-        Object.assign(patch, hardwareAssetPatch(asset, snapshot, ip));
+      if (assetRow) {
+        const patch: Partial<typeof assetRow> = { updatedAt: now };
+        Object.assign(patch, hardwareAssetPatch(assetRow, snapshot, ip));
         if (Object.keys(patch).length > 1) {
-          await db.update(assets).set(patch).where(eq(assets.id, asset.id));
+          await db.update(assets).set(patch).where(eq(assets.id, assetRow.id));
         }
       }
     }
 
     await emitMonitoringTicketMails(db, ticketSync);
 
-    return { ok: true, assigned: Boolean(agent.assetId), updateNow, uninstall: Boolean(agent.uninstallRequestedAt), latestAgent };
+    return {
+      ok: true,
+      assigned: Boolean(agent.assetId),
+      updateNow,
+      uninstall: Boolean(agent.uninstallRequestedAt),
+      latestAgent,
+      pingTargets: pingTargetsForAgent(pingTargets),
+    };
   });
 
   app.get("/api/monitoring/agent/latest", async (request, reply) => {
@@ -972,7 +1011,18 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
               firewall: kindAlertZ.optional(),
               crash: kindAlertZ.optional(),
               lan: kindAlertZ.optional(),
+              ping: kindAlertZ.optional(),
             })
+            .optional(),
+          pingTargets: z
+            .array(
+              z.object({
+                id: z.string().max(40).optional(),
+                host: z.string().min(1).max(253),
+                label: z.string().max(80).optional(),
+              }),
+            )
+            .max(8)
             .optional(),
         })
         .safeParse(request.body);
@@ -992,16 +1042,24 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         config = emptyAlertConfig(parsed.data.monitoringAlertEnabled);
       }
       const alertEnabled = anyAlertEnabled(config);
+      let pingTargets = parsePingTargets(asset);
+      if (parsed.data.pingTargets) {
+        if (parsed.data.pingTargets.some((t) => !isValidPingHost(t.host))) {
+          return reply.code(400).send({ error: "Keine gültige IP oder Hostname" });
+        }
+        pingTargets = normalizePingTargets(parsed.data.pingTargets);
+      }
       const updated = {
         monitoringEnabled:
           parsed.data.monitoringEnabled ?? (alertEnabled ? true : asset.monitoringEnabled),
         monitoringAlertEnabled: alertEnabled,
         monitoringAlertsJson: serializeAlertConfig(config),
+        monitoringPingTargetsJson: serializePingTargets(pingTargets),
         updatedAt: new Date(),
       };
       await db.update(assets).set(updated).where(eq(assets.id, assetId));
       await refreshTicketsForAsset(db, assetId);
-      return { ...asset, ...updated, monitoringAlerts: config };
+      return { ...asset, ...updated, monitoringAlerts: config, pingTargets };
     });
   });
 }

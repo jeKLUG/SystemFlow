@@ -210,6 +210,8 @@ export const assets = sqliteTable("assets", {
     .default(false),
   /** Pro Warnungstyp: aktiv + Ticket-Priorität, JSON. */
   monitoringAlertsJson: text("monitoring_alerts_json").notNull().default("{}"),
+  /** ICMP-Ziele, die der zugeordnete Agent anpingt, JSON `{id,host,label?}[]`. */
+  monitoringPingTargetsJson: text("monitoring_ping_targets_json").notNull().default("[]"),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
@@ -635,6 +637,7 @@ export const monitoringIssueKinds = [
   "firewall",
   "crash",
   "lan",
+  "ping",
 ] as const;
 export type MonitoringIssueKind = (typeof monitoringIssueKinds)[number];
 

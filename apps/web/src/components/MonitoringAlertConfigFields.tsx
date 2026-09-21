@@ -32,6 +32,7 @@ const kindMeta: Record<MonitoringIssueKind, { title: string; hint: string }> = {
   firewall: { title: "Firewall aus", hint: "Aktives Windows-Profil bzw. ufw/firewalld inaktiv" },
   crash: { title: "Unerwarteter Neustart", hint: "Dirty Shutdown, Stromverlust oder Bluescreen" },
   lan: { title: "Gateway/DNS", hint: "Gateway ping oder Namensauflösung schlägt fehl" },
+  ping: { title: "Ping fehlgeschlagen", hint: "Ein eingerichtetes Ping-Ziel antwortet nicht" },
 };
 
 const priorities: TicketPriority[] = ["low", "normal", "high", "critical"];

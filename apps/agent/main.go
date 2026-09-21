@@ -17,11 +17,12 @@ var embeddedAgentVersion string
 var agentVersion = strings.TrimSpace(embeddedAgentVersion)
 
 type config struct {
-	ServerURL       string `json:"serverUrl"`
-	EnrollmentKey   string `json:"enrollmentKey"`
-	Token           string `json:"token,omitempty"`
-	AgentID         string `json:"agentId,omitempty"`
-	LastUpdateCheck string `json:"lastUpdateCheck,omitempty"`
+	ServerURL       string       `json:"serverUrl"`
+	EnrollmentKey   string       `json:"enrollmentKey"`
+	Token           string       `json:"token,omitempty"`
+	AgentID         string       `json:"agentId,omitempty"`
+	LastUpdateCheck string       `json:"lastUpdateCheck,omitempty"`
+	PingTargets     []PingTarget `json:"pingTargets,omitempty"`
 }
 
 func defaultConfigPath() string {
@@ -87,6 +88,8 @@ func runLoop(cfgPath string) error {
 		}
 	}
 
+	applyPingTargets(cfgPath, cfg, cfg.PingTargets, false)
+
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
@@ -99,9 +102,13 @@ func runLoop(cfgPath string) error {
 				_ = enroll(cfgPath, cfg)
 				if next, e := loadConfig(cfgPath); e == nil {
 					*cfg = *next
+					applyPingTargets(cfgPath, cfg, cfg.PingTargets, false)
 				}
 			}
 			return false
+		}
+		if hb.PingTargets != nil {
+			applyPingTargets(cfgPath, cfg, hb.PingTargets, true)
 		}
 		if maybeRemoteUninstall(cfgPath, hb) {
 			return true

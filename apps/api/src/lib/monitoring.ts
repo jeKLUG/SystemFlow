@@ -1,4 +1,5 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { and, eq, lt } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import {
@@ -35,6 +36,11 @@ const SETTINGS_ID = "default";
 
 export const DISK_WARN_USED_DEFAULT = 100 - DISK_FREE_MIN_PCT;
 export const DISK_ISSUE_PREFIX = "disk:";
+export const PING_ISSUE_PREFIX = "ping:";
+export const MAX_PING_TARGETS = 8;
+const PING_ID_RE = /^ping_[a-f0-9]{16}$/;
+const PING_HOSTNAME_RE =
+  /^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
 export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   offline: "Offline",
@@ -50,6 +56,7 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   firewall: "Firewall aus",
   crash: "Unerwarteter Neustart",
   lan: "Gateway/DNS",
+  ping: "Ping fehlgeschlagen",
 };
 
 export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = {
@@ -66,6 +73,7 @@ export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = 
   firewall: "high",
   crash: "high",
   lan: "high",
+  ping: "high",
 };
 
 export type KindAlert = { enabled: boolean; priority: TicketPriority };
@@ -80,6 +88,9 @@ export type AlertConfig = {
 };
 export type OpenTicketMap = Record<string, string>;
 export type FiringDisk = { id: string; name: string; usedPct: number; warnUsedPct: number };
+export type PingTarget = { id: string; host: string; label?: string };
+export type PingResult = { id: string; host: string; ok: boolean; ms?: number };
+export type FiringPing = { id: string; host: string; label?: string };
 export type MonitoringTicketSync = {
   openTickets: OpenTicketMap;
   opened: Ticket[];
@@ -157,6 +168,7 @@ export function emptyAlertConfig(allEnabled = false): AlertConfig {
     firewall: { enabled: allEnabled, priority: defaultKindPriority.firewall },
     crash: { enabled: allEnabled, priority: defaultKindPriority.crash },
     lan: { enabled: allEnabled, priority: defaultKindPriority.lan },
+    ping: { enabled: allEnabled, priority: defaultKindPriority.ping },
   };
 }
 
@@ -198,6 +210,85 @@ export function diskIdFromTicketKey(key: string): string | null {
     return key.slice(DISK_ISSUE_PREFIX.length);
   }
   return null;
+}
+
+/**
+ * ICMP-Ziel: IPv4, IPv6 oder Hostname ohne Shell-Metazeichen.
+ */
+export function isValidPingHost(raw: string): boolean {
+  let host = raw.trim();
+  if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+  if (!host || host.length > 253) return false;
+  if (/[\s;|&$<>`"'\\/%]/.test(host)) return false;
+  if (isIP(host)) return host !== "0.0.0.0" && host !== "::";
+  return PING_HOSTNAME_RE.test(host);
+}
+
+export function pingTicketKey(pingId: string): string {
+  return `${PING_ISSUE_PREFIX}${pingId}`;
+}
+
+export function pingIdFromTicketKey(key: string): string | null {
+  if (key.startsWith(PING_ISSUE_PREFIX) && key.length > PING_ISSUE_PREFIX.length) {
+    const id = key.slice(PING_ISSUE_PREFIX.length);
+    return PING_ID_RE.test(id) ? id : null;
+  }
+  return null;
+}
+
+export function pingDisplayName(target: Pick<PingTarget, "host" | "label">): string {
+  return target.label?.trim() || target.host;
+}
+
+/**
+ * Liest und normalisiert Ping-Ziele eines Inventar-Eintrags (max. 8).
+ */
+export function parsePingTargets(
+  asset: Pick<Asset, "monitoringPingTargetsJson"> | null | undefined,
+): PingTarget[] {
+  if (!asset?.monitoringPingTargetsJson) return [];
+  try {
+    const raw = JSON.parse(asset.monitoringPingTargetsJson) as unknown;
+    return normalizePingTargets(raw);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Validiert Ping-Ziele; vergibt IDs, entfernt Duplikate und ungültige Hosts.
+ */
+export function normalizePingTargets(raw: unknown): PingTarget[] {
+  if (!Array.isArray(raw)) return [];
+  const seenHost = new Set<string>();
+  const seenId = new Set<string>();
+  const out: PingTarget[] = [];
+  for (const row of raw) {
+    if (out.length >= MAX_PING_TARGETS) break;
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const item = row as { id?: unknown; host?: unknown; label?: unknown };
+    let host = typeof item.host === "string" ? item.host.trim() : "";
+    if (host.startsWith("[") && host.endsWith("]")) host = host.slice(1, -1);
+    if (!isValidPingHost(host)) continue;
+    const hostKey = host.toLowerCase();
+    if (seenHost.has(hostKey)) continue;
+    let id = typeof item.id === "string" ? item.id.trim() : "";
+    if (!PING_ID_RE.test(id) || seenId.has(id)) id = createId("ping");
+    seenHost.add(hostKey);
+    seenId.add(id);
+    const label = typeof item.label === "string" ? item.label.trim().slice(0, 80) : "";
+    out.push(label ? { id, host, label } : { id, host });
+  }
+  return out;
+}
+
+export function serializePingTargets(targets: PingTarget[]): string {
+  return JSON.stringify(targets);
+}
+
+/** Ziele für die Heartbeat-Antwort (ohne Label). */
+export function pingTargetsForAgent(targets: PingTarget[]): { id: string; host: string }[] {
+  return targets.map((t) => ({ id: t.id, host: t.host }));
 }
 
 export function volumeAlertFor(config: AlertConfig, diskId: string): VolumeAlert & { priority: TicketPriority } {
@@ -271,7 +362,11 @@ export function anyAlertEnabled(cfg: AlertConfig): boolean {
 }
 
 function isTicketKey(key: string): boolean {
-  return monitoringIssueKinds.includes(key as MonitoringIssueKind) || diskIdFromTicketKey(key) != null;
+  return (
+    monitoringIssueKinds.includes(key as MonitoringIssueKind) ||
+    diskIdFromTicketKey(key) != null ||
+    pingIdFromTicketKey(key) != null
+  );
 }
 
 export function parseOpenTickets(raw: string | null | undefined): OpenTicketMap {
@@ -448,6 +543,7 @@ export type AgentSnapshot = {
   defender?: DefenderSnapshot;
   firewall?: FirewallSnapshot;
   crash?: CrashSnapshot;
+  pings?: PingResult[];
   /** z.B. `windows-amd64` – vom Agent gemeldet. */
   platform?: string;
 };
@@ -499,6 +595,8 @@ export function parseIssues(raw: string | null | undefined): MonitoringIssueKind
       kinds.add(token as MonitoringIssueKind);
     } else if (diskIdFromTicketKey(token)) {
       kinds.add("disk");
+    } else if (pingIdFromTicketKey(token)) {
+      kinds.add("ping");
     }
   }
   return monitoringIssueKinds.filter((k) => kinds.has(k));
@@ -513,15 +611,22 @@ export function diskIdsFromTokens(raw: string | null | undefined): string[] {
   return ids;
 }
 
-/** Speichert Typen plus `disk:<id>` je voll laufendem Laufwerk. */
-export function serializeDetectedIssues(kinds: MonitoringIssueKind[], diskIds: string[]): string {
+/** Speichert Typen plus `disk:<id>` und `ping:<id>` je ausgelöster Warnung. */
+export function serializeDetectedIssues(
+  kinds: MonitoringIssueKind[],
+  diskIds: string[],
+  pingIds: string[] = [],
+): string {
   const tokens: string[] = [];
   for (const kind of kinds) {
-    if (kind === "disk") continue;
+    if (kind === "disk" || kind === "ping") continue;
     tokens.push(kind);
   }
   for (const id of diskIds) {
     if (id) tokens.push(diskTicketKey(id));
+  }
+  for (const id of pingIds) {
+    if (id) tokens.push(pingTicketKey(id));
   }
   return JSON.stringify([...new Set(tokens)]);
 }
@@ -587,15 +692,35 @@ export function firingDisksFrom(disks: DiskSnapshot[] | undefined, config: Alert
 }
 
 /**
+ * Konfigurierte Ping-Ziele ohne Antwort.
+ */
+export function failedPingsFrom(
+  results: PingResult[] | undefined,
+  targets: PingTarget[],
+): FiringPing[] {
+  if (!targets.length) return [];
+  const byId = new Map((results ?? []).map((r) => [r.id, r]));
+  const out: FiringPing[] = [];
+  for (const t of targets) {
+    const row = byId.get(t.id);
+    if (row && row.ok === false) out.push({ id: t.id, host: t.host, label: t.label });
+  }
+  return out;
+}
+
+/**
  * Schwellwerte aus dem letzten Heartbeat (ohne Offline).
  */
 export function evaluateHeartbeatIssues(
   snapshot: AgentSnapshot,
   agent: Pick<MonitoringAgent, "cpuHighStreak" | "ramHighStreak">,
   config: AlertConfig,
+  pingTargets: PingTarget[] = [],
 ): {
   issues: MonitoringIssueKind[];
   firingDisks: FiringDisk[];
+  firingPings: FiringPing[];
+  failedPings: FiringPing[];
   cpuHighStreak: number;
   ramHighStreak: number;
 } {
@@ -628,7 +753,11 @@ export function evaluateHeartbeatIssues(
   if (snapshot.crash?.unexpected) issues.push("crash");
   if (lanProblem(snapshot.network)) issues.push("lan");
 
-  return { issues, firingDisks, cpuHighStreak, ramHighStreak };
+  const failedPings = failedPingsFrom(snapshot.pings, pingTargets);
+  if (failedPings.length) issues.push("ping");
+  const firingPings = config.ping.enabled ? failedPings : [];
+
+  return { issues, firingDisks, firingPings, failedPings, cpuHighStreak, ramHighStreak };
 }
 
 const SIGNATURES_STALE_HOURS = 168;
@@ -661,8 +790,9 @@ function lanProblem(net?: NetworkSnapshot | null): boolean {
   return false;
 }
 
-function issueTitle(deviceName: string, kind: MonitoringIssueKind, diskName?: string): string {
-  if (kind === "disk" && diskName) return `[Monitoring] ${deviceName} — Datenträger ${diskName} voll`;
+function issueTitle(deviceName: string, kind: MonitoringIssueKind, extraName?: string): string {
+  if (kind === "disk" && extraName) return `[Monitoring] ${deviceName} — Datenträger ${extraName} voll`;
+  if (kind === "ping" && extraName) return `[Monitoring] ${deviceName} — Ping ${extraName}`;
   return `[Monitoring] ${deviceName} — ${monitoringIssueLabel[kind]}`;
 }
 
@@ -713,17 +843,26 @@ function issueDetailFromSnapshot(snapshot: AgentSnapshot | null | undefined, kin
     ].filter(Boolean);
     return bits.join("; ");
   }
+  if (kind === "ping") {
+    return (snapshot.pings ?? [])
+      .filter((p) => p.ok === false)
+      .map((p) => p.host)
+      .join(", ");
+  }
   return "";
 }
 
 function issueDescription(
   deviceName: string,
   kind: MonitoringIssueKind,
-  diskName?: string,
+  extraName?: string,
   extra?: string,
 ): string {
-  if (kind === "disk" && diskName) {
-    return `Automatische Monitoring-Meldung für ${deviceName}: Datenträger ${diskName} über dem Schwellwert.`;
+  if (kind === "disk" && extraName) {
+    return `Automatische Monitoring-Meldung für ${deviceName}: Datenträger ${extraName} über dem Schwellwert.`;
+  }
+  if (kind === "ping" && extraName) {
+    return `Automatische Monitoring-Meldung für ${deviceName}: Ping ${extraName} ohne Antwort.`;
   }
   const base = `Automatische Monitoring-Meldung für ${deviceName}: ${monitoringIssueLabel[kind]}.`;
   return extra?.trim() ? `${base} ${extra.trim()}` : base;
@@ -787,7 +926,7 @@ type TicketSlot = {
 };
 
 /**
- * Ein offenes Ticket je Warnung; Datenträger je Laufwerk. Schließt Tickets, deren Warnung weg ist.
+ * Ein offenes Ticket je Warnung; Datenträger je Laufwerk, Ping je Ziel. Schließt Tickets, deren Warnung weg ist.
  * Heartbeat und Offline-Loop müssen denselben Agenten nicht parallel anfassen (siehe withAgentTicketLock).
  */
 export async function syncMonitoringTickets(
@@ -798,6 +937,7 @@ export async function syncMonitoringTickets(
   deviceName: string,
   firingDisks: FiringDisk[] = [],
   snapshot?: AgentSnapshot | null,
+  firingPings: FiringPing[] = [],
 ): Promise<MonitoringTicketSync> {
   const now = new Date();
   const authorId = await adminUserId(db);
@@ -816,10 +956,10 @@ export async function syncMonitoringTickets(
   const empty: MonitoringTicketSync = { openTickets: openMap, opened: [], closed: [] };
   if (!authorId || !agent.customerId) return empty;
 
-  const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && config[kind].enabled));
+  const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && kind !== "ping" && config[kind].enabled));
   const slots: TicketSlot[] = [];
   for (const kind of monitoringIssueKinds) {
-    if (kind === "disk") continue;
+    if (kind === "disk" || kind === "ping") continue;
     slots.push({
       key: kind,
       kind,
@@ -879,6 +1019,55 @@ export async function syncMonitoringTickets(
       enabled: config.disk.enabled,
       closeOk: `Die Warnung „${monitoringIssueLabel.disk}“ ist nicht mehr aktiv.`,
       closeOff: `Warnung „${monitoringIssueLabel.disk}“ am Gerät deaktiviert.`,
+    });
+  }
+
+  const firingPingIds = new Set(firingPings.map((p) => p.id));
+  const pingNames = new Map(firingPings.map((p) => [p.id, pingDisplayName(p)]));
+  const pingKeys = new Set<string>();
+  for (const ping of firingPings) {
+    const key = pingTicketKey(ping.id);
+    pingKeys.add(key);
+    const name = pingDisplayName(ping);
+    slots.push({
+      key,
+      kind: "ping",
+      priority: config.ping.priority,
+      title: issueTitle(deviceName, "ping", name),
+      description: issueDescription(deviceName, "ping", name),
+      firing: true,
+      enabled: config.ping.enabled,
+      closeOk: `Die Warnung für Ping ${name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Ping ${name} am Gerät deaktiviert.`,
+    });
+  }
+  for (const key of Object.keys(openMap)) {
+    const pingId = pingIdFromTicketKey(key);
+    if (!pingId || pingKeys.has(key)) continue;
+    const name = pingNames.get(pingId) ?? pingId;
+    slots.push({
+      key,
+      kind: "ping",
+      priority: config.ping.priority,
+      title: issueTitle(deviceName, "ping", name),
+      description: issueDescription(deviceName, "ping", name),
+      firing: firingPingIds.has(pingId),
+      enabled: config.ping.enabled,
+      closeOk: `Die Warnung für Ping ${name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Ping ${name} am Gerät deaktiviert.`,
+    });
+  }
+  if (openMap.ping) {
+    slots.push({
+      key: "ping",
+      kind: "ping",
+      priority: config.ping.priority,
+      title: issueTitle(deviceName, "ping"),
+      description: issueDescription(deviceName, "ping"),
+      firing: false,
+      enabled: config.ping.enabled,
+      closeOk: `Die Warnung „${monitoringIssueLabel.ping}“ ist nicht mehr aktiv.`,
+      closeOff: `Warnung „${monitoringIssueLabel.ping}“ am Gerät deaktiviert.`,
     });
   }
 
@@ -964,6 +1153,7 @@ export async function syncAssignedAgentTickets(
   firingDisks: FiringDisk[] = [],
   now = new Date(),
   snapshot?: AgentSnapshot | null,
+  firingPings: FiringPing[] = [],
 ): Promise<MonitoringTicketSync> {
   return withAgentTicketLock(agent.id, async () => {
     const fresh =
@@ -976,6 +1166,7 @@ export async function syncAssignedAgentTickets(
       deviceName,
       firingDisks,
       snapshot ?? parseSnapshot(fresh.lastSnapshotJson),
+      firingPings,
     );
     const firstTicket = Object.values(result.openTickets)[0] ?? null;
     await db
@@ -1254,16 +1445,36 @@ export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now =
   if (!agent.assetId || !agent.customerId || agent.uninstallRequestedAt) return;
   const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
   const config = parseAlertConfig(asset ?? undefined);
+  const pingTargets = parsePingTargets(asset ?? undefined);
   const online = isAgentOnline(agent.lastSeenAt, now);
   const snapshot = parseSnapshot(agent.lastSnapshotJson);
-  const stored = parseIssues(agent.currentIssuesJson).filter((k) => k !== "offline" && k !== "disk");
+  const stored = parseIssues(agent.currentIssuesJson).filter(
+    (k) => k !== "offline" && k !== "disk" && k !== "ping",
+  );
   const firingDisks = firingDisksFrom(snapshot?.disks, config);
+  const failedPings = failedPingsFrom(snapshot?.pings, pingTargets);
+  const firingPings = config.ping.enabled ? failedPings : [];
   const issues: MonitoringIssueKind[] = [...stored];
   if (firingDisks.length) issues.push("disk");
+  if (failedPings.length) issues.push("ping");
   if (!online) issues.unshift("offline");
   const name = asset?.name || agent.hostname || agent.machineId;
-  const ticketSync = await syncAssignedAgentTickets(db, agent, issues, config, name, firingDisks, now, snapshot);
-  const issuesJson = serializeDetectedIssues(issues, firingDisks.map((d) => d.id));
+  const ticketSync = await syncAssignedAgentTickets(
+    db,
+    agent,
+    issues,
+    config,
+    name,
+    firingDisks,
+    now,
+    snapshot,
+    firingPings,
+  );
+  const issuesJson = serializeDetectedIssues(
+    issues,
+    firingDisks.map((d) => d.id),
+    failedPings.map((p) => p.id),
+  );
   if (issuesJson !== (agent.currentIssuesJson || "[]")) {
     await db
       .update(monitoringAgents)
@@ -1368,6 +1579,7 @@ export async function mapDeviceSummary(
   packages?: Map<string, { version: string }>,
 ) {
   const config = parseAlertConfig(asset);
+  const pingTargets = parsePingTargets(asset);
   const detected = parseIssues(agent.currentIssuesJson);
   const online = isAgentOnline(agent.lastSeenAt, now);
   const snapshot = parseSnapshot(agent.lastSnapshotJson);
@@ -1375,6 +1587,8 @@ export async function mapDeviceSummary(
   const warn = issues.length > 0;
   const openMap = parseOpenTickets(agent.openTicketsJson);
   const firingDisks = firingDisksFrom(snapshot?.disks, config);
+  const failedPings = failedPingsFrom(snapshot?.pings, pingTargets);
+  const firingPings = config.ping.enabled ? failedPings : [];
   const platform = platformFromAgent({
     platform: snapshot?.platform,
     os: snapshot?.os ?? agent.os,
@@ -1387,11 +1601,12 @@ export async function mapDeviceSummary(
   const ticketRows: {
     kind: MonitoringIssueKind;
     diskId?: string;
+    pingHost?: string;
     ticketId: string;
     ticketNumber: string;
     priority: TicketPriority;
   }[] = [];
-  async function pushTicket(kind: MonitoringIssueKind, key: string, diskId?: string) {
+  async function pushTicket(kind: MonitoringIssueKind, key: string, extra?: { diskId?: string; pingHost?: string }) {
     const id = openMap[key];
     if (!id) return;
     const t = await db
@@ -1399,15 +1614,27 @@ export async function mapDeviceSummary(
       .from(tickets)
       .where(eq(tickets.id, id))
       .get();
-    if (t) ticketRows.push({ kind, diskId, ticketId: id, ticketNumber: t.number, priority: t.priority });
+    if (t) {
+      ticketRows.push({
+        kind,
+        diskId: extra?.diskId,
+        pingHost: extra?.pingHost,
+        ticketId: id,
+        ticketNumber: t.number,
+        priority: t.priority,
+      });
+    }
   }
   if (warn) {
     for (const kind of issues) {
-      if (kind === "disk") continue;
+      if (kind === "disk" || kind === "ping") continue;
       await pushTicket(kind, kind);
     }
     for (const disk of firingDisks) {
-      await pushTicket("disk", diskTicketKey(disk.id), disk.id);
+      await pushTicket("disk", diskTicketKey(disk.id), { diskId: disk.id });
+    }
+    for (const ping of firingPings) {
+      await pushTicket("ping", pingTicketKey(ping.id), { pingHost: pingDisplayName(ping) });
     }
   }
   return {
@@ -1425,10 +1652,12 @@ export async function mapDeviceSummary(
     online,
     alertEnabled: anyAlertEnabled(config),
     alertConfig: config,
+    pingTargets,
     monitoringEnabled: Boolean(asset?.monitoringEnabled),
     warning: warn,
     issues,
     diskIssues: firingDisks.map((d) => ({ id: d.id, name: d.name, usedPct: d.usedPct, warnUsedPct: d.warnUsedPct })),
+    pingIssues: firingPings.map((p) => ({ id: p.id, host: p.host, label: p.label })),
     tickets: ticketRows,
     ticketId: ticketRows[0]?.ticketId ?? null,
     ticketNumber: ticketRows[0]?.ticketNumber ?? null,

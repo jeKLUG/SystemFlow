@@ -7,27 +7,29 @@ import {
   monitoringAlertEnabledCount,
 } from "./MonitoringAlertConfigFields";
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
+import { MonitoringPingTargets } from "./MonitoringPingTargets";
 import {
   agentVersionAtLeast,
   deviceIssueChips,
   formatBytes,
   formatUptime,
-  monitoringIssueLabel,
   pct,
   relSeen,
   seriesFrom,
+  ticketIssueHint,
 } from "../lib/monitoringUi";
-import type { MonitoringAlertConfig, MonitoringDeviceDetail } from "../types";
+import type { MonitoringAlertConfig, MonitoringDeviceDetail, MonitoringPingTarget } from "../types";
 import { emptyMonitoringAlertConfig, monitoringDiskId } from "../types";
 
 /**
- * Gerätedetail: Warnungen, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
+ * Gerätedetail: Warnungen, Pings, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
  */
 export function MonitoringDeviceDetail({
   detail,
   rangeDays,
   onRange,
   onSaveAlerts,
+  onSavePings,
   onRequestUpdate,
   onRequestUninstall,
   updateBusy,
@@ -38,6 +40,7 @@ export function MonitoringDeviceDetail({
   rangeDays: number;
   onRange: (days: number) => void;
   onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
+  onSavePings?: (targets: MonitoringPingTarget[]) => void;
   onRequestUpdate: () => void;
   onRequestUninstall?: () => void;
   updateBusy: boolean;
@@ -80,7 +83,7 @@ export function MonitoringDeviceDetail({
           ) : null}
           {(device.tickets ?? []).map((t) => (
             <Link key={t.ticketId} className="btn btn-ghost btn-sm" to={`/tickets/${t.ticketId}`}>
-              {t.ticketNumber} · {t.diskId ?? monitoringIssueLabel[t.kind]}
+              {t.ticketNumber} · {ticketIssueHint(t)}
             </Link>
           ))}
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAlertsOpen(true)}>
@@ -159,6 +162,16 @@ export function MonitoringDeviceDetail({
           <strong>{formatUptime(device.uptimeSec)}</strong>
         </div>
       </div>
+
+      {onSavePings ? (
+        <MonitoringPingTargets
+          targets={device.pingTargets ?? []}
+          results={snapshot?.pings}
+          agentVersion={device.agentVersion}
+          busy={updateBusy || uninstallBusy}
+          onChange={onSavePings}
+        />
+      ) : null}
 
       {samples.length < 2 ? (
         <p className="empty">Noch nicht genug Verlauf für ein Diagramm.</p>

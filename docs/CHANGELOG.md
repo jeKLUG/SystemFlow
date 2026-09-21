@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.197 – 2026-09-21
+
+- Monitoring: am Gerät Ping-Ziele (IP/Hostname) anlegen und entfernen; Agent 1.0.8 prüft sie beim Heartbeat. Ticket-Typ „Ping fehlgeschlagen“ je Ziel (bestehende Geräte: Schalter aus)
+
 ## 1.5.196 – 2026-09-21
 
 - Monitoring Agent 1.0.7: Defender/Firewall, unerwarteter Neustart, Gateway- und DNS-Erreichbarkeit; neue Ticket-Typen (bestehende Geräte: Schalter aus)

@@ -42,7 +42,8 @@ export type MonitoringIssueKind =
   | "defender"
   | "firewall"
   | "crash"
-  | "lan";
+  | "lan"
+  | "ping";
 export type MonitoringKindAlert = { enabled: boolean; priority: TicketPriority };
 export type MonitoringVolumeAlert = { enabled: boolean; warnUsedPct: number };
 export type MonitoringDiskAlert = MonitoringKindAlert & {
@@ -874,6 +875,7 @@ export const monitoringIssueKinds: MonitoringIssueKind[] = [
   "firewall",
   "crash",
   "lan",
+  "ping",
 ];
 
 export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertConfig {
@@ -891,6 +893,7 @@ export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertC
     firewall: { enabled: allEnabled, priority: "high" },
     crash: { enabled: allEnabled, priority: "high" },
     lan: { enabled: allEnabled, priority: "high" },
+    ping: { enabled: allEnabled, priority: "high" },
   };
 }
 
@@ -904,19 +907,39 @@ export function monitoringDiskId(disk: { id?: string; name: string; mount?: stri
   return trimmed || "/";
 }
 
-export interface MonitoringIssueTicket {
-  kind: MonitoringIssueKind;
-  diskId?: string;
-  ticketId: string;
-  ticketNumber: string;
-  priority: TicketPriority;
-}
-
 export interface MonitoringDiskIssue {
   id: string;
   name: string;
   usedPct: number;
   warnUsedPct: number;
+}
+
+export interface MonitoringIssueTicket {
+  kind: MonitoringIssueKind;
+  diskId?: string;
+  pingHost?: string;
+  ticketId: string;
+  ticketNumber: string;
+  priority: TicketPriority;
+}
+
+export interface MonitoringPingTarget {
+  id: string;
+  host: string;
+  label?: string;
+}
+
+export interface MonitoringPingResult {
+  id: string;
+  host: string;
+  ok: boolean;
+  ms?: number;
+}
+
+export interface MonitoringPingIssue {
+  id: string;
+  host: string;
+  label?: string;
 }
 
 export interface MonitoringDeviceSummary {
@@ -934,10 +957,12 @@ export interface MonitoringDeviceSummary {
   online: boolean;
   alertEnabled: boolean;
   alertConfig?: MonitoringAlertConfig;
+  pingTargets?: MonitoringPingTarget[];
   monitoringEnabled: boolean;
   warning: boolean;
   issues: MonitoringIssueKind[];
   diskIssues?: MonitoringDiskIssue[];
+  pingIssues?: MonitoringPingIssue[];
   tickets?: MonitoringIssueTicket[];
   ticketId: string | null;
   ticketNumber: string | null;
@@ -1079,6 +1104,7 @@ export interface MonitoringSnapshot {
     profiles?: { name: string; enabled: boolean }[];
   };
   crash?: { unexpected?: boolean; time?: string; reason?: string };
+  pings?: MonitoringPingResult[];
   software?: {
     name: string;
     publisher?: string;

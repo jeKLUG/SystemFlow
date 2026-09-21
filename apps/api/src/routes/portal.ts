@@ -71,6 +71,7 @@ function publicAsset(row: typeof assets.$inferSelect) {
     notes: _notes,
     monitoringAlertEnabled: _ma,
     monitoringAlertsJson: _mj,
+    monitoringPingTargetsJson: _pj,
     ...rest
   } = row;
   return rest;

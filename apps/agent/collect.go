@@ -75,6 +75,7 @@ type AgentSnapshot struct {
 	Defender      *DefenderSnapshot  `json:"defender,omitempty"`
 	Firewall      *FirewallSnapshot  `json:"firewall,omitempty"`
 	Crash         *CrashSnapshot     `json:"crash,omitempty"`
+	Pings         []PingResult       `json:"pings,omitempty"`
 }
 
 func goosName() string {
@@ -177,6 +178,7 @@ func collectSnapshot() (AgentSnapshot, error) {
 	snap.Defender = collectDefender()
 	snap.Firewall = collectFirewall()
 	snap.Crash = collectCrash()
+	snap.Pings = probePings(currentPingTargets())
 	return snap, nil
 }
 

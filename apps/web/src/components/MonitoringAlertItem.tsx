@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { monitoringIssueLabel } from "../lib/monitoringUi";
+import { ticketIssueHint } from "../lib/monitoringUi";
 import type { MonitoringIssueTicket } from "../types";
 
 /**
@@ -64,7 +64,7 @@ export function MonitoringAlertItem({
               key={t.ticketId}
               className="mon-warn-ticket"
               to={`/tickets/${t.ticketId}`}
-              title={t.diskId ?? monitoringIssueLabel[t.kind]}
+              title={ticketIssueHint(t)}
             >
               {t.ticketNumber}
             </Link>

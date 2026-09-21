@@ -181,6 +181,7 @@ const monitoringKindPreviewLabel: Record<string, string> = {
   firewall: "Firewall",
   crash: "Absturz",
   lan: "Netz",
+  ping: "Ping",
 };
 
 function monitoringAlertPreview(asset: Asset): PreviewRow | null {

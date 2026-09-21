@@ -103,6 +103,7 @@ const assetBody = z.object({
       firewall: kindAlertBody.optional(),
       crash: kindAlertBody.optional(),
       lan: kindAlertBody.optional(),
+      ping: kindAlertBody.optional(),
     })
     .optional(),
 });

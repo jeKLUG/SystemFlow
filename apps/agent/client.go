@@ -39,6 +39,7 @@ type heartbeatResponse struct {
 	UpdateNow   bool             `json:"updateNow"`
 	Uninstall   bool             `json:"uninstall"`
 	LatestAgent *latestAgentInfo `json:"latestAgent"`
+	PingTargets []PingTarget     `json:"pingTargets"`
 }
 
 type httpError struct {

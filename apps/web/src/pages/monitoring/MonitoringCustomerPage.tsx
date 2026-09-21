@@ -11,6 +11,7 @@ import {
   monitoringIssueLabel,
   pct,
   relSeen,
+  ticketIssueHint,
 } from "../../lib/monitoringUi";
 import type {
   MonitoringAlertConfig,
@@ -18,6 +19,7 @@ import type {
   MonitoringDeviceDetail as DeviceDetailData,
   MonitoringDeviceSummary,
   MonitoringIssueKind,
+  MonitoringPingTarget,
 } from "../../types";
 import { monitoringIssueKinds } from "../../types";
 
@@ -35,6 +37,7 @@ const issueBarColor: Record<MonitoringIssueKind, string> = {
   firewall: "#fb7185",
   crash: "#f87171",
   lan: "#38bdf8",
+  ping: "#22d3ee",
 };
 
 type DeviceFilter = "all" | "warn" | "offline" | "online" | "update" | "waiting";
@@ -148,6 +151,7 @@ export function MonitoringCustomerPage() {
       firewall: 0,
       crash: 0,
       lan: 0,
+      ping: 0,
     };
     for (const d of devices) {
       for (const kind of d.issues) counts[kind] += 1;
@@ -261,6 +265,31 @@ export function MonitoringCustomerPage() {
       await reloadCustomer();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Warnungen konnten nicht gespeichert werden");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function savePings(nextAssetId: string, pingTargets: MonitoringPingTarget[]) {
+    setBusyId(nextAssetId);
+    setError("");
+    setDetail((prev) =>
+      prev && prev.device.assetId === nextAssetId
+        ? { ...prev, device: { ...prev.device, pingTargets } }
+        : prev,
+    );
+    try {
+      await api.patchMonitoringDevice(nextAssetId, {
+        pingTargets: pingTargets.map((t) => ({
+          ...(t.id ? { id: t.id } : {}),
+          host: t.host,
+          ...(t.label ? { label: t.label } : {}),
+        })),
+      });
+      await reloadCustomer();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Pings konnten nicht gespeichert werden");
+      await reloadCustomer().catch(() => undefined);
     } finally {
       setBusyId(null);
     }
@@ -535,6 +564,9 @@ export function MonitoringCustomerPage() {
             onSaveAlerts={(cfg) => {
               if (detail.device.assetId) void saveAlerts(detail.device.assetId, cfg);
             }}
+            onSavePings={(pingTargets) => {
+              if (detail.device.assetId) void savePings(detail.device.assetId, pingTargets);
+            }}
             onRequestUpdate={requestAgentUpdate}
             onRequestUninstall={requestAgentUninstall}
             updateBusy={busyId === detail.device.assetId}
@@ -572,7 +604,7 @@ function DeviceRow({
           {(device.tickets ?? []).map((t) => (
             <Link key={t.ticketId} className="mon-warn-ticket" to={`/tickets/${t.ticketId}`}>
               {t.ticketNumber}
-              <span>{t.diskId ?? monitoringIssueLabel[t.kind]}</span>
+              <span>{ticketIssueHint(t)}</span>
             </Link>
           ))}
         </div>
