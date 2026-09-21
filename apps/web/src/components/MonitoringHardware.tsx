@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { HelpHint } from "./HelpHint";
 import { formatBytes, pct } from "../lib/monitoringUi";
 import type { MonitoringHardware, MonitoringSnapshot } from "../types";
+
+type SoftItem = NonNullable<MonitoringSnapshot["software"]>[number];
 
 const memoryTypeMap: Record<string, string> = {
   "20": "DDR",
@@ -24,6 +27,54 @@ function formatSize(n: number | null | undefined): string {
 
 function joinParts(parts: Array<string | null | undefined>): string {
   return parts.map((p) => p?.trim()).filter(Boolean).join(" · ");
+}
+
+/** Version und Verlag, ohne Doppelung mit dem Programmnamen. */
+function softwareMeta(item: SoftItem): string {
+  const version = item.version?.trim() || "";
+  const publisher = item.publisher?.trim() || "";
+  const name = item.name.toLowerCase();
+  return joinParts([
+    publisher && !name.includes(publisher.toLowerCase()) ? publisher : null,
+    version && !item.name.includes(version) ? version : null,
+  ]);
+}
+
+function sortSoftware(items: SoftItem[]): SoftItem[] {
+  return [...items].sort((a, b) => {
+    if (Boolean(a.match) !== Boolean(b.match)) return a.match ? -1 : 1;
+    return a.name.localeCompare(b.name, "de", { sensitivity: "base", numeric: true });
+  });
+}
+
+/**
+ * Eine Zeile in der Geräteliste der installierten Software.
+ */
+function SoftwareRow({ item, customerId }: { item: SoftItem; customerId?: string }) {
+  const meta = softwareMeta(item);
+  return (
+    <li className={item.match ? "is-match" : undefined}>
+      <span className="mon-hw-soft-name" title={item.name}>
+        {item.name}
+      </span>
+      {meta ? (
+        <span className="muted mon-hw-soft-meta" title={meta}>
+          {meta}
+        </span>
+      ) : null}
+      {item.match ? (
+        customerId ? (
+          <Link className="mon-hw-soft-hit" to={`/customers/${customerId}/assets`} title={item.match.name}>
+            {item.match.name}
+          </Link>
+        ) : (
+          <span className="mon-hw-soft-hit" title={item.match.name}>
+            {item.match.name}
+          </span>
+        )
+      ) : null}
+    </li>
+  );
 }
 
 function systemTitle(system?: MonitoringHardware["system"]): string {
@@ -228,13 +279,17 @@ export function MonitoringHardwarePanel({
   const missingCount = (software ?? []).length - matchedCount;
   const filteredSoftware = useMemo(() => {
     const q = softQuery.trim().toLowerCase();
-    return (software ?? []).filter((s) => {
-      if (softFilter === "match" && !s.match) return false;
-      if (softFilter === "missing" && s.match) return false;
-      if (!q) return true;
-      return [s.name, s.publisher, s.version, s.match?.name].some((v) => v?.toLowerCase().includes(q));
-    });
+    return sortSoftware(
+      (software ?? []).filter((s) => {
+        if (softFilter === "match" && !s.match) return false;
+        if (softFilter === "missing" && s.match) return false;
+        if (!q) return true;
+        return [s.name, s.publisher, s.version, s.match?.name].some((v) => v?.toLowerCase().includes(q));
+      }),
+    );
   }, [software, softQuery, softFilter]);
+  const matchedVisible = filteredSoftware.filter((s) => s.match);
+  const missingVisible = filteredSoftware.filter((s) => !s.match);
 
   if (!hasHw && !hasLive) {
     return (
@@ -485,68 +540,67 @@ export function MonitoringHardwarePanel({
       ) : null}
 
       {software?.length ? (
-        <div className="mon-hw-section">
+        <div className="mon-hw-section mon-hw-soft-block">
           <div className="mon-hw-soft-head">
-            <h4>Software</h4>
-            <p className="muted">
-              {matchedCount} im Inventar · {missingCount} nicht erfasst
-            </p>
-          </div>
-          <div className="mon-hw-soft-tools">
+            <div className="page-head-title">
+              <h4>Software</h4>
+              <HelpHint text="Installierte Programme dieses Geräts. Ein Treffer in Grün liegt als Lizenz oder Software im Inventar." />
+            </div>
             <input
               type="search"
               value={softQuery}
               onChange={(e) => setSoftQuery(e.target.value)}
-              placeholder="Programm suchen…"
+              placeholder="Suchen…"
               aria-label="Software durchsuchen"
             />
-            <div className="mon-hw-soft-filters">
-              {(
-                [
-                  ["all", "Alle"],
-                  ["match", "Im Inventar"],
-                  ["missing", "Nicht erfasst"],
-                ] as const
-              ).map(([id, label]) => (
-                <button
-                  key={id}
-                  type="button"
-                  className={`mon-hw-soft-filter${softFilter === id ? " is-active" : ""}`}
-                  onClick={() => setSoftFilter(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+          </div>
+          <div className="mon-hw-soft-filters" role="tablist" aria-label="Software filtern">
+            {(
+              [
+                ["all", "Alle", software.length],
+                ["match", "Inventar", matchedCount],
+                ["missing", "Fehlt", missingCount],
+              ] as const
+            ).map(([id, label, count]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={softFilter === id}
+                className={`mon-hw-soft-filter${softFilter === id ? " is-active" : ""}`}
+                onClick={() => setSoftFilter(id)}
+              >
+                {label}
+                <em>{count}</em>
+              </button>
+            ))}
           </div>
           {filteredSoftware.length === 0 ? (
             <p className="muted">Keine Treffer.</p>
+          ) : softFilter === "all" && matchedVisible.length > 0 && missingVisible.length > 0 ? (
+            <div className="mon-hw-soft-pane">
+              <p className="mon-hw-soft-label">Im Inventar</p>
+              <ul className="mon-hw-soft">
+                {matchedVisible.map((s, i) => (
+                  <SoftwareRow key={`${s.name}-${s.version}-${i}`} item={s} customerId={customerId} />
+                ))}
+              </ul>
+              <p className="mon-hw-soft-label">Nicht erfasst</p>
+              <ul className="mon-hw-soft">
+                {missingVisible.map((s, i) => (
+                  <SoftwareRow key={`${s.name}-${s.version}-${i}`} item={s} customerId={customerId} />
+                ))}
+              </ul>
+            </div>
           ) : (
-            <ul className="mon-hw-soft">
-              {filteredSoftware.slice(0, 80).map((s, i) => (
-                <li key={`${s.name}-${s.version}-${i}`}>
-                  <div>
-                    <strong>{s.name}</strong>
-                    <p className="muted">{joinParts([s.publisher, s.version])}</p>
-                  </div>
-                  {s.match ? (
-                    customerId ? (
-                      <Link className="mon-hw-health is-ok" to={`/customers/${customerId}/assets`}>
-                        {s.match.name}
-                      </Link>
-                    ) : (
-                      <span className="mon-hw-health is-ok">{s.match.name}</span>
-                    )
-                  ) : (
-                    <span className="mon-hw-health is-info">Nicht erfasst</span>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <div className="mon-hw-soft-pane">
+              <ul className="mon-hw-soft">
+                {filteredSoftware.map((s, i) => (
+                  <SoftwareRow key={`${s.name}-${s.version}-${i}`} item={s} customerId={customerId} />
+                ))}
+              </ul>
+            </div>
           )}
-          {filteredSoftware.length > 80 ? (
-            <p className="muted">Weitere {filteredSoftware.length - 80} Einträge über die Suche finden.</p>
-          ) : null}
         </div>
       ) : null}
 

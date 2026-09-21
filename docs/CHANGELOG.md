@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.5.185 – 2026-09-21
+
+- Kundenportal Start: „Zuletzt aktualisiert“ zeigt nur die drei neuesten Tickets
+
+## 1.5.184 – 2026-09-21
+
+- Kundenportal Tickets: kompakte Zeilen; erledigte mit Haken, Grün und Badge „Erledigt“
+
+## 1.5.183 – 2026-09-21
+
+- Monitoring: Softwareliste einzeilig und scrollbar; Filter mit Zählern, nur Inventar-Treffer hervorgehoben
+
+## 1.5.182 – 2026-09-21
+
+- E-Mail: Benachrichtigungen nach Tickets, Terminen und Monitoring gruppiert, Schalter statt An/Aus-Liste, Erinnerung als Zeit-Chips
+
+## 1.5.181 – 2026-09-21
+
+- E-Mail: Staff stellt die Kundentypen in der Akte ein; das Portal ändert nur die Adresse
+
 ## 1.5.180 – 2026-09-18
 
 - E-Mail: Kunden können auch bei automatisch gelösten Monitoring-Tickets benachrichtigt werden (Typ Monitoring-Entwarnung)

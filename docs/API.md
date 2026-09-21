@@ -56,7 +56,7 @@ Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`
 | GET | `/api/tickets/:id/attachments/:attachmentId/download` | Download |
 | POST | `/api/tickets/:id/task` | Aufgabe aus Ticket |
 | POST | `/api/tickets/:id/time-entry` | `{ hours, workDate? }` Zeitbuchung |
-| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`, `email` für Mails); GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
+| GET/PUT/DELETE | `/api/customers/:id/portal-user` | Portal-Login (`username`, `password?`, `enabled`, `email` für Mails, `notify` je Kundentyp); GET/PUT liefern `allowed` (globale Kundentypen). GET enthält `lastLoginAt`. PUT `{ enabled }` schaltet ohne Passwort; Zugangsdaten nur mit `username`/`password` |
 
 Status: `open` \| `in_progress` \| `waiting_customer` \| `resolved` \| `closed`. Priorität: `low` \| `normal` \| `high` \| `critical`. Quelle: `portal` \| `staff` \| `monitoring`. Nummern `T-1001`…. SLA aus aktivem Vertrag (Kalenderstunden, keine Servicezeiten-Berechnung).
 
@@ -70,8 +70,8 @@ Portal-UI: `/portal`, Login `/portal/login` (getrennt vom Staff-Login).
 | POST | `/api/portal/auth/logout` | Session beenden |
 | GET | `/api/portal/auth/me` | Portal-Benutzer |
 | POST | `/api/portal/auth/change-password` | `{ currentPassword, newPassword }` |
-| GET/PUT | `/api/portal/account` | E-Mail und Opt-in je Typ (`notify`); `allowed` sind die vom Staff global freigegebenen Typen |
-| GET | `/api/portal/overview` | Kennzahlen plus Ticket-Verteilung (`ticketsByStatus`, offene `ticketsByPriority`, `ticketsWeek` 7 Tage, `recentTickets`) sowie `wikiCount`/`fileCount` |
+| GET/PUT | `/api/portal/account` | GET: E-Mail, `notify` (vom Staff), `allowed` (globale Kundentypen). PUT: nur `email`; `notify` im Body wird ignoriert |
+| GET | `/api/portal/overview` | Kennzahlen plus Ticket-Verteilung (`ticketsByStatus`, offene `ticketsByPriority`, `ticketsWeek` 7 Tage, `recentTickets` letzte 3) sowie `wikiCount`/`fileCount` |
 | GET/POST | `/api/portal/tickets` | Eigene Tickets (POST JSON: Titel, Beschreibung als TipTap-JSON, Priorität) |
 | GET | `/api/portal/tickets/:id` | Öffentliche Nachrichten, Anhänge und `resolution` |
 | POST | `/api/portal/tickets/:id/messages` | Öffentliche Antwort (`body` TipTap-JSON oder Klartext) |

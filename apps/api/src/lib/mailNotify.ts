@@ -79,7 +79,7 @@ export function parseMailNotify(raw: string | null | undefined): MailNotifyConfi
 }
 
 /**
- * Liest Kunden-Opt-in; fehlende Keys gelten als an.
+ * Liest die vom Staff gesetzten Kundentypen; fehlende Keys gelten als an.
  */
 export function parseCustomerMailNotify(raw: string | null | undefined): CustomerMailNotify {
   const base = defaultCustomerMailNotify();

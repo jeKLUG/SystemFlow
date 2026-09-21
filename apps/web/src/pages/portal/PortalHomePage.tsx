@@ -86,6 +86,7 @@ export function PortalHomePage() {
   }, [data]);
 
   const ticketTotal = statusSlices.reduce((sum, s) => sum + s.value, 0);
+  const recentTickets = (data?.recentTickets ?? []).slice(0, 3);
 
   if (!data && !error) return <p className="empty">Lade Portal…</p>;
 
@@ -208,7 +209,7 @@ export function PortalHomePage() {
             </article>
           </section>
 
-          {(data.recentTickets ?? []).length ? (
+          {recentTickets.length ? (
             <section className="panel portal-dash-recent">
               <div className="dash-chart-head">
                 <div>
@@ -220,29 +221,34 @@ export function PortalHomePage() {
                 </Link>
               </div>
               <ul className="portal-dash-ticket-list">
-                {data.recentTickets!.map((ticket) => (
+                {recentTickets.map((ticket) => {
+                  const done = ticket.status === "resolved" || ticket.status === "closed";
+                  return (
                   <li key={ticket.id}>
-                    <Link to={`/portal/tickets/${ticket.id}`}>
+                    <Link className={done ? "is-done" : undefined} to={`/portal/tickets/${ticket.id}`}>
                       <div className="portal-ticket-card-head">
+                        {done ? (
+                          <span className="portal-ticket-done-mark" aria-hidden>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                              <path d="M7.5 12.5 10.5 15.5 16.5 8.5" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </span>
+                        ) : null}
                         <span className="portal-ticket-num">{ticket.number}</span>
                         <span className={`badge badge-ticket-${ticket.status}`}>
-                          {portalTicketStatusLabel[ticket.status]}
+                          {done ? "Erledigt" : portalTicketStatusLabel[ticket.status]}
                         </span>
                       </div>
                       <strong>{ticket.title}</strong>
-                      <dl className="portal-ticket-facts">
-                        <div>
-                          <dt>Priorität</dt>
-                          <dd>{ticketPriorityLabel[ticket.priority]}</dd>
-                        </div>
-                        <div>
-                          <dt>Aktualisiert</dt>
-                          <dd>{formatDate(ticket.updatedAt)}</dd>
-                        </div>
-                      </dl>
+                      <p className="muted">
+                        {ticketPriorityLabel[ticket.priority]}
+                        {" · "}
+                        {formatDate(ticket.updatedAt)}
+                      </p>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </section>
           ) : null}

@@ -174,7 +174,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
 
     const recentTickets = [...ticketRows]
       .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-      .slice(0, 5)
+      .slice(0, 3)
       .map((row) => ({
         id: row.id,
         number: row.number,
@@ -491,6 +491,7 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     };
   });
 
+  /** Nur E-Mail. `notify` im Body wird ignoriert (Typen setzt nur Staff). */
   app.put("/api/portal/account", async (request, reply) => {
     const { userId } = request.portal!;
     const parsed = z
@@ -506,16 +507,11 @@ export async function portalRoutes(app: FastifyInstance, db: Db, uploadDir: stri
     if (!row) return reply.code(401).send({ error: "Nicht angemeldet" });
     const email = parsed.data.email !== undefined ? (parsed.data.email?.trim() || null) : row.email;
     if (email && !isEmail(email)) return reply.code(400).send({ error: "E-Mail-Adresse ungültig" });
-    const notify = parseCustomerMailNotify(row.mailNotifyJson);
-    if (parsed.data.notify) {
-      for (const kind of mailCustomerKinds) {
-        if (typeof parsed.data.notify[kind] === "boolean") notify[kind] = parsed.data.notify[kind]!;
-      }
-    }
     await db
       .update(customerUsers)
-      .set({ email, mailNotifyJson: JSON.stringify(notify), updatedAt: new Date() })
+      .set({ email, updatedAt: new Date() })
       .where(eq(customerUsers.id, userId));
+    const notify = parseCustomerMailNotify(row.mailNotifyJson);
     const org = await db.select().from(orgSettings).where(eq(orgSettings.id, "default")).get();
     const global = parseMailNotify(org?.mailNotifyJson);
     const allowed = Object.fromEntries(

@@ -1,14 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { api } from "../api";
+import { mailGroupCounts, mailNotifyGroups, mailReminderOptions } from "../lib/mailNotify";
 import { HelpHint } from "./HelpHint";
 import { MailNotifyList } from "./MailNotifyList";
 import { Modal } from "./Modal";
 import { PasswordField } from "./PasswordField";
 import {
   mailCustomerKinds,
-  mailKindLabel,
   mailStaffKinds,
-  type MailCustomerKind,
   type MailNotifyConfig,
   type MailSettings,
   type SmtpSecure,
@@ -56,11 +55,26 @@ function enabledCount(values: Record<string, boolean>): number {
 }
 
 function reminderChips(r: MailNotifyConfig["reminders"]): string[] {
-  return [
-    r.hours24 ? "24h" : null,
-    r.hours1 ? "1h" : null,
-    r.morning ? "08:00" : null,
-  ].filter((v): v is string => Boolean(v));
+  return mailReminderOptions.filter((opt) => r[opt.id]).map((opt) => opt.short);
+}
+
+function NotifyPills({ values }: { values: Record<string, boolean> }) {
+  return (
+    <span className="mail-config-pills">
+      {mailNotifyGroups.map((group) => {
+        const { on, total } = mailGroupCounts(values, group);
+        const state = on === 0 ? "is-off" : on === total ? "is-on" : "is-mixed";
+        return (
+          <span key={group.id} className={`mail-config-pill ${state}`}>
+            {group.title}
+            <em>
+              {on}/{total}
+            </em>
+          </span>
+        );
+      })}
+    </span>
+  );
 }
 
 function emptySmtp(): SmtpForm {
@@ -253,11 +267,14 @@ export function MailSettingsCard() {
             <span className={`mon-dot${staffOn > 0 ? " is-on" : " is-off"}`} aria-hidden />
             <div className="mail-config-copy">
               <strong>Staff</strong>
-              <p className="muted">
-                {staffOn === 0
-                  ? "Keine Mails"
-                  : `${staffOn}/${mailStaffKinds.length} Typen${reminders.length ? ` · Erinnerung ${reminders.join(", ")}` : ""}`}
-              </p>
+              {staffOn === 0 ? (
+                <p className="muted">Keine Mails</p>
+              ) : (
+                <>
+                  <NotifyPills values={notify.staff} />
+                  {reminders.length ? <p className="muted">Erinnerung {reminders.join(", ")}</p> : null}
+                </>
+              )}
             </div>
             <div className="mail-config-actions">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openEdit("staff")}>
@@ -269,11 +286,14 @@ export function MailSettingsCard() {
             <span className={`mon-dot${customerOn > 0 ? " is-on" : " is-off"}`} aria-hidden />
             <div className="mail-config-copy">
               <strong>Kunden</strong>
-              <p className="muted">
-                {customerOn === 0
-                  ? "Keine Mails"
-                  : `${customerOn}/${mailCustomerKinds.length} Typen · Opt-out am Portal-Konto`}
-              </p>
+              {customerOn === 0 ? (
+                <p className="muted">Keine Mails · je Kunde in der Akte</p>
+              ) : (
+                <>
+                  <NotifyPills values={notify.customer} />
+                  <p className="muted">Feineinstellung in der Kundenakte</p>
+                </>
+              )}
             </div>
             <div className="mail-config-actions">
               <button type="button" className="btn btn-primary btn-sm" onClick={() => openEdit("customer")}>
@@ -398,45 +418,21 @@ export function MailSettingsCard() {
         }}
         className="modal-mail"
       >
-        <form onSubmit={(e) => void saveNotify(e)}>
-          <p className="mail-modal-lead muted">
-            Mails gehen an die Staff-Sammeladresse. Ausgeschaltete Typen werden nicht versendet.
-          </p>
-          <MailNotifyList
-            items={mailStaffKinds.map((kind) => ({
-              id: kind,
-              label: mailKindLabel[kind],
-              checked: notifyDraft.staff[kind],
-              onChange: (checked) =>
-                setNotifyDraft((n) => ({ ...n, staff: { ...n.staff, [kind]: checked } })),
-            }))}
-          />
-          <h4 className="mail-settings-sub">Termin-Erinnerung</h4>
-          <MailNotifyList
-            items={[
-              {
-                id: "hours24",
-                label: "24 Stunden vorher",
-                checked: notifyDraft.reminders.hours24,
-                onChange: (checked) =>
-                  setNotifyDraft((n) => ({ ...n, reminders: { ...n.reminders, hours24: checked } })),
-              },
-              {
-                id: "hours1",
-                label: "1 Stunde vorher",
-                checked: notifyDraft.reminders.hours1,
-                onChange: (checked) =>
-                  setNotifyDraft((n) => ({ ...n, reminders: { ...n.reminders, hours1: checked } })),
-              },
-              {
-                id: "morning",
-                label: "Am Termin-Tag 08:00",
-                checked: notifyDraft.reminders.morning,
-                onChange: (checked) =>
-                  setNotifyDraft((n) => ({ ...n, reminders: { ...n.reminders, morning: checked } })),
-              },
-            ]}
-          />
+        <form className="mail-notify-form" onSubmit={(e) => void saveNotify(e)}>
+          <div className="mail-notify-scroll">
+            <p className="mail-modal-lead muted">Mails gehen an die Staff-Sammeladresse.</p>
+            <MailNotifyList
+              values={notifyDraft.staff}
+              onChange={(kind, checked) =>
+                setNotifyDraft((n) => ({ ...n, staff: { ...n.staff, [kind]: checked } }))
+              }
+              reminders={{
+                values: notifyDraft.reminders,
+                onChange: (key, checked) =>
+                  setNotifyDraft((n) => ({ ...n, reminders: { ...n.reminders, [key]: checked } })),
+              }}
+            />
+          </div>
           <div className="mail-settings-actions modal-actions">
             <button className="btn btn-primary" type="submit" disabled={Boolean(busy)}>
               {busy === "save" ? "Speichert…" : "Speichern"}
@@ -456,22 +452,21 @@ export function MailSettingsCard() {
         }}
         className="modal-mail"
       >
-        <form onSubmit={(e) => void saveNotify(e)}>
-          <p className="mail-modal-lead muted">
-            Globale Vorgabe. Kunden können erlaubte Typen am Portal-Konto zusätzlich abschalten.
-          </p>
-          <MailNotifyList
-            items={mailCustomerKinds.map((kind) => ({
-              id: kind,
-              label: mailKindLabel[kind],
-              checked: notifyDraft.customer[kind as MailCustomerKind],
-              onChange: (checked) =>
+        <form className="mail-notify-form" onSubmit={(e) => void saveNotify(e)}>
+          <div className="mail-notify-scroll">
+            <p className="mail-modal-lead muted">
+              Globale Vorgabe. Welche Typen ein Kunde bekommt, stellen Sie in der Kundenakte ein.
+            </p>
+            <MailNotifyList
+              values={notifyDraft.customer}
+              onChange={(kind, checked) =>
                 setNotifyDraft((n) => ({
                   ...n,
                   customer: { ...n.customer, [kind]: checked },
-                })),
-            }))}
-          />
+                }))
+              }
+            />
+          </div>
           <div className="mail-settings-actions modal-actions">
             <button className="btn btn-primary" type="submit" disabled={Boolean(busy)}>
               {busy === "save" ? "Speichert…" : "Speichern"}

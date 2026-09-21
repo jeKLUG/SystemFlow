@@ -5,10 +5,10 @@ import { HelpHint } from "../../components/HelpHint";
 import { MailNotifyList } from "../../components/MailNotifyList";
 import { Modal } from "../../components/Modal";
 import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
-import { mailCustomerKinds, mailKindLabel, type PortalMailAccount } from "../../types";
+import { mailCustomerKinds, type PortalMailAccount } from "../../types";
 
 /**
- * Portal-Konto: Profil und Passwort ändern.
+ * Portal-Konto: E-Mail für Mails ändern (Typen nur anzeigen), Passwort ändern.
  */
 export function PortalAccountPage() {
   const { user, changePassword, logout } = useAuth();
@@ -27,7 +27,6 @@ export function PortalAccountPage() {
   const [notifyEmail, setNotifyEmail] = useState("");
   const [mailOpen, setMailOpen] = useState(false);
   const [draftEmail, setDraftEmail] = useState("");
-  const [draftNotify, setDraftNotify] = useState<PortalMailAccount["notify"] | null>(null);
 
   useEffect(() => {
     void api
@@ -79,11 +78,10 @@ export function PortalAccountPage() {
     try {
       const updated = await api.updatePortalAccount({
         email: draftEmail,
-        notify: draftNotify ?? account?.notify,
       });
       setAccount(updated);
       setNotifyEmail(updated.email);
-      setMailOk("Benachrichtigungen gespeichert.");
+      setMailOk("E-Mail gespeichert.");
       setMailOpen(false);
     } catch (err) {
       setMailErr(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -96,7 +94,6 @@ export function PortalAccountPage() {
     setMailErr("");
     setMailOk("");
     setDraftEmail(notifyEmail);
-    setDraftNotify(account ? { ...account.notify } : null);
     setMailOpen(true);
   }
 
@@ -137,7 +134,7 @@ export function PortalAccountPage() {
               <p className="eyebrow">Benachrichtigungen</p>
               <div className="page-head-title">
                 <h3>E-Mail</h3>
-                <HelpHint text="An diese Adresse gehen Ticket- und Termin-Mails. Typen, die Ihr Systemhaus ausgeschaltet hat, erscheinen nicht." />
+                <HelpHint text="An diese Adresse gehen Ticket- und Termin-Mails. Welche Typen Sie erhalten, legt Ihr Systemhaus fest." />
               </div>
             </div>
             <button type="button" className="btn btn-primary btn-sm" onClick={openMail} disabled={!account}>
@@ -145,13 +142,14 @@ export function PortalAccountPage() {
             </button>
           </header>
           {account ? (
-            <p className="muted portal-mail-summary">
-              {notifyEmail || "Keine Adresse hinterlegt."}
-              {" · "}
-              {mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length === 0
-                ? "keine Mails"
-                : `${mailCustomerKinds.filter((k) => account.allowed[k] && account.notify[k]).length} Typen aktiv`}
-            </p>
+            <>
+              <p className="muted portal-mail-summary">{notifyEmail || "Keine Adresse hinterlegt."}</p>
+              {mailCustomerKinds.some((kind) => account.allowed[kind]) ? (
+                <MailNotifyList values={account.notify} allowed={account.allowed} hideDisallowed />
+              ) : (
+                <p className="muted">Ihr Systemhaus hat derzeit keine Kunden-Mails aktiviert.</p>
+              )}
+            </>
           ) : (
             <p className="muted">Lade…</p>
           )}
@@ -217,7 +215,7 @@ export function PortalAccountPage() {
 
       <Modal
         open={mailOpen}
-        title="Benachrichtigungen"
+        title="E-Mail-Adresse"
         onClose={() => {
           if (!mailBusy) setMailOpen(false);
         }}
@@ -233,19 +231,6 @@ export function PortalAccountPage() {
               autoComplete="email"
             />
           </label>
-          {account && draftNotify ? (
-            <MailNotifyList
-              items={mailCustomerKinds
-                .filter((kind) => account.allowed[kind])
-                .map((kind) => ({
-                  id: kind,
-                  label: mailKindLabel[kind],
-                  checked: draftNotify[kind],
-                  onChange: (checked) =>
-                    setDraftNotify((n) => (n ? { ...n, [kind]: checked } : n)),
-                }))}
-            />
-          ) : null}
           {mailErr ? <p className="form-error">{mailErr}</p> : null}
           <div className="mail-settings-actions modal-actions">
             <button className="btn btn-primary" type="submit" disabled={mailBusy}>

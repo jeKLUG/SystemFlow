@@ -96,14 +96,16 @@ export const api = {
   portalFolders: () => request<import("./types").FileFolderItem[]>("/api/portal/folders"),
   portalAssets: () => request<import("./types").Asset[]>("/api/portal/assets"),
   portalUser: (customerId: string) =>
-    request<{ portalUser: import("./types").PortalUser | null; kind: string }>(
-      `/api/customers/${customerId}/portal-user`,
-    ),
+    request<{
+      portalUser: import("./types").PortalUser | null;
+      kind: string;
+      allowed?: import("./types").PortalMailAccount["allowed"];
+    }>(`/api/customers/${customerId}/portal-user`),
   upsertPortalUser: (customerId: string, body: Record<string, unknown>) =>
-    request<{ portalUser: import("./types").PortalUser }>(
-      `/api/customers/${customerId}/portal-user`,
-      { method: "PUT", body: JSON.stringify(body) },
-    ),
+    request<{
+      portalUser: import("./types").PortalUser;
+      allowed?: import("./types").PortalMailAccount["allowed"];
+    }>(`/api/customers/${customerId}/portal-user`, { method: "PUT", body: JSON.stringify(body) }),
   deletePortalUser: (customerId: string) =>
     request<{ ok: boolean }>(`/api/customers/${customerId}/portal-user`, { method: "DELETE" }),
   ticketStats: () => request<import("./types").TicketStats>("/api/tickets/stats"),

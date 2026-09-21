@@ -816,6 +816,7 @@ export interface PortalUser {
   username: string;
   email?: string | null;
   enabled: boolean;
+  notify?: Record<MailCustomerKind, boolean>;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;

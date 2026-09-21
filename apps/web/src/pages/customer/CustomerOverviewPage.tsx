@@ -2,11 +2,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { CustomerFields } from "../../components/CustomerFields";
+import { MailNotifyList } from "../../components/MailNotifyList";
 import { PasswordField, PasswordMatchHint } from "../../components/PasswordField";
 import { customerAddressLine } from "../../lib/customer";
 import { formatDate } from "../../lib/labels";
+import { summarizeMailNotify } from "../../lib/mailNotify";
 import { formatTimeAgo } from "../../lib/tickets";
-import { emptyCustomerForm, type Customer, type PortalUser } from "../../types";
+import { emptyCustomerForm, mailCustomerKinds, type Customer, type MailCustomerKind, type PortalUser } from "../../types";
 
 type OutletCtx = {
   customer: Customer;
@@ -259,13 +261,19 @@ export function CustomerOverviewPage() {
   );
 }
 
+function emptyCustomerNotify(): Record<MailCustomerKind, boolean> {
+  return Object.fromEntries(mailCustomerKinds.map((k) => [k, true])) as Record<MailCustomerKind, boolean>;
+}
+
 /**
- * Portal-Login je Kundenakte: aktivieren/deaktivieren, Zugangsdaten nur im Bearbeiten-Modus.
+ * Portal-Login je Kundenakte: aktivieren/deaktivieren, Zugangsdaten und Mail-Typen nur im Bearbeiten-Modus.
  */
 function PortalAccessPanel({ customerId, email }: { customerId: string; email: string | null }) {
   const [portal, setPortal] = useState<PortalUser | null>(null);
   const [username, setUsername] = useState(email?.split("@")[0] ?? "");
   const [notifyEmail, setNotifyEmail] = useState(email ?? "");
+  const [notify, setNotify] = useState<Record<MailCustomerKind, boolean>>(emptyCustomerNotify);
+  const [allowed, setAllowed] = useState<Record<MailCustomerKind, boolean>>(emptyCustomerNotify);
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -279,11 +287,13 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
   const exists = Boolean(portal);
   const showFields = editing || (!exists && enabled);
 
-  function applyPortal(row: PortalUser | null) {
+  function applyPortal(row: PortalUser | null, nextAllowed?: Record<MailCustomerKind, boolean>) {
     setPortal(row);
     setEnabled(Boolean(row?.enabled));
     setUsername(row?.username || email?.split("@")[0] || "");
     setNotifyEmail(row?.email || email || "");
+    setNotify(row?.notify ?? emptyCustomerNotify());
+    if (nextAllowed) setAllowed(nextAllowed);
     setPassword("");
     setPasswordConfirm("");
     setShowPassword(false);
@@ -296,7 +306,10 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setOk("");
     void api
       .portalUser(customerId)
-      .then((res) => applyPortal(res.portalUser))
+      .then((res) => {
+        if (res.allowed) setAllowed(res.allowed);
+        applyPortal(res.portalUser, res.allowed);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Laden fehlgeschlagen"))
       .finally(() => setLoaded(true));
   }, [customerId, email]);
@@ -317,7 +330,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setBusy("toggle");
     try {
       const res = await api.upsertPortalUser(customerId, { enabled: next });
-      applyPortal(res.portalUser);
+      applyPortal(res.portalUser, res.allowed);
       setEditing(false);
       setOk(next ? "Zugang ist aktiv." : "Zugang deaktiviert. Der Kunde kann sich nicht anmelden.");
     } catch (err) {
@@ -344,15 +357,20 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     }
     setBusy("save");
     try {
-      const body: Record<string, unknown> = { username, enabled: exists ? enabled : true, email: notifyEmail };
+      const body: Record<string, unknown> = {
+        username,
+        enabled: exists ? enabled : true,
+        email: notifyEmail,
+        notify,
+      };
       if (changingPassword) body.password = password;
       const res = await api.upsertPortalUser(customerId, body);
-      applyPortal(res.portalUser);
+      applyPortal(res.portalUser, res.allowed);
       setEditing(false);
       setOk(
         changingPassword
           ? "Zugangsdaten gespeichert. Passwort dem Kunden mitteilen – es wird nicht per E-Mail versendet."
-          : "Benutzername gespeichert.",
+          : "Zugang gespeichert.",
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -370,6 +388,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
     setNotifyEmail(portal?.email || email || "");
+    setNotify(portal?.notify ?? emptyCustomerNotify());
   }
 
   function cancelEdit() {
@@ -379,6 +398,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
     setShowPassword(false);
     setUsername(portal?.username || email?.split("@")[0] || "");
     setNotifyEmail(portal?.email || email || "");
+    setNotify(portal?.notify ?? emptyCustomerNotify());
     setError("");
     if (!exists) setEnabled(false);
   }
@@ -435,6 +455,7 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
               <dl className="stammdaten-facts portal-access-facts">
                 <FactRow label="Benutzername" value={portal?.username ?? null} />
                 <FactRow label="E-Mail" value={portal?.email ?? null} />
+                <FactRow label="Mails" value={summarizeMailNotify(portal?.notify, allowed)} wide />
                 <FactRow label="Passwort" value="Gesetzt" />
                 <FactRow label="Letzte Anmeldung" value={lastLogin} wide />
               </dl>
@@ -465,6 +486,18 @@ function PortalAccessPanel({ customerId, email }: { customerId: string; email: s
                     An diese Adresse gehen Ticket- und Termin-Mails. Leer = E-Mail aus den Stammdaten.
                   </span>
                 </label>
+                <div className="field">
+                  <span>Benachrichtigungen</span>
+                  <p className="field-hint muted">
+                    Der Kunde kann die Typen im Portal nicht ändern. Global aus unter Einstellungen wird nicht
+                    versendet.
+                  </p>
+                  <MailNotifyList
+                    values={notify}
+                    allowed={allowed}
+                    onChange={(kind, checked) => setNotify((n) => ({ ...n, [kind]: checked }))}
+                  />
+                </div>
                 <div className="portal-access-secrets">
                   <p className="portal-access-secrets-lead muted">
                     {exists

@@ -232,7 +232,12 @@ export function PortalTicketsPage() {
           ) : null}
           {done.length ? (
             <section className="portal-ticket-section is-done">
-              <h3>Erledigt</h3>
+              <h3>
+                <span className="portal-ticket-done-mark" aria-hidden>
+                  <DoneCheckIcon />
+                </span>
+                Erledigt
+              </h3>
               <ul className="portal-ticket-list">
                 {done.map((t) => (
                   <PortalTicketCard key={t.id} ticket={t} waiting={false} now={now} />
@@ -339,28 +344,34 @@ export function PortalTicketsPage() {
   );
 }
 
-/** Kennzahlen für eine Portal-Ticketkarte (Zeiten und Herkunft). */
-function ticketCardFacts(ticket: TicketItem, now: Date) {
-  const facts: { label: string; value: string }[] = [
-    { label: "Eingegangen", value: formatTimeAgo(ticket.createdAt, now) || formatDate(ticket.createdAt) },
-    { label: "Aktualisiert", value: formatTimeAgo(ticket.updatedAt, now) || formatDate(ticket.updatedAt) },
-    { label: "Quelle", value: ticket.createdByRole === "customer" ? "Von Ihnen" : "Vom Systemhaus" },
+/** Kurze Meta-Zeile für eine Portal-Ticketkarte. */
+function ticketCardMeta(ticket: TicketItem, now: Date, done: boolean): string {
+  if (done) {
+    const at = ticket.closedAt || ticket.resolvedAt || ticket.updatedAt;
+    return formatDate(at);
+  }
+  const parts = [
+    formatTimeAgo(ticket.createdAt, now) || formatDate(ticket.createdAt),
+    ticket.createdByRole === "customer" ? "Von Ihnen" : "Vom Systemhaus",
   ];
   if (ticket.firstResponseAt) {
-    facts.push({ label: "Erste Antwort", value: formatTimeAgo(ticket.firstResponseAt, now) });
-  } else if (ticket.status === "open" || ticket.status === "in_progress" || ticket.status === "waiting_customer") {
-    facts.push({ label: "Erste Antwort", value: "steht aus" });
+    parts.push(`Antwort ${formatTimeAgo(ticket.firstResponseAt, now)}`);
+  } else {
+    parts.push("Antwort steht aus");
   }
-  if (ticket.resolvedAt || ticket.closedAt) {
-    facts.push({
-      label: ticket.status === "closed" ? "Geschlossen" : "Gelöst",
-      value: formatDate(ticket.resolvedAt || ticket.closedAt || ""),
-    });
-  }
-  return facts;
+  return parts.filter(Boolean).join(" · ");
 }
 
-/** Eine Ticketkarte in der Portal-Liste mit Status, Zeiten und SLA. */
+/** Haken-Icon für erledigte Portal-Tickets. */
+function DoneCheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden>
+      <path d="M7.5 12.5 10.5 15.5 16.5 8.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Eine Ticketkarte in der Portal-Liste: kompakt, erledigte klar gekennzeichnet. */
 function PortalTicketCard({
   ticket,
   waiting,
@@ -371,47 +382,34 @@ function PortalTicketCard({
   now: number;
 }) {
   const clockNow = new Date(now);
+  const done = ticket.status === "resolved" || ticket.status === "closed";
   const slaTone = ticketSlaTone(ticket, clockNow);
-  const showSla = Boolean(ticket.slaResponseDueAt || ticket.slaResolveDueAt);
-  const facts = ticketCardFacts(ticket, clockNow);
+  const showSla = !done && Boolean(ticket.slaResponseDueAt || ticket.slaResolveDueAt);
+  const meta = ticketCardMeta(ticket, clockNow, done);
 
   return (
     <li>
       <Link
-        className={`panel portal-ticket-card is-sla-${slaTone}${waiting ? " is-waiting" : ""}`}
+        className={`panel portal-ticket-card is-sla-${slaTone}${waiting ? " is-waiting" : ""}${done ? " is-done" : ""}`}
         to={`/portal/tickets/${ticket.id}`}
       >
         <div className="portal-ticket-card-head">
+          {done ? (
+            <span className="portal-ticket-done-mark" aria-hidden>
+              <DoneCheckIcon />
+            </span>
+          ) : null}
           <span className="portal-ticket-num">{ticket.number}</span>
-          {waiting ? <span className="portal-ticket-cta">Bitte antworten</span> : null}
-        </div>
-        <dl className="portal-ticket-kpis">
-          <div>
-            <dt>Aktueller Status</dt>
-            <dd>
-              <span className={`badge badge-ticket-${ticket.status}`}>
-                {portalTicketStatusLabel[ticket.status]}
-              </span>
-            </dd>
-          </div>
-          <div>
-            <dt>Priorität</dt>
-            <dd>
+          <strong className="portal-ticket-title">{ticket.title}</strong>
+          <span className="portal-ticket-badges">
+            <span className={`badge badge-ticket-${ticket.status}`}>{done ? "Erledigt" : portalTicketStatusLabel[ticket.status]}</span>
+            {done ? null : (
               <span className={`badge badge-prio-${ticket.priority}`}>{ticketPriorityLabel[ticket.priority]}</span>
-            </dd>
-          </div>
-        </dl>
-        <div className="portal-ticket-main">
-          <strong>{ticket.title}</strong>
+            )}
+            {waiting ? <span className="portal-ticket-cta">Bitte antworten</span> : null}
+          </span>
         </div>
-        <dl className="portal-ticket-facts">
-          {facts.map((fact) => (
-            <div key={fact.label}>
-              <dt>{fact.label}</dt>
-              <dd>{fact.value}</dd>
-            </div>
-          ))}
-        </dl>
+        <p className="muted portal-ticket-meta">{meta}</p>
         {showSla ? <TicketSlaClocks ticket={ticket} now={now} compact /> : null}
       </Link>
     </li>

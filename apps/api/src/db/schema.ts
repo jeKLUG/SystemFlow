@@ -564,7 +564,7 @@ export const customerUsers = sqliteTable("customer_users", {
   passwordHash: text("password_hash").notNull(),
   /** Empfänger für Portal-Mails, unabhängig vom Login. */
   email: text("email"),
-  /** Kunden-Opt-out je Typ, JSON. Leeres Objekt = alles an. */
+  /** Staff legt je Typ fest, welche Mails dieser Kunde bekommt. Leeres Objekt = alles an. */
   mailNotifyJson: text("mail_notify_json").notNull().default("{}"),
   enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
   lastLoginAt: integer("last_login_at", { mode: "timestamp_ms" }),
