@@ -19913,10 +19913,29 @@ div.mon-alert-item-main {
   gap: 0.6rem;
 }
 
-.mon-kpis-mini div {
+.mon-kpis-mini div,
+.mon-kpis-mini button {
   padding: 0.55rem 0.7rem;
   border-radius: 10px;
   background: rgba(148, 163, 184, 0.08);
+}
+
+.mon-kpis-mini button {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.mon-kpis-mini button:hover,
+.mon-kpis-mini button:focus-visible {
+  background: rgba(148, 163, 184, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.4);
 }
 
 .mon-kpis-mini span {
@@ -19927,6 +19946,129 @@ div.mon-alert-item-main {
 
 .mon-kpis-mini strong {
   font-size: 1.15rem;
+}
+
+.mon-proc-modal.modal-panel.modal-wide {
+  width: min(100%, 640px);
+}
+
+.mon-proc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-height: 0;
+}
+
+.mon-proc-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+}
+
+.mon-proc-search {
+  flex: 1 1 12rem;
+  min-width: 0;
+  height: 2.15rem;
+  padding: 0 0.7rem;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(8, 12, 20, 0.45);
+}
+
+.mon-proc-meta {
+  font-size: 0.8rem;
+}
+
+.mon-proc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+}
+
+.mon-proc-table th,
+.mon-proc-table td {
+  padding: 0.42rem 0.35rem;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.mon-proc-table th:nth-child(2),
+.mon-proc-table th:nth-child(3),
+.mon-proc-table td:nth-child(2),
+.mon-proc-table td:nth-child(3) {
+  width: 7.2rem;
+  text-align: right;
+}
+
+.mon-proc-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.mon-proc-table th button {
+  appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.mon-proc-table th button.is-active {
+  color: #bfdbfe;
+}
+
+.mon-proc-table tbody tr:hover td {
+  background: rgba(148, 163, 184, 0.06);
+}
+
+.mon-proc-table td:first-child {
+  min-width: 0;
+}
+
+.mon-proc-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.mon-proc-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mon-proc-count {
+  flex-shrink: 0;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.mon-proc-val {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.mon-proc-table .mon-meter {
+  margin-top: 0.22rem;
 }
 
 .mon-linechart svg {

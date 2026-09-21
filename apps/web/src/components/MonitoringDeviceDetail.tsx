@@ -8,6 +8,7 @@ import {
 } from "./MonitoringAlertConfigFields";
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import { MonitoringPingTargets } from "./MonitoringPingTargets";
+import { MonitoringProcessList, type ProcessSort } from "./MonitoringProcessList";
 import {
   agentVersionAtLeast,
   deviceIssueChips,
@@ -22,7 +23,7 @@ import type { MonitoringAlertConfig, MonitoringDeviceDetail, MonitoringPingTarge
 import { emptyMonitoringAlertConfig, monitoringDiskId } from "../types";
 
 /**
- * Gerätedetail: Warnungen, Pings, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
+ * Gerätedetail: Warnungen, CPU/RAM-Prozesse, Pings, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
  */
 export function MonitoringDeviceDetail({
   detail,
@@ -55,6 +56,7 @@ export function MonitoringDeviceDetail({
     device.alertConfig ?? emptyMonitoringAlertConfig(device.alertEnabled),
   );
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const [procSort, setProcSort] = useState<ProcessSort | null>(null);
   const [updateMsg, setUpdateMsg] = useState("");
   const [uninstallMsg, setUninstallMsg] = useState("");
   const alertCount = monitoringAlertEnabledCount(alertConfig);
@@ -136,20 +138,20 @@ export function MonitoringDeviceDetail({
       </Modal>
 
       <div className="mon-kpis-mini">
-        <div>
+        <button type="button" onClick={() => setProcSort("cpu")} aria-label="CPU – Prozesse anzeigen">
           <span>CPU</span>
           <strong>{pct(device.cpuPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.cpuPercent ?? 0))}%` }} />
           </span>
-        </div>
-        <div>
+        </button>
+        <button type="button" onClick={() => setProcSort("ram")} aria-label="RAM – Prozesse anzeigen">
           <span>RAM</span>
           <strong>{pct(device.ramPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.ramPercent ?? 0))}%` }} />
           </span>
-        </div>
+        </button>
         <div className={device.issues.includes("disk") ? "is-warn" : undefined}>
           <span>Datenträger</span>
           <strong>{pct(device.diskUsedPct)}</strong>
@@ -162,6 +164,20 @@ export function MonitoringDeviceDetail({
           <strong>{formatUptime(device.uptimeSec)}</strong>
         </div>
       </div>
+
+      <Modal
+        open={procSort != null}
+        title={procSort === "ram" ? "Prozesse nach RAM" : "Prozesse nach CPU"}
+        onClose={() => setProcSort(null)}
+        className="modal-wide mon-proc-modal"
+      >
+        <MonitoringProcessList
+          processes={snapshot?.processes ?? []}
+          sort={procSort ?? "cpu"}
+          onSort={setProcSort}
+          ramTotalBytes={snapshot?.ramTotalBytes}
+        />
+      </Modal>
 
       {samples.length < 2 ? (
         <p className="empty">Noch nicht genug Verlauf für ein Diagramm.</p>
@@ -199,7 +215,6 @@ export function MonitoringDeviceDetail({
               })
             : undefined
         }
-        processes={snapshot?.processes}
         updates={snapshot?.updates}
         session={snapshot?.session}
         network={snapshot?.network}

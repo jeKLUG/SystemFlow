@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.199 – 2026-09-21
+
+- Monitoring Gerät: Klick auf CPU oder RAM öffnet die Prozesse (gruppiert nach Name, sortiert wie im Taskmanager); Agent 1.0.9 liefert bis 60 Prozesse
+
 ## 1.5.198 – 2026-09-21
 
 - Monitoring Gerät: Ping-Ziele als Kacheln im Netzwerk-Panel (Status wie Gateway/DNS), anlegen über „Neues Ziel“

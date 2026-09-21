@@ -429,6 +429,7 @@ export type NicSnapshot = {
 
 export type ProcessSnapshot = {
   name: string;
+  pid?: number;
   cpuPercent?: number;
   rssBytes?: number;
 };

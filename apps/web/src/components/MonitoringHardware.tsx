@@ -1,7 +1,6 @@
 import { type ReactNode, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { HelpHint } from "./HelpHint";
-import { formatBytes, pct } from "../lib/monitoringUi";
 import type { MonitoringHardware, MonitoringSnapshot } from "../types";
 
 type SoftItem = NonNullable<MonitoringSnapshot["software"]>[number];
@@ -471,7 +470,6 @@ function sessionUsers(session?: MonitoringSnapshot["session"]): string[] {
 export function MonitoringHardwarePanel({
   hardware,
   disks,
-  processes,
   updates,
   session,
   network,
@@ -487,7 +485,6 @@ export function MonitoringHardwarePanel({
 }: {
   hardware?: MonitoringHardware | null;
   disks?: DeviceDiskView[];
-  processes?: MonitoringSnapshot["processes"];
   updates?: MonitoringSnapshot["updates"];
   session?: MonitoringSnapshot["session"];
   network?: MonitoringSnapshot["network"];
@@ -544,7 +541,6 @@ export function MonitoringHardwarePanel({
   );
   const hasLive = Boolean(
     (disks?.length ?? 0) > 0 ||
-      (processes?.length ?? 0) > 0 ||
       updates ||
       hasSession ||
       hasNet ||
@@ -921,22 +917,6 @@ export function MonitoringHardwarePanel({
               </ul>
             </div>
           )}
-        </div>
-      ) : null}
-
-      {processes?.length ? (
-        <div className="mon-hw-section">
-          <h4>Top-Prozesse</h4>
-          <ul className="mon-hw-procs">
-            {processes.map((p, i) => (
-              <li key={`${p.name}-${i}`}>
-                <span className="mon-hw-proc-name">{p.name}</span>
-                <span className="mon-hw-proc-cpu">{pct(p.cpuPercent ?? null)}</span>
-                <span className="muted">{formatBytes(p.rssBytes)}</span>
-                <Meter value={p.cpuPercent} />
-              </li>
-            ))}
-          </ul>
         </div>
       ) : null}
     </div>

@@ -168,7 +168,7 @@ Agent (öffentlich, ohne Staff-Session):
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
-| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`session`/`network` (Gateway, DNS, `gatewayOk`/`dnsOk`)/`services[]`/`software[]`/`defender`/`firewall`/`crash`/`pings[]` (`id`,`host`,`ok`,`ms?`)/`updates.rebootPending`/`platform`. Antwort: `{ ok, assigned, updateNow, uninstall, pingTargets: [{ id, host }], latestAgent?: { platform, version, sha256 } }` |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`session`/`network` (Gateway, DNS, `gatewayOk`/`dnsOk`)/`services[]`/`software[]`/`defender`/`firewall`/`crash`/`pings[]` (`id`,`host`,`ok`,`ms?`)/`processes[]` (bis 80, `name`,`pid?`,`cpuPercent`,`rssBytes`)/`updates.rebootPending`/`platform`. Antwort: `{ ok, assigned, updateNow, uninstall, pingTargets: [{ id, host }], latestAgent?: { platform, version, sha256 } }` |
 | GET | `/api/monitoring/agent/latest?platform=` | Aktuelles Paket-Metadatum. Auth: Staff-Cookie, Query `key=` (Enrollment) oder Bearer-Token |
 | GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64`). Gleiche Auth wie latest |
 

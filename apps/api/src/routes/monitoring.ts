@@ -106,11 +106,12 @@ const heartbeatBody = z.object({
     .array(
       z.object({
         name: z.string().max(200),
-        cpuPercent: z.number().optional(),
+        pid: z.number().int().nonnegative().optional(),
+        cpuPercent: z.number().min(0).max(10000).optional(),
         rssBytes: z.number().nonnegative().optional(),
       }),
     )
-    .max(20)
+    .max(80)
     .optional(),
   updates: z
     .object({

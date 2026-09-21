@@ -1075,7 +1075,7 @@ export interface MonitoringSnapshot {
   ramTotalBytes?: number | null;
   disks?: { id?: string; name: string; mount?: string; totalBytes: number; usedBytes: number; freeBytes: number }[];
   nics?: { name: string; bytesRecv: number; bytesSent: number; up?: boolean }[];
-  processes?: { name: string; cpuPercent?: number; rssBytes?: number }[];
+  processes?: { name: string; pid?: number; cpuPercent?: number; rssBytes?: number }[];
   updates?: { pendingCount?: number; lastInstalled?: string | null; rebootPending?: boolean };
   events?: { source?: string; level?: string; time?: string; message: string }[];
   hardware?: MonitoringHardware;

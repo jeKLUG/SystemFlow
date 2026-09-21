@@ -31,6 +31,7 @@ type NicSnapshot struct {
 
 type ProcessSnapshot struct {
 	Name       string  `json:"name"`
+	PID        int32   `json:"pid,omitempty"`
 	CPUPercent float64 `json:"cpuPercent,omitempty"`
 	RSSBytes   uint64  `json:"rssBytes,omitempty"`
 }
@@ -158,7 +159,7 @@ func collectSnapshot() (AgentSnapshot, error) {
 		snap.IPs = ips
 	}
 
-	snap.Processes = topProcesses(10)
+	snap.Processes = collectProcesses()
 	updates := collectUpdates()
 	if updates == nil {
 		updates = &UpdateSnapshot{}
@@ -182,14 +183,23 @@ func collectSnapshot() (AgentSnapshot, error) {
 	return snap, nil
 }
 
-func topProcesses(n int) []ProcessSnapshot {
+const processKeep = 60
+const processTop = 40
+
+func collectProcesses() []ProcessSnapshot {
 	procs, err := process.Processes()
 	if err != nil {
 		return nil
 	}
+	for _, pr := range procs {
+		_, _ = pr.CPUPercent()
+	}
+	time.Sleep(220 * time.Millisecond)
+
 	type row struct {
 		p   ProcessSnapshot
 		cpu float64
+		rss uint64
 	}
 	var rows []row
 	for _, pr := range procs {
@@ -198,19 +208,47 @@ func topProcesses(n int) []ProcessSnapshot {
 			continue
 		}
 		cpuPct, _ := pr.CPUPercent()
+		if cpuPct < 0 {
+			cpuPct = 0
+		}
 		var rss uint64
 		if mi, err := pr.MemoryInfo(); err == nil && mi != nil {
 			rss = mi.RSS
 		}
-		rows = append(rows, row{p: ProcessSnapshot{Name: name, CPUPercent: cpuPct, RSSBytes: rss}, cpu: cpuPct})
+		rows = append(rows, row{
+			p:   ProcessSnapshot{Name: name, PID: pr.Pid, CPUPercent: cpuPct, RSSBytes: rss},
+			cpu: cpuPct,
+			rss: rss,
+		})
 	}
-	sort.Slice(rows, func(i, j int) bool { return rows[i].cpu > rows[j].cpu })
-	if len(rows) > n {
-		rows = rows[:n]
+	if len(rows) == 0 {
+		return nil
 	}
-	out := make([]ProcessSnapshot, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, r.p)
+
+	byCPU := append([]row(nil), rows...)
+	sort.Slice(byCPU, func(i, j int) bool { return byCPU[i].cpu > byCPU[j].cpu })
+	byRSS := append([]row(nil), rows...)
+	sort.Slice(byRSS, func(i, j int) bool { return byRSS[i].rss > byRSS[j].rss })
+
+	seen := map[int32]struct{}{}
+	out := make([]ProcessSnapshot, 0, processKeep)
+	take := func(list []row, n int) {
+		for _, r := range list {
+			if len(out) >= processKeep || n <= 0 {
+				return
+			}
+			pid := r.p.PID
+			if pid != 0 {
+				if _, ok := seen[pid]; ok {
+					continue
+				}
+				seen[pid] = struct{}{}
+			}
+			out = append(out, r.p)
+			n--
+		}
 	}
+	take(byCPU, processTop)
+	take(byRSS, processTop)
 	return out
 }
