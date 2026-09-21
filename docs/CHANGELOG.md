@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.191 – 2026-09-21
+
+- Monitoring Gerät: Datenträger als Karten – Belegt/Frei/Gesamt, dicker Balken, Modell und Schnittstelle als Chips
+
+## 1.5.190 – 2026-09-21
+
+- Monitoring Gerät: Netzwerk als ein Panel – LAN/WAN/Gateway/DNS gleichwertig, Adapter mit Tempo und MAC
+
 ## 1.5.189 – 2026-09-21
 
 - Staff-Start: Lage auf einen Blick – sechs Kennzahlen, Donuts für Aufgaben/Tickets/Flotte, Wochenbalken, Handlungsbedarf oben

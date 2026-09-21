@@ -179,12 +179,149 @@ function groupRam(modules: NonNullable<MonitoringHardware["memoryModules"]>) {
   return [...map.values()];
 }
 
+function diskModelLabel(raw?: string): string | null {
+  const t = raw?.replace(/_/g, " ").replace(/\s+/g, " ").trim();
+  return t || null;
+}
+
+type PhysDisk = NonNullable<MonitoringHardware["storage"]>[number];
+
+/**
+ * Ein Laufwerk mit Belegung, Gesundheit und Hardware-Chips.
+ */
+function DiskVolume({ disk, phys }: { disk: DeviceDiskView; phys?: PhysDisk }) {
+  const health = phys?.health;
+  const bad = health === "fail" || health === "warn";
+  const used = Math.round(disk.usedPct);
+  const chips = [
+    phys?.media,
+    phys?.bus && phys.bus !== phys.media ? phys.bus : null,
+    disk.over && disk.thresh != null ? `Warnung ab ${disk.thresh} %` : null,
+  ].filter((v): v is string => Boolean(v));
+  const model = diskModelLabel(phys?.model || phys?.name);
+  const serial = phys?.serial?.trim() || "";
+
+  return (
+    <article className={`mon-hw-disk${disk.over || bad ? " is-over" : ""}`}>
+      <div className="mon-hw-disk-head">
+        <div className="mon-hw-disk-title">
+          <strong>{disk.name}</strong>
+          <HealthChip health={health} />
+        </div>
+        <div className="mon-hw-disk-stats">
+          <span>
+            <em>{used} %</em> belegt
+          </span>
+          <span>
+            <em>{disk.freeLabel}</em> frei
+          </span>
+          <span className="muted">
+            <em>{disk.totalLabel}</em> gesamt
+          </span>
+        </div>
+      </div>
+      <Meter value={disk.usedPct} warn={disk.over || bad} />
+      {chips.length || model || serial ? (
+        <ul className="mon-hw-chips">
+          {chips.map((chip) => (
+            <li key={chip}>{chip}</li>
+          ))}
+          {model ? <li className="is-wide" title={model}>{model}</li> : null}
+          {serial ? (
+            <li className="is-mono" title={serial}>
+              {serial}
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </article>
+  );
+}
+
+/**
+ * Physisches Laufwerk ohne gemountetes Volume.
+ */
+function DiskPhys({ disk }: { disk: PhysDisk }) {
+  const model = diskModelLabel(disk.model || disk.name) || "Datenträger";
+  const serial = disk.serial?.trim() || "";
+  return (
+    <article className="mon-hw-disk is-phys">
+      <div className="mon-hw-disk-head">
+        <div className="mon-hw-disk-title">
+          <strong>{model}</strong>
+          <HealthChip health={disk.health} />
+        </div>
+        {disk.sizeBytes ? (
+          <div className="mon-hw-disk-stats">
+            <span>
+              <em>{formatSize(disk.sizeBytes)}</em> Kapazität
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <ul className="mon-hw-chips">
+        {disk.media ? <li>{disk.media}</li> : null}
+        {disk.bus && disk.bus !== disk.media ? <li>{disk.bus}</li> : null}
+        {serial ? (
+          <li className="is-mono" title={serial}>
+            {serial}
+          </li>
+        ) : null}
+      </ul>
+    </article>
+  );
+}
+
 function Meter({ value, warn }: { value: number | null | undefined; warn?: boolean }) {
   if (value == null || !Number.isFinite(value)) return null;
   return (
     <span className={`mon-meter${warn ? " is-over" : ""}`} aria-hidden>
       <span style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
     </span>
+  );
+}
+
+function formatLinkSpeed(mbps?: number): string | null {
+  if (!mbps || !Number.isFinite(mbps) || mbps <= 0) return null;
+  if (mbps >= 1000) {
+    const g = mbps / 1000;
+    return `${g >= 10 || Number.isInteger(g) ? g.toFixed(0) : g.toFixed(1)} Gbit/s`;
+  }
+  return `${mbps} Mbit/s`;
+}
+
+function nicKindLabel(name: string): string | null {
+  if (/wi-?fi|wlan|802\.11|wireless/i.test(name)) return "WLAN";
+  if (/ethernet|lan|usb/i.test(name)) return "LAN";
+  return null;
+}
+
+/** Kleine Netz-Kachel für eine Adresse (LAN, WAN, Gateway, DNS). */
+function NetAddr({
+  label,
+  value,
+  chips,
+  warn,
+}: {
+  label: string;
+  value: string;
+  chips?: string[];
+  warn?: boolean;
+}) {
+  return (
+    <article className={`mon-hw-net-addr${warn ? " is-warn" : ""}`}>
+      <span className="mon-hw-card-label">{label}</span>
+      <strong className="mon-hw-net-ip" title={value}>
+        {value}
+      </strong>
+      {chips?.length ? (
+        <ul className="mon-hw-net-chips">
+          {chips.map((chip) => (
+            <li key={chip}>{chip}</li>
+          ))}
+        </ul>
+      ) : null}
+    </article>
   );
 }
 
@@ -386,16 +523,12 @@ export function MonitoringHardwarePanel({
     biosVersion && biosDate ? biosDate : null,
   ]);
   const lanMode = network?.dhcp == null ? null : network.dhcp ? "DHCP" : "Statisch";
-  const lanLabel = lanMode ? `LAN · ${lanMode}` : "LAN";
-  const lanSub = lan.apipaOnly
-    ? "Keine gültige LAN-Adresse (APIPA)"
-    : lan.extras.length
-      ? lan.extras.slice(0, 3).join(" · ")
-      : null;
   const adapterHint = (network?.adapter || "").trim().toLowerCase();
-  const netFacts: { label: string; value: string }[] = [];
-  if (network?.gateway) netFacts.push({ label: "Gateway", value: network.gateway });
-  if (dns[0]) netFacts.push({ label: "DNS", value: [dns[0], ...dns.slice(1)].join(" · ") });
+  const lanChips = [
+    lan.apipaOnly ? "APIPA" : lanMode,
+    ...lan.extras.slice(0, 3),
+  ].filter((v): v is string => Boolean(v));
+  const dnsChips = dns.slice(1);
 
   return (
     <div className="mon-hw">
@@ -454,107 +587,72 @@ export function MonitoringHardwarePanel({
       {hasNet ? (
         <div className="mon-hw-section">
           <h4>Netzwerk</h4>
-          {lan.primary || network?.publicIp ? (
-            <div className="mon-hw-cards mon-hw-net-cards">
-              <HwCard
-                label={lanLabel}
-                value={lan.primary || "–"}
-                sub={lanSub || (lan.primary ? null : "Keine Adresse")}
-                warn={lan.apipaOnly}
-              />
-              <HwCard
-                label="Öffentlich"
-                value={network?.publicIp || "–"}
-                sub={network?.publicIp ? "WAN-Adresse" : "Nicht ermittelt"}
-              />
-            </div>
-          ) : null}
-          {netFacts.length ? (
-            <dl className="mon-hw-net-facts">
-              {netFacts.map((fact) => (
-                <div key={fact.label}>
-                  <dt>{fact.label}</dt>
-                  <dd>{fact.value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-          {nics.length ? (
-            <>
-              <p className="mon-hw-nics-label">Adapter</p>
+          <div className="mon-hw-net">
+            {lan.primary || network?.publicIp || network?.gateway || dns[0] ? (
+              <div className="mon-hw-net-addrs">
+                {lan.primary || lan.apipaOnly ? (
+                  <NetAddr
+                    label="LAN"
+                    value={lan.primary || "–"}
+                    chips={lanChips}
+                    warn={lan.apipaOnly}
+                  />
+                ) : null}
+                {network?.publicIp ? <NetAddr label="Öffentlich" value={network.publicIp} /> : null}
+                {network?.gateway ? <NetAddr label="Gateway" value={network.gateway} /> : null}
+                {dns[0] ? <NetAddr label="DNS" value={dns[0]} chips={dnsChips} /> : null}
+              </div>
+            ) : null}
+            {nics.length ? (
               <ul className="mon-hw-nics">
-              {nics.map((n, i) => {
-                const name = n.name?.replace(/\s+/g, " ") || "Adapter";
-                const active = Boolean(
-                  adapterHint && (name.toLowerCase().includes(adapterHint) || adapterHint.includes(name.toLowerCase())),
-                );
-                return (
-                  <li key={`${n.mac}-${i}`} className={active ? "is-active" : undefined}>
-                    <strong title={name}>{name}</strong>
-                    <span className="mon-hw-nic-speed">{n.speedMbps ? `${n.speedMbps} Mbit/s` : "–"}</span>
-                    <span className="muted">{n.mac || n.manufacturer || ""}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            </>
-          ) : null}
+                {nics.map((n, i) => {
+                  const name = n.name?.replace(/\s+/g, " ") || "Adapter";
+                  const active = Boolean(
+                    adapterHint &&
+                      (name.toLowerCase().includes(adapterHint) || adapterHint.includes(name.toLowerCase())),
+                  );
+                  const speed = formatLinkSpeed(n.speedMbps);
+                  const kind = nicKindLabel(name);
+                  return (
+                    <li key={`${n.mac}-${i}`} className={active ? "is-active" : undefined}>
+                      <span className="mon-hw-nic-main">
+                        <strong title={name}>{name}</strong>
+                        {active ? <span className="mon-hw-nic-chip is-on">Aktiv</span> : null}
+                        {kind && !active ? <span className="mon-hw-nic-chip">{kind}</span> : null}
+                      </span>
+                      {speed ? <span className="mon-hw-nic-speed">{speed}</span> : <span />}
+                      <span className="mon-hw-nic-mac">{n.mac || n.manufacturer || ""}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : null}
+          </div>
         </div>
       ) : null}
 
       {disks?.length ? (
         <div className="mon-hw-section">
           <h4>Datenträger</h4>
-          <ul className="mon-hw-disks">
+          <div className="mon-hw-disk-panel">
             {disks.map((d, i) => {
               const phys = storage[Math.min(i, Math.max(0, storage.length - 1))];
               const showPhys = storage.length === 1 || storage.length === disks.length;
-              const health = showPhys ? phys?.health : undefined;
-              const bad = health === "fail" || health === "warn";
-              return (
-                <li key={d.id} className={d.over || bad ? "is-over" : undefined}>
-                  <div className="mon-hw-disk-head">
-                    <strong>
-                      {d.name} <HealthChip health={health} />
-                    </strong>
-                    <span>
-                      {Math.round(d.usedPct)} % · {d.freeLabel} frei
-                    </span>
-                  </div>
-                  <Meter value={d.usedPct} warn={d.over} />
-                  <p className="muted">
-                    {d.totalLabel} gesamt
-                    {d.over && d.thresh != null ? ` · Warnung ab ${d.thresh} %` : ""}
-                    {showPhys && phys
-                      ? ` · ${joinParts([phys.model || phys.name, phys.media, phys.bus, phys.serial])}`
-                      : ""}
-                  </p>
-                </li>
-              );
+              return <DiskVolume key={d.id} disk={d} phys={showPhys ? phys : undefined} />;
             })}
-          </ul>
-          {storage.length > 1 && storage.length !== disks.length ? (
-            <ul className="mon-hw-quiet">
-              {storage.map((s, i) => (
-                <li key={`${s.serial}-${i}`}>
-                  <HealthChip health={s.health} />{" "}
-                  {joinParts([s.model || s.name, formatSize(s.sizeBytes), s.media, s.bus, s.serial])}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+            {storage.length > 1 && storage.length !== disks.length
+              ? storage.map((s, i) => <DiskPhys key={`${s.serial}-${i}`} disk={s} />)
+              : null}
+          </div>
         </div>
       ) : storage.length ? (
         <div className="mon-hw-section">
           <h4>Datenträger</h4>
-          <ul className="mon-hw-quiet">
+          <div className="mon-hw-disk-panel">
             {storage.map((s, i) => (
-              <li key={`${s.serial}-${i}`}>
-                <HealthChip health={s.health} />{" "}
-                {joinParts([s.model || s.name, formatSize(s.sizeBytes), s.media, s.bus, s.serial])}
-              </li>
+              <DiskPhys key={`${s.serial}-${i}`} disk={s} />
             ))}
-          </ul>
+          </div>
         </div>
       ) : null}
 
