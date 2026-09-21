@@ -205,6 +205,9 @@ export function MonitoringDeviceDetail({
         services={snapshot?.services}
         software={snapshot?.software}
         customerId={device.customerId ?? undefined}
+        defender={snapshot?.defender}
+        firewall={snapshot?.firewall}
+        crash={snapshot?.crash}
       />
 
       {snapshot?.events?.length ? (

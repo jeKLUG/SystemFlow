@@ -177,6 +177,10 @@ const monitoringKindPreviewLabel: Record<string, string> = {
   smart: "SMART",
   services: "Dienste",
   reboot: "Neustart",
+  defender: "Antivirus",
+  firewall: "Firewall",
+  crash: "Absturz",
+  lan: "Netz",
 };
 
 function monitoringAlertPreview(asset: Asset): PreviewRow | null {

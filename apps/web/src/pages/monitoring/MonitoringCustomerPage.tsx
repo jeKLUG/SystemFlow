@@ -31,6 +31,10 @@ const issueBarColor: Record<MonitoringIssueKind, string> = {
   smart: "#f87171",
   services: "#c084fc",
   reboot: "#fbbf24",
+  defender: "#34d399",
+  firewall: "#fb7185",
+  crash: "#f87171",
+  lan: "#38bdf8",
 };
 
 type DeviceFilter = "all" | "warn" | "offline" | "online" | "update" | "waiting";
@@ -140,6 +144,10 @@ export function MonitoringCustomerPage() {
       smart: 0,
       services: 0,
       reboot: 0,
+      defender: 0,
+      firewall: 0,
+      crash: 0,
+      lan: 0,
     };
     for (const d of devices) {
       for (const kind of d.issues) counts[kind] += 1;

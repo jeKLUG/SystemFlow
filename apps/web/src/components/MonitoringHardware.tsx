@@ -63,6 +63,25 @@ function isInternalBoardId(name: string, model?: string, title?: string): boolea
   return /^[A-Z0-9]{8,}$/.test(name);
 }
 
+function firewallView(fw: NonNullable<MonitoringSnapshot["firewall"]>): {
+  value: string;
+  warn: boolean;
+  chips: string[];
+} {
+  const profiles = fw.profiles ?? [];
+  const chips = profiles.map((p) => `${p.name} ${p.enabled ? "an" : "aus"}`);
+  const active = (fw.active || "").trim().toLowerCase();
+  const current = active ? profiles.find((p) => p.name.toLowerCase() === active) : undefined;
+  if (current) return { value: `${current.name}: ${current.enabled ? "an" : "aus"}`, warn: !current.enabled, chips };
+  if (profiles.length === 1) {
+    return { value: profiles[0].enabled ? "An" : "Aus", warn: !profiles[0].enabled, chips };
+  }
+  const importantOff = profiles.some(
+    (p) => ["domain", "private", "host", "ufw", "firewalld"].includes(p.name.toLowerCase()) && !p.enabled,
+  );
+  return { value: importantOff ? "Teilweise aus" : "An", warn: importantOff, chips };
+}
+
 function isRamLikeSocket(socket?: string | null): boolean {
   return /lpddr|ddr[2345]|dimm|sodimm/i.test(socket || "");
 }
@@ -461,6 +480,9 @@ export function MonitoringHardwarePanel({
   services,
   software,
   customerId,
+  defender,
+  firewall,
+  crash,
 }: {
   hardware?: MonitoringHardware | null;
   disks?: DeviceDiskView[];
@@ -473,6 +495,9 @@ export function MonitoringHardwarePanel({
   services?: MonitoringSnapshot["services"];
   software?: MonitoringSnapshot["software"];
   customerId?: string;
+  defender?: MonitoringSnapshot["defender"];
+  firewall?: MonitoringSnapshot["firewall"];
+  crash?: MonitoringSnapshot["crash"];
 }) {
   const [softQuery, setSoftQuery] = useState("");
   const [softFilter, setSoftFilter] = useState<"all" | "match" | "missing">("all");
@@ -521,7 +546,10 @@ export function MonitoringHardwarePanel({
       hasSession ||
       hasNet ||
       (services?.length ?? 0) > 0 ||
-      (software?.length ?? 0) > 0,
+      (software?.length ?? 0) > 0 ||
+      Boolean(defender) ||
+      Boolean(firewall) ||
+      Boolean(crash?.unexpected),
   );
 
   const matchedCount = (software ?? []).filter((s) => s.match).length;
@@ -613,10 +641,11 @@ export function MonitoringHardwarePanel({
     ...lan.extras.slice(0, 3),
   ].filter((v): v is string => Boolean(v));
   const dnsChips = dns.slice(1);
+  const fwView = firewall ? firewallView(firewall) : null;
 
   return (
     <div className="mon-hw">
-      {hasHw || hasSession || updates?.pendingCount || updates?.rebootPending ? (
+      {hasHw || hasSession || updates?.pendingCount || updates?.rebootPending || crash?.unexpected ? (
         <section className="mon-hw-hero">
           <div className="mon-hw-hero-top">
             <div>
@@ -624,6 +653,11 @@ export function MonitoringHardwarePanel({
               <h3 className="mon-hw-model">{sysName || "Unbekanntes System"}</h3>
             </div>
             <div className="mon-hw-pills">
+              {crash?.unexpected ? (
+                <span className="mon-hw-update-pill" title={crash.reason || undefined}>
+                  Unerwarteter Neustart
+                </span>
+              ) : null}
               {updates?.rebootPending ? <span className="mon-hw-update-pill is-reboot">Neustart nötig</span> : null}
               {updates?.pendingCount ? (
                 <span className="mon-hw-update-pill">{updates.pendingCount} Updates</span>
@@ -677,6 +711,43 @@ export function MonitoringHardwarePanel({
         <h3>Gerät</h3>
       )}
 
+      {defender || firewall ? (
+        <div className="mon-hw-section">
+          <h4>Schutz</h4>
+          <div className="mon-hw-cards">
+            {defender ? (
+              <HwCard
+                label="Antivirus"
+                value={
+                  defender.realtime === false || defender.antivirus === false
+                    ? "Aus"
+                    : defender.realtime
+                      ? "Echtzeitschutz an"
+                      : defender.product || "Defender"
+                }
+                chips={[
+                  defender.product && defender.product !== "Microsoft Defender" ? defender.product : null,
+                  defender.signaturesAgeHours != null
+                    ? defender.signaturesAgeHours < 24
+                      ? `Signaturen ${defender.signaturesAgeHours} h`
+                      : `Signaturen ${Math.round(defender.signaturesAgeHours / 24)} Tage`
+                    : defender.signaturesUpdated || null,
+                  defender.lastScan ? `Scan ${defender.lastScan.replace("T", " ").slice(0, 16)}` : null,
+                ]}
+                warn={
+                  defender.realtime === false ||
+                  defender.antivirus === false ||
+                  (defender.signaturesAgeHours != null && defender.signaturesAgeHours > 168)
+                }
+              />
+            ) : null}
+            {fwView ? (
+              <HwCard label="Firewall" value={fwView.value} chips={fwView.chips} warn={fwView.warn} />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
       {hasNet ? (
         <div className="mon-hw-section">
           <h4>Netzwerk</h4>
@@ -692,8 +763,27 @@ export function MonitoringHardwarePanel({
                   />
                 ) : null}
                 {network?.publicIp ? <NetAddr label="Öffentlich" value={network.publicIp} /> : null}
-                {network?.gateway ? <NetAddr label="Gateway" value={network.gateway} /> : null}
-                {dns[0] ? <NetAddr label="DNS" value={dns[0]} chips={dnsChips} /> : null}
+                {network?.gateway ? (
+                  <NetAddr
+                    label="Gateway"
+                    value={network.gateway}
+                    chips={[
+                      network.gatewayOk === true ? "erreichbar" : network.gatewayOk === false ? "keine Antwort" : null,
+                    ].filter((v): v is string => Boolean(v))}
+                    warn={network.gatewayOk === false}
+                  />
+                ) : null}
+                {dns[0] ? (
+                  <NetAddr
+                    label="DNS"
+                    value={dns[0]}
+                    chips={[
+                      network?.dnsOk === true ? "löst auf" : network?.dnsOk === false ? "keine Antwort" : null,
+                      ...dnsChips,
+                    ].filter((v): v is string => Boolean(v))}
+                    warn={network?.dnsOk === false}
+                  />
+                ) : null}
               </div>
             ) : null}
             {nics.length ? (

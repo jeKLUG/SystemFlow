@@ -631,6 +631,10 @@ export const monitoringIssueKinds = [
   "smart",
   "services",
   "reboot",
+  "defender",
+  "firewall",
+  "crash",
+  "lan",
 ] as const;
 export type MonitoringIssueKind = (typeof monitoringIssueKinds)[number];
 

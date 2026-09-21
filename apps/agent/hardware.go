@@ -30,11 +30,11 @@ type HardwareBoard struct {
 }
 
 type HardwareCPU struct {
-	Name     string `json:"name,omitempty"`
-	Cores    int    `json:"cores,omitempty"`
-	Threads  int    `json:"threads,omitempty"`
-	Mhz      int    `json:"mhz,omitempty"`
-	Socket   string `json:"socket,omitempty"`
+	Name    string `json:"name,omitempty"`
+	Cores   int    `json:"cores,omitempty"`
+	Threads int    `json:"threads,omitempty"`
+	Mhz     int    `json:"mhz,omitempty"`
+	Socket  string `json:"socket,omitempty"`
 }
 
 type HardwareMemoryModule struct {
@@ -58,9 +58,9 @@ type HardwareStorage struct {
 }
 
 type HardwareGPU struct {
-	Name       string `json:"name,omitempty"`
-	Driver     string `json:"driver,omitempty"`
-	VramBytes  uint64 `json:"vramBytes,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Driver    string `json:"driver,omitempty"`
+	VramBytes uint64 `json:"vramBytes,omitempty"`
 }
 
 type HardwareNic struct {
@@ -71,14 +71,14 @@ type HardwareNic struct {
 }
 
 type HardwareInventory struct {
-	System         *HardwareSystem          `json:"system,omitempty"`
-	BIOS           *HardwareBIOS            `json:"bios,omitempty"`
-	Board          *HardwareBoard           `json:"board,omitempty"`
-	Cpus           []HardwareCPU            `json:"cpus,omitempty"`
-	MemoryModules  []HardwareMemoryModule   `json:"memoryModules,omitempty"`
-	Storage        []HardwareStorage        `json:"storage,omitempty"`
-	Gpus           []HardwareGPU            `json:"gpus,omitempty"`
-	Nics           []HardwareNic            `json:"nics,omitempty"`
+	System        *HardwareSystem        `json:"system,omitempty"`
+	BIOS          *HardwareBIOS          `json:"bios,omitempty"`
+	Board         *HardwareBoard         `json:"board,omitempty"`
+	Cpus          []HardwareCPU          `json:"cpus,omitempty"`
+	MemoryModules []HardwareMemoryModule `json:"memoryModules,omitempty"`
+	Storage       []HardwareStorage      `json:"storage,omitempty"`
+	Gpus          []HardwareGPU          `json:"gpus,omitempty"`
+	Nics          []HardwareNic          `json:"nics,omitempty"`
 }
 
 var lastHardware *HardwareInventory

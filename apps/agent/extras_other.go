@@ -17,3 +17,9 @@ func collectNetwork() *NetworkSnapshot {
 func collectFailedServices() []ServiceSnapshot { return nil }
 
 func collectSoftware() []SoftwareSnapshot { return nil }
+
+func collectDefender() *DefenderSnapshot { return nil }
+
+func collectFirewall() *FirewallSnapshot { return nil }
+
+func collectCrash() *CrashSnapshot { return nil }

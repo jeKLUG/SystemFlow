@@ -228,6 +228,35 @@ const heartbeatBody = z.object({
       dns: z.array(z.string().max(80)).max(8).optional(),
       dhcp: z.boolean().nullable().optional(),
       adapter: z.string().max(120).optional(),
+      gatewayOk: z.boolean().nullable().optional(),
+      dnsOk: z.boolean().nullable().optional(),
+      dnsFailed: z.array(z.string().max(80)).max(8).optional(),
+    })
+    .optional(),
+  defender: z
+    .object({
+      product: z.string().max(120).optional(),
+      realtime: z.boolean().nullable().optional(),
+      antivirus: z.boolean().nullable().optional(),
+      signaturesAgeHours: z.number().int().min(0).max(87600).nullable().optional(),
+      signaturesUpdated: z.string().max(80).optional(),
+      lastScan: z.string().max(80).optional(),
+    })
+    .optional(),
+  firewall: z
+    .object({
+      active: z.string().max(40).optional(),
+      profiles: z
+        .array(z.object({ name: z.string().max(40), enabled: z.boolean() }))
+        .max(8)
+        .optional(),
+    })
+    .optional(),
+  crash: z
+    .object({
+      unexpected: z.boolean().optional(),
+      time: z.string().max(80).optional(),
+      reason: z.string().max(200).optional(),
     })
     .optional(),
   services: z
@@ -939,6 +968,10 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
               smart: kindAlertZ.optional(),
               services: kindAlertZ.optional(),
               reboot: kindAlertZ.optional(),
+              defender: kindAlertZ.optional(),
+              firewall: kindAlertZ.optional(),
+              crash: kindAlertZ.optional(),
+              lan: kindAlertZ.optional(),
             })
             .optional(),
         })

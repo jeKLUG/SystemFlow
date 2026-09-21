@@ -28,6 +28,10 @@ const kindMeta: Record<MonitoringIssueKind, { title: string; hint: string }> = {
   smart: { title: "Datenträger-Gesundheit", hint: "SMART / HealthStatus Warnung oder Fehler" },
   services: { title: "Dienste fehlgeschlagen", hint: "Auto-Start-Dienst läuft nicht" },
   reboot: { title: "Neustart ausstehend", hint: "Nach Updates oder Dateioperationen" },
+  defender: { title: "Antivirus", hint: "Echtzeitschutz aus oder Signaturen älter als 7 Tage" },
+  firewall: { title: "Firewall aus", hint: "Aktives Windows-Profil bzw. ufw/firewalld inaktiv" },
+  crash: { title: "Unerwarteter Neustart", hint: "Dirty Shutdown, Stromverlust oder Bluescreen" },
+  lan: { title: "Gateway/DNS", hint: "Gateway ping oder Namensauflösung schlägt fehl" },
 };
 
 const priorities: TicketPriority[] = ["low", "normal", "high", "critical"];

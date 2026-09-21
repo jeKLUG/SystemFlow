@@ -63,6 +63,58 @@ Get-CimInstance Win32_Service | Where-Object {
 } | Select-Object -First 20 | ForEach-Object {
   $services += @{ name = N $_.Name; display = N $_.DisplayName; state = N $_.State }
 }
+$defender = $null
+try {
+  $mp = Get-MpComputerStatus -ErrorAction Stop
+  if ($mp) {
+    $sigAge = $null
+    $sigTime = $null
+    if ($mp.AntivirusSignatureLastUpdated) {
+      $sigTime = ([datetime]$mp.AntivirusSignatureLastUpdated).ToString('s')
+      $sigAge = [int]((Get-Date) - [datetime]$mp.AntivirusSignatureLastUpdated).TotalHours
+    }
+    $scanAt = $null
+    $scans = @($mp.QuickScanEndTime, $mp.FullScanEndTime) | Where-Object { $_ } | Sort-Object -Descending
+    if ($scans.Count -gt 0) { $scanAt = ([datetime]$scans[0]).ToString('s') }
+    $defender = @{
+      product = 'Microsoft Defender'
+      realtime = [bool]$mp.RealTimeProtectionEnabled
+      antivirus = [bool]$mp.AntivirusEnabled
+      signaturesAgeHours = $sigAge
+      signaturesUpdated = $sigTime
+      lastScan = $scanAt
+    }
+  }
+} catch {}
+$fwProfiles = @()
+$fwActive = $null
+try {
+  Get-NetFirewallProfile -ErrorAction Stop | ForEach-Object {
+    $fwProfiles += @{ name = N $_.Name; enabled = [bool]$_.Enabled }
+  }
+  $cat = N (Get-NetConnectionProfile -ErrorAction SilentlyContinue | Select-Object -First 1).NetworkCategory
+  if ($cat -eq 'DomainAuthenticated') { $cat = 'Domain' }
+  $fwActive = $cat
+} catch {}
+$crashTime = $null
+$crashReason = $null
+try {
+  $boot = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+  if ($boot) {
+    $from = ([datetime]$boot).AddMinutes(-30)
+    $ev = Get-WinEvent -FilterHashtable @{ LogName = 'System'; Id = 6008,41,1001; StartTime = $from } -MaxEvents 5 -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($ev) {
+      $crashTime = $ev.TimeCreated.ToString('s')
+      if ($ev.Id -eq 6008) { $crashReason = 'Unerwartetes Herunterfahren' }
+      elseif ($ev.Id -eq 41) { $crashReason = 'Absturz / Stromverlust' }
+      else { $crashReason = 'Bluescreen' }
+    }
+  }
+} catch {}
+$crash = $null
+if ($crashReason) {
+  $crash = @{ unexpected = $true; time = $crashTime; reason = $crashReason }
+}
 @{
   user = $user
   users = $users
@@ -72,18 +124,26 @@ Get-CimInstance Win32_Service | Where-Object {
   dns = $dns
   dhcp = $dhcp
   services = $services
-} | ConvertTo-Json -Compress -Depth 5
+  defender = $defender
+  firewallActive = $fwActive
+  firewallProfiles = $fwProfiles
+  crash = $crash
+} | ConvertTo-Json -Compress -Depth 6
 `
 
 type extrasWire struct {
-	User      string          `json:"user"`
-	Users     json.RawMessage `json:"users"`
-	LastLogon string          `json:"lastLogon"`
-	Adapter   string          `json:"adapter"`
-	Gateway   string          `json:"gateway"`
-	DNS       json.RawMessage `json:"dns"`
-	Dhcp      *bool           `json:"dhcp"`
-	Services  json.RawMessage `json:"services"`
+	User             string          `json:"user"`
+	Users            json.RawMessage `json:"users"`
+	LastLogon        string          `json:"lastLogon"`
+	Adapter          string          `json:"adapter"`
+	Gateway          string          `json:"gateway"`
+	DNS              json.RawMessage `json:"dns"`
+	Dhcp             *bool           `json:"dhcp"`
+	Services         json.RawMessage `json:"services"`
+	Defender         json.RawMessage `json:"defender"`
+	FirewallActive   string          `json:"firewallActive"`
+	FirewallProfiles json.RawMessage `json:"firewallProfiles"`
+	Crash            json.RawMessage `json:"crash"`
 }
 
 func runHiddenPS(script string) ([]byte, error) {
@@ -150,6 +210,66 @@ func collectFailedServices() []ServiceSnapshot {
 		}
 	}
 	return out
+}
+
+func collectDefender() *DefenderSnapshot {
+	raw := collectLiveExtrasCached().Defender
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var row struct {
+		Product            string   `json:"product"`
+		Realtime           *bool    `json:"realtime"`
+		Antivirus          *bool    `json:"antivirus"`
+		SignaturesAgeHours *float64 `json:"signaturesAgeHours"`
+		SignaturesUpdated  string   `json:"signaturesUpdated"`
+		LastScan           string   `json:"lastScan"`
+	}
+	if json.Unmarshal(raw, &row) != nil {
+		return nil
+	}
+	snap := &DefenderSnapshot{
+		Product:           strings.TrimSpace(row.Product),
+		Realtime:          row.Realtime,
+		Antivirus:         row.Antivirus,
+		SignaturesUpdated: strings.TrimSpace(row.SignaturesUpdated),
+		LastScan:          strings.TrimSpace(row.LastScan),
+	}
+	if row.SignaturesAgeHours != nil {
+		h := int(*row.SignaturesAgeHours)
+		if h < 0 {
+			h = 0
+		}
+		snap.SignaturesAgeHours = &h
+	}
+	if snap.Product == "" && snap.Realtime == nil && snap.Antivirus == nil {
+		return nil
+	}
+	return snap
+}
+
+func collectFirewall() *FirewallSnapshot {
+	wire := collectLiveExtrasCached()
+	profiles := parseOneOrMany[FirewallProfile](wire.FirewallProfiles)
+	active := strings.TrimSpace(wire.FirewallActive)
+	if len(profiles) == 0 && active == "" {
+		return nil
+	}
+	return &FirewallSnapshot{Active: active, Profiles: profiles}
+}
+
+func collectCrash() *CrashSnapshot {
+	raw := collectLiveExtrasCached().Crash
+	if len(raw) == 0 || string(raw) == "null" {
+		return nil
+	}
+	var row CrashSnapshot
+	if json.Unmarshal(raw, &row) != nil || !row.Unexpected {
+		return nil
+	}
+	row.Reason = strings.TrimSpace(row.Reason)
+	row.Time = strings.TrimSpace(row.Time)
+	return &row
 }
 
 var lastExtras extrasWire

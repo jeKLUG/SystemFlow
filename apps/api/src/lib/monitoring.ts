@@ -46,6 +46,10 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   smart: "Datenträger-Gesundheit",
   services: "Dienste fehlgeschlagen",
   reboot: "Neustart ausstehend",
+  defender: "Antivirus",
+  firewall: "Firewall aus",
+  crash: "Unerwarteter Neustart",
+  lan: "Gateway/DNS",
 };
 
 export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = {
@@ -58,6 +62,10 @@ export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = 
   smart: "high",
   services: "normal",
   reboot: "low",
+  defender: "high",
+  firewall: "high",
+  crash: "high",
+  lan: "high",
 };
 
 export type KindAlert = { enabled: boolean; priority: TicketPriority };
@@ -145,6 +153,10 @@ export function emptyAlertConfig(allEnabled = false): AlertConfig {
     smart: { enabled: allEnabled, priority: defaultKindPriority.smart },
     services: { enabled: allEnabled, priority: defaultKindPriority.services },
     reboot: { enabled: allEnabled, priority: defaultKindPriority.reboot },
+    defender: { enabled: allEnabled, priority: defaultKindPriority.defender },
+    firewall: { enabled: allEnabled, priority: defaultKindPriority.firewall },
+    crash: { enabled: allEnabled, priority: defaultKindPriority.crash },
+    lan: { enabled: allEnabled, priority: defaultKindPriority.lan },
   };
 }
 
@@ -369,9 +381,32 @@ export type SessionSnapshot = {
 export type NetworkSnapshot = {
   publicIp?: string;
   gateway?: string;
+  gatewayOk?: boolean | null;
   dns?: string[];
+  dnsOk?: boolean | null;
+  dnsFailed?: string[];
   dhcp?: boolean | null;
   adapter?: string;
+};
+
+export type DefenderSnapshot = {
+  product?: string;
+  realtime?: boolean | null;
+  antivirus?: boolean | null;
+  signaturesAgeHours?: number | null;
+  signaturesUpdated?: string;
+  lastScan?: string;
+};
+
+export type FirewallSnapshot = {
+  active?: string;
+  profiles?: { name: string; enabled: boolean }[];
+};
+
+export type CrashSnapshot = {
+  unexpected?: boolean;
+  time?: string;
+  reason?: string;
 };
 
 export type ServiceSnapshot = {
@@ -410,6 +445,9 @@ export type AgentSnapshot = {
   network?: NetworkSnapshot;
   services?: ServiceSnapshot[];
   software?: SoftwareSnapshot[];
+  defender?: DefenderSnapshot;
+  firewall?: FirewallSnapshot;
+  crash?: CrashSnapshot;
   /** z.B. `windows-amd64` – vom Agent gemeldet. */
   platform?: string;
 };
@@ -585,8 +623,42 @@ export function evaluateHeartbeatIssues(
   if (storage.some((s) => s.health === "fail" || s.health === "warn")) issues.push("smart");
   if ((snapshot.services ?? []).length > 0) issues.push("services");
   if (snapshot.updates?.rebootPending) issues.push("reboot");
+  if (defenderProblem(snapshot.defender)) issues.push("defender");
+  if (firewallProblem(snapshot.firewall)) issues.push("firewall");
+  if (snapshot.crash?.unexpected) issues.push("crash");
+  if (lanProblem(snapshot.network)) issues.push("lan");
 
   return { issues, firingDisks, cpuHighStreak, ramHighStreak };
+}
+
+const SIGNATURES_STALE_HOURS = 168;
+
+function defenderProblem(d?: DefenderSnapshot | null): boolean {
+  if (!d) return false;
+  if (d.realtime === false || d.antivirus === false) return true;
+  return d.signaturesAgeHours != null && d.signaturesAgeHours > SIGNATURES_STALE_HOURS;
+}
+
+function firewallProblem(fw?: FirewallSnapshot | null): boolean {
+  const profiles = fw?.profiles ?? [];
+  if (!profiles.length) return false;
+  const active = fw?.active?.trim() || "";
+  if (active) {
+    const row = profiles.find((p) => p.name.toLowerCase() === active.toLowerCase());
+    if (row) return !row.enabled;
+    if (active.toLowerCase() === "host" && profiles.length === 1) return !profiles[0].enabled;
+  }
+  return profiles.some((p) => {
+    const n = p.name.toLowerCase();
+    return (n === "domain" || n === "private" || n === "host" || n === "ufw" || n === "firewalld") && !p.enabled;
+  });
+}
+
+function lanProblem(net?: NetworkSnapshot | null): boolean {
+  if (!net) return false;
+  if (net.gatewayOk === false) return true;
+  if (net.dnsOk === false) return true;
+  return false;
 }
 
 function issueTitle(deviceName: string, kind: MonitoringIssueKind, diskName?: string): string {
@@ -613,6 +685,34 @@ function issueDetailFromSnapshot(snapshot: AgentSnapshot | null | undefined, kin
       .join(", ");
   }
   if (kind === "reboot") return "Windows/Linux verlangt einen Neustart.";
+  if (kind === "defender") {
+    const d = snapshot.defender;
+    const bits = [
+      d?.realtime === false ? "Echtzeitschutz aus" : null,
+      d?.antivirus === false ? "Antivirus aus" : null,
+      d?.signaturesAgeHours != null && d.signaturesAgeHours > 168
+        ? `Signaturen ${Math.round(d.signaturesAgeHours / 24)} Tage alt`
+        : null,
+    ].filter(Boolean);
+    return bits.join(", ");
+  }
+  if (kind === "firewall") {
+    const fw = snapshot.firewall;
+    const off = (fw?.profiles ?? []).filter((p) => !p.enabled).map((p) => p.name);
+    const active = fw?.active ? `aktiv: ${fw.active}` : null;
+    return [active, off.length ? `aus: ${off.join(", ")}` : null].filter(Boolean).join("; ");
+  }
+  if (kind === "crash") {
+    return [snapshot.crash?.reason, snapshot.crash?.time].filter(Boolean).join(" · ");
+  }
+  if (kind === "lan") {
+    const n = snapshot.network;
+    const bits = [
+      n?.gatewayOk === false ? `Gateway ${n.gateway || ""} nicht erreichbar`.trim() : null,
+      n?.dnsOk === false ? `DNS ohne Antwort${n.dnsFailed?.length ? ` (${n.dnsFailed.join(", ")})` : ""}` : null,
+    ].filter(Boolean);
+    return bits.join("; ");
+  }
   return "";
 }
 

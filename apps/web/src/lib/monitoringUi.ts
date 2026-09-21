@@ -10,6 +10,10 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   smart: "SMART",
   services: "Dienste",
   reboot: "Neustart",
+  defender: "Antivirus",
+  firewall: "Firewall",
+  crash: "Absturz",
+  lan: "Netz",
 };
 
 /**

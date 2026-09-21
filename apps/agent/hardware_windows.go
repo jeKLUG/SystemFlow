@@ -177,7 +177,7 @@ func collectHardware() *HardwareInventory {
 		m.Serial = cleanHW(m.Serial)
 		m.Type = cleanHW(m.Type)
 	}
-		for i := range hw.Storage {
+	for i := range hw.Storage {
 		s := &hw.Storage[i]
 		s.Name = cleanHW(s.Name)
 		s.Model = cleanHW(s.Model)

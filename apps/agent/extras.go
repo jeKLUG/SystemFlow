@@ -15,11 +15,39 @@ type SessionSnapshot struct {
 }
 
 type NetworkSnapshot struct {
-	PublicIP string   `json:"publicIp,omitempty"`
-	Gateway  string   `json:"gateway,omitempty"`
-	DNS      []string `json:"dns,omitempty"`
-	Dhcp     *bool    `json:"dhcp,omitempty"`
-	Adapter  string   `json:"adapter,omitempty"`
+	PublicIP  string   `json:"publicIp,omitempty"`
+	Gateway   string   `json:"gateway,omitempty"`
+	GatewayOk *bool    `json:"gatewayOk,omitempty"`
+	DNS       []string `json:"dns,omitempty"`
+	DnsOk     *bool    `json:"dnsOk,omitempty"`
+	DnsFailed []string `json:"dnsFailed,omitempty"`
+	Dhcp      *bool    `json:"dhcp,omitempty"`
+	Adapter   string   `json:"adapter,omitempty"`
+}
+
+type FirewallProfile struct {
+	Name    string `json:"name"`
+	Enabled bool   `json:"enabled"`
+}
+
+type FirewallSnapshot struct {
+	Active   string            `json:"active,omitempty"`
+	Profiles []FirewallProfile `json:"profiles,omitempty"`
+}
+
+type DefenderSnapshot struct {
+	Product            string `json:"product,omitempty"`
+	Realtime           *bool  `json:"realtime,omitempty"`
+	Antivirus          *bool  `json:"antivirus,omitempty"`
+	SignaturesAgeHours *int   `json:"signaturesAgeHours,omitempty"`
+	SignaturesUpdated  string `json:"signaturesUpdated,omitempty"`
+	LastScan           string `json:"lastScan,omitempty"`
+}
+
+type CrashSnapshot struct {
+	Unexpected bool   `json:"unexpected,omitempty"`
+	Time       string `json:"time,omitempty"`
+	Reason     string `json:"reason,omitempty"`
 }
 
 type ServiceSnapshot struct {

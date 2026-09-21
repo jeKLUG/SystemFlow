@@ -99,6 +99,10 @@ const assetBody = z.object({
       smart: kindAlertBody.optional(),
       services: kindAlertBody.optional(),
       reboot: kindAlertBody.optional(),
+      defender: kindAlertBody.optional(),
+      firewall: kindAlertBody.optional(),
+      crash: kindAlertBody.optional(),
+      lan: kindAlertBody.optional(),
     })
     .optional(),
 });

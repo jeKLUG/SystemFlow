@@ -17,11 +17,11 @@ var embeddedAgentVersion string
 var agentVersion = strings.TrimSpace(embeddedAgentVersion)
 
 type config struct {
-	ServerURL        string `json:"serverUrl"`
-	EnrollmentKey    string `json:"enrollmentKey"`
-	Token            string `json:"token,omitempty"`
-	AgentID          string `json:"agentId,omitempty"`
-	LastUpdateCheck  string `json:"lastUpdateCheck,omitempty"`
+	ServerURL       string `json:"serverUrl"`
+	EnrollmentKey   string `json:"enrollmentKey"`
+	Token           string `json:"token,omitempty"`
+	AgentID         string `json:"agentId,omitempty"`
+	LastUpdateCheck string `json:"lastUpdateCheck,omitempty"`
 }
 
 func defaultConfigPath() string {

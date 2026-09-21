@@ -38,7 +38,11 @@ export type MonitoringIssueKind =
   | "updates"
   | "smart"
   | "services"
-  | "reboot";
+  | "reboot"
+  | "defender"
+  | "firewall"
+  | "crash"
+  | "lan";
 export type MonitoringKindAlert = { enabled: boolean; priority: TicketPriority };
 export type MonitoringVolumeAlert = { enabled: boolean; warnUsedPct: number };
 export type MonitoringDiskAlert = MonitoringKindAlert & {
@@ -866,6 +870,10 @@ export const monitoringIssueKinds: MonitoringIssueKind[] = [
   "smart",
   "services",
   "reboot",
+  "defender",
+  "firewall",
+  "crash",
+  "lan",
 ];
 
 export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertConfig {
@@ -879,6 +887,10 @@ export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertC
     smart: { enabled: allEnabled, priority: "high" },
     services: { enabled: allEnabled, priority: "normal" },
     reboot: { enabled: allEnabled, priority: "low" },
+    defender: { enabled: allEnabled, priority: "high" },
+    firewall: { enabled: allEnabled, priority: "high" },
+    crash: { enabled: allEnabled, priority: "high" },
+    lan: { enabled: allEnabled, priority: "high" },
   };
 }
 
@@ -1046,11 +1058,27 @@ export interface MonitoringSnapshot {
   network?: {
     publicIp?: string;
     gateway?: string;
+    gatewayOk?: boolean | null;
     dns?: string[];
+    dnsOk?: boolean | null;
+    dnsFailed?: string[];
     dhcp?: boolean | null;
     adapter?: string;
   };
   services?: { name: string; display?: string; state?: string }[];
+  defender?: {
+    product?: string;
+    realtime?: boolean | null;
+    antivirus?: boolean | null;
+    signaturesAgeHours?: number | null;
+    signaturesUpdated?: string;
+    lastScan?: string;
+  };
+  firewall?: {
+    active?: string;
+    profiles?: { name: string; enabled: boolean }[];
+  };
+  crash?: { unexpected?: boolean; time?: string; reason?: string };
   software?: {
     name: string;
     publisher?: string;

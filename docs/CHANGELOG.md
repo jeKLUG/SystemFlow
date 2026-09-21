@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.196 – 2026-09-21
+
+- Monitoring Agent 1.0.7: Defender/Firewall, unerwarteter Neustart, Gateway- und DNS-Erreichbarkeit; neue Ticket-Typen (bestehende Geräte: Schalter aus)
+
 ## 1.5.195 – 2026-09-21
 
 - Konto Anschrift: Lesemodus wie auf dem Vertrag; Formular erst nach „Bearbeiten“

@@ -166,3 +166,38 @@ func parseLinuxSoftware(raw string, debian bool) []SoftwareSnapshot {
 	sortSoftware(list)
 	return list
 }
+
+func collectDefender() *DefenderSnapshot { return nil }
+
+func collectFirewall() *FirewallSnapshot {
+	if out, err := exec.Command("ufw", "status").Output(); err == nil {
+		on := strings.Contains(strings.ToLower(string(out)), "status: active")
+		return &FirewallSnapshot{
+			Active:   "host",
+			Profiles: []FirewallProfile{{Name: "ufw", Enabled: on}},
+		}
+	}
+	if out, err := exec.Command("systemctl", "is-active", "firewalld").Output(); err == nil {
+		on := strings.TrimSpace(string(out)) == "active"
+		return &FirewallSnapshot{
+			Active:   "host",
+			Profiles: []FirewallProfile{{Name: "firewalld", Enabled: on}},
+		}
+	}
+	return nil
+}
+
+func collectCrash() *CrashSnapshot {
+	out, err := exec.Command("journalctl", "-b", "-1", "-n", "80", "--no-pager", "-o", "cat").Output()
+	if err != nil {
+		return nil
+	}
+	low := strings.ToLower(string(out))
+	needles := []string{"kernel panic", "bug: unable to handle", "watchdog: bug", "oops: ", "fatal exception"}
+	for _, n := range needles {
+		if strings.Contains(low, n) {
+			return &CrashSnapshot{Unexpected: true, Reason: "Kernel-Absturz"}
+		}
+	}
+	return nil
+}
