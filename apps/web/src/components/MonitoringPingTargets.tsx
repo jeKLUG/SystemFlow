@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { HelpHint } from "./HelpHint";
 import { agentVersionAtLeast } from "../lib/monitoringUi";
 import type { MonitoringPingResult, MonitoringPingTarget } from "../types";
 
@@ -27,8 +28,24 @@ function normalizeHost(raw: string): string {
   return host;
 }
 
+function pingStatus(result: MonitoringPingResult | undefined): {
+  label: string;
+  tone: "ok" | "warn" | "wait";
+  ms?: string;
+} {
+  if (!result) return { label: "wartet", tone: "wait" };
+  if (result.ok) {
+    return {
+      label: "erreichbar",
+      tone: "ok",
+      ms: result.ms != null ? `${result.ms} ms` : undefined,
+    };
+  }
+  return { label: "keine Antwort", tone: "warn" };
+}
+
 /**
- * Ping-Ziele am Monitoring-Gerät: anlegen, entfernen, Status vom letzten Heartbeat.
+ * Ping-Ziele als Netz-Kacheln: Status wie Gateway/DNS, neues Ziel in derselben Reihe.
  */
 export function MonitoringPingTargets({
   targets,
@@ -65,7 +82,7 @@ export function MonitoringPingTargets({
       return;
     }
     if (atMax) {
-      setError(`Höchstens ${MAX_PING_TARGETS} Pings`);
+      setError(`Höchstens ${MAX_PING_TARGETS} Ziele`);
       return;
     }
     const nextLabel = label.trim().slice(0, 80);
@@ -77,86 +94,89 @@ export function MonitoringPingTargets({
 
   return (
     <div className="mon-pings">
-      <div className="section-head row-between">
-        <div>
-          <h3>Pings</h3>
-          <p className="muted">
-            Der Agent prüft die Ziele im LAN beim nächsten Heartbeat
-            {agentReady ? " (ca. 1 Minute)" : ""}.
-          </p>
-        </div>
+      <div className="mon-pings-head">
+        <h5>
+          Weitere Ziele
+          <HelpHint text="NAS, Drucker oder Firewall anpingen. Der Agent prüft die IPs jede Minute. Tickets unter Ticket-Typen." />
+        </h5>
+        {targets.length ? (
+          <span className="muted mon-pings-count">
+            {targets.length} / {MAX_PING_TARGETS}
+          </span>
+        ) : null}
+        {!agentReady ? <span className="mon-ping-badge">Ergebnis nach Agent-Update</span> : null}
       </div>
-      {!agentReady ? (
-        <p className="muted mon-pings-hint">Agent 1.0.8 nötig — bitte aktualisieren, sonst bleiben die Pings leer.</p>
-      ) : null}
-      {targets.length ? (
-        <ul className="mon-ping-list">
-          {targets.map((t) => {
-            const result = t.id ? byId.get(t.id) : undefined;
-            const status =
-              result == null
-                ? "wartet"
-                : result.ok
-                  ? result.ms != null
-                    ? `erreichbar · ${result.ms} ms`
-                    : "erreichbar"
-                  : "keine Antwort";
-            return (
-              <li key={t.id || t.host} className={`mon-ping-row${result?.ok === false ? " is-warn" : ""}`}>
-                <div className="mon-ping-copy">
-                  <strong>{t.label || t.host}</strong>
-                  {t.label ? <span className="muted">{t.host}</span> : null}
-                </div>
-                <span className={`mon-ping-status${result?.ok === false ? " is-warn" : result?.ok ? " is-ok" : ""}`}>
-                  {status}
-                </span>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  disabled={busy}
-                  onClick={() => onChange(targets.filter((x) => x !== t))}
-                >
-                  Entfernen
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className="muted mon-pings-empty">Noch kein Ping. z. B. die IP eines NAS oder einer Firewall.</p>
-      )}
-      <form
-        className="mon-ping-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          add();
-        }}
-      >
-        <input
-          className="input"
-          value={host}
-          onChange={(e) => setHost(e.target.value)}
-          placeholder="IP oder Hostname"
-          autoComplete="off"
-          disabled={busy || atMax}
-          maxLength={253}
-          aria-label="Ping-Ziel"
-        />
-        <input
-          className="input"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Name (optional)"
-          autoComplete="off"
-          disabled={busy || atMax}
-          maxLength={80}
-          aria-label="Bezeichnung"
-        />
-        <button type="submit" className="btn btn-primary btn-sm" disabled={busy || atMax || !host.trim()}>
-          Hinzufügen
-        </button>
-      </form>
-      {error ? <p className="form-error">{error}</p> : null}
+      <div className="mon-hw-net-addrs">
+        {targets.map((t) => {
+          const result = t.id ? byId.get(t.id) : undefined;
+          const status = pingStatus(result);
+          const name = t.label || "Ping";
+          return (
+            <article
+              key={t.id || t.host}
+              className={`mon-hw-net-addr mon-ping-card${status.tone === "warn" ? " is-warn" : ""}`}
+            >
+              <span className="mon-hw-card-label">{name}</span>
+              <strong className="mon-hw-net-ip" title={t.host}>
+                {t.host}
+              </strong>
+              <ul className="mon-hw-net-chips">
+                <li className={`is-${status.tone}`}>{status.label}</li>
+                {status.ms ? <li>{status.ms}</li> : null}
+              </ul>
+              <button
+                type="button"
+                className="mon-ping-remove"
+                disabled={busy}
+                aria-label={`${name} ${t.host} entfernen`}
+                onClick={() => onChange(targets.filter((x) => x !== t))}
+              >
+                <span aria-hidden>×</span>
+              </button>
+            </article>
+          );
+        })}
+        {!atMax ? (
+          <form
+            className="mon-hw-net-addr mon-ping-add"
+            onSubmit={(e) => {
+              e.preventDefault();
+              add();
+            }}
+          >
+            <span className="mon-hw-card-label">Neues Ziel</span>
+            <input
+              className="mon-ping-host"
+              value={host}
+              onChange={(e) => {
+                setHost(e.target.value);
+                if (error) setError("");
+              }}
+              placeholder="192.168.1.10"
+              autoComplete="off"
+              disabled={busy}
+              maxLength={253}
+              aria-label="IP oder Hostname"
+            />
+            <div className="mon-ping-add-row">
+              <input
+                className="mon-ping-name"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="Name, z. B. NAS"
+                autoComplete="off"
+                disabled={busy}
+                maxLength={80}
+                aria-label="Name (optional)"
+              />
+              <button type="submit" className="btn btn-ghost btn-sm" disabled={busy || !host.trim()}>
+                Hinzufügen
+              </button>
+            </div>
+            {error ? <p className="mon-ping-error">{error}</p> : null}
+          </form>
+        ) : null}
+      </div>
     </div>
   );
 }

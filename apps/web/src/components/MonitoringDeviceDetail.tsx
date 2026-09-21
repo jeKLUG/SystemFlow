@@ -163,16 +163,6 @@ export function MonitoringDeviceDetail({
         </div>
       </div>
 
-      {onSavePings ? (
-        <MonitoringPingTargets
-          targets={device.pingTargets ?? []}
-          results={snapshot?.pings}
-          agentVersion={device.agentVersion}
-          busy={updateBusy || uninstallBusy}
-          onChange={onSavePings}
-        />
-      ) : null}
-
       {samples.length < 2 ? (
         <p className="empty">Noch nicht genug Verlauf für ein Diagramm.</p>
       ) : (
@@ -221,6 +211,17 @@ export function MonitoringDeviceDetail({
         defender={snapshot?.defender}
         firewall={snapshot?.firewall}
         crash={snapshot?.crash}
+        pings={
+          onSavePings ? (
+            <MonitoringPingTargets
+              targets={device.pingTargets ?? []}
+              results={snapshot?.pings}
+              agentVersion={device.agentVersion}
+              busy={updateBusy || uninstallBusy}
+              onChange={onSavePings}
+            />
+          ) : null
+        }
       />
 
       {snapshot?.events?.length ? (

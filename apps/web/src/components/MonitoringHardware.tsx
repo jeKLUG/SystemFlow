@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { HelpHint } from "./HelpHint";
 import { formatBytes, pct } from "../lib/monitoringUi";
@@ -466,7 +466,7 @@ function sessionUsers(session?: MonitoringSnapshot["session"]): string[] {
 }
 
 /**
- * Geräteausstattung auf einen Blick: Modell, Netz, SMART, Dienste, Software.
+ * Geräteausstattung auf einen Blick: Modell, Netz, Pings, SMART, Dienste, Software.
  */
 export function MonitoringHardwarePanel({
   hardware,
@@ -483,6 +483,7 @@ export function MonitoringHardwarePanel({
   defender,
   firewall,
   crash,
+  pings,
 }: {
   hardware?: MonitoringHardware | null;
   disks?: DeviceDiskView[];
@@ -498,6 +499,7 @@ export function MonitoringHardwarePanel({
   defender?: MonitoringSnapshot["defender"];
   firewall?: MonitoringSnapshot["firewall"];
   crash?: MonitoringSnapshot["crash"];
+  pings?: ReactNode;
 }) {
   const [softQuery, setSoftQuery] = useState("");
   const [softFilter, setSoftFilter] = useState<"all" | "match" | "missing">("all");
@@ -524,7 +526,8 @@ export function MonitoringHardwarePanel({
       (network?.dns && network.dns.length) ||
       network?.dhcp != null ||
       (ips && ips.length) ||
-      nics.length,
+      nics.length ||
+      pings,
   );
   const hasHw = Boolean(
     hardware &&
@@ -549,7 +552,8 @@ export function MonitoringHardwarePanel({
       (software?.length ?? 0) > 0 ||
       Boolean(defender) ||
       Boolean(firewall) ||
-      Boolean(crash?.unexpected),
+      Boolean(crash?.unexpected) ||
+      Boolean(pings),
   );
 
   const matchedCount = (software ?? []).filter((s) => s.match).length;
@@ -786,6 +790,7 @@ export function MonitoringHardwarePanel({
                 ) : null}
               </div>
             ) : null}
+            {pings}
             {nics.length ? (
               <ul className="mon-hw-nics">
                 {nics.map((n, i) => {
