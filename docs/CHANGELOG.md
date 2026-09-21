@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.198 – 2026-09-21
+
+- Monitoring Gerät: Ping-Ziele als Kacheln im Netzwerk-Panel (Status wie Gateway/DNS), anlegen über „Neues Ziel“
+
 ## 1.5.197 – 2026-09-21
 
 - Monitoring: am Gerät Ping-Ziele (IP/Hostname) anlegen und entfernen; Agent 1.0.8 prüft sie beim Heartbeat. Ticket-Typ „Ping fehlgeschlagen“ je Ziel (bestehende Geräte: Schalter aus)

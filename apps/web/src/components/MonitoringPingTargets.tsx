@@ -96,7 +96,7 @@ export function MonitoringPingTargets({
     <div className="mon-pings">
       <div className="mon-pings-head">
         <h5>
-          Weitere Ziele
+          Pings
           <HelpHint text="NAS, Drucker oder Firewall anpingen. Der Agent prüft die IPs jede Minute. Tickets unter Ticket-Typen." />
         </h5>
         {targets.length ? (

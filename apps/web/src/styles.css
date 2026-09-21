@@ -19962,92 +19962,177 @@ div.mon-alert-item-main {
   font-size: 0.95rem;
 }
 
+.mon-hw-net-addrs + .mon-pings,
 .mon-pings {
-  margin: 0.35rem 0 0.85rem;
-  padding: 0.85rem 0.95rem;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(8, 12, 20, 0.28);
-}
-
-.mon-pings h3 {
-  margin: 0;
-  font-size: 0.95rem;
-}
-
-.mon-pings .section-head p {
-  margin: 0.2rem 0 0;
-  font-size: 0.82rem;
-}
-
-.mon-pings-hint,
-.mon-pings-empty {
-  margin: 0.55rem 0 0.35rem;
-  font-size: 0.84rem;
-}
-
-.mon-ping-list {
-  list-style: none;
-  margin: 0.65rem 0 0.5rem;
-  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 0.55rem;
 }
 
-.mon-ping-row {
+.mon-hw-net-addrs + .mon-pings {
+  padding-top: 0.7rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.mon-pings-head {
   display: flex;
-  align-items: center;
-  gap: 0.65rem;
   flex-wrap: wrap;
-  padding: 0.55rem 0.7rem;
-  border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(8, 12, 20, 0.35);
+  align-items: center;
+  gap: 0.45rem 0.7rem;
 }
 
-.mon-ping-row.is-warn {
-  border-color: rgba(248, 113, 113, 0.32);
-  box-shadow: inset 3px 0 0 #f87171;
-}
-
-.mon-ping-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 0.1rem;
-  min-width: 8rem;
-  flex: 1 1 10rem;
-}
-
-.mon-ping-copy strong {
-  font-size: 0.92rem;
-}
-
-.mon-ping-status {
-  font-size: 0.8rem;
+.mon-pings-head h5 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.mon-pings-count {
+  font-size: 0.72rem;
   font-variant-numeric: tabular-nums;
 }
 
-.mon-ping-status.is-ok {
-  color: #6ee7b7;
+.mon-ping-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.35rem;
+  padding: 0.08rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.32);
 }
 
-.mon-ping-status.is-warn {
+.mon-ping-card {
+  position: relative;
+  padding-right: 2.1rem;
+}
+
+.mon-ping-remove {
+  appearance: none;
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.mon-ping-remove:hover:not(:disabled),
+.mon-ping-remove:focus-visible {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.mon-ping-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mon-ping-add {
+  border-style: dashed;
+  background: transparent;
+  gap: 0.4rem;
+  min-height: 6.4rem;
+}
+
+.mon-ping-host,
+.mon-ping-name {
+  appearance: none;
+  box-shadow: none;
+}
+
+.mon-ping-host {
+  width: 100%;
+  min-width: 0;
+  padding: 0.05rem 0 0.2rem;
+  border: 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.mon-ping-host::placeholder {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: rgba(148, 163, 184, 0.55);
+}
+
+.mon-ping-host:focus {
+  outline: none;
+  border-bottom-color: rgba(96, 165, 250, 0.7);
+}
+
+.mon-ping-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.1rem;
+}
+
+.mon-ping-name {
+  flex: 1 1 6rem;
+  min-width: 0;
+  padding: 0.2rem 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 0.8rem;
+}
+
+.mon-ping-name::placeholder {
+  color: rgba(148, 163, 184, 0.55);
+}
+
+.mon-ping-name:focus {
+  outline: none;
+}
+
+.mon-ping-error {
+  margin: 0;
+  font-size: 0.75rem;
   color: #fca5a5;
 }
 
-.mon-ping-form {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-  margin-top: 0.55rem;
-  align-items: center;
+.mon-hw-net-chips li.is-ok {
+  color: #6ee7b7;
+  background: rgba(52, 211, 153, 0.12);
+  border-color: rgba(52, 211, 153, 0.32);
 }
 
-.mon-ping-form .input {
-  flex: 1 1 9rem;
-  min-width: 8rem;
+.mon-hw-net-chips li.is-warn {
+  color: #fecaca;
+  background: rgba(248, 113, 113, 0.14);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.mon-hw-net-chips li.is-wait {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(96, 165, 250, 0.28);
 }
 
 .mon-disk-list,
@@ -21028,6 +21113,10 @@ div.mon-alert-item-main {
 
   .mon-hw-net-addrs {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .mon-ping-add {
+    grid-column: 1 / -1;
   }
 
   .mon-hw-nics li {
