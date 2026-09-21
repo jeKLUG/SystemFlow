@@ -167,7 +167,7 @@ export function MonitoringDeviceDetail({
 
       <Modal
         open={procSort != null}
-        title={procSort === "ram" ? "Prozesse nach RAM" : "Prozesse nach CPU"}
+        title="Prozesse"
         onClose={() => setProcSort(null)}
         className="modal-wide mon-proc-modal"
       >
@@ -175,7 +175,6 @@ export function MonitoringDeviceDetail({
           processes={snapshot?.processes ?? []}
           sort={procSort ?? "cpu"}
           onSort={setProcSort}
-          ramTotalBytes={snapshot?.ramTotalBytes}
         />
       </Modal>
 

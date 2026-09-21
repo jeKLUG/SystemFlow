@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.200 – 2026-09-21
+
+- Monitoring Prozesse: Kartenzeilen mit CPU- und RAM-Balken, Sortierung über Schalter; Namen ohne .exe
+
 ## 1.5.199 – 2026-09-21
 
 - Monitoring Gerät: Klick auf CPU oder RAM öffnet die Prozesse (gruppiert nach Name, sortiert wie im Taskmanager); Agent 1.0.9 liefert bis 60 Prozesse
