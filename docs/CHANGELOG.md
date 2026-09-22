@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.223 – 2026-09-22
+
+- Marketing-Listen: kompakte Empfängerzeilen; versendete Listen ins Archiv (nicht löschbar), Versanddatum in der Auswahl
+
 ## 1.5.222 – 2026-09-22
 
 - Marketing-Texte: Vorschau ohne „So kommt sie an“; Vorlagenwahl wie die Empfängerliste (Name · Art, Betreff, Gruppen)

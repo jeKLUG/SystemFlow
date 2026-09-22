@@ -695,6 +695,7 @@ export const marketingLists = sqliteTable("marketing_lists", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  archivedAt: integer("archived_at", { mode: "timestamp_ms" }),
 });
 
 export const marketingTemplateKinds = ["first", "reminder"] as const;

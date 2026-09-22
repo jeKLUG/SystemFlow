@@ -87,6 +87,45 @@ export function sendInfoFromRows(sends: MarketingSend[]): LeadSendInfo {
   return { firstSentAt, reminderSentAt };
 }
 
+export type ListSendStats = {
+  hasSends: boolean;
+  sentCount: number;
+  reminderCount: number;
+  firstSentAt: Date | null;
+  reminderSentAt: Date | null;
+  lastSentAt: Date | null;
+};
+
+/**
+ * Versandstatistik einer Liste aus erfolgreichen `marketing_sends`.
+ */
+export function listSendStats(sends: MarketingSend[]): ListSendStats {
+  const firstLeads = new Set<string>();
+  const reminderLeads = new Set<string>();
+  let firstSentAt: Date | null = null;
+  let reminderSentAt: Date | null = null;
+  let lastSentAt: Date | null = null;
+  for (const row of sends) {
+    if (!row.ok) continue;
+    if (row.kind === "first") {
+      firstLeads.add(row.leadId);
+      if (!firstSentAt || row.sentAt < firstSentAt) firstSentAt = row.sentAt;
+    } else if (row.kind === "reminder") {
+      reminderLeads.add(row.leadId);
+      if (!reminderSentAt || row.sentAt > reminderSentAt) reminderSentAt = row.sentAt;
+    }
+    if (!lastSentAt || row.sentAt > lastSentAt) lastSentAt = row.sentAt;
+  }
+  return {
+    hasSends: firstLeads.size + reminderLeads.size > 0,
+    sentCount: firstLeads.size,
+    reminderCount: reminderLeads.size,
+    firstSentAt,
+    reminderSentAt,
+    lastSentAt,
+  };
+}
+
 /**
  * Pipeline-Status eines Leads für die Liste.
  */

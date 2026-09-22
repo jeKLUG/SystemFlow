@@ -866,6 +866,10 @@ export const api = {
     }),
   deleteMarketingList: (id: string) =>
     request<{ ok: boolean }>(`/api/marketing/lists/${id}`, { method: "DELETE" }),
+  archiveMarketingList: (id: string) =>
+    request<import("./types").MarketingList>(`/api/marketing/lists/${id}/archive`, { method: "POST" }),
+  unarchiveMarketingList: (id: string) =>
+    request<import("./types").MarketingList>(`/api/marketing/lists/${id}/unarchive`, { method: "POST" }),
   marketingTemplates: (kind?: import("./types").MarketingTemplateKind) => {
     const q = kind ? `?kind=${kind}` : "";
     return request<import("./types").MarketingTemplate[]>(`/api/marketing/templates${q}`);

@@ -5,7 +5,7 @@ import { DeleteIcon } from "../components/Icons";
 import { HelpHint } from "../components/HelpHint";
 import { Modal } from "../components/Modal";
 import {
-  formatSentAt,
+  formatSentDay,
   interpolatePreview,
   marketingKindLabel,
   marketingStatusLabel,
@@ -42,6 +42,41 @@ const leadFilters: { id: LeadFilter; label: string }[] = [
   { id: "contact", label: "Kontakt" },
   { id: "unsubscribed", label: "Abgemeldet" },
 ];
+
+/** Kurzzeile für Versanddatum und Stückzahl einer Liste. */
+function listHistoryLabel(list: MarketingList): string {
+  const parts: string[] = [];
+  if (list.firstSentAt) {
+    parts.push(`Erstmail ${formatSentDay(list.firstSentAt)}${list.sentCount ? ` · ${list.sentCount}` : ""}`);
+  }
+  if (list.reminderSentAt) {
+    parts.push(
+      `Erinnerung ${formatSentDay(list.reminderSentAt)}${list.reminderCount ? ` · ${list.reminderCount}` : ""}`,
+    );
+  }
+  return parts.join(" · ");
+}
+
+/** Dropdown-Einträge: aktive Listen zuerst, Archiv mit Versanddatum. */
+function listMenuItems(lists: MarketingList[]) {
+  const hasArchive = lists.some((list) => list.archivedAt);
+  return lists.map((list) => {
+    const archived = Boolean(list.archivedAt);
+    return {
+      id: list.id,
+      label: list.name,
+      hint: archived ? formatSentDay(list.lastSentAt ?? list.archivedAt) : String(list.leadCount),
+      detail: archived
+        ? [`${list.leadCount} Empfänger`, list.sentCount ? `${list.sentCount} Erstmail` : "", list.reminderCount ? `${list.reminderCount} Erinnerung` : ""]
+            .filter(Boolean)
+            .join(" · ")
+        : list.dueCount
+          ? `${list.dueCount} fällig`
+          : undefined,
+      group: hasArchive ? (archived ? "Archiv" : "Aktiv") : undefined,
+    };
+  });
+}
 
 /**
  * Staff-Marketing: Listen, Leads, Textbausteine, Versand und Erinnerung.
@@ -85,7 +120,10 @@ export function MarketingPage() {
   async function reloadLists(preferId?: string) {
     const next = await api.marketingLists();
     setLists(next);
-    const keep = preferId && next.some((l) => l.id === preferId) ? preferId : next[0]?.id ?? "";
+    const keep =
+      preferId && next.some((l) => l.id === preferId)
+        ? preferId
+        : next.find((l) => !l.archivedAt)?.id ?? next[0]?.id ?? "";
     setListId(keep);
     return keep;
   }
@@ -198,6 +236,8 @@ export function MarketingPage() {
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
   const selectedTpl = templates.find((t) => t.id === selectedTplId) ?? null;
+  const selectedList = lists.find((l) => l.id === listId) ?? null;
+  const listLocked = Boolean(selectedList?.hasSends || selectedList?.archivedAt);
 
   function go(next: Tab) {
     setTab(next);
@@ -221,7 +261,7 @@ export function MarketingPage() {
   }
 
   async function onDeleteList() {
-    if (!listId) return;
+    if (!listId || selectedList?.hasSends || selectedList?.archivedAt) return;
     if (!window.confirm("Liste und alle Leads darin löschen?")) return;
     setError("");
     try {
@@ -230,6 +270,30 @@ export function MarketingPage() {
       await reloadLeads(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    }
+  }
+
+  async function onArchiveList() {
+    if (!listId) return;
+    setError("");
+    try {
+      await api.archiveMarketingList(listId);
+      await reloadLists(listId);
+      setMsg("Liste archiviert");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Archivieren fehlgeschlagen");
+    }
+  }
+
+  async function onUnarchiveList() {
+    if (!listId) return;
+    setError("");
+    try {
+      await api.unarchiveMarketingList(listId);
+      await reloadLists(listId);
+      setMsg("Liste wieder aktiv");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Aktivieren fehlgeschlagen");
     }
   }
 
@@ -511,11 +575,7 @@ export function MarketingPage() {
                   ariaLabel="Liste"
                   value={listId}
                   onChange={setListId}
-                  items={lists.map((list) => ({
-                    id: list.id,
-                    label: list.name,
-                    hint: String(list.leadCount),
-                  }))}
+                  items={listMenuItems(lists)}
                 />
               ) : (
                 <h3>Liste wählen</h3>
@@ -568,16 +628,32 @@ export function MarketingPage() {
                   Neue Liste
                 </button>
               )}
-              {listId && lists.length > 0 ? (
+              {selectedList?.archivedAt ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onUnarchiveList()}>
+                  Aktivieren
+                </button>
+              ) : selectedList?.hasSends ? (
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onArchiveList()}>
+                  Archivieren
+                </button>
+              ) : null}
+              {listId && lists.length > 0 && !listLocked ? (
                 <button type="button" className="btn btn-ghost btn-icon" title="Liste löschen" onClick={() => void onDeleteList()}>
                   <DeleteIcon />
                 </button>
               ) : null}
             </div>
           </div>
+          {selectedList && (selectedList.hasSends || selectedList.archivedAt) ? (
+            <p className="mkt-list-history">
+              {selectedList.archivedAt ? "Archiv" : "Versendet"}
+              {listHistoryLabel(selectedList) ? ` · ${listHistoryLabel(selectedList)}` : ""}
+            </p>
+          ) : null}
 
           {listId ? (
             <>
+              {!selectedList?.archivedAt ? (
               <form className="mkt-quick" onSubmit={onAddLead}>
                 <input
                   type="email"
@@ -604,6 +680,7 @@ export function MarketingPage() {
                   Hinzufügen
                 </button>
               </form>
+              ) : null}
 
               {loading ? (
                 <p className="empty">Lade…</p>
@@ -632,20 +709,16 @@ export function MarketingPage() {
                           <a className="mkt-row-mail" href={`mailto:${lead.email}`}>
                             {lead.email}
                           </a>
-                          {lead.replyNote ? <p className="muted mkt-row-note">{lead.replyNote}</p> : null}
-                        </div>
-                        <div className="mkt-row-state">
                           <span className={`mkt-status is-${lead.status}`}>
                             {marketingStatusLabel[lead.status]}
                           </span>
                           {lead.firstSentAt ? (
                             <span className="mkt-row-when">
-                              {formatSentAt(lead.firstSentAt)}
-                              {lead.reminderSentAt ? (
-                                <em>Erinnerung {formatSentAt(lead.reminderSentAt)}</em>
-                              ) : null}
+                              {formatSentDay(lead.firstSentAt)}
+                              {lead.reminderSentAt ? ` · ${formatSentDay(lead.reminderSentAt)}` : ""}
                             </span>
                           ) : null}
+                          {lead.replyNote ? <p className="muted mkt-row-note">{lead.replyNote}</p> : null}
                         </div>
                         <div className="mkt-row-actions">
                           {lead.status !== "contact" && lead.status !== "unsubscribed" ? (
@@ -689,18 +762,20 @@ export function MarketingPage() {
                               Abmelden
                             </button>
                           ) : null}
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-icon"
-                            title="Löschen"
-                            disabled={busyId === lead.id}
-                            onClick={() => {
-                              if (!window.confirm("Lead löschen?")) return;
-                              void withLead(lead.id, () => api.deleteMarketingLead(lead.id));
-                            }}
-                          >
-                            <DeleteIcon />
-                          </button>
+                          {!lead.firstSentAt ? (
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-icon"
+                              title="Löschen"
+                              disabled={busyId === lead.id}
+                              onClick={() => {
+                                if (!window.confirm("Lead löschen?")) return;
+                                void withLead(lead.id, () => api.deleteMarketingLead(lead.id));
+                              }}
+                            >
+                              <DeleteIcon />
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     </li>
@@ -910,11 +985,7 @@ export function MarketingPage() {
               value={listId}
               onChange={setListId}
               placeholder="Keine Liste"
-              items={lists.map((list) => ({
-                id: list.id,
-                label: list.name,
-                hint: String(list.leadCount),
-              }))}
+              items={listMenuItems(lists)}
             />
             <div className="mkt-kind" role="tablist" aria-label="Versandart">
               <button

@@ -33,19 +33,21 @@ UI: `/marketing` (Navbar Werkzeuge). Eigene Leads, nicht die Kontakte-Tabelle. V
 
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
-| GET/POST | `/api/marketing/lists` | Listen `{ id, name, leadCount, dueCount }` |
-| PUT/DELETE | `/api/marketing/lists/:id` | Umbenennen / löschen (Leads und Sends mit) |
+| GET/POST | `/api/marketing/lists` | Listen `{ id, name, leadCount, dueCount, archivedAt, hasSends, sentCount, reminderCount, firstSentAt, reminderSentAt, lastSentAt }` |
+| PUT/DELETE | `/api/marketing/lists/:id` | Umbenennen / löschen. DELETE 409, wenn die Liste Versand hat oder archiviert ist |
+| POST | `/api/marketing/lists/:id/archive` | Liste ins Archiv (ohne Löschen) |
+| POST | `/api/marketing/lists/:id/unarchive` | Wieder aktiv (Versandhistorie bleibt, Löschen weiter gesperrt) |
 | GET/POST | `/api/marketing/templates` | Textbausteine; GET `?kind=first\|reminder` |
 | PUT/DELETE | `/api/marketing/templates/:id` | Aktualisieren / löschen |
 | GET/POST | `/api/marketing/leads` | GET `?listId=`; POST `{ listId, email, company, contactPerson? }` (E-Mail eindeutig) |
-| PUT/DELETE | `/api/marketing/leads/:id` | Stammdaten / löschen |
+| PUT/DELETE | `/api/marketing/leads/:id` | Stammdaten / löschen. DELETE 409 nach erfolgreichem Versand |
 | POST | `/api/marketing/leads/:id/replied` | `{ note? }` — manuell Geantwortet |
 | POST | `/api/marketing/leads/:id/unreplied` | Haken zurücknehmen |
 | POST | `/api/marketing/leads/:id/do-not-contact` | `{ value }` Staff-Abmeldung |
 | POST | `/api/marketing/leads/:id/convert` | Kontakt `kind=contact` anlegen oder bestehende E-Mail verknüpfen |
 | GET | `/api/marketing/preview?listId=&kind=` | `sendCount` / `skip` (schon erhalten, geantwortet, abgemeldet, Kunden-E-Mail, nicht fällig) |
-| POST | `/api/marketing/send` | `{ listId, templateId }` Erstmail an Berechtigte |
-| POST | `/api/marketing/remind` | `{ listId, templateId }` Erinnerung (≥ 7 Tage nach Erstmail, eigener Baustein) |
+| POST | `/api/marketing/send` | `{ listId, templateId }` Erstmail an Berechtigte; Liste danach archiviert |
+| POST | `/api/marketing/remind` | `{ listId, templateId }` Erinnerung (≥ 7 Tage nach Erstmail, eigener Baustein); Liste archiviert |
 | POST | `/api/marketing/test` | `{ templateId, listId? }` Test an Staff-Sammeladresse |
 | GET/PUT | `/api/marketing/signature` | Globale HTML-Signatur unter dem Mailtext `{ html }`. PUT bereinigt Script/Event-Handler |
 | GET | `/api/public/marketing/unsubscribe/:token` | ohne Login; setzt `doNotContact`. UI: `/m/unsubscribe/:token` |

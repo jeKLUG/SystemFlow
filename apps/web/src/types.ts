@@ -1188,8 +1188,15 @@ export interface MarketingList {
   id: string;
   name: string;
   createdAt: string;
+  archivedAt: string | null;
   leadCount: number;
   dueCount: number;
+  hasSends: boolean;
+  sentCount: number;
+  reminderCount: number;
+  firstSentAt: string | null;
+  reminderSentAt: string | null;
+  lastSentAt: string | null;
 }
 
 export interface MarketingLead {

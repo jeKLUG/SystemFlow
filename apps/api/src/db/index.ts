@@ -521,7 +521,8 @@ export async function createDb(databasePath: string) {
     CREATE TABLE IF NOT EXISTS marketing_lists (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      created_at INTEGER NOT NULL
+      created_at INTEGER NOT NULL,
+      archived_at INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS marketing_templates (
@@ -664,6 +665,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "org_settings", "mail_staff_inbox", "TEXT");
   await ensureColumn(client, "org_settings", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "org_settings", "marketing_signature_html", "TEXT");
+  await ensureColumn(client, "marketing_lists", "archived_at", "INTEGER");
   await ensureColumn(client, "customer_users", "email", "TEXT");
   await ensureColumn(client, "customer_users", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "appointments", "reminders_sent_json", "TEXT NOT NULL DEFAULT '{}'");
