@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
+import { DeleteIcon } from "../components/Icons";
 import { Modal } from "../components/Modal";
 import {
   formatSentAt,
@@ -18,6 +19,7 @@ import type {
 } from "../types";
 
 type Tab = "leads" | "templates" | "send";
+type LeadFilter = "all" | MarketingLeadStatus;
 
 const emptyLead = { email: "", company: "", contactPerson: "" };
 const emptyTpl = {
@@ -28,6 +30,17 @@ const emptyTpl = {
   ctaUrl: "",
   ctaLabel: "",
 };
+
+const leadFilters: { id: LeadFilter; label: string }[] = [
+  { id: "all", label: "Alle" },
+  { id: "new", label: "Neu" },
+  { id: "sent", label: "Gesendet" },
+  { id: "reminder_due", label: "Fällig" },
+  { id: "reminded", label: "Erinnert" },
+  { id: "replied", label: "Antwort" },
+  { id: "contact", label: "Kontakt" },
+  { id: "unsubscribed", label: "Abgemeldet" },
+];
 
 /**
  * Staff-Marketing: Listen, Leads, Textbausteine, Versand und Erinnerung.
@@ -43,11 +56,14 @@ export function MarketingPage() {
   const [msg, setMsg] = useState("");
 
   const [listName, setListName] = useState("");
+  const [listCreateOpen, setListCreateOpen] = useState(false);
   const [leadForm, setLeadForm] = useState(emptyLead);
+  const [leadFilter, setLeadFilter] = useState<LeadFilter>("all");
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
   const [signatureHtml, setSignatureHtml] = useState("");
   const [signatureDirty, setSignatureDirty] = useState(false);
+  const [orgName, setOrgName] = useState("Systemhaus-Ess");
 
   const [replyLead, setReplyLead] = useState<MarketingLead | null>(null);
   const [replyNote, setReplyNote] = useState("");
@@ -59,7 +75,8 @@ export function MarketingPage() {
   const [sending, setSending] = useState(false);
 
   const selectedList = lists.find((l) => l.id === listId) ?? null;
-  const dueCount = selectedList?.dueCount ?? 0;
+  const dueCount = lists.reduce((n, l) => n + l.dueCount, 0);
+  const leadTotal = lists.reduce((n, l) => n + l.leadCount, 0);
 
   async function reloadLists(preferId?: string) {
     const next = await api.marketingLists();
@@ -92,7 +109,10 @@ export function MarketingPage() {
         api.marketingSignature().then((s) => {
           setSignatureHtml(s.html);
           setSignatureDirty(false);
-        }),
+        }).catch(() => undefined),
+        api.orgSettings().then((s) => {
+          setOrgName(s.orgName?.trim() || "Systemhaus-Ess");
+        }).catch(() => undefined),
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Laden fehlgeschlagen");
@@ -138,6 +158,12 @@ export function MarketingPage() {
     }
   }, [sendTemplates, sendTemplateId]);
 
+  useEffect(() => {
+    if (!msg) return;
+    const id = window.setTimeout(() => setMsg(""), 4000);
+    return () => window.clearTimeout(id);
+  }, [msg]);
+
   const statusCounts = useMemo(() => {
     const counts: Record<MarketingLeadStatus, number> = {
       new: 0,
@@ -152,8 +178,18 @@ export function MarketingPage() {
     return counts;
   }, [leads]);
 
+  const visibleLeads = useMemo(
+    () => (leadFilter === "all" ? leads : leads.filter((l) => l.status === leadFilter)),
+    [leads, leadFilter],
+  );
+
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
+
+  function go(next: Tab) {
+    setTab(next);
+    if (next === "send" && dueCount > 0) setSendKind("reminder");
+  }
 
   async function onCreateList(e: FormEvent) {
     e.preventDefault();
@@ -163,6 +199,7 @@ export function MarketingPage() {
     try {
       const created = await api.createMarketingList(name);
       setListName("");
+      setListCreateOpen(false);
       await reloadLists(created.id);
       setMsg("Liste angelegt");
     } catch (err) {
@@ -251,6 +288,11 @@ export function MarketingPage() {
     setTab("templates");
   }
 
+  function newTemplate() {
+    setEditingTpl(null);
+    setTplForm(emptyTpl);
+  }
+
   async function withLead(id: string, fn: () => Promise<unknown>): Promise<boolean> {
     setBusyId(id);
     setError("");
@@ -303,193 +345,250 @@ export function MarketingPage() {
     }
   }
 
+  const skipSummary =
+    preview && preview.skip.length > 0
+      ? Object.entries(
+          preview.skip.reduce<Record<string, number>>((acc, row) => {
+            acc[row.reasonLabel] = (acc[row.reasonLabel] ?? 0) + 1;
+            return acc;
+          }, {}),
+        )
+          .map(([label, n]) => `${n} ${label}`)
+          .join(" · ")
+      : "";
+
   return (
     <div className="page mkt-page">
-      <header className="page-head">
-        <div className="page-head-title">
+      <section className="mkt-hero panel">
+        <div className="mkt-hero-top">
           <div>
             <p className="eyebrow">Akquise</p>
             <h2>Marketing</h2>
+            <p className="muted">Empfänger listen, Texte pflegen, Erstmail und Erinnerung senden — getrennt von Kontakten.</p>
           </div>
+          {dueCount > 0 ? (
+            <button type="button" className="btn btn-primary" onClick={() => go("send")}>
+              {dueCount} Erinnerung{dueCount === 1 ? "" : "en"} senden
+            </button>
+          ) : null}
         </div>
-        <p className="muted">
-          Eigene Leads, Textbausteine und Versand — getrennt von Kontakten.
-        </p>
-      </header>
-
-      <div className="mkt-tabs" role="tablist" aria-label="Marketing">
-        {(
-          [
-            ["leads", "Leads / Listen", leads.length],
-            ["templates", "Textbausteine", templates.length],
-            ["send", "Versand", preview?.sendCount ?? 0],
-          ] as const
-        ).map(([id, label, count]) => (
+        <div className="mkt-views" role="tablist" aria-label="Bereich">
           <button
-            key={id}
             type="button"
             role="tab"
-            aria-selected={tab === id}
-            className={`mkt-tab${tab === id ? " is-active" : ""}${
-              id === "send" && dueCount > 0 ? " is-warn" : ""
-            }`}
-            onClick={() => setTab(id)}
+            aria-selected={tab === "leads"}
+            className={`mkt-view${tab === "leads" ? " is-active" : ""}`}
+            onClick={() => go("leads")}
           >
-            {label}
-            <em>{count}</em>
+            <span className="mkt-view-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M16 21v-1.2A3.8 3.8 0 0 0 12.2 16H7.8A3.8 3.8 0 0 0 4 19.8V21" strokeLinecap="round" />
+                <circle cx="10" cy="8" r="3.2" />
+                <path d="M20 8v6M17 11h6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="mkt-view-label">
+              <strong>Empfänger</strong>
+              <em>{leadTotal}</em>
+            </span>
           </button>
-        ))}
-      </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "templates"}
+            className={`mkt-view${tab === "templates" ? " is-active" : ""}`}
+            onClick={() => go("templates")}
+          >
+            <span className="mkt-view-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M7 3h7l5 5v13H7z" strokeLinejoin="round" />
+                <path d="M14 3v5h5M9 13h6M9 17h4" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="mkt-view-label">
+              <strong>Texte</strong>
+              <em>{templates.length}</em>
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "send"}
+            className={`mkt-view${tab === "send" ? " is-active" : ""}${dueCount > 0 ? " is-warn" : ""}`}
+            onClick={() => go("send")}
+          >
+            <span className="mkt-view-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M4 6h16v12H4z" strokeLinejoin="round" />
+                <path d="m4 7 8 6 8-6" strokeLinejoin="round" />
+              </svg>
+            </span>
+            <span className="mkt-view-label">
+              <strong>Versand</strong>
+              <em>{dueCount > 0 ? `${dueCount} fällig` : preview?.sendCount ?? 0}</em>
+            </span>
+          </button>
+        </div>
+      </section>
 
       {error ? <p className="form-error">{error}</p> : null}
-      {msg ? <p className="mkt-msg">{msg}</p> : null}
+      {msg ? <p className="form-success">{msg}</p> : null}
 
       {tab === "leads" ? (
-        <div className="mkt-grid">
-          <section className="panel mkt-side">
-            <p className="eyebrow">Listen</p>
-            <form className="mkt-inline" onSubmit={onCreateList}>
-              <input
-                value={listName}
-                onChange={(e) => setListName(e.target.value)}
-                placeholder="Neue Liste…"
-                aria-label="Listenname"
-              />
-              <button type="submit" className="btn btn-primary" disabled={!listName.trim()}>
-                Anlegen
-              </button>
-            </form>
-            {lists.length === 0 ? (
-              <p className="empty">Noch keine Liste.</p>
-            ) : (
-              <ul className="mkt-list-pick">
-                {lists.map((list) => (
-                  <li key={list.id}>
-                    <button
-                      type="button"
-                      className={`mkt-list-btn${list.id === listId ? " is-active" : ""}`}
-                      onClick={() => setListId(list.id)}
-                    >
-                      <strong>{list.name}</strong>
-                      <span>
-                        {list.leadCount} Leads
-                        {list.dueCount ? ` · ${list.dueCount} fällig` : ""}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {listId ? (
-              <button type="button" className="btn btn-ghost mkt-danger" onClick={() => void onDeleteList()}>
-                Liste löschen
-              </button>
-            ) : null}
-          </section>
-
-          <section className="panel">
-            <div className="mkt-section-head">
-              <div>
-                <p className="eyebrow">Empfänger</p>
-                <h3>{selectedList?.name ?? "Keine Liste"}</h3>
-              </div>
-              <div className="mkt-pills" aria-label="Status">
-                {(
-                  [
-                    ["new", statusCounts.new],
-                    ["sent", statusCounts.sent],
-                    ["reminder_due", statusCounts.reminder_due],
-                    ["replied", statusCounts.replied],
-                  ] as const
-                ).map(([key, n]) =>
-                  n ? (
-                    <span key={key} className={`mkt-status is-${key}`}>
-                      {marketingStatusLabel[key]} {n}
-                    </span>
-                  ) : null,
-                )}
-              </div>
+        <section className="panel mkt-board">
+          <div className="mkt-board-head">
+            <div>
+              <p className="eyebrow">Empfänger</p>
+              <h3>{selectedList?.name ?? "Liste wählen"}</h3>
             </div>
+            <div className="mkt-board-tools">
+              {lists.length > 0 ? (
+                <label className="mkt-list-select">
+                  <span>Liste</span>
+                  <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Liste">
+                    {lists.map((list) => (
+                      <option key={list.id} value={list.id}>
+                        {list.name} ({list.leadCount})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : null}
+              {listCreateOpen || lists.length === 0 ? (
+                <form className="mkt-inline" onSubmit={onCreateList}>
+                  <input
+                    value={listName}
+                    onChange={(e) => setListName(e.target.value)}
+                    placeholder="Name der Liste"
+                    aria-label="Listenname"
+                    autoFocus
+                  />
+                  <button type="submit" className="btn btn-primary" disabled={!listName.trim()}>
+                    Anlegen
+                  </button>
+                  {lists.length > 0 ? (
+                    <button type="button" className="btn btn-ghost" onClick={() => setListCreateOpen(false)}>
+                      Abbrechen
+                    </button>
+                  ) : null}
+                </form>
+              ) : (
+                <button type="button" className="btn btn-ghost" onClick={() => setListCreateOpen(true)}>
+                  Neue Liste
+                </button>
+              )}
+              {listId && lists.length > 0 ? (
+                <button type="button" className="btn btn-ghost btn-icon" title="Liste löschen" onClick={() => void onDeleteList()}>
+                  <DeleteIcon />
+                </button>
+              ) : null}
+            </div>
+          </div>
 
-            <form className="mkt-lead-form" onSubmit={onAddLead}>
-              <label className="field">
-                <span>E-Mail</span>
-                <input
-                  type="email"
-                  required
-                  value={leadForm.email}
-                  onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                  disabled={!listId}
-                />
-              </label>
-              <label className="field">
-                <span>Firma</span>
-                <input
-                  required
-                  value={leadForm.company}
-                  onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })}
-                  disabled={!listId}
-                />
-              </label>
-              <label className="field">
-                <span>Ansprechpartner</span>
-                <input
-                  value={leadForm.contactPerson}
-                  onChange={(e) => setLeadForm({ ...leadForm, contactPerson: e.target.value })}
-                  placeholder="optional"
-                  disabled={!listId}
-                />
-              </label>
-              <button type="submit" className="btn btn-primary" disabled={!listId}>
-                Lead anlegen
-              </button>
-            </form>
+          {listId ? (
+            <>
+              <div className="mkt-filters" role="tablist" aria-label="Status">
+                {leadFilters.map((f) => {
+                  const n = f.id === "all" ? leads.length : statusCounts[f.id];
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={leadFilter === f.id}
+                      className={`mkt-filter${leadFilter === f.id ? " is-active" : ""}${
+                        f.id === "reminder_due" && n > 0 ? " is-warn" : ""
+                      }`}
+                      onClick={() => setLeadFilter(f.id)}
+                    >
+                      {f.label}
+                      <em>{n}</em>
+                    </button>
+                  );
+                })}
+              </div>
 
-            {loading ? (
-              <p className="empty">Lade…</p>
-            ) : leads.length === 0 ? (
-              <p className="empty">Noch keine Leads in dieser Liste.</p>
-            ) : (
-              <div className="mkt-table-wrap">
-                <table className="mkt-table">
-                  <thead>
-                    <tr>
-                      <th>Firma</th>
-                      <th>E-Mail</th>
-                      <th>Ansprechpartner</th>
-                      <th>Status</th>
-                      <th>Gesendet</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leads.map((lead) => (
-                      <tr key={lead.id}>
-                        <td>
+              <form className="mkt-quick panel" onSubmit={onAddLead}>
+                <span className="mkt-quick-icon" aria-hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
+                    <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+                  </svg>
+                </span>
+                <label className="mkt-quick-field">
+                  <span>E-Mail</span>
+                  <input
+                    type="email"
+                    required
+                    value={leadForm.email}
+                    onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                    placeholder="name@firma.de"
+                  />
+                </label>
+                <label className="mkt-quick-field">
+                  <span>Firma</span>
+                  <input
+                    required
+                    value={leadForm.company}
+                    onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })}
+                    placeholder="Muster GmbH"
+                  />
+                </label>
+                <label className="mkt-quick-field">
+                  <span>Ansprechpartner</span>
+                  <input
+                    value={leadForm.contactPerson}
+                    onChange={(e) => setLeadForm({ ...leadForm, contactPerson: e.target.value })}
+                    placeholder="optional"
+                  />
+                </label>
+                <button type="submit" className="btn btn-primary">
+                  Hinzufügen
+                </button>
+              </form>
+
+              {loading ? (
+                <p className="empty">Lade…</p>
+              ) : visibleLeads.length === 0 ? (
+                <div className="mkt-empty">
+                  <strong>{leads.length === 0 ? "Noch keine Empfänger" : "Keine Treffer"}</strong>
+                  <p className="muted">
+                    {leads.length === 0
+                      ? "E-Mail, Firma und optional den Ansprechpartner eintragen."
+                      : "Anderen Status wählen oder Filter auf „Alle“."}
+                  </p>
+                </div>
+              ) : (
+                <ul className="mkt-rows">
+                  {visibleLeads.map((lead) => (
+                    <li
+                      key={lead.id}
+                      className={`${busyId === lead.id ? "is-busy" : ""}${
+                        lead.status === "unsubscribed" ? " is-muted" : ""
+                      }`}
+                    >
+                      <div className="mkt-row">
+                        <div className="mkt-row-main">
                           <strong>{lead.company}</strong>
-                          {lead.replyNote ? <div className="muted">{lead.replyNote}</div> : null}
-                        </td>
-                        <td>{lead.email}</td>
-                        <td>{lead.contactPerson || "—"}</td>
-                        <td>
-                          <span className={`mkt-status is-${lead.status}`}>
-                            {marketingStatusLabel[lead.status]}
-                          </span>
-                        </td>
-                        <td className="muted">
+                          <div className="mkt-row-meta">
+                            <span className="mkt-chip">{lead.email}</span>
+                            {lead.contactPerson ? <span className="mkt-chip">{lead.contactPerson}</span> : null}
+                            <span className={`mkt-status is-${lead.status}`}>
+                              {marketingStatusLabel[lead.status]}
+                            </span>
+                          </div>
+                          {lead.replyNote ? <p className="muted mkt-row-note">{lead.replyNote}</p> : null}
+                        </div>
+                        <span className="mkt-row-when">
                           {formatSentAt(lead.firstSentAt)}
                           {lead.reminderSentAt ? (
-                            <>
-                              <br />
-                              Erinnerung {formatSentAt(lead.reminderSentAt)}
-                            </>
+                            <em>Erinnerung {formatSentAt(lead.reminderSentAt)}</em>
                           ) : null}
-                        </td>
-                        <td className="mkt-actions">
+                        </span>
+                        <div className="mkt-row-actions">
                           {lead.status !== "contact" ? (
                             <button
                               type="button"
-                              className="btn btn-ghost"
+                              className="btn btn-ghost btn-sm"
                               disabled={busyId === lead.id}
                               onClick={() => {
                                 setReplyLead(lead);
@@ -502,7 +601,7 @@ export function MarketingPage() {
                           {lead.status === "replied" && !lead.customerId ? (
                             <button
                               type="button"
-                              className="btn btn-primary"
+                              className="btn btn-primary btn-sm"
                               disabled={busyId === lead.id}
                               onClick={() => void withLead(lead.id, () => api.convertMarketingLead(lead.id))}
                             >
@@ -510,350 +609,376 @@ export function MarketingPage() {
                             </button>
                           ) : null}
                           {lead.customerId ? (
-                            <Link className="btn btn-ghost" to={`/customers/${lead.customerId}`}>
-                              Kontakt öffnen
+                            <Link className="btn btn-ghost btn-sm" to={`/customers/${lead.customerId}`}>
+                              Öffnen
                             </Link>
                           ) : null}
                           {!lead.doNotContact ? (
                             <button
                               type="button"
-                              className="btn btn-ghost"
+                              className="btn btn-ghost btn-icon"
+                              title="Abmelden"
                               disabled={busyId === lead.id}
                               onClick={() =>
                                 void withLead(lead.id, () => api.setMarketingDoNotContact(lead.id, true))
                               }
                             >
-                              Abmelden
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+                                <circle cx="12" cy="12" r="8" />
+                                <path d="M8 12h8" strokeLinecap="round" />
+                              </svg>
                             </button>
                           ) : null}
                           <button
                             type="button"
-                            className="btn btn-ghost"
+                            className="btn btn-ghost btn-icon"
+                            title="Löschen"
                             disabled={busyId === lead.id}
                             onClick={() => {
                               if (!window.confirm("Lead löschen?")) return;
                               void withLead(lead.id, () => api.deleteMarketingLead(lead.id));
                             }}
                           >
-                            Löschen
+                            <DeleteIcon />
                           </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-        </div>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : (
+            <div className="mkt-empty">
+              <strong>Zuerst eine Liste</strong>
+              <p className="muted">z. B. „Handwerk September“ oder „Kaltakquise NRW“.</p>
+            </div>
+          )}
+        </section>
       ) : null}
 
       {tab === "templates" ? (
         <>
-        <div className="mkt-grid">
-          <section className="panel">
-            <p className="eyebrow">{editingTpl ? "Bearbeiten" : "Neu"}</p>
-            <h3>Textbaustein</h3>
-            <form className="mkt-tpl-form" onSubmit={onSaveTemplate}>
-              <label className="field">
-                <span>Name</span>
-                <input
-                  required
-                  value={tplForm.name}
-                  onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })}
-                />
-              </label>
-              <label className="field">
-                <span>Typ</span>
-                <select
-                  value={tplForm.kind}
-                  onChange={(e) =>
-                    setTplForm({ ...tplForm, kind: e.target.value as MarketingTemplateKind })
-                  }
-                >
-                  <option value="first">Erstmail</option>
-                  <option value="reminder">Erinnerung</option>
-                </select>
-              </label>
-              <label className="field full">
-                <span>Betreff</span>
-                <input
-                  required
-                  value={tplForm.subject}
-                  onChange={(e) => setTplForm({ ...tplForm, subject: e.target.value })}
-                  placeholder="IT-Betreuung für {{firma}}"
-                />
-              </label>
-              <label className="field full">
-                <span>Text</span>
-                <textarea
-                  required
-                  rows={8}
-                  value={tplForm.body}
-                  onChange={(e) => setTplForm({ ...tplForm, body: e.target.value })}
-                  placeholder="Guten Tag {{ansprechpartner}}, …"
-                />
-                <small className="muted">Platzhalter: {"{{firma}}"} · {"{{ansprechpartner}}"}</small>
-              </label>
-              <label className="field">
-                <span>CTA-Text</span>
-                <input
-                  value={tplForm.ctaLabel}
-                  onChange={(e) => setTplForm({ ...tplForm, ctaLabel: e.target.value })}
-                  placeholder="15-Min-Erstgespräch"
-                />
-              </label>
-              <label className="field">
-                <span>CTA-Link oder Telefon</span>
-                <input
-                  value={tplForm.ctaUrl}
-                  onChange={(e) => setTplForm({ ...tplForm, ctaUrl: e.target.value })}
-                  placeholder="https://… oder +49…"
-                />
-              </label>
-              <div className="mkt-form-actions">
-                {editingTpl ? (
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    onClick={() => {
-                      setEditingTpl(null);
-                      setTplForm(emptyTpl);
-                    }}
-                  >
-                    Abbrechen
-                  </button>
-                ) : null}
-                <button type="submit" className="btn btn-primary">
-                  Speichern
+          <div className="mkt-split">
+            <section className="panel mkt-board">
+              <div className="mkt-board-head">
+                <div>
+                  <p className="eyebrow">Vorlagen</p>
+                  <h3>Textbausteine</h3>
+                </div>
+                <button type="button" className="btn btn-ghost" onClick={newTemplate}>
+                  Neu
                 </button>
               </div>
-            </form>
-          </section>
-
-          <section className="panel">
-            <p className="eyebrow">Vorhanden</p>
-            <h3>Bausteine</h3>
-            {templates.length === 0 ? (
-              <p className="empty">Noch keine Textbausteine.</p>
-            ) : (
-              <ul className="mkt-tpl-list">
-                {templates.map((tpl) => (
-                  <li key={tpl.id}>
-                    <div>
-                      <strong>{tpl.name}</strong>
-                      <span className={`mkt-status is-${tpl.kind === "reminder" ? "reminded" : "sent"}`}>
-                        {marketingKindLabel[tpl.kind]}
-                      </span>
-                      <p className="muted">{tpl.subject}</p>
-                    </div>
-                    <div className="mkt-actions">
-                      <button type="button" className="btn btn-ghost" onClick={() => editTemplate(tpl)}>
-                        Bearbeiten
+              {templates.length === 0 ? (
+                <div className="mkt-empty">
+                  <strong>Noch kein Text</strong>
+                  <p className="muted">Rechts Erstmail oder Erinnerung schreiben.</p>
+                </div>
+              ) : (
+                <ul className="mkt-tpl-cards">
+                  {templates.map((tpl) => (
+                    <li key={tpl.id}>
+                      <button
+                        type="button"
+                        className={`mkt-tpl-card${editingTpl === tpl.id ? " is-active" : ""}`}
+                        onClick={() => editTemplate(tpl)}
+                      >
+                        <span className={`mkt-status is-${tpl.kind === "reminder" ? "reminded" : "sent"}`}>
+                          {marketingKindLabel[tpl.kind]}
+                        </span>
+                        <strong>{tpl.name}</strong>
+                        <span className="muted">{tpl.subject}</span>
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost"
+                        className="btn btn-ghost btn-icon"
+                        title="Löschen"
                         onClick={() => {
                           if (!window.confirm("Textbaustein löschen?")) return;
                           void api
                             .deleteMarketingTemplate(tpl.id)
-                            .then(() => reloadTemplates())
+                            .then(() => {
+                              if (editingTpl === tpl.id) newTemplate();
+                              return reloadTemplates();
+                            })
                             .catch((err) =>
                               setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen"),
                             );
                         }}
                       >
-                        Löschen
+                        <DeleteIcon />
                       </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {tplForm.body || tplForm.subject ? (
-              <div className="mkt-preview">
-                <p className="eyebrow">Vorschau</p>
-                <strong>{interpolatePreview(tplForm.subject || "Betreff", previewLead)}</strong>
-                <p>{interpolatePreview(tplForm.body || "", previewLead)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className="panel mkt-board">
+              <div className="mkt-board-head">
+                <div>
+                  <p className="eyebrow">{editingTpl ? "Bearbeiten" : "Neu"}</p>
+                  <h3>{editingTpl ? "Text anpassen" : "Textbaustein"}</h3>
+                </div>
               </div>
-            ) : null}
-          </section>
-        </div>
-        <section className="panel mkt-sig">
-          <p className="eyebrow">Unter jeder Mail</p>
-          <h3>HTML-Signatur</h3>
-          <p className="muted">
-            Outlook- oder HTML-Signatur einfügen. Sie steht unter dem Text (heller Block), der rechtliche
-            Footer bleibt darunter.
-          </p>
-          <form className="mkt-sig-form" onSubmit={onSaveSignature}>
-            <label className="field">
-              <span>HTML</span>
-              <textarea
-                rows={8}
-                value={signatureHtml}
-                onChange={(e) => {
-                  setSignatureHtml(e.target.value);
-                  setSignatureDirty(true);
-                }}
-                placeholder={'<p>Mit freundlichen Grüßen<br>Max Mustermann<br>Systemhaus-Ess</p>'}
-                spellCheck={false}
-              />
-            </label>
-            {signatureHtml.trim() ? (
-              <iframe
-                className="mkt-sig-frame"
-                title="Signatur-Vorschau"
-                sandbox=""
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
-              />
-            ) : (
-              <p className="empty">Noch keine Signatur.</p>
-            )}
-            <div className="mkt-form-actions">
-              <button type="submit" className="btn btn-primary" disabled={!signatureDirty}>
-                Signatur speichern
-              </button>
+              <form className="mkt-tpl-form" onSubmit={onSaveTemplate}>
+                <label className="field">
+                  <span>Name</span>
+                  <input
+                    required
+                    value={tplForm.name}
+                    onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })}
+                    placeholder="z. B. Kaltakquise"
+                  />
+                </label>
+                <label className="field">
+                  <span>Art</span>
+                  <select
+                    value={tplForm.kind}
+                    onChange={(e) =>
+                      setTplForm({ ...tplForm, kind: e.target.value as MarketingTemplateKind })
+                    }
+                  >
+                    <option value="first">Erstmail</option>
+                    <option value="reminder">Erinnerung</option>
+                  </select>
+                </label>
+                <label className="field full">
+                  <span>Betreff</span>
+                  <input
+                    required
+                    value={tplForm.subject}
+                    onChange={(e) => setTplForm({ ...tplForm, subject: e.target.value })}
+                    placeholder="IT-Betreuung für {{firma}}"
+                  />
+                </label>
+                <label className="field full">
+                  <span>Text</span>
+                  <textarea
+                    required
+                    rows={9}
+                    value={tplForm.body}
+                    onChange={(e) => setTplForm({ ...tplForm, body: e.target.value })}
+                    placeholder="Guten Tag {{ansprechpartner}}, …"
+                  />
+                  <small className="muted">{"{{firma}}"} und {"{{ansprechpartner}}"} werden ersetzt.</small>
+                </label>
+                <label className="field">
+                  <span>Button-Text</span>
+                  <input
+                    value={tplForm.ctaLabel}
+                    onChange={(e) => setTplForm({ ...tplForm, ctaLabel: e.target.value })}
+                    placeholder="15-Min-Gespräch"
+                  />
+                </label>
+                <label className="field">
+                  <span>Link oder Telefon</span>
+                  <input
+                    value={tplForm.ctaUrl}
+                    onChange={(e) => setTplForm({ ...tplForm, ctaUrl: e.target.value })}
+                    placeholder="https://… oder +49…"
+                  />
+                </label>
+                <div className="mkt-form-actions">
+                  {editingTpl ? (
+                    <button type="button" className="btn btn-ghost" onClick={newTemplate}>
+                      Abbrechen
+                    </button>
+                  ) : null}
+                  <button type="submit" className="btn btn-primary">
+                    Speichern
+                  </button>
+                </div>
+              </form>
+              {tplForm.body || tplForm.subject ? (
+                <div className="mkt-letter">
+                  <p className="eyebrow">Vorschau</p>
+                  <strong>{interpolatePreview(tplForm.subject || "Betreff", previewLead)}</strong>
+                  <p>{interpolatePreview(tplForm.body || "", previewLead)}</p>
+                </div>
+              ) : null}
+            </section>
+          </div>
+
+          <section className="panel mkt-sig">
+            <div className="mkt-board-head">
+              <div>
+                <p className="eyebrow">Unter jeder Mail</p>
+                <h3>Signatur</h3>
+                <p className="muted">Outlook- oder HTML-Signatur. Sie steht unter dem Text im hellen Block.</p>
+              </div>
             </div>
-          </form>
-        </section>
+            <form className="mkt-sig-grid" onSubmit={onSaveSignature}>
+              <label className="field">
+                <span>HTML aus Outlook oder Editor</span>
+                <textarea
+                  rows={7}
+                  value={signatureHtml}
+                  onChange={(e) => {
+                    setSignatureHtml(e.target.value);
+                    setSignatureDirty(true);
+                  }}
+                  placeholder="<p>Mit freundlichen Grüßen<br>…</p>"
+                  spellCheck={false}
+                />
+              </label>
+              <div className="mkt-sig-live">
+                <span className="eyebrow">So sieht sie aus</span>
+                {signatureHtml.trim() ? (
+                  <iframe
+                    className="mkt-sig-frame"
+                    title="Signatur-Vorschau"
+                    sandbox=""
+                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+                  />
+                ) : (
+                  <p className="empty">Noch leer.</p>
+                )}
+              </div>
+              <div className="mkt-form-actions">
+                <button type="submit" className="btn btn-primary" disabled={!signatureDirty}>
+                  Signatur speichern
+                </button>
+              </div>
+            </form>
+          </section>
         </>
       ) : null}
 
       {tab === "send" ? (
-        <div className="mkt-grid">
-          <section className="panel">
-            <p className="eyebrow">Kampagne</p>
-            <h3>Versand</h3>
-            <label className="field">
-              <span>Liste</span>
-              <select value={listId} onChange={(e) => setListId(e.target.value)}>
-                {lists.length === 0 ? <option value="">Keine Liste</option> : null}
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} ({list.leadCount})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="mkt-kind-switch" role="tablist" aria-label="Versandart">
-              <button
-                type="button"
-                className={`mkt-tab${sendKind === "first" ? " is-active" : ""}`}
-                onClick={() => setSendKind("first")}
-              >
-                Erstmail
-              </button>
-              <button
-                type="button"
-                className={`mkt-tab${sendKind === "reminder" ? " is-active" : ""}`}
-                onClick={() => setSendKind("reminder")}
-              >
-                Erinnerung {dueCount ? `(${dueCount})` : ""}
-              </button>
+        <div className="mkt-split mkt-split-send">
+          <section className="panel mkt-board">
+            <div className="mkt-board-head">
+              <div>
+                <p className="eyebrow">Kampagne</p>
+                <h3>Senden</h3>
+              </div>
             </div>
-            <label className="field">
-              <span>Textbaustein</span>
-              <select value={sendTemplateId} onChange={(e) => setSendTemplateId(e.target.value)}>
-                {sendTemplates.length === 0 ? (
-                  <option value="">Kein {marketingKindLabel[sendKind]}-Baustein</option>
-                ) : null}
-                {sendTemplates.map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {preview ? (
-              <div className="mkt-counts">
-                <div>
-                  <strong>{preview.sendCount}</strong>
-                  <span>wird gesendet</span>
-                </div>
-                <div>
-                  <strong>{preview.skipCount}</strong>
-                  <span>übersprungen</span>
+            <div className="mkt-send-stack">
+              <label className="field">
+                <span>1 · Liste</span>
+                <select value={listId} onChange={(e) => setListId(e.target.value)}>
+                  {lists.length === 0 ? <option value="">Keine Liste</option> : null}
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} · {list.leadCount} Empfänger
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="field">
+                <span>2 · Art</span>
+                <div className="mkt-kind" role="tablist" aria-label="Versandart">
+                  <button
+                    type="button"
+                    className={`mkt-kind-btn${sendKind === "first" ? " is-active" : ""}`}
+                    onClick={() => setSendKind("first")}
+                  >
+                    Erstmail
+                  </button>
+                  <button
+                    type="button"
+                    className={`mkt-kind-btn${sendKind === "reminder" ? " is-active" : ""}${
+                      dueCount > 0 ? " is-warn" : ""
+                    }`}
+                    onClick={() => setSendKind("reminder")}
+                  >
+                    Erinnerung{dueCount ? ` · ${dueCount}` : ""}
+                  </button>
                 </div>
               </div>
-            ) : null}
-            {preview && preview.skip.length > 0 ? (
-              <p className="muted mkt-skip-summary">
-                Übersprungen:{" "}
-                {Object.entries(
-                  preview.skip.reduce<Record<string, number>>((acc, row) => {
-                    acc[row.reasonLabel] = (acc[row.reasonLabel] ?? 0) + 1;
-                    return acc;
-                  }, {}),
-                )
-                  .map(([label, n]) => `${n} ${label}`)
-                  .join(" · ")}
-              </p>
-            ) : null}
-            <div className="mkt-form-actions">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                disabled={sending || !sendTemplateId}
-                onClick={() => void onTest()}
-              >
-                Testmail
-              </button>
-              {sendKind === "first" ? (
+              <label className="field">
+                <span>3 · Text</span>
+                <select value={sendTemplateId} onChange={(e) => setSendTemplateId(e.target.value)}>
+                  {sendTemplates.length === 0 ? (
+                    <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
+                  ) : null}
+                  {sendTemplates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {preview ? (
+                <div className="mkt-counts">
+                  <div>
+                    <strong>{preview.sendCount}</strong>
+                    <span>gehen raus</span>
+                  </div>
+                  <div>
+                    <strong>{preview.skipCount}</strong>
+                    <span>bleiben draußen</span>
+                  </div>
+                </div>
+              ) : null}
+              {skipSummary ? <p className="muted mkt-skip-summary">{skipSummary}</p> : null}
+              <div className="mkt-send-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  disabled={sending || !sendTemplateId}
+                  onClick={() => void onTest()}
+                >
+                  Test an mich
+                </button>
                 <button
                   type="button"
                   className="btn btn-primary"
                   disabled={sending || !listId || !sendTemplateId || !preview?.sendCount}
-                  onClick={() => void onSend("first")}
+                  onClick={() => void onSend(sendKind)}
                 >
-                  {sending ? "Sende…" : "Erstmail senden"}
+                  {sending
+                    ? "Sende…"
+                    : sendKind === "first"
+                      ? "Erstmail senden"
+                      : "Erinnerung senden"}
                 </button>
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={sending || !listId || !sendTemplateId || !preview?.sendCount}
-                  onClick={() => void onSend("reminder")}
-                >
-                  {sending ? "Sende…" : "Erinnerung senden"}
-                </button>
-              )}
+              </div>
+              {!sendTemplateId ? (
+                <p className="muted">
+                  Unter Texte zuerst einen {marketingKindLabel[sendKind]}-Baustein anlegen.
+                </p>
+              ) : null}
             </div>
           </section>
 
-          <section className="panel">
-            <p className="eyebrow">Inhalt</p>
-            <h3>Vorschau</h3>
+          <section className="panel mkt-board">
+            <div className="mkt-board-head">
+              <div>
+                <p className="eyebrow">Empfänger sieht</p>
+                <h3>Vorschau</h3>
+              </div>
+            </div>
             {sendPreviewTpl ? (
-              <div className="mkt-preview">
-                <span className="mkt-status is-sent">{marketingKindLabel[sendPreviewTpl.kind]}</span>
+              <div className="mkt-letter">
+                <p className="mkt-letter-brand">{orgName}</p>
                 <strong>{interpolatePreview(sendPreviewTpl.subject, previewLead)}</strong>
                 <p>{interpolatePreview(sendPreviewTpl.body, previewLead)}</p>
                 {sendPreviewTpl.ctaLabel ? (
-                  <p className="muted">Button: {sendPreviewTpl.ctaLabel}</p>
+                  <span className="mkt-letter-cta">{sendPreviewTpl.ctaLabel}</span>
                 ) : null}
                 {signatureHtml.trim() ? (
                   <iframe
                     className="mkt-sig-frame"
                     title="Signatur"
                     sandbox=""
-                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px 0 0;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
                   />
                 ) : null}
               </div>
             ) : (
-              <p className="empty">Zuerst einen Textbaustein anlegen.</p>
+              <div className="mkt-empty">
+                <strong>Kein Text gewählt</strong>
+                <p className="muted">Lege unter Texte einen Baustein an.</p>
+              </div>
             )}
           </section>
         </div>
       ) : null}
 
-      <Modal
-        open={Boolean(replyLead)}
-        title="Geantwortet"
-        onClose={() => setReplyLead(null)}
-      >
+      <Modal open={Boolean(replyLead)} title="Rückmeldung" onClose={() => setReplyLead(null)}>
         {replyLead ? (
           <form
             className="mkt-reply-form"

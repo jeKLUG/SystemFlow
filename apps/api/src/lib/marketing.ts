@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { contractorPartyLines } from "./orgAddress.js";
-import { mailHtml, type OutgoingMail } from "./mail.js";
+import type { OutgoingMail } from "./mail.js";
 import type { MarketingLead, MarketingSend, MarketingSendKind, OrgSettings } from "../db/schema.js";
 
 /** Erinnerung frühestens 7 Tage nach erfolgreicher Erstmail. */
@@ -281,31 +280,185 @@ export function signatureHtmlToText(html: string): string {
     .trim();
 }
 
+type MarketingOrg = Pick<
+  OrgSettings,
+  | "orgName"
+  | "orgTagline"
+  | "orgAddress"
+  | "orgZip"
+  | "orgCity"
+  | "orgCountry"
+  | "orgEmail"
+  | "orgPhone"
+  | "marketingSignatureHtml"
+>;
+
+const MKT_FONT = "Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif";
+const MKT = {
+  page: "#f4f5f7",
+  card: "#ffffff",
+  ink: "#111827",
+  body: "#3f4c5a",
+  mute: "#6b7280",
+  line: "#e5e7eb",
+  accent: "#2563eb",
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function bodyParagraphs(text: string): string {
+  const blocks = text
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (blocks.length === 0) return "";
+  return blocks
+    .map(
+      (p, i) =>
+        `<p style="margin:0 0 ${i === blocks.length - 1 ? "0" : "18px"};font-size:16px;line-height:1.7;color:${MKT.body}">${escapeHtml(p).replace(/\n/g, "<br>")}</p>`,
+    )
+    .join("");
+}
+
+function footerMeta(org?: MarketingOrg | null, brand?: string) {
+  const customName = org?.orgName?.trim() || "";
+  const name = brand?.trim() || customName || "Systemhaus-Ess";
+  const tagline =
+    org?.orgTagline?.trim() || (customName || brand?.trim() ? "" : "IT-Dienstleistungen & Support");
+  const street = org?.orgAddress?.trim() || "";
+  const city = [org?.orgZip?.trim(), org?.orgCity?.trim()].filter(Boolean).join(" ");
+  const country = org?.orgCountry?.trim() && org.orgCountry.trim() !== "DE" ? org.orgCountry.trim() : "";
+  const email = org?.orgEmail?.trim() || "";
+  const phone = org?.orgPhone?.trim() || "";
+  return { name, tagline, street, city, country, email, phone };
+}
+
 /**
- * Baut HTML/Text einer Akquise-Mail im App-Look inkl. Impressum und Abmelde-Link.
+ * Helle, schlichte Werbemail (nicht der dunkle Ticket-Look).
+ */
+function marketingMailHtml(opts: {
+  brand: string;
+  title: string;
+  body: string;
+  href?: string;
+  button?: string;
+  signatureHtml?: string;
+  signatureText?: string;
+  unsubHref?: string;
+  org?: MarketingOrg | null;
+}): { html: string; text: string } {
+  const meta = footerMeta(opts.org, opts.brand);
+  const intro = bodyParagraphs(opts.body);
+  const btn =
+    opts.href && opts.button
+      ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:28px 0 8px"><tr>
+          <td bgcolor="${MKT.accent}" style="border-radius:6px">
+            <a href="${escapeHtml(opts.href)}" style="display:inline-block;padding:12px 22px;font-family:${MKT_FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">${escapeHtml(opts.button)}</a>
+          </td>
+        </tr></table>`
+      : "";
+  const signature = opts.signatureHtml?.trim()
+    ? `<div style="margin:32px 0 0;padding-top:24px;border-top:1px solid ${MKT.line};font-size:13px;line-height:1.55;color:${MKT.body}">${opts.signatureHtml.trim()}</div>`
+    : "";
+
+  const addressBits = [meta.street, meta.city, meta.country].filter(Boolean);
+  const contactBits: string[] = [];
+  if (meta.phone) {
+    contactBits.push(
+      `<a href="tel:${escapeHtml(meta.phone.replace(/[^\d+]/g, "") || meta.phone)}" style="color:${MKT.mute};text-decoration:none">${escapeHtml(meta.phone)}</a>`,
+    );
+  }
+  if (meta.email) {
+    contactBits.push(
+      `<a href="mailto:${escapeHtml(meta.email)}" style="color:${MKT.mute};text-decoration:none">${escapeHtml(meta.email)}</a>`,
+    );
+  }
+
+  const unsub = opts.unsubHref
+    ? `<a href="${escapeHtml(opts.unsubHref)}" style="color:${MKT.mute};text-decoration:underline">Keine weiteren Nachrichten</a>`
+    : "";
+
+  const html = `<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>${escapeHtml(opts.title)}</title>
+<style>
+  a { color: ${MKT.accent}; }
+</style>
+</head>
+<body style="margin:0;padding:0;background:${MKT.page}">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent">${escapeHtml(opts.body.slice(0, 120))}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${MKT.page}" style="background:${MKT.page}">
+  <tr>
+    <td align="center" style="padding:40px 16px 24px">
+      <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px">
+        <tr>
+          <td bgcolor="${MKT.card}" style="background:${MKT.card};border:1px solid ${MKT.line};border-radius:12px;padding:36px 40px 32px;font-family:${MKT_FONT}">
+            <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;color:${MKT.mute}">${escapeHtml(meta.name)}</p>
+            <div style="width:36px;height:2px;background:${MKT.accent};margin:0 0 22px;font-size:0;line-height:0">&nbsp;</div>
+            <h1 style="margin:0 0 20px;font-size:22px;line-height:1.35;font-weight:600;color:${MKT.ink};letter-spacing:-0.02em">${escapeHtml(opts.title)}</h1>
+            ${intro}
+            ${btn}
+            ${signature}
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:22px 12px 8px;font-family:${MKT_FONT};font-size:12px;line-height:1.6;color:${MKT.mute};text-align:center">
+            <p style="margin:0 0 4px;font-weight:600;color:#4b5563">${escapeHtml(meta.name)}</p>
+            ${meta.tagline ? `<p style="margin:0 0 8px">${escapeHtml(meta.tagline)}</p>` : ""}
+            ${addressBits.length ? `<p style="margin:0 0 6px">${escapeHtml(addressBits.join(" · "))}</p>` : ""}
+            ${contactBits.length ? `<p style="margin:0 0 14px">${contactBits.join(" &nbsp;·&nbsp; ")}</p>` : ""}
+            <p style="margin:0;font-size:11px;line-height:1.55;color:#9ca3af">
+              Geschäftliche Nachricht.${unsub ? ` ${unsub}` : ""}
+            </p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
+
+  const text = [
+    meta.name,
+    opts.title,
+    opts.body,
+    opts.href,
+    opts.signatureText,
+    [meta.street, meta.city, meta.country].filter(Boolean).join(", "),
+    [meta.phone, meta.email].filter(Boolean).join(" · "),
+    "Geschäftliche Nachricht.",
+    opts.unsubHref ? `Keine weiteren Nachrichten: ${opts.unsubHref}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  return { html, text };
+}
+
+/**
+ * Baut HTML/Text einer Akquise-Mail (hell, schlicht) inkl. Impressum und Abmelde-Link.
  */
 export function buildMarketingMail(opts: {
   template: { subject: string; body: string; ctaUrl?: string | null; ctaLabel?: string | null };
   lead: { company: string; contactPerson?: string | null; email: string; unsubToken: string };
-  org?: Pick<
-    OrgSettings,
-    | "orgName"
-    | "orgTagline"
-    | "orgAddress"
-    | "orgZip"
-    | "orgCity"
-    | "orgCountry"
-    | "orgEmail"
-    | "orgPhone"
-    | "marketingSignatureHtml"
-  > | null;
+  org?: MarketingOrg | null;
   brand?: string;
   publicUrl?: string;
 }): OutgoingMail & { interpolatedSubject: string; interpolatedBody: string } {
   const subject = interpolateMarketing(opts.template.subject, opts.lead);
   const body = interpolateMarketing(opts.template.body, opts.lead);
   const brand = opts.brand?.trim() || opts.org?.orgName?.trim() || "Systemhaus-Ess";
-  const address = contractorPartyLines(opts.org).join(" · ");
   const unsubHref =
     opts.publicUrl && opts.lead.unsubToken
       ? `${opts.publicUrl.replace(/\/$/, "")}/m/unsubscribe/${opts.lead.unsubToken}`
@@ -313,19 +466,16 @@ export function buildMarketingMail(opts: {
   const href = normalizeCtaUrl(opts.template.ctaUrl);
   const button = opts.template.ctaLabel?.trim() || (href ? "Jetzt Termin vereinbaren" : undefined);
   const signatureHtml = sanitizeSignatureHtml(opts.org?.marketingSignatureHtml);
-  const rendered = mailHtml({
+  const rendered = marketingMailHtml({
     brand,
-    kicker: "Geschäftsbrief",
     title: subject,
-    intro: body,
+    body,
     href: href && button ? href : undefined,
     button: href && button ? button : undefined,
     signatureHtml: signatureHtml || undefined,
     signatureText: signatureHtml ? signatureHtmlToText(signatureHtml) : undefined,
-    footer: `${address}\nDies ist eine geschäftliche Nachricht.`,
-    footerLink: unsubHref
-      ? { href: unsubHref, label: "Nicht mehr anschreiben" }
-      : undefined,
+    unsubHref,
+    org: opts.org,
   });
   return {
     to: opts.lead.email,

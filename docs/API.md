@@ -50,7 +50,7 @@ UI: `/marketing` (Navbar Werkzeuge). Eigene Leads, nicht die Kontakte-Tabelle. V
 | GET/PUT | `/api/marketing/signature` | Globale HTML-Signatur unter dem Mailtext `{ html }`. PUT bereinigt Script/Event-Handler |
 | GET | `/api/public/marketing/unsubscribe/:token` | ohne Login; setzt `doNotContact`. UI: `/m/unsubscribe/:token` |
 
-Platzhalter in Betreff/Text: `{{firma}}`, `{{ansprechpartner}}` (sonst „Team {{firma}}“). Optional CTA (`ctaLabel`, `ctaUrl`). Unter dem Text: HTML-Signatur aus `/api/marketing/signature` (heller Block). Footer: Anschrift aus Konto, „Nicht mehr anschreiben“. Pause 300 ms zwischen Mails.
+Platzhalter in Betreff/Text: `{{firma}}`, `{{ansprechpartner}}` (sonst „Team {{firma}}“). Optional CTA (`ctaLabel`, `ctaUrl`). Layout hell/schlicht; HTML-Signatur unter dem Text; Footer mit Anschrift, Telefon/E-Mail und Abmelde-Link. Pause 300 ms zwischen Mails.
 
 ## Kunden / Kontakte
 

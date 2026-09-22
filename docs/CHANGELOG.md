@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.209 – 2026-09-22
+
+- Marketing-UI: Hero mit Bereichskarten, Listenwahl im Board, Statusfilter, Zeilen statt Tabelle, Texteditor rechts, Versand in Schritten mit Briefvorschau
+
+## 1.5.208 – 2026-09-22
+
+- Marketing-Mail: helles, schlichtes Layout; Footer zentriert mit Anschrift, Kontakt und Abmelde-Link statt einer dunklen Zeile
+
 ## 1.5.207 – 2026-09-22
 
 - Marketing: globale HTML-Signatur unter dem Mailtext (Outlook-HTML, Vorschau, heller Block in der Mail)
