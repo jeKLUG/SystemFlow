@@ -34,12 +34,13 @@ type latestAgentInfo struct {
 }
 
 type heartbeatResponse struct {
-	OK          bool             `json:"ok"`
-	Assigned    bool             `json:"assigned"`
-	UpdateNow   bool             `json:"updateNow"`
-	Uninstall   bool             `json:"uninstall"`
-	LatestAgent *latestAgentInfo `json:"latestAgent"`
-	PingTargets []PingTarget     `json:"pingTargets"`
+	OK             bool             `json:"ok"`
+	Assigned       bool             `json:"assigned"`
+	UpdateNow      bool             `json:"updateNow"`
+	Uninstall      bool             `json:"uninstall"`
+	LatestAgent    *latestAgentInfo `json:"latestAgent"`
+	PingTargets    []PingTarget     `json:"pingTargets"`
+	ServiceWatches []ServiceWatch   `json:"serviceWatches"`
 }
 
 type httpError struct {

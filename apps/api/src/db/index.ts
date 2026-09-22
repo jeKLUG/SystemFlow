@@ -225,6 +225,7 @@ export async function createDb(databasePath: string) {
       monitoring_alert_enabled INTEGER NOT NULL DEFAULT 0,
       monitoring_alerts_json TEXT NOT NULL DEFAULT '{}',
       monitoring_ping_targets_json TEXT NOT NULL DEFAULT '[]',
+      monitoring_service_watches_json TEXT NOT NULL DEFAULT '[]',
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     );
@@ -576,6 +577,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "assets", "monitoring_alert_enabled", "INTEGER NOT NULL DEFAULT 0");
   await ensureColumn(client, "assets", "monitoring_alerts_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "assets", "monitoring_ping_targets_json", "TEXT NOT NULL DEFAULT '[]'");
+  await ensureColumn(client, "assets", "monitoring_service_watches_json", "TEXT NOT NULL DEFAULT '[]'");
   await ensureColumn(client, "monitoring_agents", "open_tickets_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "monitoring_agents", "update_requested_at", "INTEGER");
   await ensureColumn(client, "monitoring_agents", "uninstall_requested_at", "INTEGER");

@@ -17,12 +17,13 @@ var embeddedAgentVersion string
 var agentVersion = strings.TrimSpace(embeddedAgentVersion)
 
 type config struct {
-	ServerURL       string       `json:"serverUrl"`
-	EnrollmentKey   string       `json:"enrollmentKey"`
-	Token           string       `json:"token,omitempty"`
-	AgentID         string       `json:"agentId,omitempty"`
-	LastUpdateCheck string       `json:"lastUpdateCheck,omitempty"`
-	PingTargets     []PingTarget `json:"pingTargets,omitempty"`
+	ServerURL       string         `json:"serverUrl"`
+	EnrollmentKey   string         `json:"enrollmentKey"`
+	Token           string         `json:"token,omitempty"`
+	AgentID         string         `json:"agentId,omitempty"`
+	LastUpdateCheck string         `json:"lastUpdateCheck,omitempty"`
+	PingTargets     []PingTarget   `json:"pingTargets,omitempty"`
+	ServiceWatches  []ServiceWatch `json:"serviceWatches,omitempty"`
 }
 
 func defaultConfigPath() string {
@@ -89,6 +90,7 @@ func runLoop(cfgPath string) error {
 	}
 
 	applyPingTargets(cfgPath, cfg, cfg.PingTargets, false)
+	applyServiceWatches(cfgPath, cfg, cfg.ServiceWatches, false)
 
 	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
@@ -103,12 +105,16 @@ func runLoop(cfgPath string) error {
 				if next, e := loadConfig(cfgPath); e == nil {
 					*cfg = *next
 					applyPingTargets(cfgPath, cfg, cfg.PingTargets, false)
+					applyServiceWatches(cfgPath, cfg, cfg.ServiceWatches, false)
 				}
 			}
 			return false
 		}
 		if hb.PingTargets != nil {
 			applyPingTargets(cfgPath, cfg, hb.PingTargets, true)
+		}
+		if hb.ServiceWatches != nil {
+			applyServiceWatches(cfgPath, cfg, hb.ServiceWatches, true)
 		}
 		if maybeRemoteUninstall(cfgPath, hb) {
 			return true

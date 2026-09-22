@@ -15,6 +15,8 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   crash: "Absturz",
   lan: "Netz",
   ping: "Ping",
+  svcwatch: "Dienst",
+  ntp: "Uhrzeit",
 };
 
 /**
@@ -24,12 +26,17 @@ export function deviceIssueChips(d: {
   issues: MonitoringIssueKind[];
   diskIssues?: { id: string; name: string }[];
   pingIssues?: { id: string; host: string; label?: string }[];
+  watchIssues?: { id: string; name: string; label?: string }[];
 }): string[] {
-  const parts = d.issues.filter((i) => i !== "disk" && i !== "ping").map((i) => monitoringIssueLabel[i]);
+  const parts = d.issues
+    .filter((i) => i !== "disk" && i !== "ping" && i !== "svcwatch")
+    .map((i) => monitoringIssueLabel[i]);
   for (const disk of d.diskIssues ?? []) parts.push(`Datenträger ${disk.name}`);
   if (d.issues.includes("disk") && !(d.diskIssues ?? []).length) parts.push(monitoringIssueLabel.disk);
   for (const ping of d.pingIssues ?? []) parts.push(`Ping ${ping.label || ping.host}`);
   if (d.issues.includes("ping") && !(d.pingIssues ?? []).length) parts.push(monitoringIssueLabel.ping);
+  for (const watch of d.watchIssues ?? []) parts.push(`Dienst ${watch.label || watch.name}`);
+  if (d.issues.includes("svcwatch") && !(d.watchIssues ?? []).length) parts.push(monitoringIssueLabel.svcwatch);
   return parts.length ? parts : ["Problem"];
 }
 
@@ -37,17 +44,19 @@ export function deviceIssueText(d: {
   issues: MonitoringIssueKind[];
   diskIssues?: { id: string; name: string }[];
   pingIssues?: { id: string; host: string; label?: string }[];
+  watchIssues?: { id: string; name: string; label?: string }[];
 }): string {
   return deviceIssueChips(d).join(", ");
 }
 
-/** Kurztext für ein Monitoring-Ticket (Laufwerk, Ping-Ziel oder Typ). */
+/** Kurztext für ein Monitoring-Ticket (Laufwerk, Ping-Ziel, Dienst oder Typ). */
 export function ticketIssueHint(t: {
   kind: MonitoringIssueKind;
   diskId?: string;
   pingHost?: string;
+  serviceName?: string;
 }): string {
-  return t.diskId ?? t.pingHost ?? monitoringIssueLabel[t.kind];
+  return t.diskId ?? t.pingHost ?? t.serviceName ?? monitoringIssueLabel[t.kind];
 }
 
 export function sampleTime(ts: string | number | Date): number {
@@ -73,6 +82,18 @@ export function formatUptime(sec: number | null | undefined): string {
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
   return `${m} min`;
+}
+
+/** Abweichung der Geräteuhr: positiv = die Uhr eilt. */
+export function formatClockOffset(sec: number | null | undefined): string {
+  if (sec == null || !Number.isFinite(sec)) return "–";
+  const abs = Math.abs(Math.round(sec));
+  if (abs < 5) return "stimmt";
+  const dir = sec > 0 ? "eilt" : "nach";
+  if (abs < 60) return `${dir} ${abs} s`;
+  const m = Math.round(abs / 60);
+  if (m < 60) return `${dir} ${m} Min.`;
+  return `${dir} ${Math.round(abs / 3600)} Std.`;
 }
 
 /** Heartbeat gilt 2 Minuten als online – analog zum Server. */

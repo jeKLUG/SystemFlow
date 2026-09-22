@@ -9,6 +9,7 @@ import {
 import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import { MonitoringPingTargets } from "./MonitoringPingTargets";
 import { MonitoringProcessList, type ProcessSort } from "./MonitoringProcessList";
+import { MonitoringServiceWatches } from "./MonitoringServiceWatches";
 import {
   agentVersionAtLeast,
   deviceIssueChips,
@@ -19,11 +20,11 @@ import {
   seriesFrom,
   ticketIssueHint,
 } from "../lib/monitoringUi";
-import type { MonitoringAlertConfig, MonitoringDeviceDetail, MonitoringPingTarget } from "../types";
+import type { MonitoringAlertConfig, MonitoringDeviceDetail, MonitoringPingTarget, MonitoringServiceWatch } from "../types";
 import { emptyMonitoringAlertConfig, monitoringDiskId } from "../types";
 
 /**
- * Gerätedetail: Warnungen, CPU/RAM-Prozesse, Pings, Verlauf, Hardware, Agent-Update und Remote-Deinstallation.
+ * Gerätedetail: Warnungen, CPU/RAM-Prozesse, Pings, Dienst-Wächter, Uhrzeit, Verlauf, Hardware.
  */
 export function MonitoringDeviceDetail({
   detail,
@@ -31,6 +32,7 @@ export function MonitoringDeviceDetail({
   onRange,
   onSaveAlerts,
   onSavePings,
+  onSaveWatches,
   onRequestUpdate,
   onRequestUninstall,
   updateBusy,
@@ -42,6 +44,7 @@ export function MonitoringDeviceDetail({
   onRange: (days: number) => void;
   onSaveAlerts: (cfg: MonitoringAlertConfig) => void;
   onSavePings?: (targets: MonitoringPingTarget[]) => void;
+  onSaveWatches?: (targets: MonitoringServiceWatch[]) => void;
   onRequestUpdate: () => void;
   onRequestUninstall?: () => void;
   updateBusy: boolean;
@@ -138,15 +141,15 @@ export function MonitoringDeviceDetail({
       </Modal>
 
       <div className="mon-kpis-mini">
-        <button type="button" onClick={() => setProcSort("cpu")} aria-label="CPU – Prozesse anzeigen">
-          <span>CPU</span>
+        <button type="button" onClick={() => setProcSort("cpu")} title="Prozesse anzeigen" aria-label="CPU – Prozesse anzeigen">
+          <span className="mon-kpi-label">CPU</span>
           <strong>{pct(device.cpuPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.cpuPercent ?? 0))}%` }} />
           </span>
         </button>
-        <button type="button" onClick={() => setProcSort("ram")} aria-label="RAM – Prozesse anzeigen">
-          <span>RAM</span>
+        <button type="button" onClick={() => setProcSort("ram")} title="Prozesse anzeigen" aria-label="RAM – Prozesse anzeigen">
+          <span className="mon-kpi-label">RAM</span>
           <strong>{pct(device.ramPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.ramPercent ?? 0))}%` }} />
@@ -236,6 +239,18 @@ export function MonitoringDeviceDetail({
             />
           ) : null
         }
+        watches={
+          onSaveWatches ? (
+            <MonitoringServiceWatches
+              targets={device.serviceWatches ?? []}
+              results={snapshot?.watchedServices}
+              agentVersion={device.agentVersion}
+              busy={updateBusy || uninstallBusy}
+              onChange={onSaveWatches}
+            />
+          ) : null
+        }
+        clock={snapshot?.clock}
       />
 
       {snapshot?.events?.length ? (

@@ -104,6 +104,8 @@ const assetBody = z.object({
       crash: kindAlertBody.optional(),
       lan: kindAlertBody.optional(),
       ping: kindAlertBody.optional(),
+      svcwatch: kindAlertBody.optional(),
+      ntp: kindAlertBody.optional(),
     })
     .optional(),
 });

@@ -50,33 +50,35 @@ type UpdateSnapshot struct {
 }
 
 type AgentSnapshot struct {
-	Hostname      string             `json:"hostname,omitempty"`
-	OS            string             `json:"os,omitempty"`
-	OSVersion     string             `json:"osVersion,omitempty"`
-	Arch          string             `json:"arch,omitempty"`
-	UptimeSec     uint64             `json:"uptimeSec,omitempty"`
-	AgentVersion  string             `json:"agentVersion,omitempty"`
-	Platform      string             `json:"platform,omitempty"`
-	IP            string             `json:"ip,omitempty"`
-	IPs           []string           `json:"ips,omitempty"`
-	MAC           string             `json:"mac,omitempty"`
-	CPUPercent    *float64           `json:"cpuPercent"`
-	RAMUsedBytes  *uint64            `json:"ramUsedBytes"`
-	RAMTotalBytes *uint64            `json:"ramTotalBytes"`
-	Disks         []DiskSnapshot     `json:"disks,omitempty"`
-	NICs          []NicSnapshot      `json:"nics,omitempty"`
-	Processes     []ProcessSnapshot  `json:"processes,omitempty"`
-	Updates       *UpdateSnapshot    `json:"updates,omitempty"`
-	Events        []EventSnapshot    `json:"events,omitempty"`
-	Hardware      *HardwareInventory `json:"hardware,omitempty"`
-	Session       *SessionSnapshot   `json:"session,omitempty"`
-	Network       *NetworkSnapshot   `json:"network,omitempty"`
-	Services      []ServiceSnapshot  `json:"services,omitempty"`
-	Software      []SoftwareSnapshot `json:"software,omitempty"`
-	Defender      *DefenderSnapshot  `json:"defender,omitempty"`
-	Firewall      *FirewallSnapshot  `json:"firewall,omitempty"`
-	Crash         *CrashSnapshot     `json:"crash,omitempty"`
-	Pings         []PingResult       `json:"pings,omitempty"`
+	Hostname        string               `json:"hostname,omitempty"`
+	OS              string               `json:"os,omitempty"`
+	OSVersion       string               `json:"osVersion,omitempty"`
+	Arch            string               `json:"arch,omitempty"`
+	UptimeSec       uint64               `json:"uptimeSec,omitempty"`
+	AgentVersion    string               `json:"agentVersion,omitempty"`
+	Platform        string               `json:"platform,omitempty"`
+	IP              string               `json:"ip,omitempty"`
+	IPs             []string             `json:"ips,omitempty"`
+	MAC             string               `json:"mac,omitempty"`
+	CPUPercent      *float64             `json:"cpuPercent"`
+	RAMUsedBytes    *uint64              `json:"ramUsedBytes"`
+	RAMTotalBytes   *uint64              `json:"ramTotalBytes"`
+	Disks           []DiskSnapshot       `json:"disks,omitempty"`
+	NICs            []NicSnapshot        `json:"nics,omitempty"`
+	Processes       []ProcessSnapshot    `json:"processes,omitempty"`
+	Updates         *UpdateSnapshot      `json:"updates,omitempty"`
+	Events          []EventSnapshot      `json:"events,omitempty"`
+	Hardware        *HardwareInventory   `json:"hardware,omitempty"`
+	Session         *SessionSnapshot     `json:"session,omitempty"`
+	Network         *NetworkSnapshot     `json:"network,omitempty"`
+	Services        []ServiceSnapshot    `json:"services,omitempty"`
+	Software        []SoftwareSnapshot   `json:"software,omitempty"`
+	Defender        *DefenderSnapshot    `json:"defender,omitempty"`
+	Firewall        *FirewallSnapshot    `json:"firewall,omitempty"`
+	Crash           *CrashSnapshot       `json:"crash,omitempty"`
+	Pings           []PingResult         `json:"pings,omitempty"`
+	WatchedServices []ServiceWatchResult `json:"watchedServices,omitempty"`
+	Clock           *ClockSnapshot       `json:"clock,omitempty"`
 }
 
 func goosName() string {
@@ -180,6 +182,8 @@ func collectSnapshot() (AgentSnapshot, error) {
 	snap.Firewall = collectFirewall()
 	snap.Crash = collectCrash()
 	snap.Pings = probePings(currentPingTargets())
+	snap.WatchedServices = probeWatchedServices(currentServiceWatches())
+	snap.Clock = collectClock()
 	return snap, nil
 }
 

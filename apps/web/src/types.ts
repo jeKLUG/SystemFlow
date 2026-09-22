@@ -43,7 +43,9 @@ export type MonitoringIssueKind =
   | "firewall"
   | "crash"
   | "lan"
-  | "ping";
+  | "ping"
+  | "svcwatch"
+  | "ntp";
 export type MonitoringKindAlert = { enabled: boolean; priority: TicketPriority };
 export type MonitoringVolumeAlert = { enabled: boolean; warnUsedPct: number };
 export type MonitoringDiskAlert = MonitoringKindAlert & {
@@ -876,6 +878,8 @@ export const monitoringIssueKinds: MonitoringIssueKind[] = [
   "crash",
   "lan",
   "ping",
+  "svcwatch",
+  "ntp",
 ];
 
 export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertConfig {
@@ -894,6 +898,8 @@ export function emptyMonitoringAlertConfig(allEnabled = false): MonitoringAlertC
     crash: { enabled: allEnabled, priority: "high" },
     lan: { enabled: allEnabled, priority: "high" },
     ping: { enabled: allEnabled, priority: "high" },
+    svcwatch: { enabled: allEnabled, priority: "high" },
+    ntp: { enabled: allEnabled, priority: "high" },
   };
 }
 
@@ -918,6 +924,7 @@ export interface MonitoringIssueTicket {
   kind: MonitoringIssueKind;
   diskId?: string;
   pingHost?: string;
+  serviceName?: string;
   ticketId: string;
   ticketNumber: string;
   priority: TicketPriority;
@@ -942,6 +949,33 @@ export interface MonitoringPingIssue {
   label?: string;
 }
 
+export interface MonitoringWatchIssue {
+  id: string;
+  name: string;
+  label?: string;
+  state?: string;
+}
+
+export interface MonitoringServiceWatch {
+  id: string;
+  name: string;
+  label?: string;
+}
+
+export interface MonitoringWatchResult {
+  id: string;
+  name: string;
+  display?: string;
+  state?: string;
+  ok: boolean;
+}
+
+export interface MonitoringClock {
+  offsetSec?: number | null;
+  source?: string;
+  ok?: boolean | null;
+}
+
 export interface MonitoringDeviceSummary {
   agentId: string;
   assetId: string | null;
@@ -958,11 +992,13 @@ export interface MonitoringDeviceSummary {
   alertEnabled: boolean;
   alertConfig?: MonitoringAlertConfig;
   pingTargets?: MonitoringPingTarget[];
+  serviceWatches?: MonitoringServiceWatch[];
   monitoringEnabled: boolean;
   warning: boolean;
   issues: MonitoringIssueKind[];
   diskIssues?: MonitoringDiskIssue[];
   pingIssues?: MonitoringPingIssue[];
+  watchIssues?: MonitoringWatchIssue[];
   tickets?: MonitoringIssueTicket[];
   ticketId: string | null;
   ticketNumber: string | null;
@@ -1105,6 +1141,8 @@ export interface MonitoringSnapshot {
   };
   crash?: { unexpected?: boolean; time?: string; reason?: string };
   pings?: MonitoringPingResult[];
+  watchedServices?: MonitoringWatchResult[];
+  clock?: MonitoringClock;
   software?: {
     name: string;
     publisher?: string;

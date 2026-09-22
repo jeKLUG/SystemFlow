@@ -33,6 +33,8 @@ const kindMeta: Record<MonitoringIssueKind, { title: string; hint: string }> = {
   crash: { title: "Unerwarteter Neustart", hint: "Dirty Shutdown, Stromverlust oder Bluescreen" },
   lan: { title: "Gateway/DNS", hint: "Gateway ping oder Namensauflösung schlägt fehl" },
   ping: { title: "Ping fehlgeschlagen", hint: "Ein eingerichtetes Ping-Ziel antwortet nicht" },
+  svcwatch: { title: "Dienst-Wächter", hint: "Ein überwachter Dienst läuft nicht" },
+  ntp: { title: "Uhrzeit", hint: "Geräteuhr weicht mehr als 30 Sekunden von NTP ab" },
 };
 
 const priorities: TicketPriority[] = ["low", "normal", "high", "critical"];

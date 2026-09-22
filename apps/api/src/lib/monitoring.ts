@@ -37,8 +37,12 @@ const SETTINGS_ID = "default";
 export const DISK_WARN_USED_DEFAULT = 100 - DISK_FREE_MIN_PCT;
 export const DISK_ISSUE_PREFIX = "disk:";
 export const PING_ISSUE_PREFIX = "ping:";
+export const SVC_ISSUE_PREFIX = "svc:";
 export const MAX_PING_TARGETS = 8;
+export const MAX_SERVICE_WATCHES = 8;
+export const NTP_WARN_SEC = 30;
 const PING_ID_RE = /^ping_[a-f0-9]{16}$/;
+const SVC_ID_RE = /^svc_[a-f0-9]{16}$/;
 const PING_HOSTNAME_RE =
   /^(?=.{1,253}$)[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
 
@@ -57,6 +61,8 @@ export const monitoringIssueLabel: Record<MonitoringIssueKind, string> = {
   crash: "Unerwarteter Neustart",
   lan: "Gateway/DNS",
   ping: "Ping fehlgeschlagen",
+  svcwatch: "Dienst-Wächter",
+  ntp: "Uhrzeit",
 };
 
 export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = {
@@ -74,6 +80,8 @@ export const defaultKindPriority: Record<MonitoringIssueKind, TicketPriority> = 
   crash: "high",
   lan: "high",
   ping: "high",
+  svcwatch: "high",
+  ntp: "high",
 };
 
 export type KindAlert = { enabled: boolean; priority: TicketPriority };
@@ -91,6 +99,10 @@ export type FiringDisk = { id: string; name: string; usedPct: number; warnUsedPc
 export type PingTarget = { id: string; host: string; label?: string };
 export type PingResult = { id: string; host: string; ok: boolean; ms?: number };
 export type FiringPing = { id: string; host: string; label?: string };
+export type ServiceWatch = { id: string; name: string; label?: string };
+export type ServiceWatchResult = { id: string; name: string; display?: string; state?: string; ok: boolean };
+export type FiringWatch = { id: string; name: string; label?: string; state?: string };
+export type ClockSnapshot = { offsetSec?: number | null; source?: string; ok?: boolean | null };
 export type MonitoringTicketSync = {
   openTickets: OpenTicketMap;
   opened: Ticket[];
@@ -169,6 +181,8 @@ export function emptyAlertConfig(allEnabled = false): AlertConfig {
     crash: { enabled: allEnabled, priority: defaultKindPriority.crash },
     lan: { enabled: allEnabled, priority: defaultKindPriority.lan },
     ping: { enabled: allEnabled, priority: defaultKindPriority.ping },
+    svcwatch: { enabled: allEnabled, priority: defaultKindPriority.svcwatch },
+    ntp: { enabled: allEnabled, priority: defaultKindPriority.ntp },
   };
 }
 
@@ -291,6 +305,84 @@ export function pingTargetsForAgent(targets: PingTarget[]): { id: string; host: 
   return targets.map((t) => ({ id: t.id, host: t.host }));
 }
 
+const SERVICE_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._@$-]{0,127}$/;
+
+/**
+ * Windows-Dienstname oder systemd-Unit ohne Shell-Metazeichen.
+ */
+export function isValidServiceName(raw: string): boolean {
+  const name = raw.trim();
+  if (!name || name.length > 128) return false;
+  if (/[\s;|&<>`"'\\/%]/.test(name)) return false;
+  return SERVICE_NAME_RE.test(name);
+}
+
+export function svcTicketKey(watchId: string): string {
+  return `${SVC_ISSUE_PREFIX}${watchId}`;
+}
+
+export function svcIdFromTicketKey(key: string): string | null {
+  if (key.startsWith(SVC_ISSUE_PREFIX) && key.length > SVC_ISSUE_PREFIX.length) {
+    const id = key.slice(SVC_ISSUE_PREFIX.length);
+    return SVC_ID_RE.test(id) ? id : null;
+  }
+  return null;
+}
+
+export function serviceDisplayName(target: Pick<ServiceWatch, "name" | "label">): string {
+  return target.label?.trim() || target.name;
+}
+
+/**
+ * Liest und normalisiert Dienst-Wächter eines Inventar-Eintrags (max. 8).
+ */
+export function parseServiceWatches(
+  asset: Pick<Asset, "monitoringServiceWatchesJson"> | null | undefined,
+): ServiceWatch[] {
+  if (!asset?.monitoringServiceWatchesJson) return [];
+  try {
+    const raw = JSON.parse(asset.monitoringServiceWatchesJson) as unknown;
+    return normalizeServiceWatches(raw);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Validiert Dienst-Wächter; vergibt IDs, entfernt Duplikate und ungültige Namen.
+ */
+export function normalizeServiceWatches(raw: unknown): ServiceWatch[] {
+  if (!Array.isArray(raw)) return [];
+  const seenName = new Set<string>();
+  const seenId = new Set<string>();
+  const out: ServiceWatch[] = [];
+  for (const row of raw) {
+    if (out.length >= MAX_SERVICE_WATCHES) break;
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const item = row as { id?: unknown; name?: unknown; label?: unknown };
+    const name = typeof item.name === "string" ? item.name.trim() : "";
+    if (!isValidServiceName(name)) continue;
+    const nameKey = name.toLowerCase();
+    if (seenName.has(nameKey)) continue;
+    let id = typeof item.id === "string" ? item.id.trim() : "";
+    if (!SVC_ID_RE.test(id) || seenId.has(id)) id = createId("svc");
+    seenName.add(nameKey);
+    seenId.add(id);
+    const label = typeof item.label === "string" ? item.label.trim().slice(0, 80) : "";
+    out.push(label ? { id, name, label } : { id, name });
+  }
+  return out;
+}
+
+export function serializeServiceWatches(targets: ServiceWatch[]): string {
+  return JSON.stringify(targets);
+}
+
+/** Wächter für die Heartbeat-Antwort (ohne Label). */
+export function serviceWatchesForAgent(targets: ServiceWatch[]): { id: string; name: string }[] {
+  return targets.map((t) => ({ id: t.id, name: t.name }));
+}
+
 export function volumeAlertFor(config: AlertConfig, diskId: string): VolumeAlert & { priority: TicketPriority } {
   const vol = config.disk.volumes[diskId];
   return {
@@ -365,7 +457,8 @@ function isTicketKey(key: string): boolean {
   return (
     monitoringIssueKinds.includes(key as MonitoringIssueKind) ||
     diskIdFromTicketKey(key) != null ||
-    pingIdFromTicketKey(key) != null
+    pingIdFromTicketKey(key) != null ||
+    svcIdFromTicketKey(key) != null
   );
 }
 
@@ -545,6 +638,8 @@ export type AgentSnapshot = {
   firewall?: FirewallSnapshot;
   crash?: CrashSnapshot;
   pings?: PingResult[];
+  watchedServices?: ServiceWatchResult[];
+  clock?: ClockSnapshot;
   /** z.B. `windows-amd64` – vom Agent gemeldet. */
   platform?: string;
 };
@@ -598,6 +693,8 @@ export function parseIssues(raw: string | null | undefined): MonitoringIssueKind
       kinds.add("disk");
     } else if (pingIdFromTicketKey(token)) {
       kinds.add("ping");
+    } else if (svcIdFromTicketKey(token)) {
+      kinds.add("svcwatch");
     }
   }
   return monitoringIssueKinds.filter((k) => kinds.has(k));
@@ -612,15 +709,16 @@ export function diskIdsFromTokens(raw: string | null | undefined): string[] {
   return ids;
 }
 
-/** Speichert Typen plus `disk:<id>` und `ping:<id>` je ausgelöster Warnung. */
+/** Speichert Typen plus `disk:<id>`, `ping:<id>` und `svc:<id>` je ausgelöster Warnung. */
 export function serializeDetectedIssues(
   kinds: MonitoringIssueKind[],
   diskIds: string[],
   pingIds: string[] = [],
+  svcIds: string[] = [],
 ): string {
   const tokens: string[] = [];
   for (const kind of kinds) {
-    if (kind === "disk" || kind === "ping") continue;
+    if (kind === "disk" || kind === "ping" || kind === "svcwatch") continue;
     tokens.push(kind);
   }
   for (const id of diskIds) {
@@ -628,6 +726,9 @@ export function serializeDetectedIssues(
   }
   for (const id of pingIds) {
     if (id) tokens.push(pingTicketKey(id));
+  }
+  for (const id of svcIds) {
+    if (id) tokens.push(svcTicketKey(id));
   }
   return JSON.stringify([...new Set(tokens)]);
 }
@@ -710,6 +811,31 @@ export function failedPingsFrom(
 }
 
 /**
+ * Überwachte Dienste, die nicht laufen.
+ */
+export function failedWatchesFrom(
+  results: ServiceWatchResult[] | undefined,
+  targets: ServiceWatch[],
+): FiringWatch[] {
+  if (!targets.length) return [];
+  const byId = new Map((results ?? []).map((r) => [r.id, r]));
+  const out: FiringWatch[] = [];
+  for (const t of targets) {
+    const row = byId.get(t.id);
+    if (row && row.ok === false) {
+      out.push({ id: t.id, name: t.name, label: t.label, state: row.state });
+    }
+  }
+  return out;
+}
+
+function clockProblem(clock?: ClockSnapshot | null): boolean {
+  if (!clock) return false;
+  if (clock.ok === false) return true;
+  return clock.offsetSec != null && Math.abs(clock.offsetSec) >= NTP_WARN_SEC;
+}
+
+/**
  * Schwellwerte aus dem letzten Heartbeat (ohne Offline).
  */
 export function evaluateHeartbeatIssues(
@@ -717,11 +843,14 @@ export function evaluateHeartbeatIssues(
   agent: Pick<MonitoringAgent, "cpuHighStreak" | "ramHighStreak">,
   config: AlertConfig,
   pingTargets: PingTarget[] = [],
+  serviceWatches: ServiceWatch[] = [],
 ): {
   issues: MonitoringIssueKind[];
   firingDisks: FiringDisk[];
   firingPings: FiringPing[];
   failedPings: FiringPing[];
+  firingWatches: FiringWatch[];
+  failedWatches: FiringWatch[];
   cpuHighStreak: number;
   ramHighStreak: number;
 } {
@@ -753,12 +882,26 @@ export function evaluateHeartbeatIssues(
   if (firewallProblem(snapshot.firewall)) issues.push("firewall");
   if (snapshot.crash?.unexpected) issues.push("crash");
   if (lanProblem(snapshot.network)) issues.push("lan");
+  if (clockProblem(snapshot.clock)) issues.push("ntp");
 
   const failedPings = failedPingsFrom(snapshot.pings, pingTargets);
   if (failedPings.length) issues.push("ping");
   const firingPings = config.ping.enabled ? failedPings : [];
 
-  return { issues, firingDisks, firingPings, failedPings, cpuHighStreak, ramHighStreak };
+  const failedWatches = failedWatchesFrom(snapshot.watchedServices, serviceWatches);
+  if (failedWatches.length) issues.push("svcwatch");
+  const firingWatches = config.svcwatch.enabled ? failedWatches : [];
+
+  return {
+    issues,
+    firingDisks,
+    firingPings,
+    failedPings,
+    firingWatches,
+    failedWatches,
+    cpuHighStreak,
+    ramHighStreak,
+  };
 }
 
 const SIGNATURES_STALE_HOURS = 168;
@@ -794,6 +937,7 @@ function lanProblem(net?: NetworkSnapshot | null): boolean {
 function issueTitle(deviceName: string, kind: MonitoringIssueKind, extraName?: string): string {
   if (kind === "disk" && extraName) return `[Monitoring] ${deviceName} — Datenträger ${extraName} voll`;
   if (kind === "ping" && extraName) return `[Monitoring] ${deviceName} — Ping ${extraName}`;
+  if (kind === "svcwatch" && extraName) return `[Monitoring] ${deviceName} — Dienst ${extraName}`;
   return `[Monitoring] ${deviceName} — ${monitoringIssueLabel[kind]}`;
 }
 
@@ -850,6 +994,19 @@ function issueDetailFromSnapshot(snapshot: AgentSnapshot | null | undefined, kin
       .map((p) => p.host)
       .join(", ");
   }
+  if (kind === "svcwatch") {
+    return (snapshot.watchedServices ?? [])
+      .filter((s) => s.ok === false)
+      .map((s) => `${s.display || s.name}${s.state ? ` (${s.state})` : ""}`)
+      .join(", ");
+  }
+  if (kind === "ntp") {
+    const c = snapshot.clock;
+    if (c?.offsetSec == null) return c?.source || "";
+    const abs = Math.abs(c.offsetSec);
+    const dir = c.offsetSec > 0 ? "eilt" : "nach";
+    return `${dir} ${abs} s${c.source ? ` (${c.source})` : ""}`;
+  }
   return "";
 }
 
@@ -864,6 +1021,9 @@ function issueDescription(
   }
   if (kind === "ping" && extraName) {
     return `Automatische Monitoring-Meldung für ${deviceName}: Ping ${extraName} ohne Antwort.`;
+  }
+  if (kind === "svcwatch" && extraName) {
+    return `Automatische Monitoring-Meldung für ${deviceName}: Dienst ${extraName} läuft nicht.`;
   }
   const base = `Automatische Monitoring-Meldung für ${deviceName}: ${monitoringIssueLabel[kind]}.`;
   return extra?.trim() ? `${base} ${extra.trim()}` : base;
@@ -927,7 +1087,7 @@ type TicketSlot = {
 };
 
 /**
- * Ein offenes Ticket je Warnung; Datenträger je Laufwerk, Ping je Ziel. Schließt Tickets, deren Warnung weg ist.
+ * Ein offenes Ticket je Warnung; Datenträger je Laufwerk, Ping je Ziel, Dienst-Wächter je Dienst. Schließt Tickets, deren Warnung weg ist.
  * Heartbeat und Offline-Loop müssen denselben Agenten nicht parallel anfassen (siehe withAgentTicketLock).
  */
 export async function syncMonitoringTickets(
@@ -939,6 +1099,7 @@ export async function syncMonitoringTickets(
   firingDisks: FiringDisk[] = [],
   snapshot?: AgentSnapshot | null,
   firingPings: FiringPing[] = [],
+  firingWatches: FiringWatch[] = [],
 ): Promise<MonitoringTicketSync> {
   const now = new Date();
   const authorId = await adminUserId(db);
@@ -957,10 +1118,10 @@ export async function syncMonitoringTickets(
   const empty: MonitoringTicketSync = { openTickets: openMap, opened: [], closed: [] };
   if (!authorId || !agent.customerId) return empty;
 
-  const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && kind !== "ping" && config[kind].enabled));
+  const firingKinds = new Set(detected.filter((kind) => kind !== "disk" && kind !== "ping" && kind !== "svcwatch" && config[kind].enabled));
   const slots: TicketSlot[] = [];
   for (const kind of monitoringIssueKinds) {
-    if (kind === "disk" || kind === "ping") continue;
+    if (kind === "disk" || kind === "ping" || kind === "svcwatch") continue;
     slots.push({
       key: kind,
       kind,
@@ -1072,6 +1233,55 @@ export async function syncMonitoringTickets(
     });
   }
 
+  const firingWatchIds = new Set(firingWatches.map((w) => w.id));
+  const watchNames = new Map(firingWatches.map((w) => [w.id, serviceDisplayName(w)]));
+  const watchKeys = new Set<string>();
+  for (const watch of firingWatches) {
+    const key = svcTicketKey(watch.id);
+    watchKeys.add(key);
+    const name = serviceDisplayName(watch);
+    slots.push({
+      key,
+      kind: "svcwatch",
+      priority: config.svcwatch.priority,
+      title: issueTitle(deviceName, "svcwatch", name),
+      description: issueDescription(deviceName, "svcwatch", name, watch.state),
+      firing: true,
+      enabled: config.svcwatch.enabled,
+      closeOk: `Die Warnung für Dienst ${name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Dienst ${name} am Gerät deaktiviert.`,
+    });
+  }
+  for (const key of Object.keys(openMap)) {
+    const watchId = svcIdFromTicketKey(key);
+    if (!watchId || watchKeys.has(key)) continue;
+    const name = watchNames.get(watchId) ?? watchId;
+    slots.push({
+      key,
+      kind: "svcwatch",
+      priority: config.svcwatch.priority,
+      title: issueTitle(deviceName, "svcwatch", name),
+      description: issueDescription(deviceName, "svcwatch", name),
+      firing: firingWatchIds.has(watchId),
+      enabled: config.svcwatch.enabled,
+      closeOk: `Die Warnung für Dienst ${name} ist nicht mehr aktiv.`,
+      closeOff: `Warnung für Dienst ${name} am Gerät deaktiviert.`,
+    });
+  }
+  if (openMap.svcwatch) {
+    slots.push({
+      key: "svcwatch",
+      kind: "svcwatch",
+      priority: config.svcwatch.priority,
+      title: issueTitle(deviceName, "svcwatch"),
+      description: issueDescription(deviceName, "svcwatch"),
+      firing: false,
+      enabled: config.svcwatch.enabled,
+      closeOk: `Die Warnung „${monitoringIssueLabel.svcwatch}“ ist nicht mehr aktiv.`,
+      closeOff: `Warnung „${monitoringIssueLabel.svcwatch}“ am Gerät deaktiviert.`,
+    });
+  }
+
   const next: OpenTicketMap = {};
   const seen = new Set<string>();
   const opened: Ticket[] = [];
@@ -1155,6 +1365,7 @@ export async function syncAssignedAgentTickets(
   now = new Date(),
   snapshot?: AgentSnapshot | null,
   firingPings: FiringPing[] = [],
+  firingWatches: FiringWatch[] = [],
 ): Promise<MonitoringTicketSync> {
   return withAgentTicketLock(agent.id, async () => {
     const fresh =
@@ -1168,6 +1379,7 @@ export async function syncAssignedAgentTickets(
       firingDisks,
       snapshot ?? parseSnapshot(fresh.lastSnapshotJson),
       firingPings,
+      firingWatches,
     );
     const firstTicket = Object.values(result.openTickets)[0] ?? null;
     await db
@@ -1447,17 +1659,22 @@ export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now =
   const asset = await db.select().from(assets).where(eq(assets.id, agent.assetId)).get();
   const config = parseAlertConfig(asset ?? undefined);
   const pingTargets = parsePingTargets(asset ?? undefined);
+  const serviceWatches = parseServiceWatches(asset ?? undefined);
   const online = isAgentOnline(agent.lastSeenAt, now);
   const snapshot = parseSnapshot(agent.lastSnapshotJson);
   const stored = parseIssues(agent.currentIssuesJson).filter(
-    (k) => k !== "offline" && k !== "disk" && k !== "ping",
+    (k) => k !== "offline" && k !== "disk" && k !== "ping" && k !== "svcwatch" && k !== "ntp",
   );
   const firingDisks = firingDisksFrom(snapshot?.disks, config);
   const failedPings = failedPingsFrom(snapshot?.pings, pingTargets);
   const firingPings = config.ping.enabled ? failedPings : [];
+  const failedWatches = failedWatchesFrom(snapshot?.watchedServices, serviceWatches);
+  const firingWatches = config.svcwatch.enabled ? failedWatches : [];
   const issues: MonitoringIssueKind[] = [...stored];
   if (firingDisks.length) issues.push("disk");
   if (failedPings.length) issues.push("ping");
+  if (failedWatches.length) issues.push("svcwatch");
+  if (clockProblem(snapshot?.clock)) issues.push("ntp");
   if (!online) issues.unshift("offline");
   const name = asset?.name || agent.hostname || agent.machineId;
   const ticketSync = await syncAssignedAgentTickets(
@@ -1470,11 +1687,13 @@ export async function refreshAssignedAgent(db: Db, agent: MonitoringAgent, now =
     now,
     snapshot,
     firingPings,
+    firingWatches,
   );
   const issuesJson = serializeDetectedIssues(
     issues,
     firingDisks.map((d) => d.id),
     failedPings.map((p) => p.id),
+    failedWatches.map((w) => w.id),
   );
   if (issuesJson !== (agent.currentIssuesJson || "[]")) {
     await db
@@ -1581,6 +1800,7 @@ export async function mapDeviceSummary(
 ) {
   const config = parseAlertConfig(asset);
   const pingTargets = parsePingTargets(asset);
+  const serviceWatches = parseServiceWatches(asset);
   const detected = parseIssues(agent.currentIssuesJson);
   const online = isAgentOnline(agent.lastSeenAt, now);
   const snapshot = parseSnapshot(agent.lastSnapshotJson);
@@ -1590,6 +1810,8 @@ export async function mapDeviceSummary(
   const firingDisks = firingDisksFrom(snapshot?.disks, config);
   const failedPings = failedPingsFrom(snapshot?.pings, pingTargets);
   const firingPings = config.ping.enabled ? failedPings : [];
+  const failedWatches = failedWatchesFrom(snapshot?.watchedServices, serviceWatches);
+  const firingWatches = config.svcwatch.enabled ? failedWatches : [];
   const platform = platformFromAgent({
     platform: snapshot?.platform,
     os: snapshot?.os ?? agent.os,
@@ -1603,11 +1825,16 @@ export async function mapDeviceSummary(
     kind: MonitoringIssueKind;
     diskId?: string;
     pingHost?: string;
+    serviceName?: string;
     ticketId: string;
     ticketNumber: string;
     priority: TicketPriority;
   }[] = [];
-  async function pushTicket(kind: MonitoringIssueKind, key: string, extra?: { diskId?: string; pingHost?: string }) {
+  async function pushTicket(
+    kind: MonitoringIssueKind,
+    key: string,
+    extra?: { diskId?: string; pingHost?: string; serviceName?: string },
+  ) {
     const id = openMap[key];
     if (!id) return;
     const t = await db
@@ -1620,6 +1847,7 @@ export async function mapDeviceSummary(
         kind,
         diskId: extra?.diskId,
         pingHost: extra?.pingHost,
+        serviceName: extra?.serviceName,
         ticketId: id,
         ticketNumber: t.number,
         priority: t.priority,
@@ -1628,7 +1856,7 @@ export async function mapDeviceSummary(
   }
   if (warn) {
     for (const kind of issues) {
-      if (kind === "disk" || kind === "ping") continue;
+      if (kind === "disk" || kind === "ping" || kind === "svcwatch") continue;
       await pushTicket(kind, kind);
     }
     for (const disk of firingDisks) {
@@ -1636,6 +1864,9 @@ export async function mapDeviceSummary(
     }
     for (const ping of firingPings) {
       await pushTicket("ping", pingTicketKey(ping.id), { pingHost: pingDisplayName(ping) });
+    }
+    for (const watch of firingWatches) {
+      await pushTicket("svcwatch", svcTicketKey(watch.id), { serviceName: serviceDisplayName(watch) });
     }
   }
   return {
@@ -1654,11 +1885,13 @@ export async function mapDeviceSummary(
     alertEnabled: anyAlertEnabled(config),
     alertConfig: config,
     pingTargets,
+    serviceWatches,
     monitoringEnabled: Boolean(asset?.monitoringEnabled),
     warning: warn,
     issues,
     diskIssues: firingDisks.map((d) => ({ id: d.id, name: d.name, usedPct: d.usedPct, warnUsedPct: d.warnUsedPct })),
     pingIssues: firingPings.map((p) => ({ id: p.id, host: p.host, label: p.label })),
+    watchIssues: firingWatches.map((w) => ({ id: w.id, name: w.name, label: w.label, state: w.state })),
     tickets: ticketRows,
     ticketId: ticketRows[0]?.ticketId ?? null,
     ticketNumber: ticketRows[0]?.ticketNumber ?? null,

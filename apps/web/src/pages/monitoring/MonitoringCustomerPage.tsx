@@ -20,6 +20,7 @@ import type {
   MonitoringDeviceSummary,
   MonitoringIssueKind,
   MonitoringPingTarget,
+  MonitoringServiceWatch,
 } from "../../types";
 import { monitoringIssueKinds } from "../../types";
 
@@ -38,6 +39,8 @@ const issueBarColor: Record<MonitoringIssueKind, string> = {
   crash: "#f87171",
   lan: "#38bdf8",
   ping: "#22d3ee",
+  svcwatch: "#c084fc",
+  ntp: "#fbbf24",
 };
 
 type DeviceFilter = "all" | "warn" | "offline" | "online" | "update" | "waiting";
@@ -152,6 +155,8 @@ export function MonitoringCustomerPage() {
       crash: 0,
       lan: 0,
       ping: 0,
+      svcwatch: 0,
+      ntp: 0,
     };
     for (const d of devices) {
       for (const kind of d.issues) counts[kind] += 1;
@@ -289,6 +294,31 @@ export function MonitoringCustomerPage() {
       await reloadCustomer();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Pings konnten nicht gespeichert werden");
+      await reloadCustomer().catch(() => undefined);
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveWatches(nextAssetId: string, serviceWatches: MonitoringServiceWatch[]) {
+    setBusyId(nextAssetId);
+    setError("");
+    setDetail((prev) =>
+      prev && prev.device.assetId === nextAssetId
+        ? { ...prev, device: { ...prev.device, serviceWatches } }
+        : prev,
+    );
+    try {
+      await api.patchMonitoringDevice(nextAssetId, {
+        serviceWatches: serviceWatches.map((t) => ({
+          ...(t.id ? { id: t.id } : {}),
+          name: t.name,
+          ...(t.label ? { label: t.label } : {}),
+        })),
+      });
+      await reloadCustomer();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Dienste konnten nicht gespeichert werden");
       await reloadCustomer().catch(() => undefined);
     } finally {
       setBusyId(null);
@@ -566,6 +596,9 @@ export function MonitoringCustomerPage() {
             }}
             onSavePings={(pingTargets) => {
               if (detail.device.assetId) void savePings(detail.device.assetId, pingTargets);
+            }}
+            onSaveWatches={(serviceWatches) => {
+              if (detail.device.assetId) void saveWatches(detail.device.assetId, serviceWatches);
             }}
             onRequestUpdate={requestAgentUpdate}
             onRequestUninstall={requestAgentUninstall}

@@ -37,12 +37,17 @@ import {
   newAgentToken,
   parseAlertConfig,
   parsePingTargets,
+  parseServiceWatches,
   parseIssues,
   parseSnapshot,
   pingTargetsForAgent,
+  serviceWatchesForAgent,
   normalizePingTargets,
+  normalizeServiceWatches,
   isValidPingHost,
+  isValidServiceName,
   serializePingTargets,
+  serializeServiceWatches,
   primaryIp,
   rotateEnrollmentKey,
   sampleFromSnapshot,
@@ -275,6 +280,25 @@ const heartbeatBody = z.object({
     )
     .max(8)
     .optional(),
+  watchedServices: z
+    .array(
+      z.object({
+        id: z.string().max(80),
+        name: z.string().max(128),
+        display: z.string().max(200).optional(),
+        state: z.string().max(40).optional(),
+        ok: z.boolean(),
+      }),
+    )
+    .max(8)
+    .optional(),
+  clock: z
+    .object({
+      offsetSec: z.number().int().min(-400_000_000).max(400_000_000).nullable().optional(),
+      source: z.string().max(80).optional(),
+      ok: z.boolean().nullable().optional(),
+    })
+    .optional(),
   services: z
     .array(
       z.object({
@@ -440,7 +464,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
     const canRemoteUninstall = compareAgentVersions(reportedVersion || "0", "1.0.4") >= 0;
     if (agent.uninstallRequestedAt && canRemoteUninstall) {
       await purgeMonitoringAgent(db, agent);
-      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null, pingTargets: [] };
+      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null, pingTargets: [], serviceWatches: [] };
     }
 
     const now = new Date();
@@ -449,7 +473,8 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       : undefined;
     const config = parseAlertConfig(assetRow ?? undefined);
     const pingTargets = parsePingTargets(assetRow);
-    const evald = evaluateHeartbeatIssues(snapshot, agent, config, pingTargets);
+    const serviceWatches = parseServiceWatches(assetRow);
+    const evald = evaluateHeartbeatIssues(snapshot, agent, config, pingTargets, serviceWatches);
     const issues = evald.issues;
     const name = await deviceNameFor(db, agent);
     const ticketSync = agent.assetId
@@ -463,6 +488,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
           now,
           snapshot,
           evald.firingPings,
+          evald.firingWatches,
         )
       : { openTickets: {}, opened: [], closed: [] };
 
@@ -501,6 +527,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
           issues,
           evald.firingDisks.map((d) => d.id),
           evald.failedPings.map((p) => p.id),
+          evald.failedWatches.map((w) => w.id),
         ),
         cpuHighStreak: evald.cpuHighStreak,
         ramHighStreak: evald.ramHighStreak,
@@ -528,6 +555,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       uninstall: Boolean(agent.uninstallRequestedAt),
       latestAgent,
       pingTargets: pingTargetsForAgent(pingTargets),
+      serviceWatches: serviceWatchesForAgent(serviceWatches),
     };
   });
 
@@ -1013,6 +1041,8 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
               crash: kindAlertZ.optional(),
               lan: kindAlertZ.optional(),
               ping: kindAlertZ.optional(),
+              svcwatch: kindAlertZ.optional(),
+              ntp: kindAlertZ.optional(),
             })
             .optional(),
           pingTargets: z
@@ -1020,6 +1050,16 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
               z.object({
                 id: z.string().max(40).optional(),
                 host: z.string().min(1).max(253),
+                label: z.string().max(80).optional(),
+              }),
+            )
+            .max(8)
+            .optional(),
+          serviceWatches: z
+            .array(
+              z.object({
+                id: z.string().max(40).optional(),
+                name: z.string().min(1).max(128),
                 label: z.string().max(80).optional(),
               }),
             )
@@ -1050,17 +1090,25 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         }
         pingTargets = normalizePingTargets(parsed.data.pingTargets);
       }
+      let serviceWatches = parseServiceWatches(asset);
+      if (parsed.data.serviceWatches) {
+        if (parsed.data.serviceWatches.some((t) => !isValidServiceName(t.name))) {
+          return reply.code(400).send({ error: "Kein gültiger Dienstname" });
+        }
+        serviceWatches = normalizeServiceWatches(parsed.data.serviceWatches);
+      }
       const updated = {
         monitoringEnabled:
           parsed.data.monitoringEnabled ?? (alertEnabled ? true : asset.monitoringEnabled),
         monitoringAlertEnabled: alertEnabled,
         monitoringAlertsJson: serializeAlertConfig(config),
         monitoringPingTargetsJson: serializePingTargets(pingTargets),
+        monitoringServiceWatchesJson: serializeServiceWatches(serviceWatches),
         updatedAt: new Date(),
       };
       await db.update(assets).set(updated).where(eq(assets.id, assetId));
       await refreshTicketsForAsset(db, assetId);
-      return { ...asset, ...updated, monitoringAlerts: config, pingTargets };
+      return { ...asset, ...updated, monitoringAlerts: config, pingTargets, serviceWatches };
     });
   });
 }

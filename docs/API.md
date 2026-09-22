@@ -168,7 +168,7 @@ Agent (öffentlich, ohne Staff-Session):
 | Methode | Pfad | Beschreibung |
 |---------|------|--------------|
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
-| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`session`/`network` (Gateway, DNS, `gatewayOk`/`dnsOk`)/`services[]`/`software[]`/`defender`/`firewall`/`crash`/`pings[]` (`id`,`host`,`ok`,`ms?`)/`processes[]` (bis 80, `name`,`pid?`,`cpuPercent`,`rssBytes`)/`updates.rebootPending`/`platform`. Antwort: `{ ok, assigned, updateNow, uninstall, pingTargets: [{ id, host }], latestAgent?: { platform, version, sha256 } }` |
+| POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`session`/`network`/`services[]`/`software[]`/`defender`/`firewall`/`crash`/`pings[]`/`watchedServices[]` (`id`,`name`,`ok`,`state?`)/`clock` (`offsetSec`,`source`,`ok`)/`processes[]`/`updates.rebootPending`/`platform`. Antwort: `{ ok, assigned, updateNow, uninstall, pingTargets: [{ id, host }], serviceWatches: [{ id, name }], latestAgent?: { platform, version, sha256 } }` |
 | GET | `/api/monitoring/agent/latest?platform=` | Aktuelles Paket-Metadatum. Auth: Staff-Cookie, Query `key=` (Enrollment) oder Bearer-Token |
 | GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64`). Gleiche Auth wie latest |
 
@@ -188,7 +188,7 @@ Staff:
 | DELETE | `/api/monitoring/agents/:id` | Sofort aus der Liste nehmen (ohne zu warten); Dienst bleibt, bis der Befehl ankommt oder lokal deinstalliert wird |
 | GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden; UI: `/monitoring/customers/:customerId` |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms); `software[].match` gegen Kunden-Inventar `software`/`license` |
-| PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts?, pingTargets? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }`; `pingTargets` max. 8 `{ id?, host, label? }` (ICMP-Ziele für den Agenten) |
+| PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts?, pingTargets?, serviceWatches? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }`; `pingTargets` max. 8 `{ id?, host, label? }`; `serviceWatches` max. 8 `{ id?, name, label? }` (Dienste, die laufen müssen) |
 | POST | `/api/monitoring/devices/:assetId/update-agent` | Sofort-Update: Agent zieht das aktuelle Paket beim nächsten Heartbeat |
 
 Ticket-Quelle zusätzlich `monitoring`. Pro Gerät und Warnungstyp höchstens ein offenes Ticket; Datenträger **je Laufwerk** (`openTicketsJson` Key `disk:C:`), Pings **je Ziel** (`ping:<id>`). Zusätzliche Typen `smart`, `services`, `reboot`, `defender`, `firewall`, `crash`, `lan`, `ping` (Ping je Ziel, sonst ein Ticket je Typ). Heartbeat und Offline-Loop serialisieren den Sync pro Agent; bestehende offene Tickets mit gleichem Titel werden wiederverwendet, Dubletten geschlossen. Priorität aus der Geräte-Konfiguration, Auto-Close mit Lösungstext wenn der Typ, das Laufwerk oder das Ping-Ziel wieder ok ist.

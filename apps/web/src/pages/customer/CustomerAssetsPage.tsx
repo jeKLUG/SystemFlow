@@ -182,6 +182,8 @@ const monitoringKindPreviewLabel: Record<string, string> = {
   crash: "Absturz",
   lan: "Netz",
   ping: "Ping",
+  svcwatch: "Dienst",
+  ntp: "Uhrzeit",
 };
 
 function monitoringAlertPreview(asset: Asset): PreviewRow | null {

@@ -1,7 +1,8 @@
 import { type ReactNode, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { HelpHint } from "./HelpHint";
-import type { MonitoringHardware, MonitoringSnapshot } from "../types";
+import { formatClockOffset } from "../lib/monitoringUi";
+import type { MonitoringClock, MonitoringHardware, MonitoringSnapshot } from "../types";
 
 type SoftItem = NonNullable<MonitoringSnapshot["software"]>[number];
 
@@ -465,7 +466,7 @@ function sessionUsers(session?: MonitoringSnapshot["session"]): string[] {
 }
 
 /**
- * Geräteausstattung auf einen Blick: Modell, Netz, Pings, SMART, Dienste, Software.
+ * Geräteausstattung auf einen Blick: Modell, Netz, Uhrzeit, Pings, Dienst-Wächter, SMART, Software.
  */
 export function MonitoringHardwarePanel({
   hardware,
@@ -482,6 +483,8 @@ export function MonitoringHardwarePanel({
   firewall,
   crash,
   pings,
+  watches,
+  clock,
 }: {
   hardware?: MonitoringHardware | null;
   disks?: DeviceDiskView[];
@@ -497,6 +500,8 @@ export function MonitoringHardwarePanel({
   firewall?: MonitoringSnapshot["firewall"];
   crash?: MonitoringSnapshot["crash"];
   pings?: ReactNode;
+  watches?: ReactNode;
+  clock?: MonitoringClock | null;
 }) {
   const [softQuery, setSoftQuery] = useState("");
   const [softFilter, setSoftFilter] = useState<"all" | "match" | "missing">("all");
@@ -524,7 +529,8 @@ export function MonitoringHardwarePanel({
       network?.dhcp != null ||
       (ips && ips.length) ||
       nics.length ||
-      pings,
+      pings ||
+      clock,
   );
   const hasHw = Boolean(
     hardware &&
@@ -549,7 +555,9 @@ export function MonitoringHardwarePanel({
       Boolean(defender) ||
       Boolean(firewall) ||
       Boolean(crash?.unexpected) ||
-      Boolean(pings),
+      Boolean(pings) ||
+      Boolean(watches) ||
+      Boolean(clock),
   );
 
   const matchedCount = (software ?? []).filter((s) => s.match).length;
@@ -752,7 +760,7 @@ export function MonitoringHardwarePanel({
         <div className="mon-hw-section">
           <h4>Netzwerk</h4>
           <div className="mon-hw-net">
-            {lan.primary || network?.publicIp || network?.gateway || dns[0] ? (
+            {lan.primary || network?.publicIp || network?.gateway || dns[0] || (clock && clock.offsetSec != null) ? (
               <div className="mon-hw-net-addrs">
                 {lan.primary || lan.apipaOnly ? (
                   <NetAddr
@@ -782,6 +790,16 @@ export function MonitoringHardwarePanel({
                       ...dnsChips,
                     ].filter((v): v is string => Boolean(v))}
                     warn={network?.dnsOk === false}
+                  />
+                ) : null}
+                {clock && clock.offsetSec != null ? (
+                  <NetAddr
+                    label="Uhrzeit"
+                    value={formatClockOffset(clock.offsetSec)}
+                    chips={[
+                      clock.source?.startsWith("ntp:") ? "NTP" : clock.source?.startsWith("http:") ? "HTTP" : clock.source || null,
+                    ].filter((v): v is string => Boolean(v))}
+                    warn={clock.ok === false}
                   />
                 ) : null}
               </div>
@@ -840,18 +858,24 @@ export function MonitoringHardwarePanel({
         </div>
       ) : null}
 
-      {services?.length ? (
+      {(watches || services?.length) ? (
         <div className="mon-hw-section">
-          <h4>Fehlgeschlagene Dienste</h4>
-          <ul className="mon-hw-procs mon-hw-services">
-            {services.map((s, i) => (
-              <li key={`${s.name}-${i}`} className="is-warn">
-                <span className="mon-hw-proc-name">{s.display || s.name}</span>
-                <span className="muted">{s.name !== s.display ? s.name : ""}</span>
-                <span className="mon-hw-health is-fail">{s.state || "gestoppt"}</span>
-              </li>
-            ))}
-          </ul>
+          <h4>Dienste</h4>
+          {watches}
+          {services?.length ? (
+            <>
+              <h5 className="mon-hw-sub">Fehlgeschlagene Auto-Start-Dienste</h5>
+              <ul className="mon-hw-procs mon-hw-services">
+                {services.map((s, i) => (
+                  <li key={`${s.name}-${i}`} className="is-warn">
+                    <span className="mon-hw-proc-name">{s.display || s.name}</span>
+                    <span className="muted">{s.name !== s.display ? s.name : ""}</span>
+                    <span className="mon-hw-health is-fail">{s.state || "gestoppt"}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
       ) : null}
 

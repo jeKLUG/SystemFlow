@@ -19935,7 +19935,7 @@ div.mon-alert-item-main {
 .mon-kpis-mini button:hover,
 .mon-kpis-mini button:focus-visible {
   background: rgba(148, 163, 184, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.4);
+  box-shadow: none;
 }
 
 .mon-kpis-mini span {
@@ -19944,8 +19944,39 @@ div.mon-alert-item-main {
   color: var(--text-muted);
 }
 
+.mon-kpis-mini .mon-kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: #93c5fd;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mon-kpis-mini .mon-kpi-label::after {
+  content: "›";
+  font-size: 1.05em;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.mon-kpis-mini button:hover .mon-kpi-label,
+.mon-kpis-mini button:focus-visible .mon-kpi-label {
+  color: #dbeafe;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .mon-kpis-mini strong {
   font-size: 1.15rem;
+}
+
+.mon-proc-search:focus,
+.mon-proc-search:focus-visible {
+  outline: none;
+  box-shadow: none;
+  border-color: rgba(148, 163, 184, 0.28);
 }
 
 .mon-proc-modal.modal-panel.modal-wide {
@@ -20676,6 +20707,17 @@ div.mon-alert-item-main {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
+}
+
+.mon-hw-section .mon-hw-sub {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mon-hw-section .mon-svcs {
+  margin-bottom: 0.2rem;
 }
 
 .mon-hw-disks,

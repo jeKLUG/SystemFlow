@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.202 – 2026-09-21
+
+- Monitoring: Dienst-Wächter (max. 8 Dienste, Ticket je Dienst) und Uhrzeit/NTP (Warnung ab 30 s Abweichung); Agent 1.0.10. Bestehende Geräte: neue Ticket-Typen aus
+
+## 1.5.201 – 2026-09-21
+
+- Monitoring Gerät: CPU/RAM-Labels als klickbar erkennbar; Prozess-Suche ohne Fokusrahmen
+
 ## 1.5.200 – 2026-09-21
 
 - Monitoring Prozesse: Kartenzeilen mit CPU- und RAM-Balken, Sortierung über Schalter; Namen ohne .exe
