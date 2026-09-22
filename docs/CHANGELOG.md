@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.213 – 2026-09-22
+
+- Marketing-Vorlagen: Auswahl als Titel-Dropdown wie bei den Listen
+
 ## 1.5.212 – 2026-09-22
 
 - Marketing-Vorlagen: Kartenauswahl, volle Mailvorschau; Formular nur nach Bearbeiten oder Neu

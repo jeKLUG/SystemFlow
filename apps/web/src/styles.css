@@ -21819,8 +21819,9 @@ div.mon-alert-item-main {
 
 .mkt-list-title {
   display: block;
+  max-width: min(100%, 28rem);
   margin: 0.1rem 0 0;
-  padding: 0;
+  padding: 0 1.4rem 0 0;
   border: 0;
   background: transparent;
   color: inherit;
@@ -22086,68 +22087,6 @@ div.mon-alert-item-main {
 
 .mkt-split-send {
   grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
-}
-
-.mkt-tpl-picks {
-  list-style: none;
-  margin: 0 0 1rem;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
-}
-
-.mkt-tpl-picks li {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.2rem;
-  align-items: stretch;
-  flex: 1 1 15rem;
-  max-width: 22rem;
-}
-
-.mkt-tpl-pick {
-  appearance: none;
-  width: 100%;
-  text-align: left;
-  padding: 0.7rem 0.8rem;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(0, 0, 0, 0.16);
-  color: inherit;
-  cursor: pointer;
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.mkt-tpl-pick strong,
-.mkt-tpl-pick .muted {
-  display: block;
-}
-
-.mkt-tpl-pick strong {
-  margin: 0.28rem 0 0.12rem;
-  font-size: 0.95rem;
-}
-
-.mkt-tpl-pick .muted {
-  font-size: 0.78rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.mkt-tpl-pick:hover {
-  border-color: rgba(148, 163, 184, 0.28);
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.mkt-tpl-pick.is-active {
-  border-color: rgba(107, 171, 255, 0.45);
-  background: rgba(59, 130, 246, 0.14);
-}
-
-.mkt-tpl-pick.is-editing {
-  border-style: dashed;
 }
 
 .mkt-tpl-form {

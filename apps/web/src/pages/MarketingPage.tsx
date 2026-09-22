@@ -327,6 +327,18 @@ export function MarketingPage() {
     setTplForm(emptyTpl);
   }
 
+  async function deleteTemplate(id: string) {
+    if (!window.confirm("Textbaustein löschen?")) return;
+    setError("");
+    try {
+      await api.deleteMarketingTemplate(id);
+      if (editingTpl === id) cancelTemplate();
+      await reloadTemplates();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    }
+  }
+
   async function withLead(id: string, fn: () => Promise<unknown>): Promise<boolean> {
     setBusyId(id);
     setError("");
@@ -722,55 +734,42 @@ export function MarketingPage() {
             <div className="mkt-board-head">
               <div>
                 <p className="eyebrow">Vorlagen</p>
-                <h3>Textbausteine</h3>
+                {templates.length > 0 ? (
+                  <select
+                    className="mkt-list-title"
+                    value={selectedTplId}
+                    onChange={(e) => {
+                      const tpl = templates.find((t) => t.id === e.target.value);
+                      if (tpl) selectTemplate(tpl);
+                    }}
+                    aria-label="Textbaustein"
+                  >
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {marketingKindLabel[tpl.kind]} · {tpl.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <h3>Textbausteine</h3>
+                )}
               </div>
-              <button type="button" className="btn btn-ghost" onClick={newTemplate}>
-                Neu
-              </button>
+              <div className="mkt-board-tools">
+                <button type="button" className="btn btn-ghost" onClick={newTemplate}>
+                  Neu
+                </button>
+                {selectedTpl ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-icon"
+                    title="Textbaustein löschen"
+                    onClick={() => void deleteTemplate(selectedTpl.id)}
+                  >
+                    <DeleteIcon />
+                  </button>
+                ) : null}
+              </div>
             </div>
-
-            {templates.length > 0 ? (
-              <ul className="mkt-tpl-picks" role="listbox" aria-label="Textbausteine">
-                {templates.map((tpl) => (
-                  <li key={tpl.id}>
-                    <button
-                      type="button"
-                      role="option"
-                      aria-selected={selectedTplId === tpl.id && !tplEditing}
-                      className={`mkt-tpl-pick${selectedTplId === tpl.id && !tplEditing ? " is-active" : ""}${
-                        editingTpl === tpl.id ? " is-editing" : ""
-                      }`}
-                      onClick={() => selectTemplate(tpl)}
-                    >
-                      <span className={`mkt-status is-${tpl.kind === "reminder" ? "reminded" : "sent"}`}>
-                        {marketingKindLabel[tpl.kind]}
-                      </span>
-                      <strong>{tpl.name}</strong>
-                      <span className="muted">{tpl.subject}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-icon"
-                      title="Löschen"
-                      onClick={() => {
-                        if (!window.confirm("Textbaustein löschen?")) return;
-                        void api
-                          .deleteMarketingTemplate(tpl.id)
-                          .then(() => {
-                            if (editingTpl === tpl.id) cancelTemplate();
-                            return reloadTemplates();
-                          })
-                          .catch((err) =>
-                            setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen"),
-                          );
-                      }}
-                    >
-                      <DeleteIcon />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
 
             {tplEditing ? (
               <form className="mkt-tpl-form" onSubmit={onSaveTemplate}>
