@@ -96,6 +96,7 @@ export function MarketingPage() {
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [leadFilter, setLeadFilter] = useState<LeadFilter>("all");
   const [leadQuery, setLeadQuery] = useState("");
+  const [listScope, setListScope] = useState<"active" | "archive">("active");
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
   const [selectedTplId, setSelectedTplId] = useState("");
@@ -126,6 +127,8 @@ export function MarketingPage() {
         ? preferId
         : next.find((l) => !l.archivedAt)?.id ?? next[0]?.id ?? "";
     setListId(keep);
+    const kept = next.find((l) => l.id === keep);
+    setListScope(kept?.archivedAt ? "archive" : "active");
     return keep;
   }
 
@@ -241,11 +244,20 @@ export function MarketingPage() {
     });
   }, [leads, leadFilter, leadQuery]);
 
+  const activeLists = useMemo(() => lists.filter((list) => !list.archivedAt), [lists]);
+  const archivedLists = useMemo(() => lists.filter((list) => list.archivedAt), [lists]);
+  const scopedLists = listScope === "archive" ? archivedLists : activeLists;
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
   const selectedTpl = templates.find((t) => t.id === selectedTplId) ?? null;
   const selectedList = lists.find((l) => l.id === listId) ?? null;
   const listLocked = Boolean(selectedList?.hasSends || selectedList?.archivedAt);
+
+  function goListScope(next: "active" | "archive") {
+    setListScope(next);
+    const pool = next === "archive" ? archivedLists : activeLists;
+    if (!pool.some((list) => list.id === listId)) setListId(pool[0]?.id ?? "");
+  }
 
   function go(next: Tab) {
     setTab(next);
@@ -503,7 +515,7 @@ export function MarketingPage() {
             <p className="eyebrow">Akquise</p>
             <div className="page-head-title">
               <h2>Marketing</h2>
-              <HelpHint text="Empfänger listen, Texte pflegen, Erstmail und Erinnerung senden — getrennt von Kontakten." />
+              <HelpHint text="Empfänger listen, Texte pflegen, Erstmail und Erinnerung senden. Nach dem Versand liegt die Liste unter Archiv." />
             </div>
           </div>
           {dueCount > 0 ? (
@@ -579,12 +591,40 @@ export function MarketingPage() {
           <div className="mkt-board-head">
             <div className="mkt-board-lead">
               {lists.length > 0 ? (
-                <MktTitleMenu
-                  ariaLabel="Liste"
-                  value={listId}
-                  onChange={setListId}
-                  items={listMenuItems(lists)}
-                />
+                <>
+                  <div className="mkt-filters" role="tablist" aria-label="Listen">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={listScope === "active"}
+                      className={`mkt-filter${listScope === "active" ? " is-active" : ""}`}
+                      onClick={() => goListScope("active")}
+                    >
+                      Aktiv
+                      <em>{activeLists.length}</em>
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={listScope === "archive"}
+                      className={`mkt-filter${listScope === "archive" ? " is-active" : ""}`}
+                      onClick={() => goListScope("archive")}
+                    >
+                      Archiv
+                      <em>{archivedLists.length}</em>
+                    </button>
+                  </div>
+                  {scopedLists.length > 0 ? (
+                    <MktTitleMenu
+                      ariaLabel={listScope === "archive" ? "Archivierte Liste" : "Liste"}
+                      value={listId}
+                      onChange={setListId}
+                      items={listMenuItems(scopedLists)}
+                    />
+                  ) : (
+                    <h3>{listScope === "archive" ? "Archiv" : "Liste wählen"}</h3>
+                  )}
+                </>
               ) : (
                 <h3>Liste wählen</h3>
               )}
@@ -819,8 +859,12 @@ export function MarketingPage() {
             </>
           ) : (
             <div className="mkt-empty">
-              <strong>Zuerst eine Liste</strong>
-              <p className="muted">z. B. „Handwerk September“ oder „Kaltakquise NRW“.</p>
+              <strong>{listScope === "archive" ? "Noch nichts im Archiv" : "Zuerst eine Liste"}</strong>
+              <p className="muted">
+                {listScope === "archive"
+                  ? "Nach dem Versand (oder über Archivieren) erscheint die Liste hier — mit Datum, was rausging."
+                  : "z. B. „Handwerk September“ oder „Kaltakquise NRW“."}
+              </p>
             </div>
           )}
         </section>

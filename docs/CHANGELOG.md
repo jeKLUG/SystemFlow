@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.225 – 2026-09-22
+
+- Marketing: Archiv als Umschalter neben den Listen (Aktiv / Archiv), nicht nur versteckt im Dropdown
+
 ## 1.5.224 – 2026-09-22
 
 - Marketing-Empfänger: lange Listen scrollbar im eigenen Bereich, durchsuchbar nach Firma, Person und E-Mail
