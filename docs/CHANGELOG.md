@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.229 – 2026-09-22
+
+- Windows-Agent-Install-Skript: Download nach ProgramData statt `%TEMP%` (8.3-Pfade wie `C:\Users\XXXX~1` lassen `Move-Item` fehlschlagen)
+
 ## 1.5.228 – 2026-09-22
 
 - HTML-Mails: Kopfzeile ohne „| Kundenportal“, nur der Firmenname

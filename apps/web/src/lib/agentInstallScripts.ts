@@ -37,27 +37,33 @@ $EscKey = [uri]::EscapeDataString($Key)
 $Stamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $Meta = Invoke-RestMethod -Uri "$Server/api/monitoring/agent/latest?platform=windows-amd64&key=$EscKey" -UseBasicParsing
 Write-Host "Lade Agent $($Meta.version) ..."
-$Tmp = Join-Path $env:TEMP ("systemhaus-agent-" + [guid]::NewGuid().ToString() + ".exe")
-Invoke-WebRequest -Uri "$Server/api/monitoring/agent/download/windows-amd64?key=$EscKey&t=$Stamp" -OutFile $Tmp -UseBasicParsing
-if ((Get-Item $Tmp).Length -lt 100000) { throw 'Download unvollständig.' }
-if ($Meta.sha256) {
-  $hash = (Get-FileHash -Path $Tmp -Algorithm SHA256).Hash.ToLower()
-  if ($hash -ne ([string]$Meta.sha256).ToLower()) { throw 'Download beschädigt (SHA-256 stimmt nicht).' }
+# Nicht %TEMP%: 8.3-Pfade (C:\\Users\\XXXX~1\\…) zerlegen Move-Item an der Tilde.
+$Tmp = Join-Path $Dir ("systemhaus-agent-" + [guid]::NewGuid().ToString('N') + ".download")
+try {
+  Invoke-WebRequest -Uri "$Server/api/monitoring/agent/download/windows-amd64?key=$EscKey&t=$Stamp" -OutFile $Tmp -UseBasicParsing
+  if (-not (Test-Path -LiteralPath $Tmp) -or (Get-Item -LiteralPath $Tmp).Length -lt 100000) { throw 'Download unvollständig.' }
+  if ($Meta.sha256) {
+    $hash = (Get-FileHash -LiteralPath $Tmp -Algorithm SHA256).Hash.ToLower()
+    if ($hash -ne ([string]$Meta.sha256).ToLower()) { throw 'Download beschädigt (SHA-256 stimmt nicht).' }
+  }
+  $Bak = "$Exe.bak"
+  if (Test-Path -LiteralPath $Exe) {
+    Remove-Item -LiteralPath $Bak -Force -ErrorAction SilentlyContinue
+    Rename-Item -LiteralPath $Exe -NewName 'systemhaus-agent.exe.bak'
+  }
+  [System.IO.File]::Move($Tmp, $Exe)
+  $Tmp = $null
+  Unblock-File -LiteralPath $Exe -ErrorAction SilentlyContinue
+  & $Exe install --server $Server --key $Key
+  if ($LASTEXITCODE -ne 0) { throw "Installation fehlgeschlagen (Exit $LASTEXITCODE). Windows Defender kann die unsignierte EXE blockieren – Ausnahme für $Dir setzen und Skript erneut ausführen." }
+  sc.exe failure SystemhausAgent reset= 86400 actions= restart/5000/restart/15000/restart/60000 | Out-Null
+  sc.exe failureflag SystemhausAgent 1 | Out-Null
+  Start-Service SystemhausAgent -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $Bak -Force -ErrorAction SilentlyContinue
+  Write-Host "Agent $($Meta.version) installiert. Startet automatisch beim Hochfahren und nach Absturz."
+} finally {
+  if ($Tmp -and (Test-Path -LiteralPath $Tmp)) { Remove-Item -LiteralPath $Tmp -Force -ErrorAction SilentlyContinue }
 }
-$Bak = "$Exe.bak"
-if (Test-Path $Exe) {
-  Remove-Item $Bak -Force -ErrorAction SilentlyContinue
-  Rename-Item $Exe $Bak
-}
-Move-Item -Force $Tmp $Exe
-Unblock-File -Path $Exe -ErrorAction SilentlyContinue
-& $Exe install --server $Server --key $Key
-if ($LASTEXITCODE -ne 0) { throw "Installation fehlgeschlagen (Exit $LASTEXITCODE)" }
-sc.exe failure SystemhausAgent reset= 86400 actions= restart/5000/restart/15000/restart/60000 | Out-Null
-sc.exe failureflag SystemhausAgent 1 | Out-Null
-Start-Service SystemhausAgent -ErrorAction SilentlyContinue
-Remove-Item $Bak -Force -ErrorAction SilentlyContinue
-Write-Host "Agent $($Meta.version) installiert. Startet automatisch beim Hochfahren und nach Absturz."
 `;
 }
 
