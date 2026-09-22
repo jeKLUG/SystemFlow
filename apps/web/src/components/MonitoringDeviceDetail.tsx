@@ -141,15 +141,31 @@ export function MonitoringDeviceDetail({
       </Modal>
 
       <div className="mon-kpis-mini">
-        <button type="button" onClick={() => setProcSort("cpu")} title="Prozesse anzeigen" aria-label="CPU – Prozesse anzeigen">
-          <span className="mon-kpi-label">CPU</span>
+        <button type="button" className="mon-kpi-action" onClick={() => setProcSort("cpu")} title="Prozesse anzeigen" aria-label="CPU – Prozesse anzeigen">
+          <span className="mon-kpi-top">
+            <span className="mon-kpi-label">CPU</span>
+            <span className="mon-kpi-go">
+              Prozesse
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3.5 11 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </span>
           <strong>{pct(device.cpuPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.cpuPercent ?? 0))}%` }} />
           </span>
         </button>
-        <button type="button" onClick={() => setProcSort("ram")} title="Prozesse anzeigen" aria-label="RAM – Prozesse anzeigen">
-          <span className="mon-kpi-label">RAM</span>
+        <button type="button" className="mon-kpi-action" onClick={() => setProcSort("ram")} title="Prozesse anzeigen" aria-label="RAM – Prozesse anzeigen">
+          <span className="mon-kpi-top">
+            <span className="mon-kpi-label">RAM</span>
+            <span className="mon-kpi-go">
+              Prozesse
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M6 3.5 11 8 6 12.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </span>
           <strong>{pct(device.ramPercent)}</strong>
           <span className="mon-meter" aria-hidden>
             <span style={{ width: `${Math.min(100, Math.max(0, device.ramPercent ?? 0))}%` }} />

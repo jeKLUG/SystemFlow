@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.204 – 2026-09-22
+
+- Monitoring Gerät: CPU/RAM als Aktionskarten mit Hinweis „Prozesse“
+
+## 1.5.203 – 2026-09-22
+
+- Monitoring Gerät: Ausstattung, Schutz, Netz, Datenträger und Dienste als getrennte Gruppen mit klaren Labels
+
 ## 1.5.202 – 2026-09-21
 
 - Monitoring: Dienst-Wächter (max. 8 Dienste, Ticket je Dienst) und Uhrzeit/NTP (Warnung ab 30 s Abweichung); Agent 1.0.10. Bestehende Geräte: neue Ticket-Typen aus

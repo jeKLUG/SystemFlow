@@ -375,14 +375,16 @@ function NetAddr({
   value,
   chips,
   warn,
+  kind,
 }: {
   label: string;
   value: string;
   chips?: string[];
   warn?: boolean;
+  kind?: "lan" | "wan" | "gw" | "dns" | "clock";
 }) {
   return (
-    <article className={`mon-hw-net-addr${warn ? " is-warn" : ""}`}>
+    <article className={`mon-hw-net-addr${warn ? " is-warn" : ""}`} data-kind={kind}>
       <span className="mon-hw-card-label">{label}</span>
       <strong className="mon-hw-net-ip" title={value}>
         {value}
@@ -403,15 +405,17 @@ function HwCard({
   value,
   chips,
   warn,
+  kind,
 }: {
   label: string;
   value: string;
   chips?: Array<string | null | undefined>;
   warn?: boolean;
+  kind?: "cpu" | "ram" | "disk" | "gpu" | "av" | "fw";
 }) {
   const visible = (chips ?? []).map((c) => c?.trim()).filter((c): c is string => Boolean(c));
   return (
-    <article className={`mon-hw-card${warn ? " is-warn" : ""}`}>
+    <article className={`mon-hw-card${warn ? " is-warn" : ""}`} data-kind={kind}>
       <span className="mon-hw-card-label">{label}</span>
       <strong title={value}>{value}</strong>
       {visible.length ? (
@@ -654,7 +658,7 @@ export function MonitoringHardwarePanel({
   return (
     <div className="mon-hw">
       {hasHw || hasSession || updates?.pendingCount || updates?.rebootPending || crash?.unexpected ? (
-        <section className="mon-hw-hero">
+        <section className="mon-hw-hero" aria-label="Ausstattung">
           <div className="mon-hw-hero-top">
             <div>
               <p className="eyebrow">Ausstattung</p>
@@ -673,15 +677,22 @@ export function MonitoringHardwarePanel({
             </div>
           </div>
           {identityFacts.length ? (
-            <div className="mon-hw-facts">
-              {identityFacts.map((f) => (
-                <Fact key={f.label} label={f.label} value={f.value} hint={f.hint} />
-              ))}
+            <div className="mon-hw-cluster">
+              <h5 className="mon-hw-sub">Identität</h5>
+              <div className="mon-hw-facts">
+                {identityFacts.map((f) => (
+                  <Fact key={f.label} label={f.label} value={f.value} hint={f.hint} />
+                ))}
+              </div>
             </div>
           ) : null}
-          <div className="mon-hw-cards">
+          {cpu || ramHeadline || storageBytes > 0 || hottestDisk || gpu ? (
+            <div className="mon-hw-cluster">
+              <h5 className="mon-hw-sub">Komponenten</h5>
+              <div className="mon-hw-cards">
             {cpu ? (
               <HwCard
+                kind="cpu"
                 label="CPU"
                 value={cpuName || cpu.name || "Prozessor"}
                 chips={[
@@ -693,10 +704,11 @@ export function MonitoringHardwarePanel({
               />
             ) : null}
             {ramHeadline ? (
-              <HwCard label="RAM" value={ramHeadline} chips={ramChips.length ? ramChips : [`${ramModules.length} Riegel`]} />
+              <HwCard kind="ram" label="RAM" value={ramHeadline} chips={ramChips.length ? ramChips : [`${ramModules.length} Riegel`]} />
             ) : null}
             {storageBytes > 0 || hottestDisk ? (
               <HwCard
+                kind="disk"
                 label="Speicher"
                 value={storageBytes > 0 ? formatSize(storageBytes, true) : hottestDisk?.totalLabel || "–"}
                 chips={storageChips.length ? storageChips : [storage[0]?.model]}
@@ -705,6 +717,7 @@ export function MonitoringHardwarePanel({
             ) : null}
             {gpu ? (
               <HwCard
+                kind="gpu"
                 label="Grafik"
                 value={gpu.name || "GPU"}
                 chips={[
@@ -714,17 +727,20 @@ export function MonitoringHardwarePanel({
               />
             ) : null}
           </div>
+            </div>
+          ) : null}
         </section>
       ) : (
         <h3>Gerät</h3>
       )}
 
       {defender || firewall ? (
-        <div className="mon-hw-section">
+        <section className="mon-hw-section is-protect" aria-label="Schutz">
           <h4>Schutz</h4>
           <div className="mon-hw-cards">
             {defender ? (
               <HwCard
+                kind="av"
                 label="Antivirus"
                 value={
                   defender.realtime === false || defender.antivirus === false
@@ -750,91 +766,115 @@ export function MonitoringHardwarePanel({
               />
             ) : null}
             {fwView ? (
-              <HwCard label="Firewall" value={fwView.value} chips={fwView.chips} warn={fwView.warn} />
+              <HwCard kind="fw" label="Firewall" value={fwView.value} chips={fwView.chips} warn={fwView.warn} />
             ) : null}
           </div>
-        </div>
+        </section>
       ) : null}
 
       {hasNet ? (
-        <div className="mon-hw-section">
+        <section className="mon-hw-section is-net" aria-label="Netzwerk">
           <h4>Netzwerk</h4>
           <div className="mon-hw-net">
             {lan.primary || network?.publicIp || network?.gateway || dns[0] || (clock && clock.offsetSec != null) ? (
-              <div className="mon-hw-net-addrs">
-                {lan.primary || lan.apipaOnly ? (
-                  <NetAddr
-                    label="LAN"
-                    value={lan.primary || "–"}
-                    chips={lanChips}
-                    warn={lan.apipaOnly}
-                  />
-                ) : null}
-                {network?.publicIp ? <NetAddr label="Öffentlich" value={network.publicIp} /> : null}
-                {network?.gateway ? (
-                  <NetAddr
-                    label="Gateway"
-                    value={network.gateway}
-                    chips={[
-                      network.gatewayOk === true ? "erreichbar" : network.gatewayOk === false ? "keine Antwort" : null,
-                    ].filter((v): v is string => Boolean(v))}
-                    warn={network.gatewayOk === false}
-                  />
-                ) : null}
-                {dns[0] ? (
-                  <NetAddr
-                    label="DNS"
-                    value={dns[0]}
-                    chips={[
-                      network?.dnsOk === true ? "löst auf" : network?.dnsOk === false ? "keine Antwort" : null,
-                      ...dnsChips,
-                    ].filter((v): v is string => Boolean(v))}
-                    warn={network?.dnsOk === false}
-                  />
-                ) : null}
-                {clock && clock.offsetSec != null ? (
-                  <NetAddr
-                    label="Uhrzeit"
-                    value={formatClockOffset(clock.offsetSec)}
-                    chips={[
-                      clock.source?.startsWith("ntp:") ? "NTP" : clock.source?.startsWith("http:") ? "HTTP" : clock.source || null,
-                    ].filter((v): v is string => Boolean(v))}
-                    warn={clock.ok === false}
-                  />
-                ) : null}
+              <div className="mon-hw-cluster">
+                <h5 className="mon-hw-sub">Adressen</h5>
+                <div className="mon-hw-net-addrs">
+                  {lan.primary || lan.apipaOnly ? (
+                    <NetAddr
+                      kind="lan"
+                      label="LAN"
+                      value={lan.primary || "–"}
+                      chips={lanChips}
+                      warn={lan.apipaOnly}
+                    />
+                  ) : null}
+                  {network?.publicIp ? <NetAddr kind="wan" label="Öffentlich" value={network.publicIp} /> : null}
+                  {network?.gateway ? (
+                    <NetAddr
+                      kind="gw"
+                      label="Gateway"
+                      value={network.gateway}
+                      chips={[
+                        network.gatewayOk === true ? "erreichbar" : network.gatewayOk === false ? "keine Antwort" : null,
+                      ].filter((v): v is string => Boolean(v))}
+                      warn={network.gatewayOk === false}
+                    />
+                  ) : null}
+                  {dns[0] ? (
+                    <NetAddr
+                      kind="dns"
+                      label="DNS"
+                      value={dns[0]}
+                      chips={[
+                        network?.dnsOk === true ? "löst auf" : network?.dnsOk === false ? "keine Antwort" : null,
+                        ...dnsChips,
+                      ].filter((v): v is string => Boolean(v))}
+                      warn={network?.dnsOk === false}
+                    />
+                  ) : null}
+                  {clock && clock.offsetSec != null ? (
+                    <NetAddr
+                      kind="clock"
+                      label="Uhrzeit"
+                      value={formatClockOffset(clock.offsetSec)}
+                      chips={[
+                        clock.source?.startsWith("ntp:")
+                          ? "NTP"
+                          : clock.source?.startsWith("http:")
+                            ? "HTTP"
+                            : clock.source || null,
+                      ].filter((v): v is string => Boolean(v))}
+                      warn={clock.ok === false}
+                    />
+                  ) : null}
+                </div>
               </div>
             ) : null}
             {pings}
             {nics.length ? (
-              <ul className="mon-hw-nics">
-                {nics.map((n, i) => {
-                  const name = n.name?.replace(/\s+/g, " ") || "Adapter";
-                  const active = Boolean(
-                    adapterHint &&
-                      (name.toLowerCase().includes(adapterHint) || adapterHint.includes(name.toLowerCase())),
-                  );
-                  const speed = formatLinkSpeed(n.speedMbps);
-                  const kind = nicKindLabel(name);
-                  return (
-                    <li key={`${n.mac}-${i}`} className={active ? "is-active" : undefined}>
-                      <span className="mon-hw-nic-main">
-                        <strong title={name}>{name}</strong>
-                        {active ? <span className="mon-hw-nic-chip is-on">Aktiv</span> : null}
-                        {kind && !active ? <span className="mon-hw-nic-chip">{kind}</span> : null}
-                      </span>
-                      {speed ? <span className="mon-hw-nic-speed">{speed}</span> : <span />}
-                      <span className="mon-hw-nic-mac">{n.mac || n.manufacturer || ""}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="mon-hw-cluster">
+                <h5 className="mon-hw-sub">Adapter</h5>
+                <ul className="mon-hw-nics">
+                  {nics.map((n, i) => {
+                    const name = n.name?.replace(/\s+/g, " ") || "Adapter";
+                    const active = Boolean(
+                      adapterHint &&
+                        (name.toLowerCase().includes(adapterHint) || adapterHint.includes(name.toLowerCase())),
+                    );
+                    const speed = formatLinkSpeed(n.speedMbps);
+                    const kind = nicKindLabel(name);
+                    return (
+                      <li key={`${n.mac}-${i}`} className={active ? "is-active" : undefined}>
+                        <span className="mon-hw-nic-main">
+                          <strong title={name}>{name}</strong>
+                          {active ? <span className="mon-hw-nic-chip is-on">Aktiv</span> : null}
+                          {kind && !active ? <span className="mon-hw-nic-chip">{kind}</span> : null}
+                        </span>
+                        {speed ? (
+                          <span className="mon-hw-nic-speed">
+                            <span className="mon-hw-card-label">Link</span>
+                            {speed}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                        <span className="mon-hw-nic-mac">
+                          <span className="mon-hw-card-label">MAC</span>
+                          {n.mac || n.manufacturer || ""}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             ) : null}
           </div>
-        </div>
+        </section>
       ) : null}
 
       {disks?.length ? (
-        <div className="mon-hw-section">
+        <section className="mon-hw-section is-disks" aria-label="Datenträger">
           <h4>Datenträger</h4>
           <div className="mon-hw-disk-panel">
             {disks.map((d, i) => {
@@ -846,20 +886,20 @@ export function MonitoringHardwarePanel({
               ? storage.map((s, i) => <DiskPhys key={`${s.serial}-${i}`} disk={s} />)
               : null}
           </div>
-        </div>
+        </section>
       ) : storage.length ? (
-        <div className="mon-hw-section">
+        <section className="mon-hw-section is-disks" aria-label="Datenträger">
           <h4>Datenträger</h4>
           <div className="mon-hw-disk-panel">
             {storage.map((s, i) => (
               <DiskPhys key={`${s.serial}-${i}`} disk={s} />
             ))}
           </div>
-        </div>
+        </section>
       ) : null}
 
-      {(watches || services?.length) ? (
-        <div className="mon-hw-section">
+      {watches || services?.length ? (
+        <section className="mon-hw-section is-svcs" aria-label="Dienste">
           <h4>Dienste</h4>
           {watches}
           {services?.length ? (
@@ -876,11 +916,11 @@ export function MonitoringHardwarePanel({
               </ul>
             </>
           ) : null}
-        </div>
+        </section>
       ) : null}
 
       {software?.length ? (
-        <div className="mon-hw-section mon-hw-soft-block">
+        <section className="mon-hw-section is-soft mon-hw-soft-block" aria-label="Software">
           <div className="mon-hw-soft-head">
             <div className="page-head-title">
               <h4>Software</h4>
@@ -941,7 +981,7 @@ export function MonitoringHardwarePanel({
               </ul>
             </div>
           )}
-        </div>
+        </section>
       ) : null}
     </div>
   );
