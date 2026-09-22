@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.210 – 2026-09-22
+
+- Marketing-Signatur: kompakt als Vorschau; HTML-Quelltext nur beim Bearbeiten
+
 ## 1.5.209 – 2026-09-22
 
 - Marketing-UI: Hero mit Bereichskarten, Listenwahl im Board, Statusfilter, Zeilen statt Tabelle, Texteditor rechts, Versand in Schritten mit Briefvorschau

@@ -62,6 +62,8 @@ export function MarketingPage() {
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
   const [signatureHtml, setSignatureHtml] = useState("");
+  const [signatureSaved, setSignatureSaved] = useState("");
+  const [signatureEditing, setSignatureEditing] = useState(false);
   const [signatureDirty, setSignatureDirty] = useState(false);
   const [orgName, setOrgName] = useState("Systemhaus-Ess");
 
@@ -108,7 +110,9 @@ export function MarketingPage() {
         reloadTemplates(),
         api.marketingSignature().then((s) => {
           setSignatureHtml(s.html);
+          setSignatureSaved(s.html);
           setSignatureDirty(false);
+          setSignatureEditing(false);
         }).catch(() => undefined),
         api.orgSettings().then((s) => {
           setOrgName(s.orgName?.trim() || "Systemhaus-Ess");
@@ -268,7 +272,9 @@ export function MarketingPage() {
     try {
       const saved = await api.saveMarketingSignature(signatureHtml);
       setSignatureHtml(saved.html);
+      setSignatureSaved(saved.html);
       setSignatureDirty(false);
+      setSignatureEditing(false);
       setMsg("Signatur gespeichert");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signatur fehlgeschlagen");
@@ -801,47 +807,74 @@ export function MarketingPage() {
             </section>
           </div>
 
-          <section className="panel mkt-sig">
+          <section className={`panel mkt-sig${signatureEditing ? " is-editing" : ""}`}>
             <div className="mkt-board-head">
               <div>
                 <p className="eyebrow">Unter jeder Mail</p>
                 <h3>Signatur</h3>
-                <p className="muted">Outlook- oder HTML-Signatur. Sie steht unter dem Text im hellen Block.</p>
               </div>
-            </div>
-            <form className="mkt-sig-grid" onSubmit={onSaveSignature}>
-              <label className="field">
-                <span>HTML aus Outlook oder Editor</span>
-                <textarea
-                  rows={7}
-                  value={signatureHtml}
-                  onChange={(e) => {
-                    setSignatureHtml(e.target.value);
-                    setSignatureDirty(true);
-                  }}
-                  placeholder="<p>Mit freundlichen Grüßen<br>…</p>"
-                  spellCheck={false}
-                />
-              </label>
-              <div className="mkt-sig-live">
-                <span className="eyebrow">So sieht sie aus</span>
-                {signatureHtml.trim() ? (
-                  <iframe
-                    className="mkt-sig-frame"
-                    title="Signatur-Vorschau"
-                    sandbox=""
-                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
-                  />
-                ) : (
-                  <p className="empty">Noch leer.</p>
-                )}
-              </div>
-              <div className="mkt-form-actions">
-                <button type="submit" className="btn btn-primary" disabled={!signatureDirty}>
-                  Signatur speichern
+              {!signatureEditing ? (
+                <button type="button" className="btn btn-ghost" onClick={() => setSignatureEditing(true)}>
+                  {signatureSaved.trim() ? "Bearbeiten" : "Einfügen"}
                 </button>
-              </div>
-            </form>
+              ) : null}
+            </div>
+            {signatureEditing ? (
+              <form className="mkt-sig-edit" onSubmit={onSaveSignature}>
+                <label className="field">
+                  <span>HTML aus Outlook oder Editor</span>
+                  <textarea
+                    rows={8}
+                    value={signatureHtml}
+                    autoFocus
+                    onChange={(e) => {
+                      setSignatureHtml(e.target.value);
+                      setSignatureDirty(true);
+                    }}
+                    placeholder="<p>Mit freundlichen Grüßen<br>…</p>"
+                    spellCheck={false}
+                  />
+                </label>
+                <div className="mkt-sig-live">
+                  <span className="eyebrow">Vorschau</span>
+                  {signatureHtml.trim() ? (
+                    <iframe
+                      className="mkt-sig-frame"
+                      title="Signatur-Vorschau"
+                      sandbox=""
+                      srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+                    />
+                  ) : (
+                    <p className="empty">Noch leer.</p>
+                  )}
+                </div>
+                <div className="mkt-form-actions">
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => {
+                      setSignatureHtml(signatureSaved);
+                      setSignatureDirty(false);
+                      setSignatureEditing(false);
+                    }}
+                  >
+                    Abbrechen
+                  </button>
+                  <button type="submit" className="btn btn-primary" disabled={!signatureDirty}>
+                    Speichern
+                  </button>
+                </div>
+              </form>
+            ) : signatureSaved.trim() ? (
+              <iframe
+                className="mkt-sig-frame"
+                title="Signatur"
+                sandbox=""
+                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px 12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureSaved}</body></html>`}
+              />
+            ) : (
+              <p className="muted">Noch keine Signatur. Über Einfügen Outlook-HTML einfügen.</p>
+            )}
           </section>
         </>
       ) : null}
