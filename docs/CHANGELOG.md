@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.219 – 2026-09-22
+
+- Marketing-Versand: kompakte Leiste ohne Extra-Überschriften, Zähler als eine Zeile
+
 ## 1.5.218 – 2026-09-22
 
 - Marketing: kein blauer Fokusrahmen an den Eingabefeldern

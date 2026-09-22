@@ -919,108 +919,82 @@ export function MarketingPage() {
 
       {tab === "send" ? (
         <section className="panel mkt-board">
-          <div className="mkt-board-head">
-            <div>
-              <p className="eyebrow">Kampagne</p>
-              <h3>Senden</h3>
-            </div>
-          </div>
           <div className="mkt-send-bar">
-            <label className="field">
-              <span>Liste</span>
-              <select value={listId} onChange={(e) => setListId(e.target.value)}>
-                {lists.length === 0 ? <option value="">Keine Liste</option> : null}
-                {lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.name} · {list.leadCount} Empfänger
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="field">
-              <span>Art</span>
-              <div className="mkt-kind" role="tablist" aria-label="Versandart">
-                <button
-                  type="button"
-                  className={`mkt-kind-btn${sendKind === "first" ? " is-active" : ""}`}
-                  onClick={() => setSendKind("first")}
-                >
-                  Erstmail
-                </button>
-                <button
-                  type="button"
-                  className={`mkt-kind-btn${sendKind === "reminder" ? " is-active" : ""}${
-                    dueCount > 0 ? " is-warn" : ""
-                  }`}
-                  onClick={() => setSendKind("reminder")}
-                >
-                  Erinnerung{dueCount ? ` · ${dueCount}` : ""}
-                </button>
-              </div>
+            <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Liste">
+              {lists.length === 0 ? <option value="">Keine Liste</option> : null}
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name} · {list.leadCount}
+                </option>
+              ))}
+            </select>
+            <div className="mkt-kind" role="tablist" aria-label="Versandart">
+              <button
+                type="button"
+                className={`mkt-kind-btn${sendKind === "first" ? " is-active" : ""}`}
+                onClick={() => setSendKind("first")}
+              >
+                Erstmail
+              </button>
+              <button
+                type="button"
+                className={`mkt-kind-btn${sendKind === "reminder" ? " is-active" : ""}${
+                  dueCount > 0 ? " is-warn" : ""
+                }`}
+                onClick={() => setSendKind("reminder")}
+              >
+                Erinnerung{dueCount ? ` ${dueCount}` : ""}
+              </button>
             </div>
-            <label className="field">
-              <span>Text</span>
-              <select value={sendTemplateId} onChange={(e) => setSendTemplateId(e.target.value)}>
-                {sendTemplates.length === 0 ? (
-                  <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
-                ) : null}
-                {sendTemplates.map((tpl) => (
-                  <option key={tpl.id} value={tpl.id}>
-                    {tpl.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <select
+              value={sendTemplateId}
+              onChange={(e) => setSendTemplateId(e.target.value)}
+              aria-label="Textbaustein"
+            >
+              {sendTemplates.length === 0 ? (
+                <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
+              ) : null}
+              {sendTemplates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}
+                </option>
+              ))}
+            </select>
             {preview ? (
-              <div className="mkt-counts">
-                <div>
-                  <strong>{preview.sendCount}</strong>
-                  <span>gehen raus</span>
-                </div>
-                <div>
-                  <strong>{preview.skipCount}</strong>
-                  <span>bleiben draußen</span>
-                </div>
-              </div>
+              <p className="mkt-send-meta">
+                <strong>{preview.sendCount}</strong>
+                {preview.sendCount === 1 ? " geht raus" : " gehen raus"}
+                {preview.skipCount > 0 ? ` · ${preview.skipCount} draußen` : ""}
+              </p>
             ) : null}
             <div className="mkt-send-actions">
               <button
                 type="button"
-                className="btn btn-ghost"
+                className="btn btn-ghost btn-sm"
                 disabled={sending || !sendTemplateId}
                 onClick={() => void onTest()}
               >
-                Test an mich
+                Test
               </button>
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-primary btn-sm"
                 disabled={sending || !listId || !sendTemplateId || !preview?.sendCount}
                 onClick={() => void onSend(sendKind)}
               >
-                {sending
-                  ? "Sende…"
-                  : sendKind === "first"
-                    ? "Erstmail senden"
-                    : "Erinnerung senden"}
+                {sending ? "Sende…" : "Senden"}
               </button>
             </div>
           </div>
           {skipSummary ? <p className="muted mkt-skip-summary">{skipSummary}</p> : null}
           {!sendTemplateId ? (
-            <p className="muted">Unter Texte zuerst einen {marketingKindLabel[sendKind]}-Baustein anlegen.</p>
+            <p className="muted mkt-skip-summary">
+              Unter Texte zuerst einen {marketingKindLabel[sendKind]}-Baustein anlegen.
+            </p>
           ) : null}
 
           {sendPreviewTpl ? (
-            <div className="mkt-letter-stage">
-              <div className="mkt-board-head">
-                <div>
-                  <p className="eyebrow">Empfänger sieht</p>
-                  <h3>Vorschau</h3>
-                </div>
-              </div>
-              {mailPreview(sendPreviewTpl)}
-            </div>
+            <div className="mkt-letter-stage">{mailPreview(sendPreviewTpl)}</div>
           ) : (
             <div className="mkt-empty">
               <strong>Kein Text gewählt</strong>
