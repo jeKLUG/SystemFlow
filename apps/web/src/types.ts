@@ -1173,3 +1173,75 @@ export interface MonitoringSettings {
   platforms: { id: AgentPackagePlatform; label: string; filename: string }[];
   packages: AgentPackageInfo[];
 }
+
+export type MarketingTemplateKind = "first" | "reminder";
+export type MarketingLeadStatus =
+  | "new"
+  | "sent"
+  | "reminder_due"
+  | "reminded"
+  | "replied"
+  | "contact"
+  | "unsubscribed";
+
+export interface MarketingList {
+  id: string;
+  name: string;
+  createdAt: string;
+  leadCount: number;
+  dueCount: number;
+}
+
+export interface MarketingLead {
+  id: string;
+  listId: string;
+  email: string;
+  company: string;
+  contactPerson: string | null;
+  repliedAt: string | null;
+  replyNote: string | null;
+  doNotContact: boolean;
+  customerId: string | null;
+  status: MarketingLeadStatus;
+  firstSentAt: string | null;
+  reminderSentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketingTemplate {
+  id: string;
+  name: string;
+  kind: MarketingTemplateKind;
+  subject: string;
+  body: string;
+  ctaUrl: string | null;
+  ctaLabel: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketingPreviewSkip {
+  id: string;
+  email: string;
+  company: string;
+  reason: string;
+  reasonLabel: string;
+}
+
+export interface MarketingPreview {
+  listId: string;
+  kind: MarketingTemplateKind;
+  sendCount: number;
+  skipCount: number;
+  send: { id: string; email: string; company: string }[];
+  skip: MarketingPreviewSkip[];
+}
+
+export interface MarketingSendResult {
+  ok: boolean;
+  sent: number;
+  failed: number;
+  skipped: number;
+  skip?: MarketingPreviewSkip[];
+}

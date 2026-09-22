@@ -40,6 +40,7 @@ import { monitoringRoutes } from "./routes/monitoring.js";
 import { startMonitoringLoop } from "./lib/monitoringLoop.js";
 import { startMailLoop } from "./lib/mailLoop.js";
 import { mailSettingsRoutes } from "./routes/mailSettings.js";
+import { marketingPublicRoutes, marketingRoutes } from "./routes/marketing.js";
 
 /**
  * Startet die Systemhaus-Ess API und liefert optional das Frontend aus.
@@ -85,6 +86,7 @@ async function main() {
   await portalAuthRoutes(app, db);
   /** Öffentliche Einweg-Shares ohne Auth (PIN schützt den Inhalt). */
   await vaultSharesPublicRoutes(app, db);
+  await marketingPublicRoutes(app, db);
   await app.register(async (scoped) => customerRoutes(scoped, db));
   await app.register(async (scoped) => documentRoutes(scoped, db, config.uploadDir));
   await app.register(async (scoped) => projectRoutes(scoped, db));
@@ -97,6 +99,7 @@ async function main() {
   await app.register(async (scoped) => vaultRoutes(scoped, db));
   await app.register(async (scoped) => pricingRoutes(scoped, db));
   await app.register(async (scoped) => mailSettingsRoutes(scoped, db));
+  await app.register(async (scoped) => marketingRoutes(scoped, db));
   await app.register(async (scoped) => contractRoutes(scoped, db));
   await app.register(async (scoped) => reminderRoutes(scoped, db));
   await app.register(async (scoped) => searchRoutes(scoped, db));

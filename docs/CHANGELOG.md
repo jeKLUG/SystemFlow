@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.206 – 2026-09-22
+
+- Marketing (Werkzeuge): Listen, Leads (Firma/E-Mail/Ansprechpartner), Textbausteine Erstmail/Erinnerung, Versand mit Status, Erinnerung nach 7 Tagen, Antwortnotiz, Kontakt anlegen, Abmelde-Link
+
 ## 1.5.205 – 2026-09-22
 
 - Monitoring Verlauf: Uhrzeiten auf der Achse; Hover mit Vertikalstrich, Uhrzeit und CPU/RAM/Datenträger-Werten

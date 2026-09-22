@@ -853,6 +853,89 @@ export const api = {
     }),
   removeMonitoringAgent: (id: string) =>
     request<{ ok: boolean }>(`/api/monitoring/agents/${id}`, { method: "DELETE" }),
+  marketingLists: () => request<import("./types").MarketingList[]>("/api/marketing/lists"),
+  createMarketingList: (name: string) =>
+    request<import("./types").MarketingList>("/api/marketing/lists", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  updateMarketingList: (id: string, name: string) =>
+    request<import("./types").MarketingList>(`/api/marketing/lists/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    }),
+  deleteMarketingList: (id: string) =>
+    request<{ ok: boolean }>(`/api/marketing/lists/${id}`, { method: "DELETE" }),
+  marketingTemplates: (kind?: import("./types").MarketingTemplateKind) => {
+    const q = kind ? `?kind=${kind}` : "";
+    return request<import("./types").MarketingTemplate[]>(`/api/marketing/templates${q}`);
+  },
+  createMarketingTemplate: (body: Record<string, unknown>) =>
+    request<import("./types").MarketingTemplate>("/api/marketing/templates", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateMarketingTemplate: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").MarketingTemplate>(`/api/marketing/templates/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteMarketingTemplate: (id: string) =>
+    request<{ ok: boolean }>(`/api/marketing/templates/${id}`, { method: "DELETE" }),
+  marketingLeads: (listId: string) =>
+    request<import("./types").MarketingLead[]>(`/api/marketing/leads?listId=${encodeURIComponent(listId)}`),
+  createMarketingLead: (body: Record<string, unknown>) =>
+    request<import("./types").MarketingLead>("/api/marketing/leads", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  updateMarketingLead: (id: string, body: Record<string, unknown>) =>
+    request<import("./types").MarketingLead>(`/api/marketing/leads/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  deleteMarketingLead: (id: string) =>
+    request<{ ok: boolean }>(`/api/marketing/leads/${id}`, { method: "DELETE" }),
+  markMarketingReplied: (id: string, note?: string) =>
+    request<import("./types").MarketingLead>(`/api/marketing/leads/${id}/replied`, {
+      method: "POST",
+      body: JSON.stringify({ note: note ?? "" }),
+    }),
+  unmarkMarketingReplied: (id: string) =>
+    request<import("./types").MarketingLead>(`/api/marketing/leads/${id}/unreplied`, { method: "POST" }),
+  setMarketingDoNotContact: (id: string, value: boolean) =>
+    request<import("./types").MarketingLead>(`/api/marketing/leads/${id}/do-not-contact`, {
+      method: "POST",
+      body: JSON.stringify({ value }),
+    }),
+  convertMarketingLead: (id: string) =>
+    request<{ lead: import("./types").MarketingLead; customer: import("./types").Customer; linked: boolean }>(
+      `/api/marketing/leads/${id}/convert`,
+      { method: "POST" },
+    ),
+  marketingPreview: (listId: string, kind: import("./types").MarketingTemplateKind) =>
+    request<import("./types").MarketingPreview>(
+      `/api/marketing/preview?listId=${encodeURIComponent(listId)}&kind=${kind}`,
+    ),
+  sendMarketing: (listId: string, templateId: string) =>
+    request<import("./types").MarketingSendResult>("/api/marketing/send", {
+      method: "POST",
+      body: JSON.stringify({ listId, templateId }),
+    }),
+  remindMarketing: (listId: string, templateId: string) =>
+    request<import("./types").MarketingSendResult>("/api/marketing/remind", {
+      method: "POST",
+      body: JSON.stringify({ listId, templateId }),
+    }),
+  testMarketing: (templateId: string, listId?: string) =>
+    request<{ ok: boolean; to: string }>("/api/marketing/test", {
+      method: "POST",
+      body: JSON.stringify({ templateId, listId }),
+    }),
+  marketingUnsubscribe: (token: string) =>
+    request<{ ok: boolean; company?: string; already?: boolean }>(
+      `/api/public/marketing/unsubscribe/${encodeURIComponent(token)}`,
+    ),
 };
 
 async function downloadPdf(url: string, fallbackName: string) {

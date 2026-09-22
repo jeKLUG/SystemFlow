@@ -141,6 +141,7 @@ function htmlLines(value: string): string {
 
 /**
  * HTML-Mail im App-Look: dunkel, Akzentblau, Infotabelle, Button.
+ * Optional `footerLink` für einen Klartext-Link im Footer (z. B. Abmelden).
  */
 export function mailHtml(opts: {
   brand?: string;
@@ -155,6 +156,8 @@ export function mailHtml(opts: {
   tone?: MailTone;
   footer?: string;
   note?: string;
+  /** Optionaler Link im Footer (z. B. Abmelden). */
+  footerLink?: { href: string; label: string };
 }): { html: string; text: string } {
   const brand = opts.brand?.trim() || "Systemhaus-Ess";
   const facts = (opts.facts ?? []).filter((f) => f.value.trim());
@@ -237,7 +240,11 @@ export function mailHtml(opts: {
         </tr>
         <tr>
           <td style="padding:18px 32px 26px;font-family:${FONT};font-size:12px;line-height:1.5;color:${BRAND.muted};border-top:1px solid ${BRAND.border}">
-            ${escapeHtml(footer)}
+            ${htmlLines(footer)}${
+              opts.footerLink
+                ? `<br><a href="${escapeHtml(opts.footerLink.href)}" style="color:${BRAND.accentBright};text-decoration:underline">${escapeHtml(opts.footerLink.label)}</a>`
+                : ""
+            }
           </td>
         </tr>
       </table>
@@ -256,6 +263,7 @@ export function mailHtml(opts: {
     opts.note,
     opts.href,
     footer,
+    opts.footerLink ? `${opts.footerLink.label}: ${opts.footerLink.href}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");

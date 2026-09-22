@@ -11,6 +11,9 @@
 - [x] Monitoring: verbaute Hardware-Komponenten (CPU/RAM/Platten/GPU) in der Geräteansicht
 - [x] Monitoring: Agent-Pakete im Portal, Install-Skripte, Auto-Start/Recovery, Self-Update
 - [x] E-Mail-Benachrichtigungen (SMTP in Einstellungen; Tickets, Termine, Monitoring). Keine Einladungs-Mails.
+- [ ] Optional: Marketing CSV-Import (Firma, E-Mail, Ansprechpartner)
+- [ ] Optional: Marketing-Tags (Branche, Größe) zum Schneiden von Listen
+- [ ] Optional: zweite Nachfass-Mail nach ~21 Tagen (nur „Erinnert, keine Antwort“)
 - [ ] Optional: mehrere Portal-Benutzer pro Kunde
 - [ ] Optional: SLA nach Servicezeiten (`coverageHours`) statt Kalenderstunden
 - [ ] Optional: Zeiterfassung mit Tages-/Monatsreports als eigenen Report-Endpunkt

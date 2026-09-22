@@ -516,6 +516,54 @@ export async function createDb(databasePath: string) {
       stored_name TEXT NOT NULL,
       uploaded_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS marketing_lists (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      subject TEXT NOT NULL,
+      body TEXT NOT NULL,
+      cta_url TEXT,
+      cta_label TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_leads (
+      id TEXT PRIMARY KEY,
+      list_id TEXT NOT NULL REFERENCES marketing_lists(id) ON DELETE CASCADE,
+      email TEXT NOT NULL UNIQUE,
+      company TEXT NOT NULL,
+      contact_person TEXT,
+      replied_at INTEGER,
+      reply_note TEXT,
+      do_not_contact INTEGER NOT NULL DEFAULT 0,
+      customer_id TEXT REFERENCES customers(id) ON DELETE SET NULL,
+      unsub_token TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS marketing_sends (
+      id TEXT PRIMARY KEY,
+      lead_id TEXT NOT NULL REFERENCES marketing_leads(id) ON DELETE CASCADE,
+      template_id TEXT REFERENCES marketing_templates(id) ON DELETE SET NULL,
+      kind TEXT NOT NULL,
+      sent_at INTEGER NOT NULL,
+      ok INTEGER NOT NULL DEFAULT 0,
+      error TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_marketing_leads_list ON marketing_leads(list_id);
+    CREATE INDEX IF NOT EXISTS idx_marketing_leads_email ON marketing_leads(email);
+    CREATE INDEX IF NOT EXISTS idx_marketing_leads_unsub ON marketing_leads(unsub_token);
+    CREATE INDEX IF NOT EXISTS idx_marketing_sends_lead ON marketing_sends(lead_id);
   `);
 
   // Migration für bestehende DBs ohne die neuen Kundenfelder

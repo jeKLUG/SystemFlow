@@ -688,6 +688,63 @@ export const monitoringAgentPackages = sqliteTable("monitoring_agent_packages", 
   uploadedAt: integer("uploaded_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+/** Marketing-Empfängerliste (Akquise, getrennt von `customers`). */
+export const marketingLists = sqliteTable("marketing_lists", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const marketingTemplateKinds = ["first", "reminder"] as const;
+export type MarketingTemplateKind = (typeof marketingTemplateKinds)[number];
+
+/** Textbausteine für Erstmail und Erinnerung. */
+export const marketingTemplates = sqliteTable("marketing_templates", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind", { enum: marketingTemplateKinds }).notNull(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  ctaUrl: text("cta_url"),
+  ctaLabel: text("cta_label"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Lead in einer Marketing-Liste (E-Mail eindeutig). */
+export const marketingLeads = sqliteTable("marketing_leads", {
+  id: text("id").primaryKey(),
+  listId: text("list_id")
+    .notNull()
+    .references(() => marketingLists.id, { onDelete: "cascade" }),
+  email: text("email").notNull().unique(),
+  company: text("company").notNull(),
+  contactPerson: text("contact_person"),
+  repliedAt: integer("replied_at", { mode: "timestamp_ms" }),
+  replyNote: text("reply_note"),
+  doNotContact: integer("do_not_contact", { mode: "boolean" }).notNull().default(false),
+  customerId: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  unsubToken: text("unsub_token").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+export const marketingSendKinds = ["first", "reminder"] as const;
+export type MarketingSendKind = (typeof marketingSendKinds)[number];
+
+/** Versandprotokoll je Lead (Erstmail / Erinnerung). */
+export const marketingSends = sqliteTable("marketing_sends", {
+  id: text("id").primaryKey(),
+  leadId: text("lead_id")
+    .notNull()
+    .references(() => marketingLeads.id, { onDelete: "cascade" }),
+  templateId: text("template_id").references(() => marketingTemplates.id, { onDelete: "set null" }),
+  kind: text("kind", { enum: marketingSendKinds }).notNull(),
+  sentAt: integer("sent_at", { mode: "timestamp_ms" }).notNull(),
+  ok: integer("ok", { mode: "boolean" }).notNull().default(false),
+  error: text("error"),
+});
+
 /** Minuten-Samples für Diagramme (30 Tage). */
 export const monitoringSamples = sqliteTable("monitoring_samples", {
   id: text("id").primaryKey(),
@@ -730,3 +787,7 @@ export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type MonitoringAgent = typeof monitoringAgents.$inferSelect;
 export type MonitoringSample = typeof monitoringSamples.$inferSelect;
 export type MonitoringAgentPackage = typeof monitoringAgentPackages.$inferSelect;
+export type MarketingList = typeof marketingLists.$inferSelect;
+export type MarketingLead = typeof marketingLeads.$inferSelect;
+export type MarketingTemplate = typeof marketingTemplates.$inferSelect;
+export type MarketingSend = typeof marketingSends.$inferSelect;

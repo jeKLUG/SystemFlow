@@ -85,6 +85,12 @@ const icon = {
       <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
     </svg>
   ),
+  marketing: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+      <path d="M4 10.5v3l3.2.2 8.3 3.8V6.5L7.2 10.3 4 10.5Z" strokeLinejoin="round" />
+      <path d="M16 9.2a3.2 3.2 0 010 5.6M7 13.8 8.2 18h2.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 const primaryNav: NavItem[] = [
@@ -98,6 +104,7 @@ const primaryNav: NavItem[] = [
 
 const secondaryNav: NavItem[] = [
   { to: "/tasks", label: "Aufgaben", icon: icon.reminders },
+  { to: "/marketing", label: "Marketing", icon: icon.marketing },
   { to: "/prices", label: "Preise", icon: icon.prices },
   { to: "/quick-note", label: "Schnellnotiz", icon: icon.note },
   { to: "/settings", label: "Konto", icon: icon.settings },

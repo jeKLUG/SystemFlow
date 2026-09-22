@@ -32,6 +32,8 @@ import { PricesPage } from "./pages/PricesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { VaultPage } from "./pages/VaultPage";
 import { VaultSharePage } from "./pages/VaultSharePage";
+import { MarketingPage } from "./pages/MarketingPage";
+import { MarketingUnsubscribePage } from "./pages/MarketingUnsubscribePage";
 import { MonitoringPage } from "./pages/monitoring/MonitoringPage";
 import { MonitoringAgentPage } from "./pages/monitoring/MonitoringAgentPage";
 import { MonitoringCustomerPage } from "./pages/monitoring/MonitoringCustomerPage";
@@ -75,6 +77,7 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/portal/login" element={<PortalLoginPage />} />
       <Route path="/share/vault/:token" element={<VaultSharePage />} />
+      <Route path="/m/unsubscribe/:token" element={<MarketingUnsubscribePage />} />
       <Route
         path="/portal"
         element={
@@ -107,6 +110,7 @@ export default function App() {
         <Route path="quick-note" element={<QuickNotePage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="prices" element={<PricesPage />} />
+        <Route path="marketing" element={<MarketingPage />} />
         <Route path="vault" element={<VaultPage />} />
         <Route path="calendar" element={<CalendarPage />} />
         <Route path="tickets" element={<TicketsPage />} />
