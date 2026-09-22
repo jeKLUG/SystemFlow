@@ -675,6 +675,39 @@ export const monitoringAgents = sqliteTable("monitoring_agents", {
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 
+export const monitoringScriptJobStatuses = ["pending", "running", "done", "error", "expired"] as const;
+export type MonitoringScriptJobStatus = (typeof monitoringScriptJobStatuses)[number];
+
+/** Wiederverwendbare PowerShell-Vorlagen (org-weit). */
+export const monitoringScriptTemplates = sqliteTable("monitoring_script_templates", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  body: text("body").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});
+
+/** Einmaliger Remote-PowerShell-Auftrag an einen Windows-Agenten. */
+export const monitoringScriptJobs = sqliteTable("monitoring_script_jobs", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id")
+    .notNull()
+    .references(() => monitoringAgents.id, { onDelete: "cascade" }),
+  assetId: text("asset_id").references(() => assets.id, { onDelete: "set null" }),
+  createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+  templateId: text("template_id").references(() => monitoringScriptTemplates.id, { onDelete: "set null" }),
+  script: text("script").notNull(),
+  status: text("status", { enum: monitoringScriptJobStatuses }).notNull().default("pending"),
+  timeoutSec: integer("timeout_sec").notNull().default(60),
+  exitCode: integer("exit_code"),
+  stdout: text("stdout"),
+  stderr: text("stderr"),
+  errorMessage: text("error_message"),
+  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  startedAt: integer("started_at", { mode: "timestamp_ms" }),
+  finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+});
+
 /** Aktuelles Agent-Binary je Plattform (ein Eintrag ersetzt die vorherige Datei). */
 export const agentPackagePlatforms = ["windows-amd64", "linux-amd64", "linux-arm64"] as const;
 export type AgentPackagePlatform = (typeof agentPackagePlatforms)[number];
@@ -790,6 +823,8 @@ export type TicketMessage = typeof ticketMessages.$inferSelect;
 export type MonitoringAgent = typeof monitoringAgents.$inferSelect;
 export type MonitoringSample = typeof monitoringSamples.$inferSelect;
 export type MonitoringAgentPackage = typeof monitoringAgentPackages.$inferSelect;
+export type MonitoringScriptTemplate = typeof monitoringScriptTemplates.$inferSelect;
+export type MonitoringScriptJob = typeof monitoringScriptJobs.$inferSelect;
 export type MarketingList = typeof marketingLists.$inferSelect;
 export type MarketingLead = typeof marketingLeads.$inferSelect;
 export type MarketingTemplate = typeof marketingTemplates.$inferSelect;

@@ -10,6 +10,7 @@ import { MonitoringHardwarePanel } from "./MonitoringHardware";
 import { MonitoringPingTargets } from "./MonitoringPingTargets";
 import { MonitoringProcessList, type ProcessSort } from "./MonitoringProcessList";
 import { MonitoringServiceWatches } from "./MonitoringServiceWatches";
+import { MonitoringScriptPanel } from "./MonitoringScriptPanel";
 import {
   agentVersionAtLeast,
   deviceIssueChips,
@@ -24,7 +25,7 @@ import type { MonitoringAlertConfig, MonitoringDeviceDetail, MonitoringPingTarge
 import { emptyMonitoringAlertConfig, monitoringDiskId } from "../types";
 
 /**
- * Gerätedetail: Warnungen, CPU/RAM-Prozesse, Pings, Dienst-Wächter, Uhrzeit, Verlauf, Hardware.
+ * Gerätedetail: Warnungen, CPU/RAM-Prozesse, Pings, Dienst-Wächter, PowerShell, Verlauf, Hardware.
  */
 export function MonitoringDeviceDetail({
   detail,
@@ -35,8 +36,12 @@ export function MonitoringDeviceDetail({
   onSaveWatches,
   onRequestUpdate,
   onRequestUninstall,
+  onRunScript,
+  onSaveScriptTemplate,
+  onDeleteScriptTemplate,
   updateBusy,
   uninstallBusy,
+  scriptBusy,
   backTo,
 }: {
   detail: MonitoringDeviceDetail;
@@ -47,8 +52,12 @@ export function MonitoringDeviceDetail({
   onSaveWatches?: (targets: MonitoringServiceWatch[]) => void;
   onRequestUpdate: () => void;
   onRequestUninstall?: () => void;
+  onRunScript?: (script: string, templateId?: string) => Promise<void> | void;
+  onSaveScriptTemplate?: (name: string, body: string) => Promise<void> | void;
+  onDeleteScriptTemplate?: (id: string) => Promise<void> | void;
   updateBusy: boolean;
   uninstallBusy?: boolean;
+  scriptBusy?: boolean;
   backTo?: string;
 }) {
   const { device, snapshot, samples } = detail;
@@ -283,6 +292,20 @@ export function MonitoringDeviceDetail({
             ))}
           </ul>
         </div>
+      ) : null}
+
+      {onRunScript && onSaveScriptTemplate && onDeleteScriptTemplate ? (
+        <MonitoringScriptPanel
+          jobs={detail.scriptJobs ?? []}
+          templates={detail.scriptTemplates ?? []}
+          capable={Boolean(detail.scriptCapable)}
+          windows={Boolean(detail.scriptWindows)}
+          minAgent={detail.scriptMinAgent || "1.0.11"}
+          busy={scriptBusy}
+          onRun={onRunScript}
+          onSaveTemplate={onSaveScriptTemplate}
+          onDeleteTemplate={onDeleteScriptTemplate}
+        />
       ) : null}
 
       <div className="mon-agent-update">

@@ -41,6 +41,7 @@ type heartbeatResponse struct {
 	LatestAgent    *latestAgentInfo `json:"latestAgent"`
 	PingTargets    []PingTarget     `json:"pingTargets"`
 	ServiceWatches []ServiceWatch   `json:"serviceWatches"`
+	ScriptJob      *ScriptJob       `json:"scriptJob"`
 }
 
 type httpError struct {
@@ -103,6 +104,7 @@ func heartbeat(cfg *config) (*heartbeatResponse, error) {
 	}
 	snap.AgentVersion = agentVersion
 	snap.Platform = agentPlatformID()
+	snap.ScriptResult = pendingScriptResult
 	body, err := json.Marshal(snap)
 	if err != nil {
 		return nil, err
@@ -126,6 +128,9 @@ func heartbeat(cfg *config) (*heartbeatResponse, error) {
 	var out heartbeatResponse
 	if err := json.Unmarshal(raw, &out); err != nil {
 		return &heartbeatResponse{OK: true}, nil
+	}
+	if pendingScriptResult != nil {
+		pendingScriptResult = nil
 	}
 	return &out, nil
 }

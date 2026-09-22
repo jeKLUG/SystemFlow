@@ -518,6 +518,34 @@ export async function createDb(databasePath: string) {
       uploaded_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS monitoring_script_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      body TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS monitoring_script_jobs (
+      id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL REFERENCES monitoring_agents(id) ON DELETE CASCADE,
+      asset_id TEXT REFERENCES assets(id) ON DELETE SET NULL,
+      created_by_user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+      template_id TEXT REFERENCES monitoring_script_templates(id) ON DELETE SET NULL,
+      script TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      timeout_sec INTEGER NOT NULL DEFAULT 60,
+      exit_code INTEGER,
+      stdout TEXT,
+      stderr TEXT,
+      error_message TEXT,
+      created_at INTEGER NOT NULL,
+      started_at INTEGER,
+      finished_at INTEGER
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_monitoring_script_jobs_agent ON monitoring_script_jobs(agent_id, created_at);
+
     CREATE TABLE IF NOT EXISTS marketing_lists (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -730,6 +758,7 @@ export async function createDb(databasePath: string) {
 
   await migrateTasksCustomerOptional(client);
   await migrateDocumentsCustomerOptional(client);
+  await seedMonitoringScriptTemplates(client);
 
   await client.execute(`PRAGMA foreign_keys = ON`);
 
@@ -798,6 +827,39 @@ async function migrateDocumentsCustomerOptional(client: Client) {
     ALTER TABLE documents_mig RENAME TO documents;
     CREATE INDEX IF NOT EXISTS idx_documents_customer ON documents(customer_id);
   `);
+}
+
+/**
+ * Legt Standard-PowerShell-Vorlagen an, wenn noch keine existieren.
+ */
+async function seedMonitoringScriptTemplates(client: Client) {
+  const existing = await client.execute(`SELECT COUNT(*) AS n FROM monitoring_script_templates`);
+  const n = Number(existing.rows[0]?.n ?? 0);
+  if (n > 0) return;
+  const now = Date.now();
+  const seeds: { id: string; name: string; body: string }[] = [
+    {
+      id: "mstpl_ipconfig",
+      name: "IP-Konfiguration",
+      body: "ipconfig /all",
+    },
+    {
+      id: "mstpl_services",
+      name: "Dienste",
+      body: "Get-Service | Sort-Object Status, Name | Format-Table -AutoSize | Out-String -Width 200",
+    },
+    {
+      id: "mstpl_spooler",
+      name: "Druckwarteschlange neu starten",
+      body: "Restart-Service -Name 'Spooler' -Force\nGet-Service -Name 'Spooler' | Format-List Name, Status, StartType",
+    },
+  ];
+  for (const seed of seeds) {
+    await client.execute({
+      sql: `INSERT INTO monitoring_script_templates (id, name, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`,
+      args: [seed.id, seed.name, seed.body, now, now],
+    });
+  }
 }
 
 export type Db = Awaited<ReturnType<typeof createDb>>;

@@ -1151,10 +1151,44 @@ export interface MonitoringSnapshot {
   }[];
 }
 
+export interface MonitoringScriptTemplate {
+  id: string;
+  name: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type MonitoringScriptJobStatus = "pending" | "running" | "done" | "error" | "expired";
+
+export interface MonitoringScriptJob {
+  id: string;
+  agentId: string;
+  assetId: string | null;
+  createdByUserId: string | null;
+  createdByUsername: string | null;
+  templateId: string | null;
+  script: string;
+  status: MonitoringScriptJobStatus;
+  timeoutSec: number;
+  exitCode: number | null;
+  stdout: string | null;
+  stderr: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
 export interface MonitoringDeviceDetail {
   device: MonitoringDeviceSummary;
   snapshot: MonitoringSnapshot | null;
   samples: MonitoringSample[];
+  scriptJobs?: MonitoringScriptJob[];
+  scriptTemplates?: MonitoringScriptTemplate[];
+  scriptCapable?: boolean;
+  scriptWindows?: boolean;
+  scriptMinAgent?: string;
 }
 
 export type AgentPackagePlatform = "windows-amd64" | "linux-amd64" | "linux-arm64";

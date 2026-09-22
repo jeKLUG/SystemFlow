@@ -4,7 +4,7 @@ import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile, unlink } from "node:fs/promises";
 import { z } from "zod";
 import type { Db } from "../db/index.js";
-import { assets, customers, monitoringAgents, monitoringSamples, ticketPriorities } from "../db/schema.js";
+import { assets, customers, monitoringAgents, monitoringSamples, monitoringScriptJobs, ticketPriorities } from "../db/schema.js";
 import { requireAdmin } from "../plugins/auth.js";
 import { createId } from "../lib/id.js";
 import {
@@ -61,6 +61,24 @@ import {
   isAgentOnline,
   purgeMonitoringAgent,
 } from "../lib/monitoring.js";
+import {
+  SCRIPT_JOB_MIN_AGENT,
+  SCRIPT_MAX_CHARS,
+  SCRIPT_TIMEOUT_DEFAULT_SEC,
+  SCRIPT_TIMEOUT_MAX_SEC,
+  SCRIPT_TIMEOUT_MIN_SEC,
+  agentAcceptsScriptJobs,
+  applyScriptResult,
+  createScriptJob,
+  createScriptTemplate,
+  deleteScriptTemplate,
+  expireStaleScriptJobs,
+  isWindowsMonitoringAgent,
+  listScriptJobsForAgent,
+  listScriptTemplates,
+  takePendingScriptJob,
+  updateScriptTemplate,
+} from "../lib/monitoringScripts.js";
 
 const enrollBody = z.object({
   enrollmentKey: z.string().min(8).max(200),
@@ -319,6 +337,16 @@ const heartbeatBody = z.object({
     )
     .max(250)
     .optional(),
+  scriptResult: z
+    .object({
+      jobId: z.string().max(40),
+      exitCode: z.number().int().min(-2147483648).max(2147483647).nullable().optional(),
+      stdout: z.string().max(80_000).optional(),
+      stderr: z.string().max(80_000).optional(),
+      timedOut: z.boolean().optional(),
+      error: z.string().max(2000).optional(),
+    })
+    .optional(),
 });
 
 function bearerToken(header: string | undefined): string | null {
@@ -459,12 +487,13 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
     }
 
-    const snapshot = parsed.data as AgentSnapshot;
+    const { scriptResult, ...snapFields } = parsed.data;
+    const snapshot = snapFields as AgentSnapshot;
     const reportedVersion = snapshot.agentVersion?.trim() || agent.agentVersion || "";
     const canRemoteUninstall = compareAgentVersions(reportedVersion || "0", "1.0.4") >= 0;
     if (agent.uninstallRequestedAt && canRemoteUninstall) {
       await purgeMonitoringAgent(db, agent);
-      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null, pingTargets: [], serviceWatches: [] };
+      return { ok: true, assigned: Boolean(agent.assetId), updateNow: false, uninstall: true, latestAgent: null, pingTargets: [], serviceWatches: [], scriptJob: null };
     }
 
     const now = new Date();
@@ -548,6 +577,20 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
 
     await emitMonitoringTicketMails(db, ticketSync);
 
+    const nowForJobs = now;
+    await expireStaleScriptJobs(db, agent.id, nowForJobs);
+    if (scriptResult?.jobId) {
+      await applyScriptResult(db, agent.id, scriptResult, nowForJobs);
+    }
+    const canRunScripts =
+      !agent.uninstallRequestedAt &&
+      agentAcceptsScriptJobs({
+        version: reportedVersion,
+        os: snapshot.os || agent.os,
+        platform: snapshot.platform,
+      });
+    const scriptJob = canRunScripts ? await takePendingScriptJob(db, agent.id, nowForJobs) : null;
+
     return {
       ok: true,
       assigned: Boolean(agent.assetId),
@@ -556,6 +599,7 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
       latestAgent,
       pingTargets: pingTargetsForAgent(pingTargets),
       serviceWatches: serviceWatchesForAgent(serviceWatches),
+      scriptJob,
     };
   });
 
@@ -733,6 +777,107 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
         latestVersion: pkg.version,
         currentVersion: agent.agentVersion,
       };
+    });
+
+    scoped.post("/api/monitoring/devices/:assetId/scripts", async (request, reply) => {
+      const { assetId } = request.params as { assetId: string };
+      const parsed = z
+        .object({
+          script: z.string().min(1).max(SCRIPT_MAX_CHARS),
+          templateId: z.string().max(40).optional(),
+          timeoutSec: z.number().int().min(SCRIPT_TIMEOUT_MIN_SEC).max(SCRIPT_TIMEOUT_MAX_SEC).optional(),
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
+      }
+      const agent = await db
+        .select()
+        .from(monitoringAgents)
+        .where(eq(monitoringAgents.assetId, assetId))
+        .get();
+      if (!agent) return reply.code(404).send({ error: "Kein Agent zugeordnet" });
+      const snap = parseSnapshot(agent.lastSnapshotJson);
+      if (!isWindowsMonitoringAgent(snap?.os ?? agent.os, snap?.platform)) {
+        return reply.code(409).send({ error: "PowerShell-Aufträge gibt es nur auf Windows-Geräten" });
+      }
+      if (
+        !agentAcceptsScriptJobs({
+          version: agent.agentVersion,
+          os: snap?.os ?? agent.os,
+          platform: snap?.platform,
+        })
+      ) {
+        return reply.code(409).send({
+          error: `Agent ${SCRIPT_JOB_MIN_AGENT} oder neuer erforderlich. Bitte zuerst das Paket hochladen und den Agent aktualisieren.`,
+        });
+      }
+      const userId = request.session.get("userId");
+      if (!userId) return reply.code(401).send({ error: "Nicht angemeldet" });
+      try {
+        const job = await createScriptJob(db, {
+          agentId: agent.id,
+          assetId,
+          userId,
+          script: parsed.data.script,
+          templateId: parsed.data.templateId,
+          timeoutSec: parsed.data.timeoutSec ?? SCRIPT_TIMEOUT_DEFAULT_SEC,
+        });
+        return reply.code(201).send(job);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Auftrag fehlgeschlagen";
+        const conflict = message.includes("bereits");
+        return reply.code(conflict ? 409 : 400).send({ error: message });
+      }
+    });
+
+    scoped.get("/api/monitoring/script-templates", async () => {
+      return listScriptTemplates(db);
+    });
+
+    scoped.post("/api/monitoring/script-templates", async (request, reply) => {
+      const parsed = z
+        .object({
+          name: z.string().min(1).max(80),
+          body: z.string().min(1).max(SCRIPT_MAX_CHARS),
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
+      }
+      try {
+        const tpl = await createScriptTemplate(db, parsed.data.name, parsed.data.body);
+        return reply.code(201).send(tpl);
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : "Speichern fehlgeschlagen" });
+      }
+    });
+
+    scoped.patch("/api/monitoring/script-templates/:id", async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const parsed = z
+        .object({
+          name: z.string().min(1).max(80).optional(),
+          body: z.string().min(1).max(SCRIPT_MAX_CHARS).optional(),
+        })
+        .safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: "Ungültige Eingabe", details: parsed.error.flatten() });
+      }
+      try {
+        const tpl = await updateScriptTemplate(db, id, parsed.data);
+        if (!tpl) return reply.code(404).send({ error: "Vorlage nicht gefunden" });
+        return tpl;
+      } catch (err) {
+        return reply.code(400).send({ error: err instanceof Error ? err.message : "Speichern fehlgeschlagen" });
+      }
+    });
+
+    scoped.delete("/api/monitoring/script-templates/:id", async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const ok = await deleteScriptTemplate(db, id);
+      if (!ok) return reply.code(404).send({ error: "Vorlage nicht gefunden" });
+      return { ok: true };
     });
 
     scoped.get("/api/monitoring/stats", async () => {
@@ -966,6 +1111,8 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
 
       samples.sort((a, b) => a.ts.getTime() - b.ts.getTime());
 
+      await expireStaleScriptJobs(db, agent.id);
+
       const snapshot = parseSnapshot(agent.lastSnapshotJson);
       if (snapshot?.software?.length && customer) {
         const catalog = await db
@@ -1000,6 +1147,15 @@ export async function monitoringRoutes(app: FastifyInstance, db: Db, uploadDir: 
           netRxBytes: s.netRxBytes,
           netTxBytes: s.netTxBytes,
         })),
+        scriptJobs: await listScriptJobsForAgent(db, agent.id),
+        scriptTemplates: await listScriptTemplates(db),
+        scriptCapable: agentAcceptsScriptJobs({
+          version: agent.agentVersion,
+          os: snapshot?.os ?? agent.os,
+          platform: snapshot?.platform,
+        }),
+        scriptWindows: isWindowsMonitoringAgent(snapshot?.os ?? agent.os, snapshot?.platform),
+        scriptMinAgent: SCRIPT_JOB_MIN_AGENT,
       };
     });
 

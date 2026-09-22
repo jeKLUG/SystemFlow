@@ -8,6 +8,7 @@ import {
   monitoringAgents,
   monitoringIssueKinds,
   monitoringSamples,
+  monitoringScriptJobs,
   orgSettings,
   ticketMessages,
   tickets,
@@ -1787,6 +1788,7 @@ export async function purgeMonitoringAgent(db: Db, agent: MonitoringAgent): Prom
     await emitMonitoringTicketMails(db, ticketSync);
   }
   await db.delete(monitoringSamples).where(eq(monitoringSamples.agentId, agent.id));
+  await db.delete(monitoringScriptJobs).where(eq(monitoringScriptJobs.agentId, agent.id));
   await db.delete(monitoringAgents).where(eq(monitoringAgents.id, agent.id));
 }
 

@@ -79,6 +79,7 @@ type AgentSnapshot struct {
 	Pings           []PingResult         `json:"pings,omitempty"`
 	WatchedServices []ServiceWatchResult `json:"watchedServices,omitempty"`
 	Clock           *ClockSnapshot       `json:"clock,omitempty"`
+	ScriptResult    *ScriptResult        `json:"scriptResult,omitempty"`
 }
 
 func goosName() string {

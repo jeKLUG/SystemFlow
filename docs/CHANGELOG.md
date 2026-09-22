@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.230 – 2026-09-22
+
+- Monitoring: Remote-PowerShell am Windows-Gerät (Vorlagen, Ausführen als LocalSystem, Ausgabe nach dem Heartbeat). Agent 1.0.11 nötig.
+
 ## 1.5.229 – 2026-09-22
 
 - Windows-Agent-Install-Skript: Download nach ProgramData statt `%TEMP%` (8.3-Pfade wie `C:\Users\XXXX~1` lassen `Move-Item` fehlschlagen)

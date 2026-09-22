@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
@@ -101,13 +101,41 @@ export function MonitoringCustomerPage() {
       setDetail(null);
       return;
     }
+    let cancelled = false;
     const to = Date.now();
     const from = to - rangeDays * 24 * 60 * 60 * 1000;
     void api
       .monitoringDevice(assetId, { from, to })
-      .then(setDetail)
-      .catch(() => setDetail(null));
+      .then((d) => {
+        if (!cancelled) setDetail(d);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [assetId, rangeDays, view]);
+
+  const reloadDevice = useCallback(async () => {
+    if (!assetId) return;
+    const to = Date.now();
+    const from = to - rangeDays * 24 * 60 * 60 * 1000;
+    const d = await api.monitoringDevice(assetId, { from, to });
+    setDetail(d);
+  }, [assetId, rangeDays]);
+
+  const scriptJobOpen = Boolean(
+    (detail?.scriptJobs ?? []).some((j) => j.status === "pending" || j.status === "running"),
+  );
+
+  useEffect(() => {
+    if (!assetId || !scriptJobOpen) return;
+    const t = window.setInterval(() => {
+      void reloadDevice().catch(() => undefined);
+    }, 10_000);
+    return () => window.clearInterval(t);
+  }, [assetId, scriptJobOpen, reloadDevice]);
 
   useEffect(() => {
     return () => {
@@ -353,6 +381,32 @@ export function MonitoringCustomerPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function runDeviceScript(script: string, templateId?: string) {
+    const id = detail?.device.assetId;
+    if (!id) return;
+    setBusyId(`script-${id}`);
+    setError("");
+    try {
+      await api.runMonitoringScript(id, { script, templateId });
+      await reloadDevice();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Skript konnte nicht gesendet werden");
+      throw err;
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function saveDeviceScriptTemplate(name: string, body: string) {
+    await api.createMonitoringScriptTemplate(name, body);
+    await reloadDevice();
+  }
+
+  async function deleteDeviceScriptTemplate(id: string) {
+    await api.deleteMonitoringScriptTemplate(id);
+    await reloadDevice();
   }
 
   const totalAssigned = devices.length + waiting;
@@ -602,8 +656,12 @@ export function MonitoringCustomerPage() {
             }}
             onRequestUpdate={requestAgentUpdate}
             onRequestUninstall={requestAgentUninstall}
+            onRunScript={runDeviceScript}
+            onSaveScriptTemplate={saveDeviceScriptTemplate}
+            onDeleteScriptTemplate={deleteDeviceScriptTemplate}
             updateBusy={busyId === detail.device.assetId}
             uninstallBusy={busyId === detail.device.agentId}
+            scriptBusy={busyId === `script-${detail.device.assetId}`}
             backTo={customerPath(customerId)}
           />
         </div>

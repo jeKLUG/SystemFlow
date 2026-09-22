@@ -119,6 +119,7 @@ func runLoop(cfgPath string) error {
 		if maybeRemoteUninstall(cfgPath, hb) {
 			return true
 		}
+		maybeRunScriptJob(hb)
 		maybeSelfUpdate(cfgPath, cfg, hb)
 		return false
 	}

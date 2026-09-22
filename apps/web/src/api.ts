@@ -851,6 +851,21 @@ export const api = {
     request<{ ok: boolean; uninstallRequested: boolean }>(`/api/monitoring/agents/${id}/uninstall`, {
       method: "POST",
     }),
+  runMonitoringScript: (
+    assetId: string,
+    body: { script: string; templateId?: string; timeoutSec?: number },
+  ) =>
+    request<import("./types").MonitoringScriptJob>(`/api/monitoring/devices/${assetId}/scripts`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  createMonitoringScriptTemplate: (name: string, body: string) =>
+    request<import("./types").MonitoringScriptTemplate>("/api/monitoring/script-templates", {
+      method: "POST",
+      body: JSON.stringify({ name, body }),
+    }),
+  deleteMonitoringScriptTemplate: (id: string) =>
+    request<{ ok: boolean }>(`/api/monitoring/script-templates/${id}`, { method: "DELETE" }),
   removeMonitoringAgent: (id: string) =>
     request<{ ok: boolean }>(`/api/monitoring/agents/${id}`, { method: "DELETE" }),
   marketingLists: () => request<import("./types").MarketingList[]>("/api/marketing/lists"),

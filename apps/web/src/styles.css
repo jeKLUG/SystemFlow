@@ -21492,6 +21492,72 @@ div.mon-alert-item-main {
   align-items: center;
 }
 
+.mon-script-block h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 0.55rem;
+}
+
+.mon-script-toolbar,
+.mon-script-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.mon-script-select {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mon-script-select select,
+.mon-script-name {
+  min-width: 10rem;
+}
+
+.mon-script-editor {
+  width: 100%;
+  min-height: 9rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.mon-script-jobs {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.mon-script-job-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.35rem;
+}
+
+.mon-script-out {
+  margin: 0;
+  max-height: 16rem;
+  overflow: auto;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(15, 23, 42, 0.45);
+}
+
 @media (max-width: 980px) {
   .agent-pkg-grid {
     grid-template-columns: 1fr;
