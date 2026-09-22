@@ -140,6 +140,23 @@ function htmlLines(value: string): string {
 }
 
 /**
+ * Firmenname ohne den Zusatz „Kundenportal“ in der Mail-Kopfzeile.
+ */
+function mailHeading(brandRaw: string | undefined, kickerRaw?: string): { brand: string; kicker?: string } {
+  let brand = brandRaw?.trim() || "Systemhaus-Ess";
+  const withoutPortal = brand.replace(/\s*[|·]\s*Kundenportal\s*$/i, "").trim();
+  if (withoutPortal) brand = withoutPortal;
+  const kicker = kickerRaw?.trim();
+  if (!kicker || /^kundenportal$/i.test(kicker)) return { brand };
+  return { brand, kicker };
+}
+
+/** Absendername für HTML-Mails, ohne „| Kundenportal“. */
+export function displayMailBrand(brand?: string): string {
+  return mailHeading(brand).brand;
+}
+
+/**
  * HTML-Mail im App-Look: dunkel, Akzentblau, Infotabelle, Button.
  * Optional `footerLink` im Footer und `signatureHtml` (bereits bereinigt) unter dem Inhalt.
  */
@@ -163,7 +180,7 @@ export function mailHtml(opts: {
   /** Klartext zur Signatur (Plain-Text-Alternative). */
   signatureText?: string;
 }): { html: string; text: string } {
-  const brand = opts.brand?.trim() || "Systemhaus-Ess";
+  const { brand, kicker } = mailHeading(opts.brand, opts.kicker);
   const facts = (opts.facts ?? []).filter((f) => f.value.trim());
   const factRows = facts
     .map((f, i) => {
@@ -208,8 +225,8 @@ export function mailHtml(opts: {
   const footer =
     opts.footer ||
     "Automatische Benachrichtigung. Bitte nicht auf diese Nachricht antworten, sofern nicht anders angegeben.";
-  const kickerLine = opts.kicker
-    ? `<span style="color:${BRAND.muted}"> · ${escapeHtml(opts.kicker)}</span>`
+  const kickerLine = kicker
+    ? `<span style="color:${BRAND.muted}"> · ${escapeHtml(kicker)}</span>`
     : "";
   const preheader = [opts.intro, facts.map((f) => `${f.label}: ${f.value}`).join(" · ")].filter(Boolean).join(" ");
   const html = `<!DOCTYPE html>
@@ -261,7 +278,7 @@ export function mailHtml(opts: {
 </table>
 </body>
 </html>`;
-  const kickerText = [brand, opts.kicker].filter(Boolean).join(" · ");
+  const kickerText = [brand, kicker].filter(Boolean).join(" · ");
   const text = [
     kickerText,
     opts.title,

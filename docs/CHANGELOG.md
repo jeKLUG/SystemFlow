@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.228 – 2026-09-22
+
+- HTML-Mails: Kopfzeile ohne „| Kundenportal“, nur der Firmenname
+
 ## 1.5.227 – 2026-09-22
 
 - Marketing: Archiv als eigener Reiter neben Empfänger, Texte und Versand

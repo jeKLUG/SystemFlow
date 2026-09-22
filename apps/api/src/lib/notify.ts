@@ -10,7 +10,7 @@ import {
   type TicketStatus,
 } from "../db/schema.js";
 import { APP_TIMEZONE } from "./dates.js";
-import { loadMailPublic, mailHtml, mailReady, sendMail, isEmail, type MailFact, type MailTone } from "./mail.js";
+import { loadMailPublic, mailHtml, mailReady, sendMail, isEmail, displayMailBrand, type MailFact, type MailTone } from "./mail.js";
 import { appointmentIcs } from "./mailIcs.js";
 import {
   parseCustomerMailNotify,
@@ -79,7 +79,7 @@ async function customerName(db: Db, customerId: string): Promise<string> {
 async function mailCtx(db: Db) {
   const settings = await loadMailPublic(db);
   return {
-    brand: settings.mailFromName?.trim() || "Systemhaus-Ess",
+    brand: displayMailBrand(settings.mailFromName),
     staffHref: (path: string) =>
       settings.mailPublicUrl ? `${settings.mailPublicUrl}${path}` : undefined,
   };
@@ -219,7 +219,6 @@ export async function notifyTicketCreated(db: Db, ticket: Ticket): Promise<void>
       subject: `Ticket ${ticket.number} eingegangen`,
       ...mailHtml({
         brand: ctx.brand,
-        kicker: "Ticket",
         title: "Ihre Anfrage ist eingegangen",
         intro: portalStatusHint.open,
         facts: ticketFacts(ticket, name, "customer", [{ label: "Eingegangen", value: created }]),
@@ -274,7 +273,6 @@ export async function notifyTicketComment(
       subject: `Neues zum Ticket ${ticket.number}`,
       ...mailHtml({
         brand: ctx.brand,
-        kicker: "Ticket",
         title: ticket.title,
         intro: who,
         facts: ticketFacts(ticket, name, "customer"),
@@ -327,7 +325,6 @@ export async function notifyTicketStatus(
       subject: `Ticket ${ticket.number}: ${portalStatusLabel[to]}`,
       ...mailHtml({
         brand: ctx.brand,
-        kicker: "Ticket",
         title: portalStatusLabel[to],
         intro: portalStatusHint[to],
         facts: ticketFacts(ticket, name, "customer", [
@@ -403,7 +400,6 @@ async function notifyAppointment(
         subject: title,
         ...mailHtml({
           brand: ctx.brand,
-          kicker: kind === "appointmentReminder" ? "Erinnerung" : "Termin",
           title: apt.title,
           intro,
           facts: customerFacts,
@@ -482,7 +478,6 @@ export async function notifyMonitoringOpen(db: Db, ticket: Ticket): Promise<void
       subject: `Ticket ${ticket.number}: ${ticket.title}`,
       ...mailHtml({
         brand: ctx.brand,
-        kicker: "Monitoring",
         title: ticket.title,
         intro: "An einem Ihrer Geräte ist eine Warnung aufgetreten. Wir haben automatisch ein Ticket eröffnet.",
         facts: ticketFacts(ticket, name, "customer", [{ label: "Erkannt", value: detected }]),
@@ -528,7 +523,6 @@ export async function notifyMonitoringClose(db: Db, ticket: Ticket, reason: stri
       subject: `Ticket ${ticket.number} erledigt: ${ticket.title}`,
       ...mailHtml({
         brand: ctx.brand,
-        kicker: "Monitoring",
         title: ticket.title,
         intro: "Die Warnung an Ihrem Gerät ist behoben. Das Ticket wurde automatisch geschlossen.",
         facts: ticketFacts(ticket, name, "customer"),
