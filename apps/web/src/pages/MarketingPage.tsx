@@ -61,6 +61,8 @@ export function MarketingPage() {
   const [leadFilter, setLeadFilter] = useState<LeadFilter>("all");
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
+  const [selectedTplId, setSelectedTplId] = useState("");
+  const [tplEditing, setTplEditing] = useState(false);
   const [signatureHtml, setSignatureHtml] = useState("");
   const [signatureSaved, setSignatureSaved] = useState("");
   const [signatureEditing, setSignatureEditing] = useState(false);
@@ -163,6 +165,12 @@ export function MarketingPage() {
   }, [sendTemplates, sendTemplateId]);
 
   useEffect(() => {
+    if (!templates.some((t) => t.id === selectedTplId)) {
+      setSelectedTplId(templates[0]?.id ?? "");
+    }
+  }, [templates, selectedTplId]);
+
+  useEffect(() => {
     if (!msg) return;
     const id = window.setTimeout(() => setMsg(""), 4000);
     return () => window.clearTimeout(id);
@@ -189,6 +197,7 @@ export function MarketingPage() {
 
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
+  const selectedTpl = templates.find((t) => t.id === selectedTplId) ?? null;
 
   function go(next: Tab) {
     setTab(next);
@@ -254,11 +263,14 @@ export function MarketingPage() {
       ctaLabel: tplForm.ctaLabel.trim(),
     };
     try {
-      if (editingTpl) await api.updateMarketingTemplate(editingTpl, body);
-      else await api.createMarketingTemplate(body);
+      const saved = editingTpl
+        ? await api.updateMarketingTemplate(editingTpl, body)
+        : await api.createMarketingTemplate(body);
       const wasEdit = Boolean(editingTpl);
       setTplForm(emptyTpl);
       setEditingTpl(null);
+      setTplEditing(false);
+      setSelectedTplId(saved.id);
       await reloadTemplates();
       setMsg(wasEdit ? "Textbaustein gespeichert" : "Textbaustein angelegt");
     } catch (err) {
@@ -281,8 +293,17 @@ export function MarketingPage() {
     }
   }
 
+  function selectTemplate(tpl: MarketingTemplate) {
+    setSelectedTplId(tpl.id);
+    setTplEditing(false);
+    setEditingTpl(null);
+    setTplForm(emptyTpl);
+  }
+
   function editTemplate(tpl: MarketingTemplate) {
+    setSelectedTplId(tpl.id);
     setEditingTpl(tpl.id);
+    setTplEditing(true);
     setTplForm({
       name: tpl.name,
       kind: tpl.kind,
@@ -295,6 +316,13 @@ export function MarketingPage() {
   }
 
   function newTemplate() {
+    setEditingTpl(null);
+    setTplEditing(true);
+    setTplForm(emptyTpl);
+  }
+
+  function cancelTemplate() {
+    setTplEditing(false);
     setEditingTpl(null);
     setTplForm(emptyTpl);
   }
@@ -362,6 +390,26 @@ export function MarketingPage() {
           .map(([label, n]) => `${n} ${label}`)
           .join(" · ")
       : "";
+
+  function mailPreview(tpl: { subject: string; body: string; ctaLabel?: string | null }) {
+    return (
+      <div className="mkt-letter mkt-letter-full">
+        <p className="mkt-letter-brand">{orgName}</p>
+        <strong>{interpolatePreview(tpl.subject || "Betreff", previewLead)}</strong>
+        <p>{interpolatePreview(tpl.body || "", previewLead)}</p>
+        {tpl.ctaLabel ? <span className="mkt-letter-cta">{tpl.ctaLabel}</span> : null}
+        {signatureHtml.trim() ? (
+          <iframe
+            className="mkt-sig-frame"
+            title="Signatur"
+            sandbox=""
+            srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px 0 0;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+          />
+        ) : null}
+        <p className="mkt-letter-unsub">Abmelden</p>
+      </div>
+    );
+  }
 
   return (
     <div className="page mkt-page">
@@ -445,21 +493,24 @@ export function MarketingPage() {
           <div className="mkt-board-head">
             <div>
               <p className="eyebrow">Empfänger</p>
-              <h3>{selectedList?.name ?? "Liste wählen"}</h3>
+              {lists.length > 1 ? (
+                <select
+                  className="mkt-list-title"
+                  value={listId}
+                  onChange={(e) => setListId(e.target.value)}
+                  aria-label="Liste"
+                >
+                  {lists.map((list) => (
+                    <option key={list.id} value={list.id}>
+                      {list.name} · {list.leadCount}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <h3>{selectedList?.name ?? "Liste wählen"}</h3>
+              )}
             </div>
             <div className="mkt-board-tools">
-              {lists.length > 0 ? (
-                <label className="mkt-list-select">
-                  <span>Liste</span>
-                  <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Liste">
-                    {lists.map((list) => (
-                      <option key={list.id} value={list.id}>
-                        {list.name} ({list.leadCount})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              ) : null}
               {listCreateOpen || lists.length === 0 ? (
                 <form className="mkt-inline" onSubmit={onCreateList}>
                   <input
@@ -496,6 +547,7 @@ export function MarketingPage() {
               <div className="mkt-filters" role="tablist" aria-label="Status">
                 {leadFilters.map((f) => {
                   const n = f.id === "all" ? leads.length : statusCounts[f.id];
+                  if (f.id !== "all" && f.id !== leadFilter && n === 0) return null;
                   return (
                     <button
                       key={f.id}
@@ -575,23 +627,27 @@ export function MarketingPage() {
                       <div className="mkt-row">
                         <div className="mkt-row-main">
                           <strong>{lead.company}</strong>
-                          <div className="mkt-row-meta">
-                            <span className="mkt-chip">{lead.email}</span>
-                            {lead.contactPerson ? <span className="mkt-chip">{lead.contactPerson}</span> : null}
-                            <span className={`mkt-status is-${lead.status}`}>
-                              {marketingStatusLabel[lead.status]}
-                            </span>
-                          </div>
+                          {lead.contactPerson ? <span className="mkt-row-who">{lead.contactPerson}</span> : null}
+                          <a className="mkt-row-mail" href={`mailto:${lead.email}`}>
+                            {lead.email}
+                          </a>
                           {lead.replyNote ? <p className="muted mkt-row-note">{lead.replyNote}</p> : null}
                         </div>
-                        <span className="mkt-row-when">
-                          {formatSentAt(lead.firstSentAt)}
-                          {lead.reminderSentAt ? (
-                            <em>Erinnerung {formatSentAt(lead.reminderSentAt)}</em>
+                        <div className="mkt-row-state">
+                          <span className={`mkt-status is-${lead.status}`}>
+                            {marketingStatusLabel[lead.status]}
+                          </span>
+                          {lead.firstSentAt ? (
+                            <span className="mkt-row-when">
+                              {formatSentAt(lead.firstSentAt)}
+                              {lead.reminderSentAt ? (
+                                <em>Erinnerung {formatSentAt(lead.reminderSentAt)}</em>
+                              ) : null}
+                            </span>
                           ) : null}
-                        </span>
+                        </div>
                         <div className="mkt-row-actions">
-                          {lead.status !== "contact" ? (
+                          {lead.status !== "contact" && lead.status !== "unsubscribed" ? (
                             <button
                               type="button"
                               className="btn btn-ghost btn-sm"
@@ -601,7 +657,7 @@ export function MarketingPage() {
                                 setReplyNote(lead.replyNote ?? "");
                               }}
                             >
-                              {lead.repliedAt ? "Notiz" : "Geantwortet"}
+                              {lead.repliedAt ? "Notiz" : "Antwort"}
                             </button>
                           ) : null}
                           {lead.status === "replied" && !lead.customerId ? (
@@ -622,17 +678,14 @@ export function MarketingPage() {
                           {!lead.doNotContact ? (
                             <button
                               type="button"
-                              className="btn btn-ghost btn-icon"
-                              title="Abmelden"
+                              className="btn btn-ghost btn-sm"
+                              title="Nicht mehr anschreiben"
                               disabled={busyId === lead.id}
                               onClick={() =>
                                 void withLead(lead.id, () => api.setMarketingDoNotContact(lead.id, true))
                               }
                             >
-                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-                                <circle cx="12" cy="12" r="8" />
-                                <path d="M8 12h8" strokeLinecap="round" />
-                              </svg>
+                              Abmelden
                             </button>
                           ) : null}
                           <button
@@ -665,70 +718,68 @@ export function MarketingPage() {
 
       {tab === "templates" ? (
         <>
-          <div className="mkt-split">
-            <section className="panel mkt-board">
-              <div className="mkt-board-head">
-                <div>
-                  <p className="eyebrow">Vorlagen</p>
-                  <h3>Textbausteine</h3>
-                </div>
-                <button type="button" className="btn btn-ghost" onClick={newTemplate}>
-                  Neu
-                </button>
+          <section className="panel mkt-board">
+            <div className="mkt-board-head">
+              <div>
+                <p className="eyebrow">Vorlagen</p>
+                <h3>Textbausteine</h3>
               </div>
-              {templates.length === 0 ? (
-                <div className="mkt-empty">
-                  <strong>Noch kein Text</strong>
-                  <p className="muted">Rechts Erstmail oder Erinnerung schreiben.</p>
-                </div>
-              ) : (
-                <ul className="mkt-tpl-cards">
-                  {templates.map((tpl) => (
-                    <li key={tpl.id}>
-                      <button
-                        type="button"
-                        className={`mkt-tpl-card${editingTpl === tpl.id ? " is-active" : ""}`}
-                        onClick={() => editTemplate(tpl)}
-                      >
-                        <span className={`mkt-status is-${tpl.kind === "reminder" ? "reminded" : "sent"}`}>
-                          {marketingKindLabel[tpl.kind]}
-                        </span>
-                        <strong>{tpl.name}</strong>
-                        <span className="muted">{tpl.subject}</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon"
-                        title="Löschen"
-                        onClick={() => {
-                          if (!window.confirm("Textbaustein löschen?")) return;
-                          void api
-                            .deleteMarketingTemplate(tpl.id)
-                            .then(() => {
-                              if (editingTpl === tpl.id) newTemplate();
-                              return reloadTemplates();
-                            })
-                            .catch((err) =>
-                              setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen"),
-                            );
-                        }}
-                      >
-                        <DeleteIcon />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+              <button type="button" className="btn btn-ghost" onClick={newTemplate}>
+                Neu
+              </button>
+            </div>
 
-            <section className="panel mkt-board">
-              <div className="mkt-board-head">
-                <div>
-                  <p className="eyebrow">{editingTpl ? "Bearbeiten" : "Neu"}</p>
-                  <h3>{editingTpl ? "Text anpassen" : "Textbaustein"}</h3>
-                </div>
-              </div>
+            {templates.length > 0 ? (
+              <ul className="mkt-tpl-picks" role="listbox" aria-label="Textbausteine">
+                {templates.map((tpl) => (
+                  <li key={tpl.id}>
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={selectedTplId === tpl.id && !tplEditing}
+                      className={`mkt-tpl-pick${selectedTplId === tpl.id && !tplEditing ? " is-active" : ""}${
+                        editingTpl === tpl.id ? " is-editing" : ""
+                      }`}
+                      onClick={() => selectTemplate(tpl)}
+                    >
+                      <span className={`mkt-status is-${tpl.kind === "reminder" ? "reminded" : "sent"}`}>
+                        {marketingKindLabel[tpl.kind]}
+                      </span>
+                      <strong>{tpl.name}</strong>
+                      <span className="muted">{tpl.subject}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-icon"
+                      title="Löschen"
+                      onClick={() => {
+                        if (!window.confirm("Textbaustein löschen?")) return;
+                        void api
+                          .deleteMarketingTemplate(tpl.id)
+                          .then(() => {
+                            if (editingTpl === tpl.id) cancelTemplate();
+                            return reloadTemplates();
+                          })
+                          .catch((err) =>
+                            setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen"),
+                          );
+                      }}
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {tplEditing ? (
               <form className="mkt-tpl-form" onSubmit={onSaveTemplate}>
+                <div className="mkt-board-head full">
+                  <div>
+                    <p className="eyebrow">{editingTpl ? "Bearbeiten" : "Neu"}</p>
+                    <h3>{editingTpl ? selectedTpl?.name ?? "Text anpassen" : "Neuer Textbaustein"}</h3>
+                  </div>
+                </div>
                 <label className="field">
                   <span>Name</span>
                   <input
@@ -736,6 +787,7 @@ export function MarketingPage() {
                     value={tplForm.name}
                     onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })}
                     placeholder="z. B. Kaltakquise"
+                    autoFocus
                   />
                 </label>
                 <label className="field">
@@ -787,25 +839,34 @@ export function MarketingPage() {
                   />
                 </label>
                 <div className="mkt-form-actions">
-                  {editingTpl ? (
-                    <button type="button" className="btn btn-ghost" onClick={newTemplate}>
-                      Abbrechen
-                    </button>
-                  ) : null}
+                  <button type="button" className="btn btn-ghost" onClick={cancelTemplate}>
+                    Abbrechen
+                  </button>
                   <button type="submit" className="btn btn-primary">
                     Speichern
                   </button>
                 </div>
               </form>
-              {tplForm.body || tplForm.subject ? (
-                <div className="mkt-letter">
-                  <p className="eyebrow">Vorschau</p>
-                  <strong>{interpolatePreview(tplForm.subject || "Betreff", previewLead)}</strong>
-                  <p>{interpolatePreview(tplForm.body || "", previewLead)}</p>
+            ) : selectedTpl ? (
+              <div className="mkt-letter-stage">
+                <div className="mkt-board-head">
+                  <div>
+                    <p className="eyebrow">So kommt sie an</p>
+                    <h3>{selectedTpl.name}</h3>
+                  </div>
+                  <button type="button" className="btn btn-ghost" onClick={() => editTemplate(selectedTpl)}>
+                    Bearbeiten
+                  </button>
                 </div>
-              ) : null}
-            </section>
-          </div>
+                {mailPreview(selectedTpl)}
+              </div>
+            ) : (
+              <div className="mkt-empty">
+                <strong>Noch kein Text</strong>
+                <p className="muted">Mit Neu eine Erstmail oder Erinnerung anlegen.</p>
+              </div>
+            )}
+          </section>
 
           <section className={`panel mkt-sig${signatureEditing ? " is-editing" : ""}`}>
             <div className="mkt-board-head">
@@ -985,22 +1046,7 @@ export function MarketingPage() {
               </div>
             </div>
             {sendPreviewTpl ? (
-              <div className="mkt-letter">
-                <p className="mkt-letter-brand">{orgName}</p>
-                <strong>{interpolatePreview(sendPreviewTpl.subject, previewLead)}</strong>
-                <p>{interpolatePreview(sendPreviewTpl.body, previewLead)}</p>
-                {sendPreviewTpl.ctaLabel ? (
-                  <span className="mkt-letter-cta">{sendPreviewTpl.ctaLabel}</span>
-                ) : null}
-                {signatureHtml.trim() ? (
-                  <iframe
-                    className="mkt-sig-frame"
-                    title="Signatur"
-                    sandbox=""
-                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px 0 0;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
-                  />
-                ) : null}
-              </div>
+              mailPreview(sendPreviewTpl)
             ) : (
               <div className="mkt-empty">
                 <strong>Kein Text gewählt</strong>

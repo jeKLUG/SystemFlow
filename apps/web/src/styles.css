@@ -21817,28 +21817,22 @@ div.mon-alert-item-main {
   gap: 0.4rem;
 }
 
-.mkt-list-select {
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-}
-
-.mkt-list-select span {
-  font-size: 0.68rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  font-weight: 650;
-  color: var(--text-muted);
-}
-
-.mkt-list-select select {
-  min-height: var(--control-h);
-  padding: 0.45rem 0.75rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-elevated);
+.mkt-list-title {
+  display: block;
+  margin: 0.1rem 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: inherit;
   font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+
+.mkt-list-title:focus {
+  outline: none;
 }
 
 .mkt-inline {
@@ -21903,18 +21897,18 @@ div.mon-alert-item-main {
 
 .mkt-quick {
   display: grid;
-  grid-template-columns: auto minmax(8rem, 1.2fr) minmax(7rem, 1fr) minmax(7rem, 1fr) auto;
-  gap: 0.55rem 0.65rem;
+  grid-template-columns: auto minmax(9rem, 1.1fr) minmax(8rem, 1fr) minmax(8rem, 1fr) auto;
+  gap: 0.5rem 0.55rem;
   align-items: end;
-  margin: 0 0 0.85rem;
-  padding: 0.65rem 0.75rem;
+  margin: 0 0 0.75rem;
+  padding: 0.7rem 0.75rem;
   border-radius: 14px;
 }
 
 .mkt-quick-icon {
   width: 2rem;
   height: 2rem;
-  margin-bottom: 0.2rem;
+  margin-bottom: 0.15rem;
   border-radius: 9px;
   display: inline-flex;
   align-items: center;
@@ -21932,7 +21926,7 @@ div.mon-alert-item-main {
 .mkt-quick-field {
   display: flex;
   flex-direction: column;
-  gap: 0.18rem;
+  gap: 0.22rem;
   min-width: 0;
 }
 
@@ -21945,14 +21939,24 @@ div.mon-alert-item-main {
 }
 
 .mkt-quick input {
-  min-height: 2.35rem;
+  min-height: 2.45rem;
   width: 100%;
-  border: 0;
-  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
   color: var(--text);
   font: inherit;
-  padding: 0;
+  padding: 0 0.7rem;
   outline: none;
+}
+
+.mkt-quick input:focus {
+  border-color: rgba(96, 165, 250, 0.45);
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.mkt-quick input::placeholder {
+  color: rgba(148, 163, 184, 0.55);
 }
 
 .mkt-rows {
@@ -21965,10 +21969,10 @@ div.mon-alert-item-main {
 
 .mkt-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
-  gap: 0.65rem 0.85rem;
+  grid-template-columns: minmax(0, 1.4fr) auto auto;
+  gap: 0.65rem 1rem;
   align-items: center;
-  padding: 0.7rem 0.75rem;
+  padding: 0.85rem 0.9rem;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(0, 0, 0, 0.14);
@@ -21987,23 +21991,28 @@ div.mon-alert-item-main {
 
 .mkt-row-main strong {
   display: block;
-  margin-bottom: 0.28rem;
+  font-size: 0.98rem;
+  letter-spacing: -0.01em;
 }
 
-.mkt-row-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-  align-items: center;
+.mkt-row-who {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.86rem;
+  color: var(--text);
 }
 
-.mkt-chip {
-  font-size: 0.75rem;
+.mkt-row-mail {
+  display: inline-block;
+  margin-top: 0.18rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  padding: 0.1rem 0.45rem;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  text-decoration: none;
+}
+
+.mkt-row-mail:hover {
+  color: var(--accent-bright);
+  text-decoration: underline;
 }
 
 .mkt-row-note {
@@ -22011,8 +22020,16 @@ div.mon-alert-item-main {
   font-size: 0.82rem;
 }
 
+.mkt-row-state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.28rem;
+  min-width: 7.5rem;
+}
+
 .mkt-row-when {
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
   text-align: right;
   white-space: nowrap;
@@ -22021,7 +22038,7 @@ div.mon-alert-item-main {
 .mkt-row-when em {
   display: block;
   font-style: normal;
-  margin-top: 0.15rem;
+  margin-top: 0.1rem;
 }
 
 .mkt-row-actions {
@@ -22071,49 +22088,66 @@ div.mon-alert-item-main {
   grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
 }
 
-.mkt-tpl-cards {
+.mkt-tpl-picks {
   list-style: none;
-  margin: 0;
+  margin: 0 0 1rem;
   padding: 0;
-  display: grid;
-  gap: 0.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
 }
 
-.mkt-tpl-cards li {
+.mkt-tpl-picks li {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.3rem;
+  gap: 0.2rem;
   align-items: stretch;
+  flex: 1 1 15rem;
+  max-width: 22rem;
 }
 
-.mkt-tpl-card {
+.mkt-tpl-pick {
   appearance: none;
   width: 100%;
   text-align: left;
-  padding: 0.7rem 0.75rem;
+  padding: 0.7rem 0.8rem;
   border-radius: 12px;
   border: 1px solid rgba(148, 163, 184, 0.14);
   background: rgba(0, 0, 0, 0.16);
   color: inherit;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-.mkt-tpl-card strong,
-.mkt-tpl-card .muted {
+.mkt-tpl-pick strong,
+.mkt-tpl-pick .muted {
   display: block;
 }
 
-.mkt-tpl-card strong {
-  margin: 0.3rem 0 0.15rem;
+.mkt-tpl-pick strong {
+  margin: 0.28rem 0 0.12rem;
+  font-size: 0.95rem;
 }
 
-.mkt-tpl-card:hover {
+.mkt-tpl-pick .muted {
+  font-size: 0.78rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mkt-tpl-pick:hover {
   border-color: rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-.mkt-tpl-card.is-active {
+.mkt-tpl-pick.is-active {
   border-color: rgba(107, 171, 255, 0.45);
   background: rgba(59, 130, 246, 0.14);
+}
+
+.mkt-tpl-pick.is-editing {
+  border-style: dashed;
 }
 
 .mkt-tpl-form {
@@ -22127,11 +22161,26 @@ div.mon-alert-item-main {
   grid-column: 1 / -1;
 }
 
+.mkt-tpl-form .mkt-board-head {
+  margin-bottom: 0.15rem;
+}
+
 .mkt-form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   margin-top: 0.2rem;
+}
+
+.mkt-letter-stage {
+  padding: 1rem 1rem 1.25rem;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.mkt-letter-stage .mkt-board-head {
+  margin-bottom: 0.85rem;
 }
 
 .mkt-letter {
@@ -22142,6 +22191,11 @@ div.mon-alert-item-main {
   color: #1f2937;
   border: 1px solid rgba(148, 163, 184, 0.2);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.16);
+}
+
+.mkt-letter-full {
+  margin: 0 auto;
+  max-width: 36rem;
 }
 
 .mkt-letter-brand {
@@ -22177,6 +22231,16 @@ div.mon-alert-item-main {
   color: #fff;
   font-size: 0.82rem;
   font-weight: 650;
+}
+
+.mkt-letter-unsub {
+  margin: 1.1rem 0 0 !important;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+  font-size: 0.75rem !important;
+  color: #9ca3af !important;
+  letter-spacing: 0.01em;
 }
 
 .mkt-letter .mkt-sig-frame {
@@ -22320,9 +22384,11 @@ div.mon-alert-item-main {
     grid-template-columns: 1fr;
   }
 
+  .mkt-row-state,
   .mkt-row-when,
   .mkt-row-actions {
     justify-content: flex-start;
+    align-items: flex-start;
     text-align: left;
   }
 

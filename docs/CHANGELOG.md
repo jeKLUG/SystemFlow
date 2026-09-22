@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.212 – 2026-09-22
+
+- Marketing-Vorlagen: Kartenauswahl, volle Mailvorschau; Formular nur nach Bearbeiten oder Neu
+
+## 1.5.211 – 2026-09-22
+
+- Marketing-Mail: Fußzeile nur noch „Abmelden“; Anschrift und Kontakt gehören in die Signatur. Empfängerliste mit klareren Zeilen und Statusfiltern ohne leere Nullen
+
 ## 1.5.210 – 2026-09-22
 
 - Marketing-Signatur: kompakt als Vorschau; HTML-Quelltext nur beim Bearbeiten

@@ -280,18 +280,7 @@ export function signatureHtmlToText(html: string): string {
     .trim();
 }
 
-type MarketingOrg = Pick<
-  OrgSettings,
-  | "orgName"
-  | "orgTagline"
-  | "orgAddress"
-  | "orgZip"
-  | "orgCity"
-  | "orgCountry"
-  | "orgEmail"
-  | "orgPhone"
-  | "marketingSignatureHtml"
->;
+type MarketingOrg = Pick<OrgSettings, "orgName" | "marketingSignatureHtml">;
 
 const MKT_FONT = "Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif";
 const MKT = {
@@ -326,21 +315,9 @@ function bodyParagraphs(text: string): string {
     .join("");
 }
 
-function footerMeta(org?: MarketingOrg | null, brand?: string) {
-  const customName = org?.orgName?.trim() || "";
-  const name = brand?.trim() || customName || "Systemhaus-Ess";
-  const tagline =
-    org?.orgTagline?.trim() || (customName || brand?.trim() ? "" : "IT-Dienstleistungen & Support");
-  const street = org?.orgAddress?.trim() || "";
-  const city = [org?.orgZip?.trim(), org?.orgCity?.trim()].filter(Boolean).join(" ");
-  const country = org?.orgCountry?.trim() && org.orgCountry.trim() !== "DE" ? org.orgCountry.trim() : "";
-  const email = org?.orgEmail?.trim() || "";
-  const phone = org?.orgPhone?.trim() || "";
-  return { name, tagline, street, city, country, email, phone };
-}
-
 /**
  * Helle, schlichte Werbemail (nicht der dunkle Ticket-Look).
+ * Fußzeile nur Abmelden — Anschrift und Kontakt gehören in die Signatur.
  */
 function marketingMailHtml(opts: {
   brand: string;
@@ -351,9 +328,8 @@ function marketingMailHtml(opts: {
   signatureHtml?: string;
   signatureText?: string;
   unsubHref?: string;
-  org?: MarketingOrg | null;
 }): { html: string; text: string } {
-  const meta = footerMeta(opts.org, opts.brand);
+  const brand = opts.brand.trim() || "Systemhaus-Ess";
   const intro = bodyParagraphs(opts.body);
   const btn =
     opts.href && opts.button
@@ -366,22 +342,8 @@ function marketingMailHtml(opts: {
   const signature = opts.signatureHtml?.trim()
     ? `<div style="margin:32px 0 0;padding-top:24px;border-top:1px solid ${MKT.line};font-size:13px;line-height:1.55;color:${MKT.body}">${opts.signatureHtml.trim()}</div>`
     : "";
-
-  const addressBits = [meta.street, meta.city, meta.country].filter(Boolean);
-  const contactBits: string[] = [];
-  if (meta.phone) {
-    contactBits.push(
-      `<a href="tel:${escapeHtml(meta.phone.replace(/[^\d+]/g, "") || meta.phone)}" style="color:${MKT.mute};text-decoration:none">${escapeHtml(meta.phone)}</a>`,
-    );
-  }
-  if (meta.email) {
-    contactBits.push(
-      `<a href="mailto:${escapeHtml(meta.email)}" style="color:${MKT.mute};text-decoration:none">${escapeHtml(meta.email)}</a>`,
-    );
-  }
-
   const unsub = opts.unsubHref
-    ? `<a href="${escapeHtml(opts.unsubHref)}" style="color:${MKT.mute};text-decoration:underline">Keine weiteren Nachrichten</a>`
+    ? `<a href="${escapeHtml(opts.unsubHref)}" style="color:#9ca3af;text-decoration:underline">Abmelden</a>`
     : "";
 
   const html = `<!DOCTYPE html>
@@ -404,7 +366,7 @@ function marketingMailHtml(opts: {
       <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:100%;max-width:560px">
         <tr>
           <td bgcolor="${MKT.card}" style="background:${MKT.card};border:1px solid ${MKT.line};border-radius:12px;padding:36px 40px 32px;font-family:${MKT_FONT}">
-            <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;color:${MKT.mute}">${escapeHtml(meta.name)}</p>
+            <p style="margin:0 0 6px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;color:${MKT.mute}">${escapeHtml(brand)}</p>
             <div style="width:36px;height:2px;background:${MKT.accent};margin:0 0 22px;font-size:0;line-height:0">&nbsp;</div>
             <h1 style="margin:0 0 20px;font-size:22px;line-height:1.35;font-weight:600;color:${MKT.ink};letter-spacing:-0.02em">${escapeHtml(opts.title)}</h1>
             ${intro}
@@ -412,17 +374,15 @@ function marketingMailHtml(opts: {
             ${signature}
           </td>
         </tr>
-        <tr>
-          <td style="padding:22px 12px 8px;font-family:${MKT_FONT};font-size:12px;line-height:1.6;color:${MKT.mute};text-align:center">
-            <p style="margin:0 0 4px;font-weight:600;color:#4b5563">${escapeHtml(meta.name)}</p>
-            ${meta.tagline ? `<p style="margin:0 0 8px">${escapeHtml(meta.tagline)}</p>` : ""}
-            ${addressBits.length ? `<p style="margin:0 0 6px">${escapeHtml(addressBits.join(" · "))}</p>` : ""}
-            ${contactBits.length ? `<p style="margin:0 0 14px">${contactBits.join(" &nbsp;·&nbsp; ")}</p>` : ""}
-            <p style="margin:0;font-size:11px;line-height:1.55;color:#9ca3af">
-              Geschäftliche Nachricht.${unsub ? ` ${unsub}` : ""}
-            </p>
+        ${
+          unsub
+            ? `<tr>
+          <td style="padding:18px 12px 8px;font-family:${MKT_FONT};font-size:12px;line-height:1.6;color:#9ca3af;text-align:center">
+            ${unsub}
           </td>
-        </tr>
+        </tr>`
+            : ""
+        }
       </table>
     </td>
   </tr>
@@ -431,15 +391,12 @@ function marketingMailHtml(opts: {
 </html>`;
 
   const text = [
-    meta.name,
+    brand,
     opts.title,
     opts.body,
     opts.href,
     opts.signatureText,
-    [meta.street, meta.city, meta.country].filter(Boolean).join(", "),
-    [meta.phone, meta.email].filter(Boolean).join(" · "),
-    "Geschäftliche Nachricht.",
-    opts.unsubHref ? `Keine weiteren Nachrichten: ${opts.unsubHref}` : "",
+    opts.unsubHref ? `Abmelden: ${opts.unsubHref}` : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -447,7 +404,7 @@ function marketingMailHtml(opts: {
 }
 
 /**
- * Baut HTML/Text einer Akquise-Mail (hell, schlicht) inkl. Impressum und Abmelde-Link.
+ * Baut HTML/Text einer Akquise-Mail (hell, schlicht) mit Signatur und Abmelde-Link.
  */
 export function buildMarketingMail(opts: {
   template: { subject: string; body: string; ctaUrl?: string | null; ctaLabel?: string | null };
@@ -475,7 +432,6 @@ export function buildMarketingMail(opts: {
     signatureHtml: signatureHtml || undefined,
     signatureText: signatureHtml ? signatureHtmlToText(signatureHtml) : undefined,
     unsubHref,
-    org: opts.org,
   });
   return {
     to: opts.lead.email,
