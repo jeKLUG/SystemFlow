@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.205 – 2026-09-22
+
+- Monitoring Verlauf: Uhrzeiten auf der Achse; Hover mit Vertikalstrich, Uhrzeit und CPU/RAM/Datenträger-Werten
+
 ## 1.5.204 – 2026-09-22
 
 - Monitoring Gerät: CPU/RAM als Aktionskarten mit Hinweis „Prozesse“

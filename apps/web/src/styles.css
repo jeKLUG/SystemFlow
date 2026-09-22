@@ -20177,14 +20177,78 @@ div.mon-alert-item-main {
   color: #bfdbfe;
 }
 
+.mon-linechart-plot {
+  position: relative;
+}
+
 .mon-linechart svg {
   width: 100%;
   height: auto;
+  display: block;
+  cursor: crosshair;
 }
 
 .mon-linechart-tick {
-  fill: rgba(148, 163, 184, 0.75);
+  fill: rgba(148, 163, 184, 0.82);
   font-size: 10px;
+}
+
+.mon-linechart-tip {
+  position: absolute;
+  top: 0.45rem;
+  z-index: 2;
+  min-width: 8.2rem;
+  padding: 0.42rem 0.55rem 0.48rem;
+  border-radius: 10px;
+  background: rgba(8, 13, 22, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  pointer-events: none;
+  transform: translateX(0.55rem);
+}
+
+.mon-linechart-tip.is-left {
+  transform: translateX(calc(-100% - 0.55rem));
+}
+
+.mon-linechart-tip strong {
+  display: block;
+  margin-bottom: 0.28rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: #e2e8f0;
+}
+
+.mon-linechart-tip ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.mon-linechart-tip li {
+  display: grid;
+  grid-template-columns: 0.55rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mon-linechart-tip i {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+}
+
+.mon-linechart-tip em {
+  font-style: normal;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
 }
 
 .mon-linechart-legend {

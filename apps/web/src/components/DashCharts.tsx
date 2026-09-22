@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 
 type Slice = { label: string; value: number; color: string };
@@ -186,12 +186,87 @@ export function ChartLegend({ slices }: { slices: Slice[] }) {
 
 type LinePoint = { t: number; v: number | null };
 
+const HOUR = 3600_000;
+const DAY = 86400_000;
+
+function formatChartTick(t: number, span: number): string {
+  const d = new Date(t);
+  if (span <= 36 * HOUR) {
+    return d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  }
+  if (span <= 8 * DAY) {
+    return d.toLocaleString("de-DE", { weekday: "short", hour: "2-digit", minute: "2-digit" });
+  }
+  return d.toLocaleString("de-DE", { day: "2-digit", month: "2-digit" });
+}
+
+function formatChartTime(t: number, span: number): string {
+  const d = new Date(t);
+  const time = d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+  if (span <= 36 * HOUR) return time;
+  const date = d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" });
+  return `${date} ${time}`;
+}
+
+function timeStep(span: number): number {
+  if (span <= 4 * HOUR) return 30 * 60_000;
+  if (span <= 12 * HOUR) return HOUR;
+  if (span <= 36 * HOUR) return 4 * HOUR;
+  if (span <= 3 * DAY) return 12 * HOUR;
+  if (span <= 10 * DAY) return DAY;
+  if (span <= 20 * DAY) return 2 * DAY;
+  return 7 * DAY;
+}
+
+function timeTicks(tMin: number, tMax: number): number[] {
+  const span = Math.max(1, tMax - tMin);
+  const step = timeStep(span);
+  const out: number[] = [];
+  const start = new Date(tMin);
+  if (step >= DAY) {
+    start.setHours(0, 0, 0, 0);
+  } else {
+    start.setMinutes(0, 0, 0);
+    const hours = step / HOUR;
+    const h = start.getHours();
+    start.setHours(Math.floor(h / hours) * hours);
+  }
+  let t = start.getTime();
+  while (t < tMin) t += step;
+  while (t <= tMax) {
+    out.push(t);
+    t += step;
+    if (out.length > 10) break;
+  }
+  return out;
+}
+
+function nearestValue(points: LinePoint[], t: number, maxDist: number): number | null {
+  let best: number | null = null;
+  let bestD = Infinity;
+  for (const p of points) {
+    if (p.v == null || !Number.isFinite(p.v)) continue;
+    const d = Math.abs(p.t - t);
+    if (d < bestD) {
+      bestD = d;
+      best = p.v;
+    }
+  }
+  return bestD <= maxDist ? best : null;
+}
+
+function sampleGap(points: LinePoint[]): number {
+  if (points.length < 2) return 90_000;
+  const span = points[points.length - 1].t - points[0].t;
+  return Math.max(90_000, (span / (points.length - 1)) * 1.6);
+}
+
 /**
- * Einfaches SVG-Liniendiagramm ohne Chart-Bibliothek.
+ * SVG-Liniendiagramm mit Zeitachse und Hover-Werte-Label.
  */
 export function LineChart({
   series,
-  height = 148,
+  height = 168,
   yMax,
   ySuffix = "",
 }: {
@@ -200,11 +275,12 @@ export function LineChart({
   yMax?: number;
   ySuffix?: string;
 }) {
+  const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
   const width = 640;
-  const padL = 36;
-  const padR = 8;
+  const padL = 38;
+  const padR = 10;
   const padT = 10;
-  const padB = 22;
+  const padB = 28;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
 
@@ -216,6 +292,7 @@ export function LineChart({
   const values = all.map((p) => p.v).filter((v): v is number => v != null && Number.isFinite(v));
   const peak = yMax ?? Math.max(1, ...values, 0);
   const nicePeak = peak <= 100 ? 100 : Math.ceil(peak / 10) * 10;
+  const xTicks = timeTicks(tMin, tMax);
 
   function xOf(t: number) {
     return padL + ((t - tMin) / span) * innerW;
@@ -230,31 +307,121 @@ export function LineChart({
     return usable.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(" ");
   }
 
-  const ticks = [0, 0.5, 1].map((f) => Math.round(nicePeak * f));
+  function onMove(e: MouseEvent<SVGSVGElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (!rect.width) return;
+    const xSvg = ((e.clientX - rect.left) / rect.width) * width;
+    const x = Math.max(padL, Math.min(width - padR, xSvg));
+    const t = tMin + ((x - padL) / innerW) * span;
+    setHover({ x, t });
+  }
+
+  const yTicks = [0, 0.5, 1].map((f) => Math.round(nicePeak * f));
+  const hoverRows = hover
+    ? series.map((s) => ({
+        label: s.label,
+        color: s.color,
+        value: nearestValue(s.points, hover.t, sampleGap(s.points)),
+      }))
+    : [];
+  const tipLeft = hover ? hover.x / width > 0.62 : false;
 
   return (
-    <div className="mon-linechart">
-      <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Verlauf">
-        {ticks.map((tick) => (
-          <g key={tick}>
-            <line
-              x1={padL}
-              x2={width - padR}
-              y1={yOf(tick)}
-              y2={yOf(tick)}
-              stroke="rgba(148,163,184,0.16)"
-              strokeWidth="1"
+    <div className="mon-linechart" onMouseLeave={() => setHover(null)}>
+      <div className="mon-linechart-plot">
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label="Verlauf"
+          onMouseMove={onMove}
+        >
+          {yTicks.map((tick) => (
+            <g key={tick}>
+              <line
+                x1={padL}
+                x2={width - padR}
+                y1={yOf(tick)}
+                y2={yOf(tick)}
+                stroke="rgba(148,163,184,0.16)"
+                strokeWidth="1"
+              />
+              <text x={padL - 6} y={yOf(tick) + 3} textAnchor="end" className="mon-linechart-tick">
+                {tick}
+                {ySuffix}
+              </text>
+            </g>
+          ))}
+          {xTicks.map((tick) => {
+            const x = xOf(tick);
+            const edge = x < padL + 22 ? "start" : x > width - padR - 22 ? "end" : "middle";
+            return (
+              <text
+                key={tick}
+                x={x}
+                y={height - 6}
+                textAnchor={edge}
+                className="mon-linechart-tick"
+              >
+                {formatChartTick(tick, span)}
+              </text>
+            );
+          })}
+          {series.map((s) => (
+            <path
+              key={s.label}
+              d={pathFor(s.points)}
+              fill="none"
+              stroke={s.color}
+              strokeWidth="2.2"
+              strokeLinejoin="round"
             />
-            <text x={padL - 6} y={yOf(tick) + 3} textAnchor="end" className="mon-linechart-tick">
-              {tick}
-              {ySuffix}
-            </text>
-          </g>
-        ))}
-        {series.map((s) => (
-          <path key={s.label} d={pathFor(s.points)} fill="none" stroke={s.color} strokeWidth="2.2" strokeLinejoin="round" />
-        ))}
-      </svg>
+          ))}
+          {hover ? (
+            <g className="mon-linechart-cross" pointerEvents="none">
+              <line
+                x1={hover.x}
+                x2={hover.x}
+                y1={padT}
+                y2={padT + innerH}
+                stroke="rgba(226,232,240,0.72)"
+                strokeWidth="1.2"
+              />
+              {hoverRows.map((row) =>
+                row.value == null ? null : (
+                  <circle
+                    key={row.label}
+                    cx={hover.x}
+                    cy={yOf(row.value)}
+                    r="3.6"
+                    fill={row.color}
+                    stroke="rgba(15,23,42,0.9)"
+                    strokeWidth="1.4"
+                  />
+                ),
+              )}
+            </g>
+          ) : null}
+        </svg>
+        {hover ? (
+          <div
+            className={`mon-linechart-tip${tipLeft ? " is-left" : ""}`}
+            style={{ left: `${(hover.x / width) * 100}%` }}
+          >
+            <strong>{formatChartTime(hover.t, span)}</strong>
+            <ul>
+              {hoverRows.map((row) => (
+                <li key={row.label}>
+                  <i style={{ background: row.color }} aria-hidden />
+                  <span>{row.label}</span>
+                  <em>
+                    {row.value == null ? "–" : `${Math.round(row.value)}${ySuffix}`}
+                  </em>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
       <ul className="mon-linechart-legend">
         {series.map((s) => (
           <li key={s.label}>
