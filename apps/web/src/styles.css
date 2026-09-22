@@ -22037,9 +22037,19 @@ div.mon-alert-item-main {
   outline: none;
 }
 
-.mkt-quick input:focus {
-  border-color: rgba(96, 165, 250, 0.45);
-  background: rgba(0, 0, 0, 0.28);
+.mkt-quick input:focus,
+.mkt-quick input:focus-visible {
+  outline: none;
+  border-color: var(--border);
+  box-shadow: none;
+}
+
+.mkt-page .field input:focus,
+.mkt-page .field select:focus,
+.mkt-page .field textarea:focus {
+  outline: none;
+  border-color: var(--border-strong);
+  box-shadow: none;
 }
 
 .mkt-quick input::placeholder {
@@ -22164,17 +22174,6 @@ div.mon-alert-item-main {
   margin-bottom: 0.3rem;
 }
 
-.mkt-split {
-  display: grid;
-  grid-template-columns: minmax(15rem, 20rem) minmax(0, 1fr);
-  gap: 0.85rem;
-  align-items: start;
-}
-
-.mkt-split-send {
-  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
-}
-
 .mkt-tpl-form {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -22198,6 +22197,7 @@ div.mon-alert-item-main {
 }
 
 .mkt-letter-stage {
+  margin-top: 1rem;
   padding: 1rem 1rem 1.25rem;
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.2);
@@ -22308,9 +22308,11 @@ div.mon-alert-item-main {
   background: #fff;
 }
 
-.mkt-send-stack {
+.mkt-send-bar {
   display: grid;
-  gap: 0.85rem;
+  grid-template-columns: minmax(9rem, 1.1fr) minmax(12rem, auto) minmax(9rem, 1.1fr) auto auto;
+  gap: 0.65rem 0.85rem;
+  align-items: end;
 }
 
 .mkt-kind {
@@ -22350,12 +22352,13 @@ div.mon-alert-item-main {
 .mkt-counts {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
+  gap: 0.4rem;
+  min-width: 10.5rem;
 }
 
 .mkt-counts div {
-  padding: 0.7rem 0.8rem;
-  border-radius: 12px;
+  padding: 0.4rem 0.65rem;
+  border-radius: 10px;
   background: rgba(0, 0, 0, 0.18);
   border: 1px solid rgba(148, 163, 184, 0.12);
 }
@@ -22363,8 +22366,9 @@ div.mon-alert-item-main {
 .mkt-counts strong {
   display: block;
   font-family: var(--font-display);
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   letter-spacing: -0.03em;
+  line-height: 1.1;
 }
 
 .mkt-counts div:first-child strong {
@@ -22373,18 +22377,19 @@ div.mon-alert-item-main {
 
 .mkt-counts span,
 .mkt-skip-summary {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.mkt-skip-summary {
+  margin: 0.55rem 0 0;
 }
 
 .mkt-send-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.45rem;
-}
-
-.mkt-send-actions .btn-primary {
-  flex: 1;
+  justify-content: flex-end;
 }
 
 .mkt-reply-form .mkt-form-actions {
@@ -22400,12 +22405,15 @@ div.mon-alert-item-main {
     display: none;
   }
 
-  .mkt-split,
-  .mkt-split-send,
   .mkt-tpl-form,
+  .mkt-send-bar,
   .mkt-quick,
   .mkt-row {
     grid-template-columns: 1fr;
+  }
+
+  .mkt-send-actions .btn-primary {
+    flex: 1;
   }
 
   .mkt-row-state,

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.218 – 2026-09-22
+
+- Marketing: kein blauer Fokusrahmen an den Eingabefeldern
+
+## 1.5.217 – 2026-09-22
+
+- Marketing-Versand: Kampagne oben als Leiste, Mailvorschau darunter in voller Breite
+
 ## 1.5.216 – 2026-09-22
 
 - Marketing: Listen- und Vorlagenwahl als dunkles Titel-Dropdown statt nativem Select

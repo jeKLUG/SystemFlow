@@ -918,120 +918,116 @@ export function MarketingPage() {
       ) : null}
 
       {tab === "send" ? (
-        <div className="mkt-split mkt-split-send">
-          <section className="panel mkt-board">
-            <div className="mkt-board-head">
-              <div>
-                <p className="eyebrow">Kampagne</p>
-                <h3>Senden</h3>
-              </div>
+        <section className="panel mkt-board">
+          <div className="mkt-board-head">
+            <div>
+              <p className="eyebrow">Kampagne</p>
+              <h3>Senden</h3>
             </div>
-            <div className="mkt-send-stack">
-              <label className="field">
-                <span>1 · Liste</span>
-                <select value={listId} onChange={(e) => setListId(e.target.value)}>
-                  {lists.length === 0 ? <option value="">Keine Liste</option> : null}
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} · {list.leadCount} Empfänger
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <div className="field">
-                <span>2 · Art</span>
-                <div className="mkt-kind" role="tablist" aria-label="Versandart">
-                  <button
-                    type="button"
-                    className={`mkt-kind-btn${sendKind === "first" ? " is-active" : ""}`}
-                    onClick={() => setSendKind("first")}
-                  >
-                    Erstmail
-                  </button>
-                  <button
-                    type="button"
-                    className={`mkt-kind-btn${sendKind === "reminder" ? " is-active" : ""}${
-                      dueCount > 0 ? " is-warn" : ""
-                    }`}
-                    onClick={() => setSendKind("reminder")}
-                  >
-                    Erinnerung{dueCount ? ` · ${dueCount}` : ""}
-                  </button>
-                </div>
-              </div>
-              <label className="field">
-                <span>3 · Text</span>
-                <select value={sendTemplateId} onChange={(e) => setSendTemplateId(e.target.value)}>
-                  {sendTemplates.length === 0 ? (
-                    <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
-                  ) : null}
-                  {sendTemplates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {preview ? (
-                <div className="mkt-counts">
-                  <div>
-                    <strong>{preview.sendCount}</strong>
-                    <span>gehen raus</span>
-                  </div>
-                  <div>
-                    <strong>{preview.skipCount}</strong>
-                    <span>bleiben draußen</span>
-                  </div>
-                </div>
-              ) : null}
-              {skipSummary ? <p className="muted mkt-skip-summary">{skipSummary}</p> : null}
-              <div className="mkt-send-actions">
+          </div>
+          <div className="mkt-send-bar">
+            <label className="field">
+              <span>Liste</span>
+              <select value={listId} onChange={(e) => setListId(e.target.value)}>
+                {lists.length === 0 ? <option value="">Keine Liste</option> : null}
+                {lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.name} · {list.leadCount} Empfänger
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="field">
+              <span>Art</span>
+              <div className="mkt-kind" role="tablist" aria-label="Versandart">
                 <button
                   type="button"
-                  className="btn btn-ghost"
-                  disabled={sending || !sendTemplateId}
-                  onClick={() => void onTest()}
+                  className={`mkt-kind-btn${sendKind === "first" ? " is-active" : ""}`}
+                  onClick={() => setSendKind("first")}
                 >
-                  Test an mich
+                  Erstmail
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary"
-                  disabled={sending || !listId || !sendTemplateId || !preview?.sendCount}
-                  onClick={() => void onSend(sendKind)}
+                  className={`mkt-kind-btn${sendKind === "reminder" ? " is-active" : ""}${
+                    dueCount > 0 ? " is-warn" : ""
+                  }`}
+                  onClick={() => setSendKind("reminder")}
                 >
-                  {sending
-                    ? "Sende…"
-                    : sendKind === "first"
-                      ? "Erstmail senden"
-                      : "Erinnerung senden"}
+                  Erinnerung{dueCount ? ` · ${dueCount}` : ""}
                 </button>
               </div>
-              {!sendTemplateId ? (
-                <p className="muted">
-                  Unter Texte zuerst einen {marketingKindLabel[sendKind]}-Baustein anlegen.
-                </p>
-              ) : null}
             </div>
-          </section>
+            <label className="field">
+              <span>Text</span>
+              <select value={sendTemplateId} onChange={(e) => setSendTemplateId(e.target.value)}>
+                {sendTemplates.length === 0 ? (
+                  <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
+                ) : null}
+                {sendTemplates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {preview ? (
+              <div className="mkt-counts">
+                <div>
+                  <strong>{preview.sendCount}</strong>
+                  <span>gehen raus</span>
+                </div>
+                <div>
+                  <strong>{preview.skipCount}</strong>
+                  <span>bleiben draußen</span>
+                </div>
+              </div>
+            ) : null}
+            <div className="mkt-send-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={sending || !sendTemplateId}
+                onClick={() => void onTest()}
+              >
+                Test an mich
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                disabled={sending || !listId || !sendTemplateId || !preview?.sendCount}
+                onClick={() => void onSend(sendKind)}
+              >
+                {sending
+                  ? "Sende…"
+                  : sendKind === "first"
+                    ? "Erstmail senden"
+                    : "Erinnerung senden"}
+              </button>
+            </div>
+          </div>
+          {skipSummary ? <p className="muted mkt-skip-summary">{skipSummary}</p> : null}
+          {!sendTemplateId ? (
+            <p className="muted">Unter Texte zuerst einen {marketingKindLabel[sendKind]}-Baustein anlegen.</p>
+          ) : null}
 
-          <section className="panel mkt-board">
-            <div className="mkt-board-head">
-              <div>
-                <p className="eyebrow">Empfänger sieht</p>
-                <h3>Vorschau</h3>
+          {sendPreviewTpl ? (
+            <div className="mkt-letter-stage">
+              <div className="mkt-board-head">
+                <div>
+                  <p className="eyebrow">Empfänger sieht</p>
+                  <h3>Vorschau</h3>
+                </div>
               </div>
+              {mailPreview(sendPreviewTpl)}
             </div>
-            {sendPreviewTpl ? (
-              mailPreview(sendPreviewTpl)
-            ) : (
-              <div className="mkt-empty">
-                <strong>Kein Text gewählt</strong>
-                <p className="muted">Lege unter Texte einen Baustein an.</p>
-              </div>
-            )}
-          </section>
-        </div>
+          ) : (
+            <div className="mkt-empty">
+              <strong>Kein Text gewählt</strong>
+              <p className="muted">Lege unter Texte einen Baustein an.</p>
+            </div>
+          )}
+        </section>
       ) : null}
 
       <Modal open={Boolean(replyLead)} title="Rückmeldung" onClose={() => setReplyLead(null)}>
