@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DeleteIcon } from "../components/Icons";
+import { HelpHint } from "../components/HelpHint";
 import { Modal } from "../components/Modal";
 import {
   formatSentAt,
@@ -429,8 +430,10 @@ export function MarketingPage() {
         <div className="mkt-hero-top">
           <div>
             <p className="eyebrow">Akquise</p>
-            <h2>Marketing</h2>
-            <p className="muted">Empfänger listen, Texte pflegen, Erstmail und Erinnerung senden — getrennt von Kontakten.</p>
+            <div className="page-head-title">
+              <h2>Marketing</h2>
+              <HelpHint text="Empfänger listen, Texte pflegen, Erstmail und Erinnerung senden — getrennt von Kontakten." />
+            </div>
           </div>
           {dueCount > 0 ? (
             <button type="button" className="btn btn-primary" onClick={() => go("send")}>
@@ -506,18 +509,16 @@ export function MarketingPage() {
             <div>
               <p className="eyebrow">Empfänger</p>
               {lists.length > 1 ? (
-                <select
-                  className="mkt-list-title"
+                <MktTitleMenu
+                  ariaLabel="Liste"
                   value={listId}
-                  onChange={(e) => setListId(e.target.value)}
-                  aria-label="Liste"
-                >
-                  {lists.map((list) => (
-                    <option key={list.id} value={list.id}>
-                      {list.name} · {list.leadCount}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setListId}
+                  items={lists.map((list) => ({
+                    id: list.id,
+                    label: list.name,
+                    hint: `${list.leadCount} Empfänger`,
+                  }))}
+                />
               ) : (
                 <h3>{selectedList?.name ?? "Liste wählen"}</h3>
               )}
@@ -735,21 +736,20 @@ export function MarketingPage() {
               <div>
                 <p className="eyebrow">Vorlagen</p>
                 {templates.length > 0 ? (
-                  <select
-                    className="mkt-list-title"
+                  <MktTitleMenu
+                    ariaLabel="Textbaustein"
                     value={selectedTplId}
-                    onChange={(e) => {
-                      const tpl = templates.find((t) => t.id === e.target.value);
+                    onChange={(id) => {
+                      const tpl = templates.find((t) => t.id === id);
                       if (tpl) selectTemplate(tpl);
                     }}
-                    aria-label="Textbaustein"
-                  >
-                    {templates.map((tpl) => (
-                      <option key={tpl.id} value={tpl.id}>
-                        {marketingKindLabel[tpl.kind]} · {tpl.name}
-                      </option>
-                    ))}
-                  </select>
+                    items={templates.map((tpl) => ({
+                      id: tpl.id,
+                      label: tpl.name,
+                      hint: marketingKindLabel[tpl.kind],
+                      status: tpl.kind === "reminder" ? "reminded" : "sent",
+                    }))}
+                  />
                 ) : (
                   <h3>Textbausteine</h3>
                 )}
@@ -895,19 +895,6 @@ export function MarketingPage() {
                     spellCheck={false}
                   />
                 </label>
-                <div className="mkt-sig-live">
-                  <span className="eyebrow">Vorschau</span>
-                  {signatureHtml.trim() ? (
-                    <iframe
-                      className="mkt-sig-frame"
-                      title="Signatur-Vorschau"
-                      sandbox=""
-                      srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
-                    />
-                  ) : (
-                    <p className="empty">Noch leer.</p>
-                  )}
-                </div>
                 <div className="mkt-form-actions">
                   <button
                     type="button"
@@ -925,16 +912,7 @@ export function MarketingPage() {
                   </button>
                 </div>
               </form>
-            ) : signatureSaved.trim() ? (
-              <iframe
-                className="mkt-sig-frame"
-                title="Signatur"
-                sandbox=""
-                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px 12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureSaved}</body></html>`}
-              />
-            ) : (
-              <p className="muted">Noch keine Signatur. Über Einfügen Outlook-HTML einfügen.</p>
-            )}
+            ) : null}
           </section>
         </>
       ) : null}
@@ -1091,6 +1069,93 @@ export function MarketingPage() {
           </form>
         ) : null}
       </Modal>
+    </div>
+  );
+}
+
+type MktTitleMenuItem = {
+  id: string;
+  label: string;
+  hint?: string;
+  status?: "sent" | "reminded";
+};
+
+/**
+ * Dunkles Titel-Dropdown statt nativem Select (Listen und Textbausteine).
+ */
+function MktTitleMenu({
+  items,
+  value,
+  onChange,
+  ariaLabel,
+  placeholder = "Wählen",
+}: {
+  items: MktTitleMenuItem[];
+  value: string;
+  onChange: (id: string) => void;
+  ariaLabel: string;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const selected = items.find((item) => item.id === value);
+
+  useEffect(() => {
+    if (!open) return;
+    function onDoc(e: MouseEvent) {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDoc);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={`mkt-title-menu${open ? " is-open" : ""}`} ref={rootRef}>
+      <button
+        type="button"
+        className="mkt-title-menu-btn"
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="mkt-title-menu-value">{selected?.label ?? placeholder}</span>
+        <svg className="mkt-title-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open ? (
+        <ul className="mkt-title-menu-list" role="listbox" aria-label={ariaLabel}>
+          {items.map((item) => (
+            <li key={item.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={item.id === value}
+                className={`mkt-title-menu-item${item.id === value ? " is-active" : ""}`}
+                onClick={() => {
+                  onChange(item.id);
+                  setOpen(false);
+                }}
+              >
+                {item.hint ? (
+                  <span className={item.status ? `mkt-status is-${item.status}` : "mkt-title-menu-hint"}>
+                    {item.hint}
+                  </span>
+                ) : null}
+                <strong>{item.label}</strong>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

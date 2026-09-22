@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.216 – 2026-09-22
+
+- Marketing: Listen- und Vorlagenwahl als dunkles Titel-Dropdown statt nativem Select
+
+## 1.5.215 – 2026-09-22
+
+- Marketing-Signatur: nur Bearbeiten; Anzeige bleibt in der Mailvorschau
+
+## 1.5.214 – 2026-09-22
+
+- Marketing: Hilfetext neben der Überschrift im Kreis statt als Unterzeile
+
 ## 1.5.213 – 2026-09-22
 
 - Marketing-Vorlagen: Auswahl als Titel-Dropdown wie bei den Listen
