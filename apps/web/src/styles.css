@@ -21701,7 +21701,7 @@ div.mon-alert-item-main {
 
 .mkt-views {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0.45rem;
 }
 
@@ -22247,10 +22247,26 @@ div.mon-alert-item-main {
   justify-content: flex-end;
 }
 
-.mkt-row-actions .btn-sm {
+.mkt-row-actions .btn-sm,
+.mkt-row-actions .btn-icon {
   min-height: 1.7rem;
+  height: 1.7rem;
+}
+
+.mkt-row-actions .btn-sm {
   padding: 0 0.45rem;
   font-size: 0.75rem;
+}
+
+.mkt-row-actions .btn-icon {
+  width: 1.7rem;
+  min-width: 1.7rem;
+  padding: 0;
+}
+
+.mkt-row-actions .btn-icon svg {
+  width: 0.92rem;
+  height: 0.92rem;
 }
 
 .mkt-status {
@@ -22519,7 +22535,7 @@ div.mon-alert-item-main {
 
 @media (max-width: 960px) {
   .mkt-views {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .mkt-view-icon {

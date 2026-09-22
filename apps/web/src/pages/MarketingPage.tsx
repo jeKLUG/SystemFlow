@@ -19,7 +19,7 @@ import type {
   MarketingTemplateKind,
 } from "../types";
 
-type Tab = "leads" | "templates" | "send";
+type Tab = "leads" | "archive" | "templates" | "send";
 type LeadFilter = "all" | MarketingLeadStatus;
 
 const emptyLead = { email: "", company: "", contactPerson: "" };
@@ -96,7 +96,6 @@ export function MarketingPage() {
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [leadFilter, setLeadFilter] = useState<LeadFilter>("all");
   const [leadQuery, setLeadQuery] = useState("");
-  const [listScope, setListScope] = useState<"active" | "archive">("active");
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
   const [selectedTplId, setSelectedTplId] = useState("");
@@ -117,7 +116,8 @@ export function MarketingPage() {
   const [sending, setSending] = useState(false);
 
   const dueCount = lists.reduce((n, l) => n + l.dueCount, 0);
-  const leadTotal = lists.reduce((n, l) => n + l.leadCount, 0);
+  const activeLeadTotal = lists.filter((l) => !l.archivedAt).reduce((n, l) => n + l.leadCount, 0);
+  const archivedListCount = lists.filter((l) => l.archivedAt).length;
 
   async function reloadLists(preferId?: string) {
     const next = await api.marketingLists();
@@ -127,8 +127,6 @@ export function MarketingPage() {
         ? preferId
         : next.find((l) => !l.archivedAt)?.id ?? next[0]?.id ?? "";
     setListId(keep);
-    const kept = next.find((l) => l.id === keep);
-    setListScope(kept?.archivedAt ? "archive" : "active");
     return keep;
   }
 
@@ -246,22 +244,22 @@ export function MarketingPage() {
 
   const activeLists = useMemo(() => lists.filter((list) => !list.archivedAt), [lists]);
   const archivedLists = useMemo(() => lists.filter((list) => list.archivedAt), [lists]);
-  const scopedLists = listScope === "archive" ? archivedLists : activeLists;
+  const scopedLists = tab === "archive" ? archivedLists : activeLists;
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
   const selectedTpl = templates.find((t) => t.id === selectedTplId) ?? null;
   const selectedList = lists.find((l) => l.id === listId) ?? null;
   const listLocked = Boolean(selectedList?.hasSends || selectedList?.archivedAt);
 
-  function goListScope(next: "active" | "archive") {
-    setListScope(next);
-    const pool = next === "archive" ? archivedLists : activeLists;
-    if (!pool.some((list) => list.id === listId)) setListId(pool[0]?.id ?? "");
-  }
-
   function go(next: Tab) {
     setTab(next);
     if (next === "send" && dueCount > 0) setSendKind("reminder");
+    if (next === "leads" && (!listId || selectedList?.archivedAt)) {
+      setListId(activeLists[0]?.id ?? "");
+    }
+    if (next === "archive" && (!listId || !selectedList?.archivedAt)) {
+      setListId(archivedLists[0]?.id ?? "");
+    }
   }
 
   async function onCreateList(e: FormEvent) {
@@ -299,6 +297,7 @@ export function MarketingPage() {
     try {
       await api.archiveMarketingList(listId);
       await reloadLists(listId);
+      setTab("archive");
       setMsg("Liste archiviert");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Archivieren fehlgeschlagen");
@@ -311,6 +310,7 @@ export function MarketingPage() {
     try {
       await api.unarchiveMarketingList(listId);
       await reloadLists(listId);
+      setTab("leads");
       setMsg("Liste wieder aktiv");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Aktivieren fehlgeschlagen");
@@ -541,7 +541,25 @@ export function MarketingPage() {
             </span>
             <span className="mkt-view-label">
               <strong>Empfänger</strong>
-              <em>{leadTotal}</em>
+              <em>{activeLeadTotal}</em>
+            </span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "archive"}
+            className={`mkt-view${tab === "archive" ? " is-active" : ""}`}
+            onClick={() => go("archive")}
+          >
+            <span className="mkt-view-icon" aria-hidden>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+                <path d="M4 8h16v11H4z" strokeLinejoin="round" />
+                <path d="M9 8V6.8A1.8 1.8 0 0 1 10.8 5h2.4A1.8 1.8 0 0 1 15 6.8V8M8 13h8" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="mkt-view-label">
+              <strong>Archiv</strong>
+              <em>{archivedListCount}</em>
             </span>
           </button>
           <button
@@ -586,47 +604,19 @@ export function MarketingPage() {
       {error ? <p className="form-error">{error}</p> : null}
       {msg ? <p className="form-success">{msg}</p> : null}
 
-      {tab === "leads" ? (
+      {tab === "leads" || tab === "archive" ? (
         <section className="panel mkt-board">
           <div className="mkt-board-head">
             <div className="mkt-board-lead">
-              {lists.length > 0 ? (
-                <>
-                  <div className="mkt-filters" role="tablist" aria-label="Listen">
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={listScope === "active"}
-                      className={`mkt-filter${listScope === "active" ? " is-active" : ""}`}
-                      onClick={() => goListScope("active")}
-                    >
-                      Aktiv
-                      <em>{activeLists.length}</em>
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={listScope === "archive"}
-                      className={`mkt-filter${listScope === "archive" ? " is-active" : ""}`}
-                      onClick={() => goListScope("archive")}
-                    >
-                      Archiv
-                      <em>{archivedLists.length}</em>
-                    </button>
-                  </div>
-                  {scopedLists.length > 0 ? (
-                    <MktTitleMenu
-                      ariaLabel={listScope === "archive" ? "Archivierte Liste" : "Liste"}
-                      value={listId}
-                      onChange={setListId}
-                      items={listMenuItems(scopedLists)}
-                    />
-                  ) : (
-                    <h3>{listScope === "archive" ? "Archiv" : "Liste wählen"}</h3>
-                  )}
-                </>
+              {scopedLists.length > 0 ? (
+                <MktTitleMenu
+                  ariaLabel={tab === "archive" ? "Archivierte Liste" : "Liste"}
+                  value={listId}
+                  onChange={setListId}
+                  items={listMenuItems(scopedLists)}
+                />
               ) : (
-                <h3>Liste wählen</h3>
+                <h3>{tab === "archive" ? "Archiv" : "Liste wählen"}</h3>
               )}
               {listId ? (
                 <div className="mkt-filters" role="tablist" aria-label="Status">
@@ -653,7 +643,8 @@ export function MarketingPage() {
               ) : null}
             </div>
             <div className="mkt-board-tools">
-              {listCreateOpen || lists.length === 0 ? (
+              {tab !== "archive" ? (
+                listCreateOpen || lists.length === 0 ? (
                 <form className="mkt-inline" onSubmit={onCreateList}>
                   <input
                     value={listName}
@@ -675,7 +666,8 @@ export function MarketingPage() {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListCreateOpen(true)}>
                   Neue Liste
                 </button>
-              )}
+              )
+              ) : null}
               {selectedList?.archivedAt ? (
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => void onUnarchiveList()}>
                   Aktivieren
@@ -859,9 +851,9 @@ export function MarketingPage() {
             </>
           ) : (
             <div className="mkt-empty">
-              <strong>{listScope === "archive" ? "Noch nichts im Archiv" : "Zuerst eine Liste"}</strong>
+              <strong>{tab === "archive" ? "Noch nichts im Archiv" : "Zuerst eine Liste"}</strong>
               <p className="muted">
-                {listScope === "archive"
+                {tab === "archive"
                   ? "Nach dem Versand (oder über Archivieren) erscheint die Liste hier — mit Datum, was rausging."
                   : "z. B. „Handwerk September“ oder „Kaltakquise NRW“."}
               </p>

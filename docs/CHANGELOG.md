@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.227 – 2026-09-22
+
+- Marketing: Archiv als eigener Reiter neben Empfänger, Texte und Versand
+
+## 1.5.226 – 2026-09-22
+
+- Marketing-Empfänger: Löschen-Button gleiche Höhe wie Antwort und Abmelden
+
 ## 1.5.225 – 2026-09-22
 
 - Marketing: Archiv als Umschalter neben den Listen (Aktiv / Archiv), nicht nur versteckt im Dropdown
