@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.224 – 2026-09-22
+
+- Marketing-Empfänger: lange Listen scrollbar im eigenen Bereich, durchsuchbar nach Firma, Person und E-Mail
+
 ## 1.5.223 – 2026-09-22
 
 - Marketing-Listen: kompakte Empfängerzeilen; versendete Listen ins Archiv (nicht löschbar), Versanddatum in der Auswahl

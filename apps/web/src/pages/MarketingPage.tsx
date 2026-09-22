@@ -95,6 +95,7 @@ export function MarketingPage() {
   const [listCreateOpen, setListCreateOpen] = useState(false);
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [leadFilter, setLeadFilter] = useState<LeadFilter>("all");
+  const [leadQuery, setLeadQuery] = useState("");
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
   const [selectedTplId, setSelectedTplId] = useState("");
@@ -175,6 +176,7 @@ export function MarketingPage() {
       setLeads([]);
       return;
     }
+    setLeadQuery("");
     void reloadLeads(listId).catch((err) =>
       setError(err instanceof Error ? err.message : "Leads konnten nicht geladen werden"),
     );
@@ -228,10 +230,16 @@ export function MarketingPage() {
     return counts;
   }, [leads]);
 
-  const visibleLeads = useMemo(
-    () => (leadFilter === "all" ? leads : leads.filter((l) => l.status === leadFilter)),
-    [leads, leadFilter],
-  );
+  const visibleLeads = useMemo(() => {
+    const needle = leadQuery.trim().toLowerCase();
+    return leads.filter((lead) => {
+      if (leadFilter !== "all" && lead.status !== leadFilter) return false;
+      if (!needle) return true;
+      return [lead.company, lead.contactPerson, lead.email, lead.replyNote].some((part) =>
+        part?.toLowerCase().includes(needle),
+      );
+    });
+  }, [leads, leadFilter, leadQuery]);
 
   const previewLead = leads[0] ?? { company: "Muster GmbH", contactPerson: "Max Mustermann" };
   const sendPreviewTpl = templates.find((t) => t.id === sendTemplateId) ?? null;
@@ -684,18 +692,41 @@ export function MarketingPage() {
 
               {loading ? (
                 <p className="empty">Lade…</p>
-              ) : visibleLeads.length === 0 ? (
+              ) : leads.length === 0 ? (
                 <div className="mkt-empty">
-                  <strong>{leads.length === 0 ? "Noch keine Empfänger" : "Keine Treffer"}</strong>
-                  <p className="muted">
-                    {leads.length === 0
-                      ? "E-Mail, Firma und optional den Ansprechpartner eintragen."
-                      : "Anderen Status wählen oder Filter auf „Alle“."}
-                  </p>
+                  <strong>Noch keine Empfänger</strong>
+                  <p className="muted">E-Mail, Firma und optional den Ansprechpartner eintragen.</p>
                 </div>
               ) : (
-                <ul className="mkt-rows">
-                  {visibleLeads.map((lead) => (
+                <>
+                  <div className="mkt-lead-toolbar">
+                    <input
+                      className="mkt-lead-search"
+                      value={leadQuery}
+                      onChange={(e) => setLeadQuery(e.target.value)}
+                      placeholder="Suchen…"
+                      aria-label="Empfänger suchen"
+                    />
+                    {leadQuery.trim() ? (
+                      <span className="muted">
+                        {visibleLeads.length} von{" "}
+                        {leadFilter === "all" ? leads.length : statusCounts[leadFilter]}
+                      </span>
+                    ) : null}
+                  </div>
+                  {visibleLeads.length === 0 ? (
+                    <div className="mkt-empty">
+                      <strong>Keine Treffer</strong>
+                      <p className="muted">
+                        {leadQuery.trim()
+                          ? "Suche anpassen oder Filter auf „Alle“."
+                          : "Anderen Status wählen oder Filter auf „Alle“."}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mkt-rows-pane">
+                      <ul className="mkt-rows">
+                        {visibleLeads.map((lead) => (
                     <li
                       key={lead.id}
                       className={`${busyId === lead.id ? "is-busy" : ""}${
@@ -781,6 +812,9 @@ export function MarketingPage() {
                     </li>
                   ))}
                 </ul>
+                    </div>
+                  )}
+                </>
               )}
             </>
           ) : (
