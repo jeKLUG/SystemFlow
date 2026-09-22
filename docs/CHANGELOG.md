@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.222 – 2026-09-22
+
+- Marketing-Texte: Vorschau ohne „So kommt sie an“; Vorlagenwahl wie die Empfängerliste (Name · Art, Betreff, Gruppen)
+
+## 1.5.221 – 2026-09-22
+
+- Marketing-Vorlagen: ohne „So kommt sie an“; Dropdown mit Art, Name und Betreff; Versand nutzt dasselbe Menü wie die Listen
+
+## 1.5.220 – 2026-09-22
+
+- Marketing-Empfänger: kompakte Kopfzeile mit Filtern, schlanke Schnelleingabe, dichtere Zeilen
+
 ## 1.5.219 – 2026-09-22
 
 - Marketing-Versand: kompakte Leiste ohne Extra-Überschriften, Zähler als eine Zeile

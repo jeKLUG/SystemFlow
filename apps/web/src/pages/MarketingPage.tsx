@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api";
 import { DeleteIcon } from "../components/Icons";
@@ -79,7 +79,6 @@ export function MarketingPage() {
   const [preview, setPreview] = useState<MarketingPreview | null>(null);
   const [sending, setSending] = useState(false);
 
-  const selectedList = lists.find((l) => l.id === listId) ?? null;
   const dueCount = lists.reduce((n, l) => n + l.dueCount, 0);
   const leadTotal = lists.reduce((n, l) => n + l.leadCount, 0);
 
@@ -506,9 +505,8 @@ export function MarketingPage() {
       {tab === "leads" ? (
         <section className="panel mkt-board">
           <div className="mkt-board-head">
-            <div>
-              <p className="eyebrow">Empfänger</p>
-              {lists.length > 1 ? (
+            <div className="mkt-board-lead">
+              {lists.length > 0 ? (
                 <MktTitleMenu
                   ariaLabel="Liste"
                   value={listId}
@@ -516,12 +514,35 @@ export function MarketingPage() {
                   items={lists.map((list) => ({
                     id: list.id,
                     label: list.name,
-                    hint: `${list.leadCount} Empfänger`,
+                    hint: String(list.leadCount),
                   }))}
                 />
               ) : (
-                <h3>{selectedList?.name ?? "Liste wählen"}</h3>
+                <h3>Liste wählen</h3>
               )}
+              {listId ? (
+                <div className="mkt-filters" role="tablist" aria-label="Status">
+                  {leadFilters.map((f) => {
+                    const n = f.id === "all" ? leads.length : statusCounts[f.id];
+                    if (f.id !== "all" && f.id !== leadFilter && n === 0) return null;
+                    return (
+                      <button
+                        key={f.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={leadFilter === f.id}
+                        className={`mkt-filter${leadFilter === f.id ? " is-active" : ""}${
+                          f.id === "reminder_due" && n > 0 ? " is-warn" : ""
+                        }`}
+                        onClick={() => setLeadFilter(f.id)}
+                      >
+                        {f.label}
+                        <em>{n}</em>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
             <div className="mkt-board-tools">
               {listCreateOpen || lists.length === 0 ? (
@@ -533,17 +554,17 @@ export function MarketingPage() {
                     aria-label="Listenname"
                     autoFocus
                   />
-                  <button type="submit" className="btn btn-primary" disabled={!listName.trim()}>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={!listName.trim()}>
                     Anlegen
                   </button>
                   {lists.length > 0 ? (
-                    <button type="button" className="btn btn-ghost" onClick={() => setListCreateOpen(false)}>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListCreateOpen(false)}>
                       Abbrechen
                     </button>
                   ) : null}
                 </form>
               ) : (
-                <button type="button" className="btn btn-ghost" onClick={() => setListCreateOpen(true)}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListCreateOpen(true)}>
                   Neue Liste
                 </button>
               )}
@@ -557,62 +578,29 @@ export function MarketingPage() {
 
           {listId ? (
             <>
-              <div className="mkt-filters" role="tablist" aria-label="Status">
-                {leadFilters.map((f) => {
-                  const n = f.id === "all" ? leads.length : statusCounts[f.id];
-                  if (f.id !== "all" && f.id !== leadFilter && n === 0) return null;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={leadFilter === f.id}
-                      className={`mkt-filter${leadFilter === f.id ? " is-active" : ""}${
-                        f.id === "reminder_due" && n > 0 ? " is-warn" : ""
-                      }`}
-                      onClick={() => setLeadFilter(f.id)}
-                    >
-                      {f.label}
-                      <em>{n}</em>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <form className="mkt-quick panel" onSubmit={onAddLead}>
-                <span className="mkt-quick-icon" aria-hidden>
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9">
-                    <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-                  </svg>
-                </span>
-                <label className="mkt-quick-field">
-                  <span>E-Mail</span>
-                  <input
-                    type="email"
-                    required
-                    value={leadForm.email}
-                    onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
-                    placeholder="name@firma.de"
-                  />
-                </label>
-                <label className="mkt-quick-field">
-                  <span>Firma</span>
-                  <input
-                    required
-                    value={leadForm.company}
-                    onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })}
-                    placeholder="Muster GmbH"
-                  />
-                </label>
-                <label className="mkt-quick-field">
-                  <span>Ansprechpartner</span>
-                  <input
-                    value={leadForm.contactPerson}
-                    onChange={(e) => setLeadForm({ ...leadForm, contactPerson: e.target.value })}
-                    placeholder="optional"
-                  />
-                </label>
-                <button type="submit" className="btn btn-primary">
+              <form className="mkt-quick" onSubmit={onAddLead}>
+                <input
+                  type="email"
+                  required
+                  value={leadForm.email}
+                  onChange={(e) => setLeadForm({ ...leadForm, email: e.target.value })}
+                  placeholder="E-Mail"
+                  aria-label="E-Mail"
+                />
+                <input
+                  required
+                  value={leadForm.company}
+                  onChange={(e) => setLeadForm({ ...leadForm, company: e.target.value })}
+                  placeholder="Firma"
+                  aria-label="Firma"
+                />
+                <input
+                  value={leadForm.contactPerson}
+                  onChange={(e) => setLeadForm({ ...leadForm, contactPerson: e.target.value })}
+                  placeholder="Ansprechpartner"
+                  aria-label="Ansprechpartner"
+                />
+                <button type="submit" className="btn btn-primary btn-sm">
                   Hinzufügen
                 </button>
               </form>
@@ -733,8 +721,7 @@ export function MarketingPage() {
         <>
           <section className="panel mkt-board">
             <div className="mkt-board-head">
-              <div>
-                <p className="eyebrow">Vorlagen</p>
+              <div className="mkt-board-lead">
                 {templates.length > 0 ? (
                   <MktTitleMenu
                     ariaLabel="Textbaustein"
@@ -743,19 +730,27 @@ export function MarketingPage() {
                       const tpl = templates.find((t) => t.id === id);
                       if (tpl) selectTemplate(tpl);
                     }}
-                    items={templates.map((tpl) => ({
-                      id: tpl.id,
-                      label: tpl.name,
-                      hint: marketingKindLabel[tpl.kind],
-                      status: tpl.kind === "reminder" ? "reminded" : "sent",
-                    }))}
+                    items={[...templates]
+                      .sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, "de"))
+                      .map((tpl) => ({
+                        id: tpl.id,
+                        label: tpl.name,
+                        hint: marketingKindLabel[tpl.kind],
+                        detail: tpl.subject,
+                        group: marketingKindLabel[tpl.kind],
+                      }))}
                   />
                 ) : (
                   <h3>Textbausteine</h3>
                 )}
               </div>
               <div className="mkt-board-tools">
-                <button type="button" className="btn btn-ghost" onClick={newTemplate}>
+                {selectedTpl && !tplEditing ? (
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => editTemplate(selectedTpl)}>
+                    Bearbeiten
+                  </button>
+                ) : null}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={newTemplate}>
                   Neu
                 </button>
                 {selectedTpl ? (
@@ -847,18 +842,7 @@ export function MarketingPage() {
                 </div>
               </form>
             ) : selectedTpl ? (
-              <div className="mkt-letter-stage">
-                <div className="mkt-board-head">
-                  <div>
-                    <p className="eyebrow">So kommt sie an</p>
-                    <h3>{selectedTpl.name}</h3>
-                  </div>
-                  <button type="button" className="btn btn-ghost" onClick={() => editTemplate(selectedTpl)}>
-                    Bearbeiten
-                  </button>
-                </div>
-                {mailPreview(selectedTpl)}
-              </div>
+              <div className="mkt-letter-stage is-plain">{mailPreview(selectedTpl)}</div>
             ) : (
               <div className="mkt-empty">
                 <strong>Noch kein Text</strong>
@@ -920,14 +904,18 @@ export function MarketingPage() {
       {tab === "send" ? (
         <section className="panel mkt-board">
           <div className="mkt-send-bar">
-            <select value={listId} onChange={(e) => setListId(e.target.value)} aria-label="Liste">
-              {lists.length === 0 ? <option value="">Keine Liste</option> : null}
-              {lists.map((list) => (
-                <option key={list.id} value={list.id}>
-                  {list.name} · {list.leadCount}
-                </option>
-              ))}
-            </select>
+            <MktTitleMenu
+              compact
+              ariaLabel="Liste"
+              value={listId}
+              onChange={setListId}
+              placeholder="Keine Liste"
+              items={lists.map((list) => ({
+                id: list.id,
+                label: list.name,
+                hint: String(list.leadCount),
+              }))}
+            />
             <div className="mkt-kind" role="tablist" aria-label="Versandart">
               <button
                 type="button"
@@ -946,20 +934,19 @@ export function MarketingPage() {
                 Erinnerung{dueCount ? ` ${dueCount}` : ""}
               </button>
             </div>
-            <select
+            <MktTitleMenu
+              compact
+              ariaLabel="Textbaustein"
               value={sendTemplateId}
-              onChange={(e) => setSendTemplateId(e.target.value)}
-              aria-label="Textbaustein"
-            >
-              {sendTemplates.length === 0 ? (
-                <option value="">Kein {marketingKindLabel[sendKind]}-Text</option>
-              ) : null}
-              {sendTemplates.map((tpl) => (
-                <option key={tpl.id} value={tpl.id}>
-                  {tpl.name}
-                </option>
-              ))}
-            </select>
+              onChange={setSendTemplateId}
+              placeholder={`Kein ${marketingKindLabel[sendKind]}-Text`}
+              items={sendTemplates.map((tpl) => ({
+                id: tpl.id,
+                label: tpl.name,
+                hint: marketingKindLabel[tpl.kind],
+                detail: tpl.subject,
+              }))}
+            />
             {preview ? (
               <p className="mkt-send-meta">
                 <strong>{preview.sendCount}</strong>
@@ -1047,11 +1034,12 @@ type MktTitleMenuItem = {
   id: string;
   label: string;
   hint?: string;
-  status?: "sent" | "reminded";
+  detail?: string;
+  group?: string;
 };
 
 /**
- * Dunkles Titel-Dropdown statt nativem Select (Listen und Textbausteine).
+ * Dunkles Titel-Dropdown: geschlossener Titel plus scannbare Liste (Name · Meta, optional Betreff).
  */
 function MktTitleMenu({
   items,
@@ -1059,16 +1047,19 @@ function MktTitleMenu({
   onChange,
   ariaLabel,
   placeholder = "Wählen",
+  compact = false,
 }: {
   items: MktTitleMenuItem[];
   value: string;
   onChange: (id: string) => void;
   ariaLabel: string;
   placeholder?: string;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selected = items.find((item) => item.id === value);
+  const hasDetail = items.some((item) => item.detail);
 
   useEffect(() => {
     if (!open) return;
@@ -1086,43 +1077,68 @@ function MktTitleMenu({
     };
   }, [open]);
 
+  const grouped: { title: string | null; items: MktTitleMenuItem[] }[] = [];
+  for (const item of items) {
+    const title = item.group ?? null;
+    const last = grouped[grouped.length - 1];
+    if (!last || last.title !== title) grouped.push({ title, items: [item] });
+    else last.items.push(item);
+  }
+  const showGroups = grouped.length > 1 && grouped.some((group) => group.title);
+
   return (
-    <div className={`mkt-title-menu${open ? " is-open" : ""}`} ref={rootRef}>
+    <div className={`mkt-title-menu${compact ? " is-compact" : ""}${open ? " is-open" : ""}`} ref={rootRef}>
       <button
         type="button"
         className="mkt-title-menu-btn"
         aria-label={ariaLabel}
         aria-haspopup="listbox"
         aria-expanded={open}
+        disabled={items.length === 0}
         onClick={() => setOpen((v) => !v)}
       >
         <span className="mkt-title-menu-value">{selected?.label ?? placeholder}</span>
+        {selected?.hint ? <span className="mkt-title-menu-btn-meta">{selected.hint}</span> : null}
         <svg className="mkt-title-menu-caret" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
-      {open ? (
-        <ul className="mkt-title-menu-list" role="listbox" aria-label={ariaLabel}>
-          {items.map((item) => (
-            <li key={item.id}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={item.id === value}
-                className={`mkt-title-menu-item${item.id === value ? " is-active" : ""}`}
-                onClick={() => {
-                  onChange(item.id);
-                  setOpen(false);
-                }}
-              >
-                {item.hint ? (
-                  <span className={item.status ? `mkt-status is-${item.status}` : "mkt-title-menu-hint"}>
-                    {item.hint}
-                  </span>
-                ) : null}
-                <strong>{item.label}</strong>
-              </button>
-            </li>
+      {open && items.length > 0 ? (
+        <ul
+          className={`mkt-title-menu-list${hasDetail ? " is-detailed" : ""}`}
+          role="listbox"
+          aria-label={ariaLabel}
+        >
+          {grouped.map((group) => (
+            <Fragment key={group.title ?? group.items[0]?.id}>
+              {showGroups && group.title ? (
+                <li className="mkt-title-menu-group-label" aria-hidden>
+                  {group.title}
+                  <span>{group.items.length}</span>
+                </li>
+              ) : null}
+              {group.items.map((item) => (
+                <li key={item.id}>
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={item.id === value}
+                    title={item.detail || undefined}
+                    className={`mkt-title-menu-item${item.id === value ? " is-active" : ""}`}
+                    onClick={() => {
+                      onChange(item.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="mkt-title-menu-item-top">
+                      <strong>{item.label}</strong>
+                      {item.hint ? <span className="mkt-title-menu-hint">· {item.hint}</span> : null}
+                    </span>
+                    {item.detail ? <span className="mkt-title-menu-detail">{item.detail}</span> : null}
+                  </button>
+                </li>
+              ))}
+            </Fragment>
           ))}
         </ul>
       ) : null}
