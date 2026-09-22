@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.231 – 2026-09-22
+
+- Monitoring-PowerShell: kompakte Vorlagenwahl, Status als Kapsel, Ausgabe getrennt vom Editor, Verlauf einklappbar
+
 ## 1.5.230 – 2026-09-22
 
 - Monitoring: Remote-PowerShell am Windows-Gerät (Vorlagen, Ausführen als LocalSystem, Ausgabe nach dem Heartbeat). Agent 1.0.11 nötig.
