@@ -936,6 +936,12 @@ export const api = {
     request<{ ok: boolean; company?: string; already?: boolean }>(
       `/api/public/marketing/unsubscribe/${encodeURIComponent(token)}`,
     ),
+  marketingSignature: () => request<{ html: string }>("/api/marketing/signature"),
+  saveMarketingSignature: (html: string) =>
+    request<{ html: string }>("/api/marketing/signature", {
+      method: "PUT",
+      body: JSON.stringify({ html }),
+    }),
 };
 
 async function downloadPdf(url: string, fallbackName: string) {

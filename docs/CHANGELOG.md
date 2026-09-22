@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.207 – 2026-09-22
+
+- Marketing: globale HTML-Signatur unter dem Mailtext (Outlook-HTML, Vorschau, heller Block in der Mail)
+
 ## 1.5.206 – 2026-09-22
 
 - Marketing (Werkzeuge): Listen, Leads (Firma/E-Mail/Ansprechpartner), Textbausteine Erstmail/Erinnerung, Versand mit Status, Erinnerung nach 7 Tagen, Antwortnotiz, Kontakt anlegen, Abmelde-Link

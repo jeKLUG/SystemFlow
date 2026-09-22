@@ -172,6 +172,7 @@ export async function createDb(databasePath: string) {
       mail_public_url TEXT,
       mail_staff_inbox TEXT,
       mail_notify_json TEXT NOT NULL DEFAULT '{}',
+      marketing_signature_html TEXT,
       updated_at INTEGER NOT NULL
     );
 
@@ -662,6 +663,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "org_settings", "mail_public_url", "TEXT");
   await ensureColumn(client, "org_settings", "mail_staff_inbox", "TEXT");
   await ensureColumn(client, "org_settings", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
+  await ensureColumn(client, "org_settings", "marketing_signature_html", "TEXT");
   await ensureColumn(client, "customer_users", "email", "TEXT");
   await ensureColumn(client, "customer_users", "mail_notify_json", "TEXT NOT NULL DEFAULT '{}'");
   await ensureColumn(client, "appointments", "reminders_sent_json", "TEXT NOT NULL DEFAULT '{}'");

@@ -20,6 +20,7 @@ import {
   createUnsubToken,
   leadStatus,
   normalizeEmail,
+  sanitizeSignatureHtml,
   sendInfoFromRows,
   skipReason,
   skipReasonLabel,
@@ -144,6 +145,37 @@ export async function marketingPublicRoutes(app: FastifyInstance, db: Db) {
  */
 export async function marketingRoutes(app: FastifyInstance, db: Db) {
   app.addHook("preHandler", requireAuth);
+
+  app.get("/api/marketing/signature", async () => {
+    const org = await loadOrg(db);
+    return { html: org?.marketingSignatureHtml ?? "" };
+  });
+
+  app.put("/api/marketing/signature", async (request, reply) => {
+    const parsed = z.object({ html: z.string().max(80_000) }).safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: "Ungültige Eingabe" });
+    }
+    const html = sanitizeSignatureHtml(parsed.data.html);
+    const org = await loadOrg(db);
+    const now = new Date();
+    if (!org) {
+      await db.insert(orgSettings).values({
+        id: SETTINGS_ID,
+        currency: "EUR",
+        mailNotifyJson: "{}",
+        smtpSecure: "starttls",
+        marketingSignatureHtml: html || null,
+        updatedAt: now,
+      });
+    } else {
+      await db
+        .update(orgSettings)
+        .set({ marketingSignatureHtml: html || null, updatedAt: now })
+        .where(eq(orgSettings.id, SETTINGS_ID));
+    }
+    return { html };
+  });
 
   app.get("/api/marketing/lists", async () => {
     const lists = await db.select().from(marketingLists).orderBy(asc(marketingLists.name)).all();

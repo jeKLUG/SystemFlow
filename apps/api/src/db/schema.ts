@@ -375,6 +375,8 @@ export const orgSettings = sqliteTable("org_settings", {
   mailStaffInbox: text("mail_staff_inbox"),
   /** Globale Typ-Schalter und Erinnerungs-Offsets. */
   mailNotifyJson: text("mail_notify_json").notNull().default("{}"),
+  /** HTML-Signatur unter Marketing-Mails (Outlook-HTML, bereinigt). */
+  marketingSignatureHtml: text("marketing_signature_html"),
   updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 

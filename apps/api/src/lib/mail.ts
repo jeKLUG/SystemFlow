@@ -141,7 +141,7 @@ function htmlLines(value: string): string {
 
 /**
  * HTML-Mail im App-Look: dunkel, Akzentblau, Infotabelle, Button.
- * Optional `footerLink` für einen Klartext-Link im Footer (z. B. Abmelden).
+ * Optional `footerLink` im Footer und `signatureHtml` (bereits bereinigt) unter dem Inhalt.
  */
 export function mailHtml(opts: {
   brand?: string;
@@ -158,6 +158,10 @@ export function mailHtml(opts: {
   note?: string;
   /** Optionaler Link im Footer (z. B. Abmelden). */
   footerLink?: { href: string; label: string };
+  /** Bereits bereinigtes HTML, z. B. Marketing-Signatur unter dem Text. */
+  signatureHtml?: string;
+  /** Klartext zur Signatur (Plain-Text-Alternative). */
+  signatureText?: string;
 }): { html: string; text: string } {
   const brand = opts.brand?.trim() || "Systemhaus-Ess";
   const facts = (opts.facts ?? []).filter((f) => f.value.trim());
@@ -198,6 +202,9 @@ export function mailHtml(opts: {
   const note = opts.note
     ? `<p style="margin:18px 0 0;font-size:13px;line-height:1.5;color:${BRAND.muted}">${htmlLines(opts.note)}</p>`
     : "";
+  const signature = opts.signatureHtml?.trim()
+    ? `<div style="margin:22px 0 8px;padding:14px 16px;background:#ffffff;color:#1f2937;border-radius:8px;font-size:13px;line-height:1.5">${opts.signatureHtml.trim()}</div>`
+    : "";
   const footer =
     opts.footer ||
     "Automatische Benachrichtigung. Bitte nicht auf diese Nachricht antworten, sofern nicht anders angegeben.";
@@ -235,6 +242,7 @@ export function mailHtml(opts: {
             ${factsBlock}
             ${bodyBlock}
             ${btn}
+            ${signature}
             ${note}
           </td>
         </tr>
@@ -262,6 +270,7 @@ export function mailHtml(opts: {
     opts.bodyLabel && opts.body ? `${opts.bodyLabel}:\n${opts.body}` : opts.body,
     opts.note,
     opts.href,
+    opts.signatureText,
     footer,
     opts.footerLink ? `${opts.footerLink.label}: ${opts.footerLink.href}` : "",
   ]

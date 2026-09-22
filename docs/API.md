@@ -47,9 +47,10 @@ UI: `/marketing` (Navbar Werkzeuge). Eigene Leads, nicht die Kontakte-Tabelle. V
 | POST | `/api/marketing/send` | `{ listId, templateId }` Erstmail an Berechtigte |
 | POST | `/api/marketing/remind` | `{ listId, templateId }` Erinnerung (≥ 7 Tage nach Erstmail, eigener Baustein) |
 | POST | `/api/marketing/test` | `{ templateId, listId? }` Test an Staff-Sammeladresse |
+| GET/PUT | `/api/marketing/signature` | Globale HTML-Signatur unter dem Mailtext `{ html }`. PUT bereinigt Script/Event-Handler |
 | GET | `/api/public/marketing/unsubscribe/:token` | ohne Login; setzt `doNotContact`. UI: `/m/unsubscribe/:token` |
 
-Platzhalter in Betreff/Text: `{{firma}}`, `{{ansprechpartner}}` (sonst „Team {{firma}}“). Optional CTA (`ctaLabel`, `ctaUrl`). Footer: Anschrift aus Konto, „Nicht mehr anschreiben“. Pause 300 ms zwischen Mails.
+Platzhalter in Betreff/Text: `{{firma}}`, `{{ansprechpartner}}` (sonst „Team {{firma}}“). Optional CTA (`ctaLabel`, `ctaUrl`). Unter dem Text: HTML-Signatur aus `/api/marketing/signature` (heller Block). Footer: Anschrift aus Konto, „Nicht mehr anschreiben“. Pause 300 ms zwischen Mails.
 
 ## Kunden / Kontakte
 

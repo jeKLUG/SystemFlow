@@ -46,6 +46,8 @@ export function MarketingPage() {
   const [leadForm, setLeadForm] = useState(emptyLead);
   const [tplForm, setTplForm] = useState(emptyTpl);
   const [editingTpl, setEditingTpl] = useState<string | null>(null);
+  const [signatureHtml, setSignatureHtml] = useState("");
+  const [signatureDirty, setSignatureDirty] = useState(false);
 
   const [replyLead, setReplyLead] = useState<MarketingLead | null>(null);
   const [replyNote, setReplyNote] = useState("");
@@ -84,7 +86,14 @@ export function MarketingPage() {
     setError("");
     try {
       const id = await reloadLists(listId);
-      await Promise.all([reloadLeads(id), reloadTemplates()]);
+      await Promise.all([
+        reloadLeads(id),
+        reloadTemplates(),
+        api.marketingSignature().then((s) => {
+          setSignatureHtml(s.html);
+          setSignatureDirty(false);
+        }),
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Laden fehlgeschlagen");
     } finally {
@@ -213,6 +222,19 @@ export function MarketingPage() {
       setMsg(wasEdit ? "Textbaustein gespeichert" : "Textbaustein angelegt");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    }
+  }
+
+  async function onSaveSignature(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      const saved = await api.saveMarketingSignature(signatureHtml);
+      setSignatureHtml(saved.html);
+      setSignatureDirty(false);
+      setMsg("Signatur gespeichert");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Signatur fehlgeschlagen");
     }
   }
 
@@ -527,6 +549,7 @@ export function MarketingPage() {
       ) : null}
 
       {tab === "templates" ? (
+        <>
         <div className="mkt-grid">
           <section className="panel">
             <p className="eyebrow">{editingTpl ? "Bearbeiten" : "Neu"}</p>
@@ -657,6 +680,45 @@ export function MarketingPage() {
             ) : null}
           </section>
         </div>
+        <section className="panel mkt-sig">
+          <p className="eyebrow">Unter jeder Mail</p>
+          <h3>HTML-Signatur</h3>
+          <p className="muted">
+            Outlook- oder HTML-Signatur einfügen. Sie steht unter dem Text (heller Block), der rechtliche
+            Footer bleibt darunter.
+          </p>
+          <form className="mkt-sig-form" onSubmit={onSaveSignature}>
+            <label className="field">
+              <span>HTML</span>
+              <textarea
+                rows={8}
+                value={signatureHtml}
+                onChange={(e) => {
+                  setSignatureHtml(e.target.value);
+                  setSignatureDirty(true);
+                }}
+                placeholder={'<p>Mit freundlichen Grüßen<br>Max Mustermann<br>Systemhaus-Ess</p>'}
+                spellCheck={false}
+              />
+            </label>
+            {signatureHtml.trim() ? (
+              <iframe
+                className="mkt-sig-frame"
+                title="Signatur-Vorschau"
+                sandbox=""
+                srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:12px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+              />
+            ) : (
+              <p className="empty">Noch keine Signatur.</p>
+            )}
+            <div className="mkt-form-actions">
+              <button type="submit" className="btn btn-primary" disabled={!signatureDirty}>
+                Signatur speichern
+              </button>
+            </div>
+          </form>
+        </section>
+        </>
       ) : null}
 
       {tab === "send" ? (
@@ -770,6 +832,14 @@ export function MarketingPage() {
                 <p>{interpolatePreview(sendPreviewTpl.body, previewLead)}</p>
                 {sendPreviewTpl.ctaLabel ? (
                   <p className="muted">Button: {sendPreviewTpl.ctaLabel}</p>
+                ) : null}
+                {signatureHtml.trim() ? (
+                  <iframe
+                    className="mkt-sig-frame"
+                    title="Signatur"
+                    sandbox=""
+                    srcDoc={`<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:10px;background:#fff;color:#1f2937;font:13px/1.45 Segoe UI,Roboto,sans-serif}</style></head><body>${signatureHtml}</body></html>`}
+                  />
                 ) : null}
               </div>
             ) : (

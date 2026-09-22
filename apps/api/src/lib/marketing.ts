@@ -141,6 +141,146 @@ export const skipReasonLabel: Record<MarketingSkipReason, string> = {
   no_first_send: "keine Erstmail",
 };
 
+const SIGNATURE_MAX = 80_000;
+
+const SIGNATURE_TAGS = new Set([
+  "a",
+  "b",
+  "br",
+  "div",
+  "em",
+  "font",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "hr",
+  "i",
+  "img",
+  "li",
+  "ol",
+  "p",
+  "small",
+  "span",
+  "strong",
+  "sub",
+  "sup",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "u",
+  "ul",
+]);
+
+const SIGNATURE_ATTR: Record<string, Set<string>> = {
+  "*": new Set(["align", "bgcolor", "border", "class", "color", "dir", "height", "id", "style", "title", "valign", "width"]),
+  a: new Set(["href", "rel", "target"]),
+  img: new Set(["alt", "border", "height", "src", "width"]),
+  td: new Set(["colspan", "rowspan", "background"]),
+  th: new Set(["colspan", "rowspan", "background"]),
+  table: new Set(["cellpadding", "cellspacing", "role"]),
+  font: new Set(["face", "size"]),
+};
+
+const VOID_TAGS = new Set(["br", "hr", "img"]);
+
+function extractSignatureFragment(html: string): string {
+  const body = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  return (body ? body[1] : html).trim();
+}
+
+function safeUrl(value: string, kind: "href" | "src"): string | null {
+  const v = value.trim().replace(/^['"]|['"]$/g, "");
+  if (/^(https?:|mailto:|tel:)/i.test(v)) return v;
+  if (kind === "src" && (/^cid:/i.test(v) || /^data:image\//i.test(v))) return v;
+  return null;
+}
+
+function sanitizeStyle(value: string): string {
+  const lower = value.toLowerCase();
+  if (lower.includes("expression") || lower.includes("javascript:") || lower.includes("behavior") || lower.includes("-moz-binding")) {
+    return "";
+  }
+  return value.replace(/\/\*.*?\*\//g, "").trim();
+}
+
+function sanitizeAttrs(tag: string, raw: string): string {
+  const allowed = new Set([...(SIGNATURE_ATTR["*"] ?? []), ...(SIGNATURE_ATTR[tag] ?? [])]);
+  const out: string[] = [];
+  const re = /([a-zA-Z:_][\w:.-]*)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(raw))) {
+    const name = match[1].toLowerCase();
+    if (name.startsWith("on") || name === "srcset" || name.startsWith("xmlns")) continue;
+    if (!allowed.has(name)) continue;
+    const value = match[3] ?? match[4] ?? match[5] ?? "";
+    if (name === "href" || name === "src" || name === "background") {
+      const url = safeUrl(value, name === "href" ? "href" : "src");
+      if (!url) continue;
+      out.push(`${name}="${url.replace(/"/g, "&quot;")}"`);
+      continue;
+    }
+    if (name === "style") {
+      const style = sanitizeStyle(value);
+      if (!style) continue;
+      out.push(`style="${style.replace(/"/g, "&quot;")}"`);
+      continue;
+    }
+    if (name === "target") {
+      out.push(`target="_blank" rel="noopener noreferrer"`);
+      continue;
+    }
+    out.push(`${name}="${value.replace(/"/g, "&quot;")}"`);
+  }
+  return out.length ? ` ${out.join(" ")}` : "";
+}
+
+/**
+ * Bereinigt eingefügtes Outlook-/HTML-Signaturmarkup (kein Script, nur gängige Mail-Tags).
+ */
+export function sanitizeSignatureHtml(raw: string | null | undefined): string {
+  let html = extractSignatureFragment(raw ?? "");
+  if (!html) return "";
+  if (html.length > SIGNATURE_MAX) html = html.slice(0, SIGNATURE_MAX);
+  html = html.replace(/<!--[\s\S]*?-->/g, "");
+  html = html.replace(/<(script|iframe|object|embed|form|link|meta|base|svg|math|style|textarea|input|button)(\s[^>]*)?>[\s\S]*?<\/\1>/gi, "");
+  html = html.replace(/<(script|iframe|object|embed|form|link|meta|base|svg|math|style|textarea|input|button)(\s[^>]*)?\/?>/gi, "");
+  html = html.replace(/<\/?(html|head|body|xml|o:[a-z]+)[^>]*>/gi, "");
+  return html.replace(/<\/?([a-zA-Z][\w:-]*)([^>]*)>/g, (full, name: string, attrs: string) => {
+    if (full.startsWith("<!--") || full.startsWith("<!")) return "";
+    const tag = name.toLowerCase();
+    const closing = full.startsWith("</");
+    if (!SIGNATURE_TAGS.has(tag)) return "";
+    if (closing) return VOID_TAGS.has(tag) ? "" : `</${tag}>`;
+    const clean = sanitizeAttrs(tag, attrs);
+    if (VOID_TAGS.has(tag) || /\/>\s*$/.test(full)) return `<${tag}${clean} />`;
+    return `<${tag}${clean}>`;
+  });
+}
+
+/**
+ * Signatur-HTML als groben Klartext für die Text-Alternative.
+ */
+export function signatureHtmlToText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|tr|h[1-6]|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /**
  * Baut HTML/Text einer Akquise-Mail im App-Look inkl. Impressum und Abmelde-Link.
  */
@@ -149,7 +289,15 @@ export function buildMarketingMail(opts: {
   lead: { company: string; contactPerson?: string | null; email: string; unsubToken: string };
   org?: Pick<
     OrgSettings,
-    "orgName" | "orgTagline" | "orgAddress" | "orgZip" | "orgCity" | "orgCountry" | "orgEmail" | "orgPhone"
+    | "orgName"
+    | "orgTagline"
+    | "orgAddress"
+    | "orgZip"
+    | "orgCity"
+    | "orgCountry"
+    | "orgEmail"
+    | "orgPhone"
+    | "marketingSignatureHtml"
   > | null;
   brand?: string;
   publicUrl?: string;
@@ -164,6 +312,7 @@ export function buildMarketingMail(opts: {
       : undefined;
   const href = normalizeCtaUrl(opts.template.ctaUrl);
   const button = opts.template.ctaLabel?.trim() || (href ? "Jetzt Termin vereinbaren" : undefined);
+  const signatureHtml = sanitizeSignatureHtml(opts.org?.marketingSignatureHtml);
   const rendered = mailHtml({
     brand,
     kicker: "Geschäftsbrief",
@@ -171,6 +320,8 @@ export function buildMarketingMail(opts: {
     intro: body,
     href: href && button ? href : undefined,
     button: href && button ? button : undefined,
+    signatureHtml: signatureHtml || undefined,
+    signatureText: signatureHtml ? signatureHtmlToText(signatureHtml) : undefined,
     footer: `${address}\nDies ist eine geschäftliche Nachricht.`,
     footerLink: unsubHref
       ? { href: unsubHref, label: "Nicht mehr anschreiben" }
