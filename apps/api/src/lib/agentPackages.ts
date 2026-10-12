@@ -22,6 +22,8 @@ export const AGENT_PACKAGE_PLATFORMS: {
   { id: "windows-amd64", label: "Windows 64-bit", filename: "systemhaus-agent.exe" },
   { id: "linux-amd64", label: "Linux 64-bit (x86_64)", filename: "systemhaus-agent" },
   { id: "linux-arm64", label: "Linux ARM64 (aarch64)", filename: "systemhaus-agent" },
+  { id: "darwin-amd64", label: "macOS Intel", filename: "systemhaus-agent" },
+  { id: "darwin-arm64", label: "macOS Apple Silicon", filename: "systemhaus-agent" },
 ];
 
 const PLATFORM_SET = new Set<string>(agentPackagePlatforms);
@@ -81,6 +83,10 @@ export function platformFromAgent(opts: {
   if (os.includes("linux")) {
     if (archNorm === "amd64" || archNorm === "") return "linux-amd64";
     if (archNorm === "arm64") return "linux-arm64";
+  }
+  if (os.includes("darwin") || os.includes("mac")) {
+    if (archNorm === "arm64") return "darwin-arm64";
+    if (archNorm === "amd64" || archNorm === "") return "darwin-amd64";
   }
   return null;
 }

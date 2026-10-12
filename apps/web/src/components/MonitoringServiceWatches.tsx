@@ -53,7 +53,7 @@ export function MonitoringServiceWatches({
   function add() {
     const nextName = name.trim();
     if (!validServiceName(nextName)) {
-      setError("Dienstname eingeben, z. B. Spooler oder sshd");
+      setError("Dienstname eingeben, z. B. Spooler, sshd oder de.example.agent");
       return;
     }
     if (targets.some((t) => t.name.toLowerCase() === nextName.toLowerCase())) {
@@ -76,7 +76,7 @@ export function MonitoringServiceWatches({
       <div className="mon-pings-head">
         <h5>
           Dienst-Wächter
-          <HelpHint text="Dienste, die laufen müssen (Windows-Kurzname oder systemd-Unit). Der Agent prüft sie jede Minute. Tickets unter Ticket-Typen." />
+          <HelpHint text="Dienste, die laufen müssen (Windows-Kurzname, systemd-Unit oder LaunchDaemon-Label). Der Agent prüft sie jede Minute. Tickets unter Ticket-Typen." />
         </h5>
         {targets.length ? (
           <span className="muted mon-pings-count">

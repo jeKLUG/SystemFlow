@@ -3,13 +3,19 @@ import { Link } from "react-router-dom";
 import { api } from "../../api";
 import { HelpHint } from "../../components/HelpHint";
 import { copyToClipboard } from "../../lib/clipboard";
-import { linuxAgentInstallScript, windowsAgentInstallScript } from "../../lib/agentInstallScripts";
+import {
+  linuxAgentInstallScript,
+  macAgentInstallScript,
+  windowsAgentInstallScript,
+} from "../../lib/agentInstallScripts";
 import type { AgentPackageInfo, AgentPackagePlatform, MonitoringSettings } from "../../types";
 
 const FALLBACK_PLATFORMS: MonitoringSettings["platforms"] = [
   { id: "windows-amd64", label: "Windows 64-bit", filename: "systemhaus-agent.exe" },
   { id: "linux-amd64", label: "Linux 64-bit", filename: "systemhaus-agent" },
   { id: "linux-arm64", label: "Linux ARM64", filename: "systemhaus-agent" },
+  { id: "darwin-amd64", label: "macOS Intel", filename: "systemhaus-agent" },
+  { id: "darwin-arm64", label: "macOS Apple Silicon", filename: "systemhaus-agent" },
 ];
 
 function formatMb(bytes: number): string {
@@ -68,6 +74,7 @@ export function MonitoringAgentPage() {
   }, [packages]);
   const windowsScript = enrollKey ? windowsAgentInstallScript(origin, enrollKey) : "";
   const linuxScript = enrollKey ? linuxAgentInstallScript(origin, enrollKey) : "";
+  const macScript = enrollKey ? macAgentInstallScript(origin, enrollKey) : "";
   const list = platforms.length ? platforms : FALLBACK_PLATFORMS;
 
   async function copyText(label: string, text: string) {
@@ -138,7 +145,7 @@ export function MonitoringAgentPage() {
         <div>
           <p className="eyebrow">Monitoring</p>
           <h2>Agent einrichten</h2>
-          <p className="muted">Paket hochladen, Skript kopieren, auf dem Gerät als Admin bzw. root ausführen.</p>
+          <p className="muted">Paket hochladen, Skript kopieren, auf dem Gerät als Admin bzw. root (sudo) ausführen.</p>
         </div>
         <Link className="btn btn-ghost" to="/monitoring">
           Zurück zur Flotte
@@ -219,7 +226,7 @@ export function MonitoringAgentPage() {
             <p className="eyebrow">Schritt 1</p>
             <div className="page-head-title">
               <h3>Paket hochladen</h3>
-              <HelpHint text="GitHub-Artefakt mit Versionsnummer im Dateinamen hochladen (z. B. systemhaus-agent-windows-amd64-1.0.5.exe). Die Geräte-Version kommt aus der Binary, nicht aus diesem Feld." />
+              <HelpHint text="GitHub-Artefakt mit Versionsnummer im Dateinamen hochladen (z. B. systemhaus-agent-darwin-arm64-1.0.12). Die Geräte-Version kommt aus der Binary, nicht aus diesem Feld." />
             </div>
           </div>
         </header>
@@ -314,7 +321,7 @@ export function MonitoringAgentPage() {
             <div className="page-head-title">
               <h3>Skript auf dem Gerät ausführen</h3>
               <HelpHint
-                text={`Kopieren und als Administrator (Windows) bzw. root (Linux) einfügen. Enthält Server ${origin} und den aktuellen Key.`}
+                text={`Kopieren und als Administrator (Windows) bzw. root (Linux/macOS, sudo bash) einfügen. Enthält Server ${origin} und den aktuellen Key.`}
               />
             </div>
           </div>
@@ -339,6 +346,17 @@ export function MonitoringAgentPage() {
               enrollKey && (pkgByPlatform.get("linux-amd64") || pkgByPlatform.get("linux-arm64")),
             )}
             onCopy={() => void copyText("linux", linuxScript)}
+          />
+          <ScriptCopy
+            title="macOS"
+            hint="Als root: sudo bash, Skript einfügen. Erkennt Intel und Apple Silicon selbst."
+            missingHint="Zuerst ein macOS-Paket (Intel oder Apple Silicon) hochladen."
+            script={macScript}
+            copied={copiedScript === "mac"}
+            ready={Boolean(
+              enrollKey && (pkgByPlatform.get("darwin-amd64") || pkgByPlatform.get("darwin-arm64")),
+            )}
+            onCopy={() => void copyText("mac", macScript)}
           />
         </div>
       </section>

@@ -709,7 +709,13 @@ export const monitoringScriptJobs = sqliteTable("monitoring_script_jobs", {
 });
 
 /** Aktuelles Agent-Binary je Plattform (ein Eintrag ersetzt die vorherige Datei). */
-export const agentPackagePlatforms = ["windows-amd64", "linux-amd64", "linux-arm64"] as const;
+export const agentPackagePlatforms = [
+  "windows-amd64",
+  "linux-amd64",
+  "linux-arm64",
+  "darwin-amd64",
+  "darwin-arm64",
+] as const;
 export type AgentPackagePlatform = (typeof agentPackagePlatforms)[number];
 
 export const monitoringAgentPackages = sqliteTable("monitoring_agent_packages", {

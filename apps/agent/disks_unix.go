@@ -3,6 +3,7 @@
 package main
 
 import (
+	"runtime"
 	"sort"
 	"strings"
 
@@ -35,6 +36,14 @@ func collectDisks() []DiskSnapshot {
 		}
 		if strings.HasPrefix(mount, "/snap/") || strings.HasPrefix(mount, "/var/lib/docker/") {
 			continue
+		}
+		if runtime.GOOS == "darwin" {
+			if mount == "/private/var/vm" || strings.HasPrefix(mount, "/Volumes/.timemachine") {
+				continue
+			}
+			if strings.HasPrefix(mount, "/System/Volumes/") && mount != "/System/Volumes/Data" {
+				continue
+			}
 		}
 		usage, err := disk.Usage(mount)
 		if err != nil || usage == nil || usage.Total < 64*1024*1024 {

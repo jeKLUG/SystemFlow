@@ -197,7 +197,7 @@ Agent (öffentlich, ohne Staff-Session):
 | POST | `/api/monitoring/enroll` | `{ enrollmentKey, machineId, hostname?, os?, osVersion?, ip?, agentVersion? }` → `{ agentId, token, assigned, assetId }` |
 | POST | `/api/monitoring/heartbeat` | Header `Authorization: Bearer <token>`. Body: CPU/RAM/`disks[]`/`hardware`/`session`/`network`/`services[]`/`software[]`/`defender`/`firewall`/`crash`/`pings[]`/`watchedServices[]` (`id`,`name`,`ok`,`state?`)/`clock` (`offsetSec`,`source`,`ok`)/`processes[]`/`updates.rebootPending`/`platform` plus optional `scriptResult` (`jobId`, `exitCode?`, `stdout?`, `stderr?`, `timedOut?`, `error?`). Antwort: `{ ok, assigned, updateNow, uninstall, pingTargets: [{ id, host }], serviceWatches: [{ id, name }], latestAgent?: { platform, version, sha256 }, scriptJob?: { id, timeoutSec, script } }` – `scriptJob` nur Windows-Agent ≥ 1.0.11 |
 | GET | `/api/monitoring/agent/latest?platform=` | Aktuelles Paket-Metadatum. Auth: Staff-Cookie, Query `key=` (Enrollment) oder Bearer-Token |
-| GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64`). Gleiche Auth wie latest |
+| GET | `/api/monitoring/agent/download/:platform` | Binary (`windows-amd64` \| `linux-amd64` \| `linux-arm64` \| `darwin-amd64` \| `darwin-arm64`). Gleiche Auth wie latest |
 
 Staff:
 

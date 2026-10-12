@@ -960,7 +960,7 @@ function issueDetailFromSnapshot(snapshot: AgentSnapshot | null | undefined, kin
       .filter(Boolean)
       .join(", ");
   }
-  if (kind === "reboot") return "Windows/Linux verlangt einen Neustart.";
+  if (kind === "reboot") return "Das Gerät verlangt einen Neustart.";
   if (kind === "defender") {
     const d = snapshot.defender;
     const bits = [

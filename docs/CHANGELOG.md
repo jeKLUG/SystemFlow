@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.232 – 2026-10-12
+
+- Monitoring: macOS-Agent (LaunchDaemon, Intel und Apple Silicon). Pakete `darwin-amd64`/`darwin-arm64`, Install-Skript unter Agent einrichten. Agent 1.0.12. Remote-PowerShell bleibt Windows-only.
+
 ## 1.5.231 – 2026-09-22
 
 - Monitoring-PowerShell: kompakte Vorlagenwahl, Status als Kapsel, Ausgabe getrennt vom Editor, Verlauf einklappbar

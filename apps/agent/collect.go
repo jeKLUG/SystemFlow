@@ -88,6 +88,8 @@ func goosName() string {
 		return "Windows"
 	case "linux":
 		return "Linux"
+	case "darwin":
+		return "macOS"
 	default:
 		return runtime.GOOS
 	}
@@ -130,7 +132,8 @@ func collectSnapshot() (AgentSnapshot, error) {
 
 	if nics, err := net.IOCounters(true); err == nil {
 		for _, n := range nics {
-			if n.Name == "lo" || strings.HasPrefix(n.Name, "Loopback") {
+			if n.Name == "lo" || n.Name == "lo0" || strings.HasPrefix(n.Name, "Loopback") ||
+				strings.HasPrefix(n.Name, "utun") || strings.HasPrefix(n.Name, "awdl") || strings.HasPrefix(n.Name, "llw") {
 				continue
 			}
 			snap.NICs = append(snap.NICs, NicSnapshot{

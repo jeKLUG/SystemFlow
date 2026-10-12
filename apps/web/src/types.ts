@@ -1191,7 +1191,12 @@ export interface MonitoringDeviceDetail {
   scriptMinAgent?: string;
 }
 
-export type AgentPackagePlatform = "windows-amd64" | "linux-amd64" | "linux-arm64";
+export type AgentPackagePlatform =
+  | "windows-amd64"
+  | "linux-amd64"
+  | "linux-arm64"
+  | "darwin-amd64"
+  | "darwin-arm64";
 
 export interface AgentPackageInfo {
   platform: AgentPackagePlatform;

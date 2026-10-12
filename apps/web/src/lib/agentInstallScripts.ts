@@ -119,6 +119,62 @@ echo "Agent \${VER:-} installiert (systemd: systemhaus-agent). Startet automatis
 `;
 }
 
+/**
+ * Bash-Skript für macOS Intel/Apple Silicon (root).
+ */
+export function macAgentInstallScript(origin: string, key: string): string {
+  const server = shSingle(origin.replace(/\/$/, ""));
+  const enr = shSingle(key);
+  return `#!/usr/bin/env bash
+# Systemhaus-Ess Agent – macOS, als root: sudo bash
+set -euo pipefail
+if [[ \${EUID:-$(id -u)} -ne 0 ]]; then
+  echo "Bitte als root ausführen (sudo bash)." >&2
+  exit 1
+fi
+SERVER=${server}
+KEY=${enr}
+case "$(uname -m)" in
+  x86_64|amd64) PLAT=darwin-amd64 ;;
+  arm64|aarch64) PLAT=darwin-arm64 ;;
+  *) echo "Nicht unterstützte Architektur: $(uname -m)" >&2; exit 1 ;;
+esac
+BIN=/usr/local/bin/systemhaus-agent
+launchctl bootout system/de.systemhaus-ess.agent >/dev/null 2>&1 || true
+launchctl unload -w /Library/LaunchDaemons/de.systemhaus-ess.agent.plist >/dev/null 2>&1 || true
+sleep 1
+META_URL="$SERVER/api/monitoring/agent/latest?platform=$PLAT&key=$KEY"
+if command -v curl >/dev/null 2>&1; then
+  META=$(curl -fsSL "$META_URL")
+elif command -v wget >/dev/null 2>&1; then
+  META=$(wget -qO- "$META_URL")
+else
+  echo "curl oder wget ist erforderlich." >&2
+  exit 1
+fi
+VER=$( { printf '%s' "$META" | tr -d ' ' | grep -o '"version":"[^"]*"' | head -1 | cut -d'"' -f4; } || true)
+echo "Lade Agent \${VER:-unbekannt} ..."
+TMP=$(mktemp)
+URL="$SERVER/api/monitoring/agent/download/$PLAT?key=$KEY&t=$(date +%s)"
+if command -v curl >/dev/null 2>&1; then
+  curl -fsSL "$URL" -o "$TMP"
+else
+  wget -qO "$TMP" "$URL"
+fi
+if [[ ! -s "$TMP" ]]; then
+  echo "Download unvollständig." >&2
+  exit 1
+fi
+mkdir -p /usr/local/bin "/Library/Application Support/SystemhausEss"
+install -m 755 "$TMP" "$BIN"
+xattr -d com.apple.quarantine "$BIN" >/dev/null 2>&1 || true
+rm -f "$TMP"
+"$BIN" install --server "$SERVER" --key "$KEY"
+echo "Agent \${VER:-} installiert (LaunchDaemon: de.systemhaus-ess.agent). Startet automatisch beim Hochfahren."
+echo "Falls Gatekeeper blockiert: unter Datenschutz & Sicherheit zulassen."
+`;
+}
+
 function psSingle(value: string): string {
   return `'${value.replace(/'/g, "''")}'`;
 }
