@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.235 – 2026-10-18
+
+- Staff-UI: Kontrast der Suchleisten, Karten und Platzhalter im hellen Theme (weiße Felder, klarere Ränder statt grauer Balken).
+
 ## 1.5.234 – 2026-10-18
 
 - Staff-UI: Farben, Schriften (Sora/Manrope) und Raster an www.systemhaus-ess.de (Akzent `#2F6FAE`). Portal und Login bleiben dunkel.

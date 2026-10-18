@@ -67,12 +67,12 @@
   --surface-2: #f8fafc;
   --sidebar: #ffffff;
   --text: #0f172a;
-  --text-muted: #64748b;
+  --text-muted: #475569;
   --accent: #2f6fae;
   --accent-bright: #245a8c;
   --accent-soft: rgba(47, 111, 174, 0.12);
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --border: #d0d7e2;
+  --border-strong: #94a3b8;
   --ok: #059669;
   --danger: #dc2626;
   --warn: #d97706;
@@ -86,11 +86,11 @@
   --glass: rgba(255, 255, 255, 0.92);
   --hover: rgba(15, 23, 42, 0.04);
   --hover-strong: rgba(15, 23, 42, 0.07);
-  --fill: rgba(15, 23, 42, 0.03);
-  --fill-strong: rgba(15, 23, 42, 0.055);
-  --inset: #f8fafc;
+  --fill: rgba(15, 23, 42, 0.045);
+  --fill-strong: rgba(15, 23, 42, 0.07);
+  --inset: #f1f5f9;
   --control-bg: #ffffff;
-  --search-bg: #f8fafc;
+  --search-bg: #ffffff;
   --search-bg-focus: #ffffff;
   --topbar-bg: rgba(255, 255, 255, 0.94);
   --mix-deep: #ffffff;
@@ -23150,6 +23150,110 @@ div.mon-alert-item-main {
   background: var(--bg-elevated);
   box-shadow: none;
   border-color: var(--border-strong);
+}
+
+.theme-light input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="file"]):not([type="color"]),
+.theme-light select,
+.theme-light textarea {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.theme-light input::placeholder,
+.theme-light textarea::placeholder {
+  color: #64748b;
+  opacity: 1;
+}
+
+.theme-light .global-search-field input,
+.theme-light .mon-alert-pct input,
+.theme-light .mail-toggle input {
+  background: transparent;
+  border-color: transparent;
+}
+
+.theme-light .global-search-field {
+  background: #fff;
+  border-color: var(--border-strong);
+}
+
+.theme-light .global-search-icon {
+  color: #64748b;
+}
+
+.theme-light .empty {
+  background: #fff;
+  border-color: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.theme-light .dash-col-bar {
+  background: #cbd5e1;
+}
+
+.theme-light .mon-cust-search input:focus,
+.theme-light .mon-cust-search input:focus-visible {
+  background: #fff;
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+}
+
+.theme-light :is(
+  .mon-cust-search input,
+  .mon-proc-search,
+  .mon-hw-soft-head input,
+  .mon-hw-soft-filters,
+  .mon-hw-soft-pane,
+  .mon-hw-soft-label,
+  .mon-alert-pct,
+  .mon-disk-volume,
+  .mon-proc-list li,
+  .mon-hw-facts,
+  .mon-hw-net-addr,
+  .mon-hw-card,
+  .mon-hw-disk,
+  .mon-hw-nics li,
+  .mon-script-menu-btn,
+  .mon-script-wait,
+  .mon-script-result,
+  .agent-enroll-secret,
+  .vault-gen-result,
+  .vault-share-log-item,
+  .vault-share-notes,
+  .vault-secret-line,
+  .preview-value
+) {
+  background: #fff;
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.theme-light .vault-card-toolbar {
+  background: #fff;
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.theme-light .mon-linechart-tip {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+}
+
+.theme-light .mon-hw-soft-filter.is-active {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.theme-light .mon-hw-user {
+  color: var(--accent);
+}
+
+.theme-light .mon-alert-btn-count {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .theme-light .mkt-kind {
