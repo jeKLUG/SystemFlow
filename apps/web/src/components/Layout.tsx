@@ -141,7 +141,7 @@ function NavGroup({ title, items, onNavigate }: { title: string; items: NavItem[
 }
 
 /**
- * App-Shell mit Sidebar (globale Suche unter dem Logo), Topbar mobil und Tabbar.
+ * App-Shell mit hellem Theme, Sidebar (Suche unter dem Logo), Topbar mobil und Tabbar.
  */
 export function Layout() {
   const { user, logout } = useAuth();
@@ -175,7 +175,7 @@ export function Layout() {
   }, [mobileOpen]);
 
   return (
-    <div className={`app-shell${mobileOpen ? " is-nav-open" : ""}`}>
+    <div className={`app-shell theme-light${mobileOpen ? " is-nav-open" : ""}`}>
       <div className="atmosphere" aria-hidden="true" />
       <OfflineBanner />
 

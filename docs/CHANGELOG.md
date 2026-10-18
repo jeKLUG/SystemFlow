@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.233 – 2026-10-18
+
+- Staff-UI: helles, kompaktes Theme (Sidebar am PC, Topbar/Tabs am Handy). Kundenportal, Login und öffentliche Seiten bleiben dunkel.
+
 ## 1.5.232 – 2026-10-12
 
 - Monitoring: macOS-Agent (LaunchDaemon, Intel und Apple Silicon). Pakete `darwin-amd64`/`darwin-arm64`, Install-Skript unter Agent einrichten. Agent 1.0.12. Remote-PowerShell bleibt Windows-only.
