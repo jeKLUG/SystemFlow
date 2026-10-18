@@ -153,7 +153,7 @@ export function DashboardPage() {
         label,
         value,
         active: iso === todayIso,
-        tone: value > 0 ? "linear-gradient(180deg, #93c5fd, #2563eb)" : undefined,
+        tone: value > 0 ? "linear-gradient(180deg, #5b93c7, #2f6fae)" : undefined,
       };
     });
   }, [appointments, todayIso]);

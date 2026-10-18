@@ -17,7 +17,7 @@ Browser (React SPA)
 | Komponente | Pfad | Rolle |
 |------------|------|-------|
 | API | `apps/api` | Auth, Kunden, Dokumente, Monitoring-Ingest |
-| Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light`); Kundenportal und Login dunkel |
+| Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light`, Marke www.systemhaus-ess.de: Sora/Manrope, Akzent `#2F6FAE`); Kundenportal und Login dunkel |
 | Agent | `apps/agent` | Windows-/Linux-/macOS-Dienst, Heartbeat |
 | Android | `apps/android-app` | WebView-Hülle (APK) |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
