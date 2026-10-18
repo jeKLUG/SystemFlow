@@ -150,7 +150,7 @@ Body: `name`, optional `description`, `status` (`planned`\|`active`\|`on_hold`\|
 | DELETE | `/api/time-entries/:id` | Löschen |
 | GET | `/api/customers/:id/time/report.pdf?month=YYYY-MM` | Monatsreport-PDF (Stunden, Beträge, Status) |
 
-Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `ticketId` (Ticket desselben Kunden), `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `readyForInvoice`, `billed`. Alternativ `hours` ohne Uhrzeiten, oder `running: true` mit `startTime` für manuelles Starten.
+Body (Buchen): `workDate`, `startTime` + `endTime` (`HH:mm`, Stunden werden berechnet), optional `description`, `projectId`, `ticketId` (Ticket desselben Kunden), `priceItemId`, `lines` (`[{ priceItemId, quantity? }]` – 1–n Positionen; Menge default: gebuchte Stunden bei `hourly`, sonst 1), `billable`, `readyForInvoice`, `billed`. Alternativ `hours` mit `startTime`/`endTime` `null` (manuelle Dauer ohne Uhrzeit), oder `running: true` mit `startTime` für manuelles Starten. Laufende Stempeluhr ist nur ein Eintrag mit Start, ohne Ende und `hours` 0 – manuelle Stunden blockieren das Ein-/Ausstempeln nicht.
 
 `lines[].priceItemId` kann eine Katalog-ID sein oder virtuell `__org_hourly__` (Standard-Stundensatz) bzw. `__project_hourly__` (Projekt-Stundensatz, Projekt erforderlich). Ohne `lines` und ohne `priceItemId` entsteht **kein** automatischer Betrag. Legacy: nur `priceItemId` ohne `lines` setzt weiterhin den Katalog-Satz.
 

@@ -56,8 +56,10 @@ export function Modal({
 
   if (!open) return null;
 
+  const staffLight = Boolean(document.querySelector(".app-shell.theme-light"));
+
   return createPortal(
-    <div className="modal-root" role="presentation">
+    <div className={`modal-root${staffLight ? " theme-light" : ""}`} role="presentation">
       {closeOnBackdrop ? (
         <button type="button" className="modal-backdrop" aria-label="Schließen" onClick={onClose} />
       ) : (

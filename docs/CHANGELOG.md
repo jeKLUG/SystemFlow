@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.236 – 2026-10-18
+
+- Zeiterfassung: manuelle Stunden (ohne Von/Bis) lassen sich wieder buchen; Stempeluhr erkennt nur laufende Einträge (`hours` 0).
+- Staff-UI mobil: Abstände unter Kontakt-Tabs, keine grauen Panel-Scrollleisten, kompaktere Icon-Buttons, Stempel-Dialog nutzbarer.
+
 ## 1.5.235 – 2026-10-18
 
 - Staff-UI: Kontrast der Suchleisten, Karten und Platzhalter im hellen Theme (weiße Felder, klarere Ränder statt grauer Balken).

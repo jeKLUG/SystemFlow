@@ -70,9 +70,9 @@ function dayHeading(iso: string): string {
   }
 }
 
-/** Laufender Stempeluhr-Eintrag (Start ohne Ende). */
+/** Laufender Stempeluhr-Eintrag (Start ohne Ende, noch ohne Dauer). */
 function isRunningEntry(entry: TimeEntryItem): boolean {
-  return Boolean(entry.startTime && !entry.endTime);
+  return Boolean(entry.startTime && !entry.endTime && Number(entry.hours) === 0);
 }
 
 function emptyForm(): FormState {

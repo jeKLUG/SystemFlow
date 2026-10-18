@@ -38,8 +38,8 @@ function isVirtualRateLine(priceItemId: string) {
 const entryBody = z
   .object({
     workDate: z.string().min(1).max(40),
-    startTime: timeStr.optional(),
-    endTime: timeStr.optional(),
+    startTime: timeStr.optional().nullable(),
+    endTime: timeStr.optional().nullable(),
     hours: z.number().positive().max(24).optional(),
     /** Laufende Stempeluhr: nur Startzeit, Stunden = 0 bis Ausstempeln. */
     running: z.boolean().optional(),
@@ -96,6 +96,19 @@ const entryBody = z
 function emptyToNull(value: string | null | undefined) {
   if (!value || !value.trim()) return null;
   return value.trim();
+}
+
+/**
+ * Laufende Stempeluhr: Start gesetzt, Ende leer, Stunden 0.
+ * Manuelle Dauer-Buchungen (Stunden ohne Uhrzeit) zählen nicht.
+ */
+function openClockWhere(customerId: string) {
+  return and(
+    eq(timeEntries.customerId, customerId),
+    isNotNull(timeEntries.startTime),
+    isNull(timeEntries.endTime),
+    eq(timeEntries.hours, 0),
+  );
 }
 
 /**
@@ -549,13 +562,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       const open = await db
         .select({ id: timeEntries.id })
         .from(timeEntries)
-        .where(
-          and(
-            eq(timeEntries.customerId, customerId),
-            isNotNull(timeEntries.startTime),
-            isNull(timeEntries.endTime),
-          ),
-        )
+        .where(openClockWhere(customerId))
         .get();
       if (open) {
         return reply
@@ -686,17 +693,7 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
       })
       .parse(request.body ?? {});
 
-    const open = await db
-      .select()
-      .from(timeEntries)
-      .where(
-        and(
-          eq(timeEntries.customerId, customerId),
-          isNotNull(timeEntries.startTime),
-          isNull(timeEntries.endTime),
-        ),
-      )
-      .get();
+    const open = await db.select().from(timeEntries).where(openClockWhere(customerId)).get();
     if (open) {
       return reply.code(409).send({ error: "Stempeluhr läuft bereits", entry: open });
     }
@@ -773,19 +770,15 @@ export async function timeEntryRoutes(app: FastifyInstance, db: Db) {
 
     const open = body.entryId
       ? await db.select().from(timeEntries).where(eq(timeEntries.id, body.entryId)).get()
-      : await db
-          .select()
-          .from(timeEntries)
-          .where(
-            and(
-              eq(timeEntries.customerId, customerId),
-              isNotNull(timeEntries.startTime),
-              isNull(timeEntries.endTime),
-            ),
-          )
-          .get();
+      : await db.select().from(timeEntries).where(openClockWhere(customerId)).get();
 
-    if (!open || open.customerId !== customerId || !open.startTime || open.endTime) {
+    if (
+      !open ||
+      open.customerId !== customerId ||
+      !open.startTime ||
+      open.endTime ||
+      Number(open.hours) !== 0
+    ) {
       return reply.code(404).send({ error: "Keine laufende Stempeluhr gefunden" });
     }
 
