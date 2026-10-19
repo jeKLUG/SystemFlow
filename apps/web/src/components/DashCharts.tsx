@@ -331,6 +331,7 @@ export function LineChart({
       <div className="mon-linechart-plot">
         <svg
           viewBox={`0 0 ${width} ${height}`}
+          preserveAspectRatio="none"
           role="img"
           aria-label="Verlauf"
           onMouseMove={onMove}
@@ -342,7 +343,7 @@ export function LineChart({
                 x2={width - padR}
                 y1={yOf(tick)}
                 y2={yOf(tick)}
-                stroke="rgba(148,163,184,0.16)"
+                stroke="rgba(100,116,139,0.28)"
                 strokeWidth="1"
               />
               <text x={padL - 6} y={yOf(tick) + 3} textAnchor="end" className="mon-linechart-tick">

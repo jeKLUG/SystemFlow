@@ -72,6 +72,7 @@ Nav „Marketing“ (`/marketing`, Werkzeuge): Reiter Empfänger, Archiv, Texte,
 
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Firmenanschrift (Lesemodus, Bearbeitung nach „Bearbeiten“; Auftragnehmer auf Verträgen/PDF), Passwort, E-Mail (SMTP/Typen als kompakte Zeilen, Bearbeitung im Dialog) und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen. Speichern sperrt das Modal (kein zweiter POST bei Doppelklick) und zeigt einen Statushinweis.
+Monitoring-Gerätedetail: kompakte Karten ohne farbige Akzentbalken; Verlaufsdiagramm mit fester Höhe.
 
 ## Zeitzone
 

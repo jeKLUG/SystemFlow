@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.5.243 – 2026-10-19
+
+- Passworttresor: Zugangskarten und Generator-Kopf im hellen Staff-Design, Stärke-Farben mit besserem Kontrast.
+
+## 1.5.242 – 2026-10-19
+
+- Kalender: Zeitraumwechsler als `‹ Heute ›` neben Monat/Woche/Tag, Datumszeile nicht mehr abgeschnitten.
+
+## 1.5.241 – 2026-10-19
+
+- Monitoring: Gerätedetail kompakter und schlichter (keine Farbbalken/Verläufe), fester Chart, dunklere Beschriftungen.
+
 ## 1.5.240 – 2026-10-19
 
 - Kalender: Speichern zeigt Spinner und „Wird angelegt…“, sperrt Formular und Abbrechen, und blockiert Doppelklicks, damit Termine nicht mehrfach entstehen.

@@ -374,31 +374,29 @@ export function CalendarPage() {
               ))}
             </div>
 
-            <div className="calendar-nav">
-              <div className="calendar-period" key={heading}>
-                <strong className="anim-period">{heading}</strong>
-              </div>
-              <div className="calendar-nav-actions">
-                <button
-                  type="button"
-                  className="btn btn-ghost calendar-nav-btn"
-                  onClick={() => shift(-1)}
-                  aria-label="Zurück"
-                >
-                  ‹
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-ghost calendar-nav-btn"
-                  onClick={() => shift(1)}
-                  aria-label="Weiter"
-                >
-                  ›
-                </button>
-                <button type="button" className="btn btn-ghost btn-sm cal-today-btn" onClick={goToday}>
-                  Heute
-                </button>
-              </div>
+            <div className="calendar-nav-actions" role="group" aria-label="Zeitraum wechseln">
+              <button
+                type="button"
+                className="btn btn-ghost calendar-nav-btn"
+                onClick={() => shift(-1)}
+                aria-label="Zurück"
+              >
+                ‹
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm cal-today-btn" onClick={goToday}>
+                Heute
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost calendar-nav-btn"
+                onClick={() => shift(1)}
+                aria-label="Weiter"
+              >
+                ›
+              </button>
+            </div>
+            <div className="calendar-period" key={heading}>
+              <strong className="anim-period">{heading}</strong>
             </div>
           </div>
 

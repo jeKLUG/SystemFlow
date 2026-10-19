@@ -212,10 +212,11 @@ export function MonitoringDeviceDetail({
         <LineChart
           yMax={100}
           ySuffix="%"
+          height={148}
           series={[
-            { label: "CPU", color: "#60a5fa", points: pointsCpu },
-            { label: "RAM", color: "#a78bfa", points: pointsRam },
-            { label: "Datenträger", color: "#34d399", points: pointsDisk },
+            { label: "CPU", color: "#2563eb", points: pointsCpu },
+            { label: "RAM", color: "#7c3aed", points: pointsRam },
+            { label: "Datenträger", color: "#059669", points: pointsDisk },
           ]}
         />
       )}
