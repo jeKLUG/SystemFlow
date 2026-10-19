@@ -67,7 +67,7 @@ Platzhalter in Betreff/Text: `{{firma}}`, `{{ansprechpartner}}` (sonst „Team {
 Feld `kind`: `contact` (einfacher Kontakt) oder `customer` (Kunde). Bestehende Datensätze ohne Spalte werden beim Start auf `customer` migriert.
 | GET | `/api/stats` | `{ customerCount, activeCount }` |
 
-Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `website`, `notes`, `status` (`active`\|`inactive`).
+Body (POST/PUT): `name` (Kurzname), optional `company`, `contactPerson`, `email`, `phone`, `mobile`, `address`, `zip`, `city`, `country`, `vatId`, `lexwareCustomerNumber`, `website`, `notes`, `status` (`active`\|`inactive`). `lexwareCustomerNumber` ist die manuell hinterlegte Lexware-Kundennummer (kein Import).
 
 ## Tickets (Staff)
 

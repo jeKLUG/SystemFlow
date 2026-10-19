@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.244 – 2026-10-19
+
+- Kunden: optionale Lexware-Kundennummer manuell hinterlegen, anzeigen und durchsuchen.
+
 ## 1.5.243 – 2026-10-19
 
 - Passworttresor: Zugangskarten und Generator-Kopf im hellen Staff-Design, Stärke-Farben mit besserem Kontrast.

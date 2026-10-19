@@ -52,6 +52,7 @@ export async function createDb(databasePath: string) {
       city TEXT,
       country TEXT,
       vat_id TEXT,
+      lexware_customer_number TEXT,
       website TEXT,
       notes TEXT,
       kind TEXT NOT NULL DEFAULT 'customer',
@@ -604,6 +605,7 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "customers", "city", "TEXT");
   await ensureColumn(client, "customers", "country", "TEXT");
   await ensureColumn(client, "customers", "vat_id", "TEXT");
+  await ensureColumn(client, "customers", "lexware_customer_number", "TEXT");
   await ensureColumn(client, "customers", "website", "TEXT");
   await ensureColumn(client, "customers", "kind", "TEXT NOT NULL DEFAULT 'customer'");
   await ensureColumn(client, "documents", "project_id", "TEXT");

@@ -205,6 +205,7 @@ export interface Customer {
   city: string | null;
   country: string | null;
   vatId: string | null;
+  lexwareCustomerNumber: string | null;
   website: string | null;
   notes: string | null;
   kind: ContactKind;
@@ -750,6 +751,7 @@ export const emptyCustomerForm: {
   city: string;
   country: string;
   vatId: string;
+  lexwareCustomerNumber: string;
   website: string;
   notes: string;
   kind: ContactKind;
@@ -766,6 +768,7 @@ export const emptyCustomerForm: {
   city: "",
   country: "Deutschland",
   vatId: "",
+  lexwareCustomerNumber: "",
   website: "",
   notes: "",
   kind: "contact",

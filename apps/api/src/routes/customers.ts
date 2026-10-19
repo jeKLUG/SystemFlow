@@ -20,6 +20,7 @@ const customerBody = z.object({
   city: optionalText(120),
   country: optionalText(80),
   vatId: optionalText(40),
+  lexwareCustomerNumber: optionalText(40),
   website: optionalText(300),
   notes: optionalText(2000),
   kind: z.enum(["contact", "customer"]).optional(),
@@ -39,6 +40,7 @@ function mapCustomerInput(data: z.infer<typeof customerBody>) {
     city: data.city?.trim() || null,
     country: data.country?.trim() || null,
     vatId: data.vatId?.trim() || null,
+    lexwareCustomerNumber: data.lexwareCustomerNumber?.trim() || null,
     website: data.website?.trim() || null,
     notes: data.notes?.trim() || null,
   };
@@ -91,6 +93,7 @@ function buildCustomerWhere(opts: {
       like(customers.city, pattern),
       like(customers.zip, pattern),
       like(customers.vatId, pattern),
+      like(customers.lexwareCustomerNumber, pattern),
       like(customers.notes, pattern),
     );
     if (search) parts.push(search);

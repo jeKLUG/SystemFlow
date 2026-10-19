@@ -573,6 +573,7 @@ export async function marketingRoutes(app: FastifyInstance, db: Db) {
         city: null,
         country: null,
         vatId: null,
+        lexwareCustomerNumber: null,
         website: null,
         notes: existing.replyNote,
         kind: "contact",

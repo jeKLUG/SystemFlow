@@ -22,6 +22,8 @@ export const customers = sqliteTable("customers", {
   city: text("city"),
   country: text("country"),
   vatId: text("vat_id"),
+  /** Manuelle Kundennummer aus Lexware (kein Import, nur Ablage). */
+  lexwareCustomerNumber: text("lexware_customer_number"),
   website: text("website"),
   notes: text("notes"),
   /** `contact` = einfacher Kontakt, `customer` = Kunde. */

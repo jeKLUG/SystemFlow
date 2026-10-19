@@ -248,6 +248,7 @@ export async function exportRoutes(
       `- Mobil: ${customer.mobile ?? "–"}`,
       `- Adresse: ${[customer.address, customer.zip, customer.city, customer.country].filter(Boolean).join(", ") || "–"}`,
       `- USt-IdNr.: ${customer.vatId ?? "–"}`,
+      `- Lexware-Kundennummer: ${customer.lexwareCustomerNumber ?? "–"}`,
       `- Website: ${customer.website ?? "–"}`,
       `- Notiz: ${customer.notes ?? "–"}`,
       "",

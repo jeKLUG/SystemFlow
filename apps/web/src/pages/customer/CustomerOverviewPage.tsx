@@ -47,6 +47,7 @@ export function CustomerOverviewPage() {
       city: customer.city ?? "",
       country: customer.country ?? "Deutschland",
       vatId: customer.vatId ?? "",
+      lexwareCustomerNumber: customer.lexwareCustomerNumber ?? "",
       website: customer.website ?? "",
       notes: customer.notes ?? "",
       kind: customer.kind ?? "customer",
@@ -248,6 +249,10 @@ export function CustomerOverviewPage() {
                   external
                 />
                 <FactRow label="Adresse" value={hasAddress ? address : null} wide />
+                <FactRow
+                  label="Lexware-Kundennummer"
+                  value={customer.lexwareCustomerNumber?.trim() || null}
+                />
                 <FactRow label="USt-IdNr." value={customer.vatId?.trim() || null} />
                 <FactRow label="Notizen" value={customer.notes?.trim() || null} wide />
               </dl>

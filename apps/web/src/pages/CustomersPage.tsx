@@ -250,7 +250,13 @@ export function CustomersPage() {
             const entryKind = c.kind ?? "customer";
             const secondary =
               entryKind === "customer"
-                ? [c.contactPerson, c.email].filter(Boolean).join(" · ")
+                ? [
+                    c.lexwareCustomerNumber?.trim() ? `Nr. ${c.lexwareCustomerNumber.trim()}` : null,
+                    c.contactPerson,
+                    c.email,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
                 : [c.company, c.email].filter(Boolean).join(" · ");
             return (
               <li key={c.id}>

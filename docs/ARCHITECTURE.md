@@ -57,7 +57,7 @@ PDF-Exporte (Wiki, SLA, Besuchsblatt) nutzen gemeinsames Chrome in `apps/api/src
 
 Unter Nav „Kontakte“ (`/customers`): Liste mit Filter Kontakt/Kunde. Detail unter `/customers/:id` Tabs: Übersicht · Dokumente (Wiki / Dateien / E-Mails / Verträge) · Projekte · Aufgaben · Tickets · Zeiten · Inventar · Protokoll (Einsatz-Historie).
 
-Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`).
+Stammdaten-Tabelle `customers` mit Feld `kind` (`contact` \| `customer`). Kunden können optional eine manuelle `lexwareCustomerNumber` tragen (keine Lexware-Anbindung, nur Ablage und Suche).
 
 Mobil (≤860px): Sticky Topbar (Menü / Marke / Aufgaben) und Tabbar (Start · Kontakte · Notiz · Tresor · Termin) mit Safe-Area; globale Suche in der Sidebar unter dem Logo (Menü öffnen); Bottom-Sheets; Kontakt-Reiter fest unter der Topbar (scrollen nicht weg, Kurzlabels); größere Touch-Targets (`--mobile-hit` ≥ 3 rem); Inputs 16 px; Seiten-Padding über `--mobile-page-pad-x` / `--mobile-tabbar-h`.
 

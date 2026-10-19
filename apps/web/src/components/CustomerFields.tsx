@@ -12,6 +12,7 @@ export interface CustomerFormState {
   city: string;
   country: string;
   vatId: string;
+  lexwareCustomerNumber: string;
   website: string;
   notes: string;
   kind: ContactKind;
@@ -94,7 +95,19 @@ export function CustomerFields({
           </label>
 
           {isCustomer ? (
-            <label className="field full">
+            <label className="field">
+              <span>Lexware-Kundennummer</span>
+              <input
+                value={form.lexwareCustomerNumber}
+                onChange={(e) => set("lexwareCustomerNumber", e.target.value)}
+                placeholder="z. B. 10001"
+                autoComplete="off"
+              />
+            </label>
+          ) : null}
+
+          {isCustomer ? (
+            <label className="field">
               <span>Ansprechpartner</span>
               <input
                 value={form.contactPerson}

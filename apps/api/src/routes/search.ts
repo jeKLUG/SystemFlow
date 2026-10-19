@@ -148,6 +148,7 @@ export async function searchRoutes(app: FastifyInstance, db: Db) {
       columnMatches(customers.zip, patterns),
       columnMatches(customers.city, patterns),
       columnMatches(customers.vatId, patterns),
+      columnMatches(customers.lexwareCustomerNumber, patterns),
       columnMatches(customers.website, patterns),
       columnMatches(customers.notes, patterns),
     ]);

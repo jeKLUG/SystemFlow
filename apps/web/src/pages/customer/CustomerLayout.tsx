@@ -152,6 +152,9 @@ export function CustomerLayout() {
             <span className={`badge badge-${customer.status}`}>
               {customer.status === "active" ? "Aktiv" : "Inaktiv"}
             </span>
+            {kind === "customer" && customer.lexwareCustomerNumber?.trim() ? (
+              <span className="muted"> · Lexware {customer.lexwareCustomerNumber.trim()}</span>
+            ) : null}
             {kind === "customer" && customer.contactPerson ? (
               <span className="muted"> · {customer.contactPerson}</span>
             ) : null}
