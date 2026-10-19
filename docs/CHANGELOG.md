@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.240 – 2026-10-19
+
+- Kalender: Speichern zeigt Spinner und „Wird angelegt…“, sperrt Formular und Abbrechen, und blockiert Doppelklicks, damit Termine nicht mehrfach entstehen.
+
+## 1.5.239 – 2026-10-19
+
+- Monitoring mobil: Kundenauswahl füllt nicht mehr eine 22-rem-Lücke vor der Liste (`flex-basis` wirkte in der Spalte als Höhe).
+
 ## 1.5.238 – 2026-10-19
 
 - Staff-UI: Glow-Verläufe (Kalender, Heldenflächen, Stempel) entfernt; Status- und Leerflächen mit dunklerem Text (z. B. Monitoring-Warnungen).

@@ -12773,6 +12773,47 @@ a.stat-chip:hover {
   margin: 0;
 }
 
+.calendar-form.is-saving {
+  cursor: progress;
+}
+
+.calendar-form.is-saving .field,
+.calendar-form.is-saving .customer-picker {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.calendar-form .btn.is-busy {
+  pointer-events: none;
+  cursor: progress;
+}
+
+.calendar-form .btn.is-busy::before {
+  content: "";
+  width: 0.85em;
+  height: 0.85em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 0.45em;
+  vertical-align: -0.12em;
+  animation: calendar-spin 0.7s linear infinite;
+}
+
+.calendar-saving-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+@keyframes calendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .calendar-allday-field {
   justify-content: flex-start;
 }
@@ -22204,10 +22245,13 @@ div.mon-alert-item-main {
   }
 
   .mon-pending-actions .inventory-picker,
-  .mon-customer-picker {
+  .mon-customer-picker,
+  .mon-customer-picker.customer-picker {
     min-width: 0;
     width: 100%;
     max-width: none;
+    flex: none;
+    height: auto;
   }
 
   .mon-alert-item {

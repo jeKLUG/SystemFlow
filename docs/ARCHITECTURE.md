@@ -71,7 +71,7 @@ Nav „Aufgaben“ (`/tasks`): globale To-dos (mit/ohne Kunde) plus Ablauf-Block
 Nav „Marketing“ (`/marketing`, Werkzeuge): Reiter Empfänger, Archiv, Texte, Versand. Listen und Leads (E-Mail, Firma, optionaler Ansprechpartner), Textbausteine mit Platzhaltern `{{firma}}` / `{{ansprechpartner}}`, globale HTML-Signatur unter dem Text, Versand über dasselbe SMTP wie die Transaktionsmails. Status je Lead (Neu / Gesendet / Erinnerung fällig nach 7 Tagen / Erinnert / Geantwortet / Kontakt / Abgemeldet). Erinnerung nur mit eigenem Baustein. „Geantwortet“ ist manuell plus Notiz; daraus kann ein Kontakt (`customers.kind = contact`) entstehen. Bestehende Kunden-E-Mails werden übersprungen. Öffentliche Abmeldung unter `/m/unsubscribe/:token` (ohne Login). Kein Portal, kein IMAP. Nach erfolgreichem Versand liegt die Liste im Reiter Archiv (nicht löschbar, Versanddatum sichtbar); Erinnerungen gehen weiterhin.
 
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Firmenanschrift (Lesemodus, Bearbeitung nach „Bearbeiten“; Auftragnehmer auf Verträgen/PDF), Passwort, E-Mail (SMTP/Typen als kompakte Zeilen, Bearbeitung im Dialog) und Sicherung.
-Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen.
+Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen. Speichern sperrt das Modal (kein zweiter POST bei Doppelklick) und zeigt einen Statushinweis.
 
 ## Zeitzone
 

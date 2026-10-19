@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api";
 import { withOfflineFallback } from "../lib/offlineCache";
@@ -66,6 +66,8 @@ export function CalendarPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm, customerId: presetCustomer });
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
   const [filterKind, setFilterKind] = useState<"" | AppointmentKind>("");
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -199,20 +201,25 @@ export function CalendarPage() {
   }
 
   function closeForm() {
+    if (savingRef.current) return;
     setShowForm(false);
     setEditingId(null);
     setError("");
+    setSaving(false);
   }
 
   async function saveAppointment(e: FormEvent) {
     e.preventDefault();
+    if (savingRef.current) return;
+    const kind: AppointmentKind = form.customerId ? "customer" : form.kind;
+    if (kind === "customer" && !form.customerId) {
+      setError("Kundentermin braucht einen Kunden.");
+      return;
+    }
+    savingRef.current = true;
+    setSaving(true);
     setError("");
     try {
-      const kind: AppointmentKind = form.customerId ? "customer" : form.kind;
-      if (kind === "customer" && !form.customerId) {
-        setError("Kundentermin braucht einen Kunden.");
-        return;
-      }
       const body = {
         title: form.title,
         kind,
@@ -232,11 +239,15 @@ export function CalendarPage() {
         const created = await api.createAppointment(body);
         setActiveId(created.id);
       }
+      savingRef.current = false;
+      setSaving(false);
       closeForm();
       selectDay(form.startDate);
       setForm({ ...emptyForm, startDate: form.startDate, customerId: presetCustomer });
       await reload();
     } catch (err) {
+      savingRef.current = false;
+      setSaving(false);
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     }
   }
@@ -425,8 +436,14 @@ export function CalendarPage() {
         title={editingId ? "Termin bearbeiten" : "Neuer Termin"}
         onClose={closeForm}
         className="modal-wide"
+        closeOnBackdrop={!saving}
+        showCloseButton={!saving}
       >
-        <form className="form-grid calendar-form" onSubmit={saveAppointment}>
+        <form
+          className={`form-grid calendar-form${saving ? " is-saving" : ""}`}
+          onSubmit={saveAppointment}
+          aria-busy={saving}
+        >
           <label className="field">
             <span>Titel *</span>
             <input
@@ -540,11 +557,26 @@ export function CalendarPage() {
             />
           </label>
           {error ? <p className="form-error full">{error}</p> : null}
+          {saving ? (
+            <p className="calendar-saving-hint full" role="status" aria-live="polite">
+              {editingId ? "Änderungen werden gespeichert…" : "Termin wird angelegt…"}
+            </p>
+          ) : null}
           <div className="full form-actions modal-actions">
-            <button className="btn btn-primary" type="submit">
-              {editingId ? "Änderungen speichern" : "Termin speichern"}
+            <button
+              className={`btn btn-primary${saving ? " is-busy" : ""}`}
+              type="submit"
+              disabled={saving}
+            >
+              {saving
+                ? editingId
+                  ? "Wird gespeichert…"
+                  : "Wird angelegt…"
+                : editingId
+                  ? "Änderungen speichern"
+                  : "Termin speichern"}
             </button>
-            <button type="button" className="btn btn-ghost" onClick={closeForm}>
+            <button type="button" className="btn btn-ghost" onClick={closeForm} disabled={saving}>
               Abbrechen
             </button>
           </div>
