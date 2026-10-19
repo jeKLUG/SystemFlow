@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { api } from "../api";
 import { customerDisplayName } from "../lib/customer";
 import { getRecentCustomerIds, pushRecentCustomer } from "../lib/recentCustomers";
+import { isStaffLightTheme, STAFF_LIGHT_CLASS } from "../lib/theme";
 import type { Customer } from "../types";
 
 type Props = {
@@ -229,7 +230,7 @@ export function CustomerPicker({
             <ul
               id={listId}
               ref={listRef}
-              className="customer-picker-list is-floating"
+              className={`customer-picker-list is-floating${isStaffLightTheme() ? ` ${STAFF_LIGHT_CLASS}` : ""}`}
               role="listbox"
               style={listStyle}
             >

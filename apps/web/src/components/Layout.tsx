@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { api } from "../api";
 import { useAuth } from "../auth";
+import { STAFF_LIGHT_CLASS } from "../lib/theme";
 import { GlobalSearch } from "./GlobalSearch";
 import { OfflineBanner } from "./OfflineBanner";
 
@@ -150,6 +151,12 @@ export function Layout() {
   const [ticketOpen, setTicketOpen] = useState(0);
   const [monWarn, setMonWarn] = useState(0);
   const closeMobile = () => setMobileOpen(false);
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.classList.add(STAFF_LIGHT_CLASS);
+    return () => root.classList.remove(STAFF_LIGHT_CLASS);
+  }, []);
 
   useEffect(() => {
     setMobileOpen(false);

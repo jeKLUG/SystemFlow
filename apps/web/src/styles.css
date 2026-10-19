@@ -95,7 +95,7 @@
   --topbar-bg: rgba(255, 255, 255, 0.94);
   --mix-deep: #ffffff;
   --accent-border: rgba(47, 111, 174, 0.28);
-  --overlay: rgba(15, 23, 42, 0.18);
+  --overlay: rgba(15, 23, 42, 0.4);
   --code-bg: #0f172a;
   --control-h: 2.25rem;
   --control-h-sm: 1.95rem;
@@ -107,6 +107,7 @@
   --font-body: "Manrope", system-ui, sans-serif;
 }
 
+html.theme-light,
 html:has(.theme-light) {
   background: #ffffff;
   color-scheme: light;
@@ -23008,9 +23009,42 @@ div.mon-alert-item-main {
 }
 
 /* —— Staff light theme: compact shell, primitives, pages, breakpoints —— */
-.theme-light {
+.app-shell.theme-light {
   color: var(--text);
   background: transparent;
+}
+
+.theme-light .modal-panel {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+}
+
+.theme-light .modal-head h3 {
+  color: var(--text);
+}
+
+.theme-light .modal-backdrop {
+  background: var(--overlay);
+}
+
+.theme-light .customer-picker-list {
+  background: #fff;
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: var(--shadow);
+}
+
+.theme-light .check.is-checked .check-box,
+.theme-light .check-input:checked + .check-box {
+  background: var(--accent);
+  box-shadow: 0 2px 8px rgba(47, 111, 174, 0.28);
+}
+
+.theme-light .check:hover .check-box {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .theme-light .sidebar {
@@ -23445,6 +23479,8 @@ div.mon-alert-item-main {
     border-radius: 16px 16px 0 0;
     margin-top: auto;
     max-height: min(92dvh, 100%);
+    border-color: var(--border);
+    box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.14);
   }
 
   .theme-light .modal-body .form-actions.modal-actions {

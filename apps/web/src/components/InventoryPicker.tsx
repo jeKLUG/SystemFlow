@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+import { isStaffLightTheme, STAFF_LIGHT_CLASS } from "../lib/theme";
 import type { MonitoringAssignableAsset } from "../types";
 
 type Props = {
@@ -187,7 +188,7 @@ export function InventoryPicker({
             <ul
               id={listId}
               ref={listRef}
-              className="customer-picker-list is-floating inventory-picker-list"
+              className={`customer-picker-list is-floating inventory-picker-list${isStaffLightTheme() ? ` ${STAFF_LIGHT_CLASS}` : ""}`}
               role="listbox"
               style={listStyle}
             >

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { isStaffLightTheme, STAFF_LIGHT_CLASS } from "../lib/theme";
 
 type Props = {
   open: boolean;
@@ -56,10 +57,10 @@ export function Modal({
 
   if (!open) return null;
 
-  const staffLight = Boolean(document.querySelector(".app-shell.theme-light"));
+  const staffLight = isStaffLightTheme();
 
   return createPortal(
-    <div className={`modal-root${staffLight ? " theme-light" : ""}`} role="presentation">
+    <div className={`modal-root${staffLight ? ` ${STAFF_LIGHT_CLASS}` : ""}`} role="presentation">
       {closeOnBackdrop ? (
         <button type="button" className="modal-backdrop" aria-label="Schließen" onClick={onClose} />
       ) : (

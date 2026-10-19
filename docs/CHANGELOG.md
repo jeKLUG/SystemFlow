@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.237 – 2026-10-19
+
+- Staff-Dialoge (Kalender, Formulare, Kundenwahl) nutzen das helle Marken-Theme. Portale auf `document.body` erben Tokens von `html.theme-light`.
+
 ## 1.5.236 – 2026-10-18
 
 - Zeiterfassung: manuelle Stunden (ohne Von/Bis) lassen sich wieder buchen; Stempeluhr erkennt nur laufende Einträge (`hours` 0).
