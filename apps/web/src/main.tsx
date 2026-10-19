@@ -7,7 +7,7 @@ import { AuthProvider } from "./auth";
 import "./styles.css";
 
 /** Bei Änderung: einmalig alte PWA-Caches verwerfen (löst steckenbleibende Shell nach Deploy). */
-const CACHE_EPOCH = "2026-10-19-staff-modals";
+const CACHE_EPOCH = "2026-10-19-staff-contrast";
 const CACHE_EPOCH_KEY = "sf-cache-epoch";
 
 async function purgeStaleClientCaches(): Promise<boolean> {

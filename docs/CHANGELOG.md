@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.238 – 2026-10-19
+
+- Staff-UI: Glow-Verläufe (Kalender, Heldenflächen, Stempel) entfernt; Status- und Leerflächen mit dunklerem Text (z. B. Monitoring-Warnungen).
+
 ## 1.5.237 – 2026-10-19
 
 - Staff-Dialoge (Kalender, Formulare, Kundenwahl) nutzen das helle Marken-Theme. Portale auf `document.body` erben Tokens von `html.theme-light`.

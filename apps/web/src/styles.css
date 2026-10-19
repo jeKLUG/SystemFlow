@@ -185,8 +185,166 @@ svg {
 }
 
 .theme-light .atmosphere {
-  background:
-    radial-gradient(ellipse 70% 42% at 50% -8%, rgba(47, 111, 174, 0.08), transparent 62%);
+  display: none;
+}
+
+/* Staff hell: keine Glow-Verläufe, Statusfarben dunkel genug auf Weiß */
+.theme-light :is(
+  .prices-hero,
+  .prices-empty,
+  .tasks-hero,
+  .tasks-hub-hero,
+  .vault-hero,
+  .vault-gen-stage,
+  .history-hero,
+  .docs-hero,
+  .projects-hero,
+  .time-hero,
+  .mkt-hero,
+  .calendar-controls,
+  .calendar-day-panel,
+  .dash-chart-card
+) {
+  background: #fff;
+}
+
+.theme-light .calendar-day,
+.theme-light .calendar-day:hover {
+  background: #fff;
+  border-color: var(--border);
+  box-shadow: none;
+  transform: none;
+}
+
+.theme-light .calendar-day:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+}
+
+.theme-light .calendar-day.is-selected,
+.theme-light .calendar-day.is-selected:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  animation: none;
+  box-shadow: none;
+  transform: none;
+}
+
+.theme-light .calendar-day.has-events {
+  box-shadow: none;
+}
+
+.theme-light .calendar-day.is-today .calendar-day-num {
+  background: var(--accent);
+  box-shadow: none;
+}
+
+.theme-light .cal-event {
+  color: var(--text);
+  background: #e8eef5;
+  border-left-color: var(--accent);
+  filter: none;
+}
+
+.theme-light .cal-event:hover {
+  filter: none;
+  background: #d9e4f0;
+}
+
+.theme-light .cal-event.kind-customer {
+  background: #dcfce7;
+  color: #166534;
+  border-left-color: #16a34a;
+}
+
+.theme-light .cal-event.kind-internal {
+  background: #e8eef5;
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+
+.theme-light .cal-event.kind-personal {
+  background: #fef3c7;
+  color: #92400e;
+  border-left-color: #d97706;
+}
+
+.theme-light .cal-event.kind-other {
+  background: #f1f5f9;
+  color: var(--text);
+  border-left-color: #64748b;
+}
+
+.theme-light .mon-warn-empty {
+  background: #ecfdf5;
+  border: 1px solid #6ee7b7;
+  color: #047857;
+}
+
+.theme-light .time-clock.is-running {
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.theme-light .vault-card-preview {
+  background: #e8eef5;
+}
+
+.theme-light .vault-card-preview.is-folder {
+  background: #fef3c7;
+}
+
+.theme-light .vault-card-preview.kind-pdf {
+  background: #fee2e2;
+}
+
+.theme-light .vault-card-preview.kind-office {
+  background: #dbeafe;
+}
+
+.theme-light .vault-card-preview.kind-archive {
+  background: #ede9fe;
+}
+
+.theme-light .vault-card-preview.kind-text {
+  background: #e0f2fe;
+}
+
+.theme-light .mail-config-pill.is-on {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #6ee7b7;
+}
+
+.theme-light .mail-config-pill.is-mixed {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+}
+
+.theme-light input[type="checkbox"]:not(.check-input):checked {
+  box-shadow: none;
+}
+
+.theme-light .mon-hw-disk .mon-meter > span {
+  box-shadow: none;
+  background: #059669;
+}
+
+.theme-light .dash-kpi.is-ok .dash-kpi-meter i {
+  background: #059669;
+}
+
+.theme-light .dash-kpi-meter i {
+  background: var(--accent);
+}
+
+.theme-light .dash-kpi.is-warn .dash-kpi-meter i {
+  background: #d97706;
+}
+
+.theme-light .dash-kpi.is-danger .dash-kpi-meter i {
+  background: #dc2626;
 }
 
 .theme-light ::selection {
@@ -23039,7 +23197,7 @@ div.mon-alert-item-main {
 .theme-light .check.is-checked .check-box,
 .theme-light .check-input:checked + .check-box {
   background: var(--accent);
-  box-shadow: 0 2px 8px rgba(47, 111, 174, 0.28);
+  box-shadow: none;
 }
 
 .theme-light .check:hover .check-box {
@@ -23157,7 +23315,7 @@ div.mon-alert-item-main {
 
 .theme-light .btn-primary,
 .theme-light a.btn-primary {
-  box-shadow: 0 1px 3px rgba(47, 111, 174, 0.25);
+  box-shadow: none;
 }
 
 .theme-light .btn-primary:hover,
@@ -23187,14 +23345,16 @@ div.mon-alert-item-main {
 .theme-light .customer-tab-active {
   color: #fff !important;
   background: var(--accent) !important;
-  box-shadow: 0 1px 3px rgba(47, 111, 174, 0.25);
+  box-shadow: none;
 }
 
 .theme-light .mkt-status.is-sent,
 .theme-light .mkt-status.is-contact,
 .theme-light .badge-prio-normal,
 .theme-light .sla-pill.is-ok strong,
-.theme-light .ticket-prio-chip.is-normal .ticket-prio-sla {
+.theme-light .ticket-prio-chip.is-normal .ticket-prio-sla,
+.theme-light .sla-clock.is-ok,
+.theme-light .sla-clock.is-ok .sla-clock-headline {
   color: var(--accent);
   border-color: var(--accent-border);
 }
@@ -23364,8 +23524,8 @@ div.mon-alert-item-main {
 }
 
 .theme-light .dash-col.is-active .dash-col-bar {
-  background: linear-gradient(180deg, #5b93c7, #2f6fae);
-  box-shadow: 0 8px 18px rgba(47, 111, 174, 0.28);
+  background: var(--accent);
+  box-shadow: none;
 }
 
 @media (min-width: 861px) and (max-width: 1100px) {
@@ -23517,9 +23677,7 @@ div.mon-alert-item-main {
   .theme-light .mobile-tabbar .tab-primary,
   .theme-light .mobile-tabbar .tab-primary.active {
     background: var(--accent);
-    box-shadow:
-      0 0 0 4px #fff,
-      0 8px 20px rgba(47, 111, 174, 0.35);
+    box-shadow: 0 0 0 4px #fff;
     color: #fff !important;
   }
 
