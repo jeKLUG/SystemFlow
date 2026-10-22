@@ -17,7 +17,7 @@ Browser (React SPA)
 | Komponente | Pfad | Rolle |
 |------------|------|-------|
 | API | `apps/api` | Auth, Kunden, Dokumente, Monitoring-Ingest |
-| Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light` an App-Shell und `html`, damit Modals/Portale Tokens erben; Marke www.systemhaus-ess.de: Sora/Manrope, Akzent `#2F6FAE`); Kundenportal, Login, Vault-Share und Marketing-Abmeldung dunkel |
+| Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light` an App-Shell und `html`, damit Modals/Portale Tokens erben; Marke www.systemhaus-ess.de: Sora/Manrope, Akzent `#2F6FAE`; `--code-bg` hell für Editor-Codeblöcke); Kundenportal, Login, Vault-Share und Marketing-Abmeldung dunkel |
 | Agent | `apps/agent` | Windows-/Linux-/macOS-Dienst, Heartbeat |
 | Android | `apps/android-app` | WebView-Hülle (APK) |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
@@ -72,7 +72,7 @@ Nav „Marketing“ (`/marketing`, Werkzeuge): Reiter Empfänger, Archiv, Texte,
 
 Nav „Preise“ (`/prices`): Preiskatalog (Stunde/Pauschale/Stück) und Standardpreise; Konto (`/settings`) enthält Firmenanschrift (Lesemodus, Bearbeitung nach „Bearbeiten“; Auftragnehmer auf Verträgen/PDF), Passwort, E-Mail (SMTP/Typen als kompakte Zeilen, Bearbeitung im Dialog) und Sicherung.
 Kalender unter `/calendar`: Vollflächen-UI mit Monats-/Wochen-/Tagesansicht, Termin anlegen und bearbeiten per Modal, Detailbereich mit Bearbeiten/Löschen. Speichern sperrt das Modal (kein zweiter POST bei Doppelklick) und zeigt einen Statushinweis.
-Monitoring-Gerätedetail: kompakte Karten ohne farbige Akzentbalken; Verlaufsdiagramm mit fester Höhe.
+Monitoring-Gerätedetail: kompakte Karten ohne farbige Akzentbalken; Verlaufsdiagramm mit fester Höhe, gezeichnet in der Plotbreite (kein SVG-Strecken).
 
 ## Zeitzone
 

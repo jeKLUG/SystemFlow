@@ -49,7 +49,7 @@ function CodeBlockView({ node }: NodeViewProps) {
           {gutter}
         </pre>
         <pre className="code-block-pre">
-          <NodeViewContent as="code" className="code-block-code" />
+          <NodeViewContent as="code" className="code-block-code" spellCheck={false} />
         </pre>
       </div>
     </NodeViewWrapper>

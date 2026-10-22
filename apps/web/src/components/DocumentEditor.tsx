@@ -111,6 +111,7 @@ export function DocumentEditor({
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
         codeBlock: false,
+        code: { HTMLAttributes: { spellcheck: "false" } },
       }),
       CodeBlockWithChrome,
       Callout,

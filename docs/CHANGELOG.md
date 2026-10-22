@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.246 – 2026-10-22
+
+- Editor: Codeblöcke, Inline-Code und Toolbar-Gruppen im hellen Staff-Design (nicht mehr dunkel).
+
+## 1.5.245 – 2026-10-19
+
+- Monitoring: Verlaufsdiagramm ohne Verzerrung (SVG in Plotbreite statt Strecken).
+
 ## 1.5.244 – 2026-10-19
 
 - Kunden: optionale Lexware-Kundennummer manuell hinterlegen, anzeigen und durchsuchen.

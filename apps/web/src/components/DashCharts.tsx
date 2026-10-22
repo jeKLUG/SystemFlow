@@ -1,4 +1,4 @@
-import { useId, useState, type MouseEvent } from "react";
+import { useId, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { Link } from "react-router-dom";
 
 type Slice = { label: string; value: number; color: string };
@@ -262,7 +262,32 @@ function sampleGap(points: LinePoint[]): number {
 }
 
 /**
+ * Misst die Plotbreite, damit das SVG 1:1 gezeichnet wird und nicht verzerrt.
+ */
+function usePlotWidth(min = 280) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const apply = (w: number) => {
+      const next = Math.max(min, Math.round(w));
+      setWidth((cur) => (Math.abs(cur - next) < 2 ? cur : next));
+    };
+    apply(el.clientWidth);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (w) apply(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [min]);
+  return [ref, width] as const;
+}
+
+/**
  * SVG-Liniendiagramm mit Zeitachse und Hover-Werte-Label.
+ * Zeichnet in Pixelmaßen der Plotfläche, damit Linien und Beschriftungen nicht gestreckt werden.
  */
 export function LineChart({
   series,
@@ -276,13 +301,13 @@ export function LineChart({
   ySuffix?: string;
 }) {
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
-  const width = 640;
+  const [plotRef, width] = usePlotWidth();
   const padL = 38;
   const padR = 10;
   const padT = 10;
   const padB = 28;
-  const innerW = width - padL - padR;
-  const innerH = height - padT - padB;
+  const innerW = Math.max(1, width - padL - padR);
+  const innerH = Math.max(1, height - padT - padB);
 
   const all = series.flatMap((s) => s.points);
   const times = all.map((p) => p.t);
@@ -302,7 +327,8 @@ export function LineChart({
   }
 
   function pathFor(points: LinePoint[]) {
-    const usable = downsample(points, 120).filter((p) => p.v != null) as { t: number; v: number }[];
+    const maxPts = Math.min(280, Math.max(80, Math.round(innerW / 4)));
+    const usable = downsample(points, maxPts).filter((p) => p.v != null) as { t: number; v: number }[];
     if (usable.length < 2) return "";
     return usable.map((p, i) => `${i === 0 ? "M" : "L"}${xOf(p.t).toFixed(1)} ${yOf(p.v).toFixed(1)}`).join(" ");
   }
@@ -328,10 +354,13 @@ export function LineChart({
 
   return (
     <div className="mon-linechart" onMouseLeave={() => setHover(null)}>
-      <div className="mon-linechart-plot">
+      <div ref={plotRef} className="mon-linechart-plot">
+        {width > 0 ? (
         <svg
           viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="none"
+          width={width}
+          height={height}
+          preserveAspectRatio="xMidYMid meet"
           role="img"
           aria-label="Verlauf"
           onMouseMove={onMove}
@@ -345,6 +374,7 @@ export function LineChart({
                 y2={yOf(tick)}
                 stroke="rgba(100,116,139,0.28)"
                 strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
               />
               <text x={padL - 6} y={yOf(tick) + 3} textAnchor="end" className="mon-linechart-tick">
                 {tick}
@@ -373,8 +403,10 @@ export function LineChart({
               d={pathFor(s.points)}
               fill="none"
               stroke={s.color}
-              strokeWidth="2.2"
+              strokeWidth="2"
               strokeLinejoin="round"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
             />
           ))}
           {hover ? (
@@ -403,6 +435,7 @@ export function LineChart({
             </g>
           ) : null}
         </svg>
+        ) : null}
         {hover ? (
           <div
             className={`mon-linechart-tip${tipLeft ? " is-left" : ""}`}
