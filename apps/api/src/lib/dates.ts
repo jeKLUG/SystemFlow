@@ -83,3 +83,10 @@ export function isoInAppZone(value: Date, timeZone: string = APP_TIMEZONE): stri
     day: "2-digit",
   }).format(value);
 }
+
+/** Vorheriger Kalendermonat `YYYY-MM` relativ zu einem ISO-Tag. */
+export function previousMonthYm(fromIso: string = todayIso()): string {
+  const [y, m] = fromIso.slice(0, 7).split("-").map(Number);
+  if (m === 1) return `${y! - 1}-12`;
+  return `${y}-${String(m! - 1).padStart(2, "0")}`;
+}

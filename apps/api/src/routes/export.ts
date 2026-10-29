@@ -19,6 +19,14 @@ import {
   timeEntries,
   vaultEntries,
 } from "../db/schema.js";
+import {
+  buildMonitoringMonthReportPdf,
+  loadMonitoringMonthReport,
+} from "../lib/monitoring-month-report-pdf.js";
+import {
+  listMonitoringMonthReports,
+  saveMonitoringMonthReportPdf,
+} from "../lib/monitoring-month-report-store.js";
 import { tiptapToText } from "../lib/tiptap-text.js";
 import { buildTimeMonthReportPdf } from "../lib/time-month-report-pdf.js";
 import {
@@ -176,6 +184,46 @@ export async function exportRoutes(
         `attachment; filename="${pdfFilename(`Zeit_${label}_${month}`)}"`,
       )
       .send(buffer);
+  });
+
+  /**
+   * Monatsreport Monitoring (PDF): Uptime, Auslastung, Tickets, aktueller Warnstand.
+   * Query: month=YYYY-MM
+   */
+  app.get("/api/customers/:customerId/monitoring/report.pdf", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const q = z
+      .object({ month: z.string().regex(/^\d{4}-\d{2}$/) })
+      .safeParse(request.query);
+    if (!q.success) {
+      return reply.code(400).send({ error: "Query month=YYYY-MM erforderlich" });
+    }
+    const { month } = q.data;
+    const report = await loadMonitoringMonthReport(db, customerId, month);
+    if (!report) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+
+    const buffer = await buildMonitoringMonthReportPdf(report);
+    await saveMonitoringMonthReportPdf(db, uploadDir, report, buffer);
+    const label = (report.customer.company || report.customer.name)
+      .replace(/[^\w\-äöüÄÖÜß]+/gi, "_")
+      .slice(0, 40);
+    return reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `attachment; filename="${pdfFilename(`Monitoring_${label}_${month}`)}"`,
+      )
+      .send(buffer);
+  });
+
+  /**
+   * Gespeicherte Monitoring-Monatsreports (PDF in der Kundenakte).
+   */
+  app.get("/api/customers/:customerId/monitoring/reports", async (request, reply) => {
+    const { customerId } = request.params as { customerId: string };
+    const customer = await db.select().from(customers).where(eq(customers.id, customerId)).get();
+    if (!customer) return reply.code(404).send({ error: "Kunde nicht gefunden" });
+    return listMonitoringMonthReports(db, customerId);
   });
 
   app.get("/api/customers/:customerId/export", async (request, reply) => {

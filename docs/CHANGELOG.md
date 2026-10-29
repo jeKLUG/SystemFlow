@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.248 – 2026-10-28
+
+- Monitoring-Monatsreports werden in der Kundenakte (Ordner Monitoring-Berichte) gespeichert, auf der Kundenseite geöffnet und nach Monatsende automatisch erzeugt.
+
+## 1.5.247 – 2026-10-28
+
+- Monitoring: Monatsreport als PDF je Kunde (Uptime, Auslastung, Tickets) im Firmenbranding, Button in Flotte und auf der Kundenseite.
+
 ## 1.5.246 – 2026-10-22
 
 - Editor: Codeblöcke, Inline-Code und Toolbar-Gruppen im hellen Staff-Design (nicht mehr dunkel).

@@ -6,6 +6,7 @@ import { HelpHint } from "../../components/HelpHint";
 import { InventoryPicker } from "../../components/InventoryPicker";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
 import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
+import { localMonthYm } from "../../lib/dates";
 import {
   deviceIssueChips,
   agentVersionAtLeast,
@@ -36,6 +37,8 @@ export function MonitoringPage() {
   const [error, setError] = useState("");
   const [assignPick, setAssignPick] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reportMonth, setReportMonth] = useState(localMonthYm);
+  const [reportBusyId, setReportBusyId] = useState<string | null>(null);
 
   async function reloadFleet() {
     const [ov, pend] = await Promise.all([api.monitoringOverview(), api.monitoringPending()]);
@@ -145,6 +148,19 @@ export function MonitoringPage() {
       setError(err instanceof Error ? err.message : "Entfernen fehlgeschlagen");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function downloadReport(customerId: string, customerName: string) {
+    if (!/^\d{4}-\d{2}$/.test(reportMonth) || reportBusyId) return;
+    setReportBusyId(customerId);
+    setError("");
+    try {
+      await api.exportMonitoringMonthReport(customerId, reportMonth, customerName);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Monatsreport fehlgeschlagen");
+    } finally {
+      setReportBusyId(null);
     }
   }
 
@@ -384,17 +400,31 @@ export function MonitoringPage() {
         <div className="section-head row-between">
           <div className="page-head-title">
             <h2>Kunden</h2>
-            <HelpHint text="Monitoring-Seite mit Diagrammen und Geräten." />
+            <HelpHint text="Pro Kunde Monatsreport als PDF. Die Datei wird in der Kundenakte gespeichert und nach Monatsende automatisch erzeugt." />
           </div>
-          <CustomerPicker
-            className="mon-customer-picker"
-            value=""
-            onChange={openCustomer}
-            allowEmpty
-            emptyLabel="Kunde suchen…"
-            compact
-            placeholder="Kunde suchen…"
-          />
+          <div className="mon-fleet-tools">
+            <label className="mon-report-month">
+              <span className="sr-only">Report-Monat</span>
+              <input
+                type="month"
+                className="mon-report-month-input"
+                value={reportMonth}
+                onChange={(e) => {
+                  if (/^\d{4}-\d{2}$/.test(e.target.value)) setReportMonth(e.target.value);
+                }}
+                aria-label="Report-Monat"
+              />
+            </label>
+            <CustomerPicker
+              className="mon-customer-picker"
+              value=""
+              onChange={openCustomer}
+              allowEmpty
+              emptyLabel="Kunde suchen…"
+              compact
+              placeholder="Kunde suchen…"
+            />
+          </div>
         </div>
 
         {loading ? (
@@ -409,7 +439,7 @@ export function MonitoringPage() {
               const total = c.online + c.offline;
               const tone = c.warning > 0 ? "warn" : c.offline > 0 ? "off" : "ok";
               return (
-                <li key={c.customerId}>
+                <li key={c.customerId} className="mon-customer-item">
                   <Link className={`mon-customer-row is-${tone}`} to={customerHref(c.customerId)}>
                     <span
                       className={`mon-dot${tone === "warn" ? " is-warn" : tone === "off" ? " is-off" : " is-on"}`}
@@ -442,6 +472,15 @@ export function MonitoringPage() {
                       </div>
                     </dl>
                   </Link>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm mon-customer-report-btn"
+                    disabled={Boolean(reportBusyId)}
+                    title="Monatsreport als PDF"
+                    onClick={() => void downloadReport(c.customerId, c.customerName)}
+                  >
+                    {reportBusyId === c.customerId ? "PDF…" : "PDF"}
+                  </button>
                 </li>
               );
             })}

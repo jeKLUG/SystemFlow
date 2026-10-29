@@ -1041,6 +1041,16 @@ export interface MonitoringCustomerView {
   waitingAssets: { id: string; name: string; hostname: string | null }[];
 }
 
+/** Abgelegter Monitoring-Monatsreport (PDF in der Kundenakte). */
+export interface MonitoringMonthReportFile {
+  id: string;
+  month: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface MonitoringPendingAgent {
   id: string;
   machineId: string;

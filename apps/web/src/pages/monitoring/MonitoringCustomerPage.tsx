@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../api";
+import { localMonthYm } from "../../lib/dates";
 import { ChartLegend, DonutChart, HBarChart } from "../../components/DashCharts";
 import { HelpHint } from "../../components/HelpHint";
 import { MonitoringAlertItem } from "../../components/MonitoringAlertItem";
@@ -19,6 +20,7 @@ import type {
   MonitoringDeviceDetail as DeviceDetailData,
   MonitoringDeviceSummary,
   MonitoringIssueKind,
+  MonitoringMonthReportFile,
   MonitoringPingTarget,
   MonitoringServiceWatch,
 } from "../../types";
@@ -51,6 +53,26 @@ function customerPath(customerId: string, assetId?: string | null) {
     : `/monitoring/customers/${customerId}`;
 }
 
+function formatReportMonth(ym: string): string {
+  const m = /^(\d{4})-(\d{2})$/.exec(ym);
+  if (!m) return ym;
+  return new Intl.DateTimeFormat("de-DE", { month: "long", year: "numeric" }).format(
+    new Date(Number(m[1]), Number(m[2]) - 1, 1),
+  );
+}
+
+function formatReportSavedAt(value: string): string {
+  const d = new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  return new Intl.DateTimeFormat("de-DE", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(d);
+}
+
 /**
  * Monitoring-Kundenseite: Status, Meldungen und durchsuchbare Geräteliste.
  */
@@ -64,6 +86,9 @@ export function MonitoringCustomerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [reportMonth, setReportMonth] = useState(localMonthYm);
+  const [reportBusy, setReportBusy] = useState(false);
+  const [reports, setReports] = useState<MonitoringMonthReportFile[]>([]);
   const saveAlertsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const saveAlertsLatest = useRef<{ assetId: string; cfg: MonitoringAlertConfig } | null>(null);
   const detailRef = useRef<HTMLDivElement>(null);
@@ -93,6 +118,25 @@ export function MonitoringCustomerPage() {
     return () => {
       cancelled = true;
       window.clearInterval(t);
+    };
+  }, [customerId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!customerId) {
+      setReports([]);
+      return;
+    }
+    void api
+      .monitoringMonthReports(customerId)
+      .then((rows) => {
+        if (!cancelled) setReports(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setReports([]);
+      });
+    return () => {
+      cancelled = true;
     };
   }, [customerId]);
 
@@ -409,6 +453,21 @@ export function MonitoringCustomerPage() {
     await reloadDevice();
   }
 
+  async function downloadMonthReport() {
+    if (!customerId || !/^\d{4}-\d{2}$/.test(reportMonth) || reportBusy) return;
+    setReportBusy(true);
+    setError("");
+    try {
+      await api.exportMonitoringMonthReport(customerId, reportMonth, view?.customerName);
+      const rows = await api.monitoringMonthReports(customerId);
+      setReports(rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Monatsreport fehlgeschlagen");
+    } finally {
+      setReportBusy(false);
+    }
+  }
+
   const totalAssigned = devices.length + waiting;
   const filters: { id: DeviceFilter; label: string; count: number }[] = [
     { id: "all", label: "Alle", count: devices.length + waiting },
@@ -436,6 +495,27 @@ export function MonitoringCustomerPage() {
           </p>
         </div>
         <div className="mon-customer-hero-actions">
+          <label className="mon-report-month">
+            <span className="sr-only">Report-Monat</span>
+            <input
+              type="month"
+              className="mon-report-month-input"
+              value={reportMonth}
+              onChange={(e) => {
+                if (/^\d{4}-\d{2}$/.test(e.target.value)) setReportMonth(e.target.value);
+              }}
+              aria-label="Report-Monat"
+            />
+          </label>
+          <button
+            type="button"
+            className="btn btn-primary"
+            disabled={reportBusy || !customerId}
+            title="Monatsreport als PDF"
+            onClick={() => void downloadMonthReport()}
+          >
+            {reportBusy ? "PDF…" : "Monatsreport"}
+          </button>
           <Link className="btn btn-ghost" to={`/customers/${customerId}`}>
             Kundenakte
           </Link>
@@ -446,6 +526,43 @@ export function MonitoringCustomerPage() {
       </header>
 
       {error ? <p className="form-error">{error}</p> : null}
+
+      <section className="panel mon-panel" aria-label="Monatsreports">
+        <div className="section-head row-between">
+          <div className="page-head-title">
+            <h2>Monatsreports</h2>
+            <HelpHint text="PDFs liegen in der Kundenakte unter Dokumente → Dateien im Ordner Monitoring-Berichte. Abgeschlossene Monate speichert das System automatisch; Erzeugen überschreibt den Monat." />
+          </div>
+        </div>
+        {reports.length === 0 ? (
+          <p className="empty">
+            Noch keine gespeicherten Reports. „Monatsreport“ legt eine Kopie ab; nach Monatsende
+            entsteht der Bericht von selbst.
+          </p>
+        ) : (
+          <ul className="mon-report-archive">
+            {reports.map((row) => (
+              <li key={row.id}>
+                <div className="mon-report-archive-copy">
+                  <strong>{formatReportMonth(row.month)}</strong>
+                  <span className="muted">
+                    {formatReportSavedAt(row.updatedAt)}
+                    {row.month === reportMonth ? " · aktuell gewählt" : ""}
+                  </span>
+                </div>
+                <a
+                  className="btn btn-ghost btn-sm"
+                  href={`/api/attachments/${row.id}/download?inline=1`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Öffnen
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="dash-kpis dash-kpis-compact" aria-label="Kennzahlen">
         <div className="dash-kpi">

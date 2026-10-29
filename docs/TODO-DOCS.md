@@ -10,6 +10,9 @@
 - [x] Monitoring-Datenträger: Liste aller Laufwerke, Schwellwert und Ticket je Festplatte
 - [x] Monitoring: verbaute Hardware-Komponenten (CPU/RAM/Platten/GPU) in der Geräteansicht
 - [x] Monitoring: Agent-Pakete im Portal, Install-Skripte, Auto-Start/Recovery, Self-Update
+- [x] Monitoring: Monatsreport-PDF je Kunde (Uptime, Auslastung, Tickets)
+- [x] Monitoring-Monatsreports in der Kundenakte speichern und nach Monatsende automatisch erzeugen
+- [ ] Optional: Monitoring-Monatsreport über das 30-Tage-Sample-Fenster hinaus (Archiv deckt abgeschlossene Monate ab, solange der Server am Monatswechsel lief)
 - [x] E-Mail-Benachrichtigungen (SMTP in Einstellungen; Tickets, Termine, Monitoring). Keine Einladungs-Mails.
 - [ ] Optional: Marketing CSV-Import (Firma, E-Mail, Ansprechpartner)
 - [ ] Optional: Marketing-Tags (Branche, Größe) zum Schneiden von Listen

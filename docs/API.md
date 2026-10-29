@@ -214,6 +214,8 @@ Staff:
 | POST | `/api/monitoring/agents/:id/uninstall` | Remote-Deinstallation: Agent erhält `uninstall` beim nächsten Heartbeat und wird danach aus der Flotte gelöscht |
 | DELETE | `/api/monitoring/agents/:id` | Sofort aus der Liste nehmen (ohne zu warten); Dienst bleibt, bis der Befehl ankommt oder lokal deinstalliert wird |
 | GET | `/api/monitoring/customers/:customerId` | Geräte des Kunden; UI: `/monitoring/customers/:customerId` |
+| GET | `/api/customers/:id/monitoring/report.pdf?month=YYYY-MM` | Monatsreport-PDF (Uptime aus Heartbeats, CPU/RAM/Disk Ø/Max, Monitoring-Tickets, aktueller Warnstand). Speichert eine Kopie in der Kundenakte (`Monitoring-Berichte`). Auslastung nur im 30-Tage-Sample-Fenster. |
+| GET | `/api/customers/:id/monitoring/reports` | Gespeicherte Monatsreport-PDFs (`id`, `month`, `originalName`, `size`, `createdAt`, `updatedAt`) |
 | GET | `/api/monitoring/devices/:assetId?from=&to=` | Snapshot + Samples (`from`/`to` Unix-ms); `software[].match` gegen Kunden-Inventar `software`/`license`; `scriptJobs[]` (letzte 20), `scriptTemplates[]`, `scriptCapable`, `scriptWindows` |
 | PATCH | `/api/monitoring/devices/:assetId` | `{ monitoringEnabled?, monitoringAlerts?, pingTargets?, serviceWatches? }` – je Typ `{ enabled, priority }`; `disk` zusätzlich `{ warnUsedPct, volumes: { "C:": { enabled, warnUsedPct } } }`; `pingTargets` max. 8 `{ id?, host, label? }`; `serviceWatches` max. 8 `{ id?, name, label? }` (Dienste, die laufen müssen) |
 | POST | `/api/monitoring/devices/:assetId/update-agent` | Sofort-Update: Agent zieht das aktuelle Paket beim nächsten Heartbeat |
@@ -339,6 +341,8 @@ Body: `title`, `kind` (`customer`\|`internal`\|`personal`\|`other`), `startDate`
 | GET | `/api/reminders?days=` |
 | GET | `/api/customers/:id/export` (ZIP) |
 | GET | `/api/customers/:id/visit/pdf` | Besuchsblatt-PDF: Kontakt, Anlagen, letzte Einsätze, Reminder (Garantie/Vertrag/Termin), Vault-Hinweise ohne Secrets, offene Aufgaben/Zeiten |
+| GET | `/api/customers/:id/monitoring/report.pdf?month=YYYY-MM` | Monitoring-Monatsreport (siehe Monitoring); speichert Kopie in der Ablage |
+| GET | `/api/customers/:id/monitoring/reports` | Liste gespeicherter Monitoring-Monatsreports |
 | GET | `/api/customers/:id/wiki/pdf` | Alle Wiki-Seiten als schlichtes PDF (Kopfzeile mit Logo/Titel, Seitenzahl, Bilder) |
 | GET | `/api/documents/:id/pdf` | Eine Wiki-Seite als PDF (gleiches Layout) |
 

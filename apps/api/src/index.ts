@@ -114,7 +114,7 @@ async function main() {
   await app.register(async (scoped) => portalRoutes(scoped, db, config.uploadDir));
   await monitoringRoutes(app, db, config.uploadDir);
 
-  startMonitoringLoop(db);
+  startMonitoringLoop(db, config.uploadDir);
   startMailLoop(db);
 
   app.get("/api/health", async () => ({ ok: true, service: "systemhaus-ess" }));

@@ -739,6 +739,19 @@ export const api = {
       `Zeit_${safe || "Kunde"}_${month}.pdf`,
     );
   },
+  /** Monatsreport Monitoring (Uptime, Auslastung, Tickets) als PDF; speichert eine Kopie in der Kundenakte. */
+  exportMonitoringMonthReport: async (customerId: string, month: string, label?: string) => {
+    const safe = (label || customerId).replace(/[^\w\-äöüÄÖÜß]+/gi, "_").slice(0, 40);
+    await downloadPdf(
+      `/api/customers/${customerId}/monitoring/report.pdf?month=${encodeURIComponent(month)}`,
+      `Monitoring_${safe || "Kunde"}_${month}.pdf`,
+    );
+  },
+  /** Gespeicherte Monitoring-Monatsreports eines Kunden. */
+  monitoringMonthReports: (customerId: string) =>
+    request<import("./types").MonitoringMonthReportFile[]>(
+      `/api/customers/${customerId}/monitoring/reports`,
+    ),
   /** Meta zur Systemsicherung. */
   backupInfo: () =>
     request<{

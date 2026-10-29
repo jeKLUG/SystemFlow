@@ -13,6 +13,11 @@ export function localTodayIso(): string {
   return `${y}-${m}-${day}`;
 }
 
+/** Kalendermonat `YYYY-MM` in Browser-Lokalzeit. */
+export function localMonthYm(d = new Date()): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 /**
  * Parst ein reines Datum `YYYY-MM-DD` als lokalen Kalendertag (mittags).
  * Vermeidet UTC-Mitternacht, die in DE oft als Vortag angezeigt wird.
