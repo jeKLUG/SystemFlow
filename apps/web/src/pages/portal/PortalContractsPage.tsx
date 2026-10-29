@@ -3,7 +3,14 @@ import { api } from "../../api";
 import { DocumentEditor } from "../../components/DocumentEditor";
 import { HelpHint } from "../../components/HelpHint";
 import { ContractParties } from "../../components/ContractParties";
-import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../../lib/labels";
+import {
+  contractKindLabel,
+  contractPriceMeta,
+  contractStatusLabel,
+  formatDateOnly,
+  formatSlaHours,
+  isSlaContract,
+} from "../../lib/labels";
 import type { ContractItem, ContractStatus } from "../../types";
 
 const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
@@ -93,7 +100,7 @@ export function PortalContractsPage() {
       <header className="page-head">
         <div className="page-head-title">
           <h2>Verträge & SLA</h2>
-          <HelpHint text="Servicezeiten, Prioritäten und Leistungsumfang." />
+          <HelpHint text="SLAs mit Servicezeiten sowie Verträge mit Preis und Laufzeit." />
         </div>
       </header>
       {error ? <p className="form-error">{error}</p> : null}
@@ -103,13 +110,13 @@ export function PortalContractsPage() {
         <ul className="sla-list">
           {sorted.map((c) => {
             const expanded = expandedId === c.id;
+            const sla = isSlaContract(c);
+            const kind = sla ? "sla" : "custom";
             const normal = c.responseNormalHours ?? c.slaResponseHours ?? null;
-            const priceValue = c.priceYearly ?? c.priceMonthly ?? null;
-            const priceLabel =
-              c.priceYearly != null ? "pro Jahr" : c.priceMonthly != null ? "pro Monat" : null;
+            const { value: priceValue, label: priceLabel } = contractPriceMeta(c);
             const hasContacts = Boolean(c.contactPerson || c.contactPhone || c.contactEmail);
             const hasExtraDetails = Boolean(
-              richTextHasContent(c.description) || c.coverageNote || hasContacts,
+              richTextHasContent(c.description) || (sla && c.coverageNote) || (sla && hasContacts),
             );
             const prioRows = [
               {
@@ -147,6 +154,7 @@ export function PortalContractsPage() {
                 <div className="sla-card-head">
                   <div className="sla-card-title">
                     <strong>{c.title}</strong>
+                    <span className="sla-meta-chip">{contractKindLabel[kind]}</span>
                     <span className={`badge badge-contract-${c.status}`}>
                       {contractStatusLabel[c.status]}
                     </span>
@@ -184,25 +192,30 @@ export function PortalContractsPage() {
                         {formatDateOnly(c.startDate)} – {formatDateOnly(c.endDate)}
                       </strong>
                     </div>
-                    <div className="sla-fact">
-                      <span className="label">Servicezeiten</span>
-                      <strong>{c.coverageHours || "–"}</strong>
-                    </div>
-                    <div className="sla-fact">
-                      <span className="label">Inkl. Std./Monat</span>
-                      <strong>
-                        {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
-                      </strong>
-                    </div>
-                    {c.onsiteHours != null ? (
-                      <div className="sla-fact">
-                        <span className="label">Vor Ort</span>
-                        <strong>{formatSlaHours(c.onsiteHours)}</strong>
-                      </div>
+                    {sla ? (
+                      <>
+                        <div className="sla-fact">
+                          <span className="label">Servicezeiten</span>
+                          <strong>{c.coverageHours || "–"}</strong>
+                        </div>
+                        <div className="sla-fact">
+                          <span className="label">Inkl. Std./Monat</span>
+                          <strong>
+                            {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
+                          </strong>
+                        </div>
+                        {c.onsiteHours != null ? (
+                          <div className="sla-fact">
+                            <span className="label">Vor Ort</span>
+                            <strong>{formatSlaHours(c.onsiteHours)}</strong>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </div>
 
+                {sla ? (
                 <div className="sla-matrix" aria-label="Service-Level-Ziele">
                   <div className="sla-matrix-head">
                     <span>Priorität</span>
@@ -221,6 +234,7 @@ export function PortalContractsPage() {
                     </div>
                   ))}
                 </div>
+                ) : null}
 
                 {expanded && hasExtraDetails ? (
                   <div className="sla-details">

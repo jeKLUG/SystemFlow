@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.249 – 2026-10-29
+
+- Verträge: neben SLAs individuelle Verträge mit Titel, Preis (einmalig/Monat/Jahr) und Laufzeit; Nummer `VTR-YYYY-NNN`. SLAs bleiben für Ticket-Fristen zuständig.
+
 ## 1.5.248 – 2026-10-28
 
 - Monitoring-Monatsreports werden in der Kundenakte (Ordner Monitoring-Berichte) gespeichert, auf der Kundenseite geöffnet und nach Monatsende automatisch erzeugt.

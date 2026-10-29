@@ -267,6 +267,15 @@ export const tasks = sqliteTable("tasks", {
 export const contractStatuses = ["draft", "active", "paused", "expired", "cancelled"] as const;
 export type ContractStatus = (typeof contractStatuses)[number];
 
+/** SLA (Ticket-Zeiten) oder individueller Vertrag (Preis/Laufzeit). */
+export const contractKinds = ["sla", "custom"] as const;
+export type ContractKind = (typeof contractKinds)[number];
+
+/** SLA-Verträge steuern Ticket-Fristen; fehlendes `kind` gilt als SLA. */
+export function isSlaContract(c: { kind?: string | null }): boolean {
+  return (c.kind ?? "sla") !== "custom";
+}
+
 /** Verträge / SLA-Stammdaten (keine Rechnungen). */
 export const contracts = sqliteTable("contracts", {
   id: text("id").primaryKey(),
@@ -274,6 +283,8 @@ export const contracts = sqliteTable("contracts", {
     .notNull()
     .references(() => customers.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
+  /** sla = Servicevertrag mit Zeiten; custom = individueller Vertrag. */
+  kind: text("kind", { enum: contractKinds }).notNull().default("sla"),
   /** Interne Vertrags-/SLA-Nummer. */
   contractNumber: text("contract_number"),
   status: text("status", { enum: contractStatuses }).notNull().default("active"),
@@ -291,6 +302,8 @@ export const contracts = sqliteTable("contracts", {
   priceMonthly: real("price_monthly"),
   /** Jährlicher Preis (EUR). */
   priceYearly: real("price_yearly"),
+  /** Einmaliger Preis (EUR), vor allem bei Custom-Verträgen. */
+  priceOnce: real("price_once"),
   /**
    * Legacy: allgemeine Reaktionszeit in Stunden.
    * Wird mit `responseNormalHours` synchron gehalten.

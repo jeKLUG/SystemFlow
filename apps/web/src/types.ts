@@ -620,11 +620,13 @@ export interface AppointmentItem {
 }
 
 export type ContractStatus = "draft" | "active" | "paused" | "expired" | "cancelled";
+export type ContractKind = "sla" | "custom";
 
 export interface ContractItem {
   id: string;
   customerId: string;
   title: string;
+  kind?: ContractKind;
   contractNumber: string | null;
   status: ContractStatus;
   description: string | null;
@@ -635,6 +637,7 @@ export interface ContractItem {
   includedHoursMonth: number | null;
   priceMonthly: number | null;
   priceYearly: number | null;
+  priceOnce?: number | null;
   slaResponseHours: number | null;
   responseCriticalHours: number | null;
   responseHighHours: number | null;

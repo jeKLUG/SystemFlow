@@ -15189,6 +15189,17 @@ a.dash-kpi:hover,
   margin-bottom: 1rem;
 }
 
+.sla-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.docs-empty .sla-create-actions {
+  width: 100%;
+  justify-content: flex-start;
+}
+
 .sla-card-title {
   display: flex;
   flex-wrap: wrap;

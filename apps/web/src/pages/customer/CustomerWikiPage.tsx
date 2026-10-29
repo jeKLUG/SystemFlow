@@ -10,6 +10,7 @@ import { documentTypeLabel, formatDate } from "../../lib/labels";
 import type {
   AttachmentItem,
   ContractItem,
+  ContractKind,
   DocumentItem,
   DocumentType,
   ProjectItem,
@@ -25,7 +26,7 @@ const docsTabs: { id: DocsView; label: string; hint: string }[] = [
   { id: "wiki", label: "Wiki", hint: "Seiten & Wissen" },
   { id: "files", label: "Dateien", hint: "Ablage & Ordner" },
   { id: "emails", label: "E-Mails", hint: "Korrespondenz" },
-  { id: "contracts", label: "Verträge", hint: "SLA & Laufzeiten" },
+  { id: "contracts", label: "Verträge", hint: "SLA & individuelle Verträge" },
 ];
 
 function parseDocsView(value: string | null): DocsView {
@@ -53,6 +54,7 @@ export function CustomerWikiPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [contractCreateKey, setContractCreateKey] = useState(0);
+  const [contractCreateKind, setContractCreateKind] = useState<ContractKind>("sla");
   const [form, setForm] = useState({
     title: "",
     type: "article" as DocumentType,
@@ -153,15 +155,28 @@ export function CustomerWikiPage() {
           </div>
           <div className="docs-hero-actions">
             {view === "contracts" ? (
-              <button
-                type="button"
-                className="btn btn-primary btn-icon"
-                onClick={() => setContractCreateKey((k) => k + 1)}
-                title="Vertrag anlegen"
-                aria-label="Vertrag anlegen"
-              >
-                <CreateDocIcon />
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setContractCreateKind("sla");
+                    setContractCreateKey((k) => k + 1);
+                  }}
+                >
+                  SLA
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setContractCreateKind("custom");
+                    setContractCreateKey((k) => k + 1);
+                  }}
+                >
+                  Vertrag
+                </button>
+              </>
             ) : null}
           </div>
         </div>
@@ -319,6 +334,7 @@ export function CustomerWikiPage() {
           onChanged={reload}
           embedded
           createRequestKey={contractCreateKey}
+          createRequestKind={contractCreateKind}
         />
       )}
 

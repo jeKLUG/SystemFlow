@@ -1,5 +1,5 @@
 import PDFDocument from "pdfkit";
-import type { Contract, Customer, OrgSettings } from "../db/schema.js";
+import { isSlaContract, type Contract, type Customer, type OrgSettings } from "../db/schema.js";
 import { contractorPartyLines, customerPartyLines } from "./orgAddress.js";
 import {
   paintPdfFooter,
@@ -37,7 +37,8 @@ export async function buildContractPdf(
   org?: OrgSettings | null,
 ): Promise<Buffer> {
   const customerLabel = customer.company?.trim() || customer.name;
-  const headerTitle = contract.title?.trim() || "SLA / Vertrag";
+  const sla = isSlaContract(contract);
+  const headerTitle = contract.title?.trim() || (sla ? "SLA / Vertrag" : "Vertrag");
 
   const doc = new PDFDocument({
     size: "A4",
@@ -52,7 +53,7 @@ export async function buildContractPdf(
     info: {
       Title: headerTitle,
       Author: "Systemhaus-Ess",
-      Subject: `SLA / Vertrag – ${customerLabel}`,
+      Subject: `${sla ? "SLA / Vertrag" : "Vertrag"} – ${customerLabel}`,
       Creator: "Systemhaus-Ess",
     },
   });
@@ -67,7 +68,7 @@ export async function buildContractPdf(
   doc.x = MARGIN;
   doc.y = contentTop(doc);
 
-  drawTitle(doc, contract, customerLabel);
+  drawTitle(doc, contract, customerLabel, sla);
   drawMeta(doc, contract);
   drawParties(doc, customer, org);
   drawSection(doc, "Leistungsumfang", () => {
@@ -78,31 +79,34 @@ export async function buildContractPdf(
     }
     paintTipTapContent(doc, raw);
   });
-  drawSection(doc, "Servicezeiten & Abdeckung", () => {
-    kv(doc, "Servicezeiten", contract.coverageHours || "–");
-    if (contract.coverageNote?.trim()) kv(doc, "Abdeckung / Ausnahmen", contract.coverageNote.trim());
-    if (contract.includedHoursMonth != null) {
-      kv(doc, "Inklusive Stunden / Monat", `${formatNum(contract.includedHoursMonth)} h`);
+  drawSection(doc, sla ? "Servicezeiten & Abdeckung" : "Konditionen", () => {
+    if (sla) {
+      kv(doc, "Servicezeiten", contract.coverageHours || "–");
+      if (contract.coverageNote?.trim()) kv(doc, "Abdeckung / Ausnahmen", contract.coverageNote.trim());
+      if (contract.includedHoursMonth != null) {
+        kv(doc, "Inklusive Stunden / Monat", `${formatNum(contract.includedHoursMonth)} h`);
+      }
+      if (contract.onsiteHours != null) {
+        kv(doc, "Vor Ort (Stunden)", formatHours(contract.onsiteHours));
+      }
     }
-    if (contract.onsiteHours != null) {
-      kv(doc, "Vor Ort (Stunden)", formatHours(contract.onsiteHours));
-    }
-    if (contract.priceMonthly != null) {
-      kv(doc, "Preis / Monat", formatMoney(contract.priceMonthly));
-    } else if (contract.priceYearly != null) {
-      kv(doc, "Preis / Jahr", formatMoney(contract.priceYearly));
-    }
+    if (contract.priceOnce != null) kv(doc, "Preis einmalig", formatMoney(contract.priceOnce));
+    else if (contract.priceMonthly != null) kv(doc, "Preis / Monat", formatMoney(contract.priceMonthly));
+    else if (contract.priceYearly != null) kv(doc, "Preis / Jahr", formatMoney(contract.priceYearly));
+    else if (!sla) kv(doc, "Preis", "–");
   });
-  drawSection(doc, "Service-Level-Ziele", () => {
-    paragraph(
-      doc,
-      "Reaktions- und Lösungszeiten gelten innerhalb der vereinbarten Servicezeiten. Zeiten außerhalb werden nicht auf die SLA-Frist angerechnet, sofern nicht anders vereinbart.",
-    );
-    drawSlaTable(doc, contract);
-  });
-  drawSection(doc, "Ansprechpartner & Eskalation", () => {
-    drawContacts(doc, contract);
-  });
+  if (sla) {
+    drawSection(doc, "Service-Level-Ziele", () => {
+      paragraph(
+        doc,
+        "Reaktions- und Lösungszeiten gelten innerhalb der vereinbarten Servicezeiten. Zeiten außerhalb werden nicht auf die SLA-Frist angerechnet, sofern nicht anders vereinbart.",
+      );
+      drawSlaTable(doc, contract);
+    });
+    drawSection(doc, "Ansprechpartner & Eskalation", () => {
+      drawContacts(doc, contract);
+    });
+  }
   if (contract.notes?.trim()) {
     drawSection(doc, "Sonstige Vereinbarungen", () => {
       paragraph(doc, contract.notes!.trim());
@@ -143,8 +147,13 @@ function ensureSpace(doc: PDFKit.PDFDocument, needed: number) {
   doc.x = MARGIN;
 }
 
-function drawTitle(doc: PDFKit.PDFDocument, contract: Contract, customerLabel: string) {
-  doc.font("Helvetica").fontSize(8).fillColor(ACCENT).text("SLA / VERTRAG");
+function drawTitle(
+  doc: PDFKit.PDFDocument,
+  contract: Contract,
+  customerLabel: string,
+  sla: boolean,
+) {
+  doc.font("Helvetica").fontSize(8).fillColor(ACCENT).text(sla ? "SLA / VERTRAG" : "VERTRAG");
   doc.moveDown(0.25);
   doc
     .font("Helvetica-Bold")

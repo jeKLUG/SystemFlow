@@ -287,13 +287,13 @@ Query: `view=today|upcoming|inbox|all|done`, optional `projectId` (`none` = ohne
 
 ## Verträge / SLA
 
-Detaillierte SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN` beim Anlegen), Servicezeiten, inkl. Stunden/Monat, Preis entweder monatlich oder jährlich (EUR), Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. `description` (Leistungsumfang) speichert TipTap-JSON wie Wiki-Seiten; Legacy-Klartext bleibt kompatibel. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“.
+`kind`: `sla` (Default, bestehende Zeilen) oder `custom`. SLA-Felder: Status, Vertragsnr. (automatisch `SLA-YYYY-NNN`), Servicezeiten, inkl. Stunden/Monat, Preis monatlich oder jährlich (EUR), Reaktions-/Lösungszeiten P1–P4, Vor-Ort, Kontakte/Eskalation. Custom-Verträge: Titel, Nummer `VTR-YYYY-NNN`, Status, Laufzeit, Preis einmalig/monatlich/jährlich, Leistungsumfang, Notizen – ohne SLA-Zeiten (zählen nicht für Ticket-Fristen). `description` speichert TipTap-JSON; Legacy-Klartext bleibt kompatibel. `slaResponseHours` bleibt als Legacy-Spiegel von „Normal (P3)“. Höchstens ein Preis (`priceOnce` / `priceMonthly` / `priceYearly`).
 
 | Methode | Pfad |
 |---------|------|
 | GET/POST | `/api/customers/:id/contracts` |
 | PUT/DELETE | `/api/contracts/:id` |
-| GET | `/api/contracts/:id/pdf` | SLA/Vertrag als schlichtes PDF; Auftragnehmer aus Konto-Anschrift, Auftraggeber aus Kundenstamm |
+| GET | `/api/contracts/:id/pdf` | SLA- oder Vertrags-PDF; Auftragnehmer aus Konto-Anschrift, Auftraggeber aus Kundenstamm. Custom ohne SLA-Matrix. |
 
 ## Anhänge / Dokumentenablage
 

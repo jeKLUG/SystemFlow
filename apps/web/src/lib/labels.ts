@@ -3,6 +3,7 @@ import type {
   AssetKind,
   AssetOwnership,
   AssetStatus,
+  ContractKind,
   ContractStatus,
   DocumentType,
   EmailDirection,
@@ -41,6 +42,27 @@ export const contractStatusLabel: Record<ContractStatus, string> = {
   expired: "Abgelaufen",
   cancelled: "Beendet",
 };
+
+export const contractKindLabel: Record<ContractKind, string> = {
+  sla: "SLA",
+  custom: "Vertrag",
+};
+
+/** Preis und Einheit eines Vertrags (einmalig / Monat / Jahr). */
+export function contractPriceMeta(c: {
+  priceOnce?: number | null;
+  priceMonthly?: number | null;
+  priceYearly?: number | null;
+}): { value: number | null; label: string | null } {
+  if (c.priceOnce != null) return { value: c.priceOnce, label: "einmalig" };
+  if (c.priceYearly != null) return { value: c.priceYearly, label: "pro Jahr" };
+  if (c.priceMonthly != null) return { value: c.priceMonthly, label: "pro Monat" };
+  return { value: null, label: null };
+}
+
+export function isSlaContract(c: { kind?: string | null }): boolean {
+  return (c.kind ?? "sla") !== "custom";
+}
 
 /** SLA-Zeiten lesbar formatieren (Minuten unter 1 h). */
 export function formatSlaHours(hours: number | null | undefined): string {

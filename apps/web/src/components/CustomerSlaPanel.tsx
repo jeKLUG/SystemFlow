@@ -1,8 +1,15 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { api } from "../api";
-import { contractStatusLabel, formatDateOnly, formatSlaHours } from "../lib/labels";
+import {
+  contractKindLabel,
+  contractPriceMeta,
+  contractStatusLabel,
+  formatDateOnly,
+  formatSlaHours,
+  isSlaContract,
+} from "../lib/labels";
 import { contractorPartyLines, customerPartyLines } from "../lib/orgAddress";
-import type { ContractItem, ContractStatus, Customer, OrgSettings } from "../types";
+import type { ContractItem, ContractKind, ContractStatus, Customer, OrgSettings } from "../types";
 import { ContractParties } from "./ContractParties";
 import { DocumentEditor } from "./DocumentEditor";
 import { Modal } from "./Modal";
@@ -11,6 +18,7 @@ const EMPTY_DOC = JSON.stringify({ type: "doc", content: [{ type: "paragraph" }]
 
 const emptyForm = {
   title: "",
+  kind: "sla" as ContractKind,
   contractNumber: "",
   status: "active" as ContractStatus,
   description: EMPTY_DOC,
@@ -19,8 +27,8 @@ const emptyForm = {
   coverageHours: "Mo–Fr 08:00–17:00",
   coverageNote: "",
   includedHoursMonth: "",
-  /** Nur eine Abrechnung: monatlich oder jährlich. */
-  priceBilling: "" as "" | "monthly" | "yearly",
+  /** Nur eine Abrechnung: einmalig, monatlich oder jährlich. */
+  priceBilling: "" as "" | "once" | "monthly" | "yearly",
   priceAmount: "",
   responseCriticalHours: "1",
   responseHighHours: "4",
@@ -48,6 +56,7 @@ type Props = {
   embedded?: boolean;
   /** Erhöhen öffnet den Anlegen-Dialog (z. B. aus dem Dokumente-Hero). */
   createRequestKey?: number;
+  createRequestKind?: ContractKind;
 };
 
 function numOrNull(value: string): number | null {
@@ -67,9 +76,30 @@ function formatSlaMoney(value: number | null | undefined): string {
   }).format(value);
 }
 
+function emptyFormFor(kind: ContractKind): typeof emptyForm {
+  if (kind === "custom") {
+    return {
+      ...emptyForm,
+      kind: "custom",
+      coverageHours: "",
+      responseCriticalHours: "",
+      responseHighHours: "",
+      responseNormalHours: "",
+      responseLowHours: "",
+      resolveCriticalHours: "",
+      resolveHighHours: "",
+      resolveNormalHours: "",
+      resolveLowHours: "",
+    };
+  }
+  return { ...emptyForm, kind: "sla" };
+}
+
 function formFromContract(c: ContractItem): typeof emptyForm {
+  const kind: ContractKind = c.kind === "custom" ? "custom" : "sla";
   return {
     title: c.title,
+    kind,
     contractNumber: c.contractNumber ?? "",
     status: c.status ?? "active",
     description: toEditorContent(c.description),
@@ -78,13 +108,22 @@ function formFromContract(c: ContractItem): typeof emptyForm {
     coverageHours: c.coverageHours ?? "",
     coverageNote: c.coverageNote ?? "",
     includedHoursMonth: c.includedHoursMonth != null ? String(c.includedHoursMonth) : "",
-    priceBilling: c.priceMonthly != null ? "monthly" : c.priceYearly != null ? "yearly" : "",
+    priceBilling:
+      c.priceOnce != null
+        ? "once"
+        : c.priceMonthly != null
+          ? "monthly"
+          : c.priceYearly != null
+            ? "yearly"
+            : "",
     priceAmount:
-      c.priceMonthly != null
-        ? String(c.priceMonthly)
-        : c.priceYearly != null
-          ? String(c.priceYearly)
-          : "",
+      c.priceOnce != null
+        ? String(c.priceOnce)
+        : c.priceMonthly != null
+          ? String(c.priceMonthly)
+          : c.priceYearly != null
+            ? String(c.priceYearly)
+            : "",
     responseCriticalHours:
       c.responseCriticalHours != null ? String(c.responseCriticalHours) : "",
     responseHighHours: c.responseHighHours != null ? String(c.responseHighHours) : "",
@@ -113,6 +152,7 @@ function formFromContract(c: ContractItem): typeof emptyForm {
 function toBody(form: typeof emptyForm) {
   return {
     title: form.title,
+    kind: form.kind,
     contractNumber: form.contractNumber,
     status: form.status,
     description: serializeDescription(form.description),
@@ -123,6 +163,7 @@ function toBody(form: typeof emptyForm) {
     includedHoursMonth: numOrNull(form.includedHoursMonth),
     priceMonthly: form.priceBilling === "monthly" ? numOrNull(form.priceAmount) : null,
     priceYearly: form.priceBilling === "yearly" ? numOrNull(form.priceAmount) : null,
+    priceOnce: form.priceBilling === "once" ? numOrNull(form.priceAmount) : null,
     responseCriticalHours: numOrNull(form.responseCriticalHours),
     responseHighHours: numOrNull(form.responseHighHours),
     responseNormalHours: numOrNull(form.responseNormalHours),
@@ -195,6 +236,7 @@ export function CustomerSlaPanel({
   onChanged,
   embedded = false,
   createRequestKey = 0,
+  createRequestKind = "sla",
 }: Props) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -224,9 +266,9 @@ export function CustomerSlaPanel({
     );
   }, [contracts]);
 
-  function openCreate() {
+  function openCreate(kind: ContractKind = "sla") {
     setEditingId(null);
-    setForm(emptyForm);
+    setForm(emptyFormFor(kind));
     setError("");
     setOpen(true);
   }
@@ -234,8 +276,8 @@ export function CustomerSlaPanel({
   useEffect(() => {
     if (!createRequestKey || createRequestKey === lastCreateKey.current) return;
     lastCreateKey.current = createRequestKey;
-    openCreate();
-  }, [createRequestKey]);
+    openCreate(createRequestKind);
+  }, [createRequestKey, createRequestKind]);
 
   function openEdit(c: ContractItem) {
     setEditingId(c.id);
@@ -270,19 +312,16 @@ export function CustomerSlaPanel({
         <div className="section-head row-between">
           <div>
             <h2>Verträge / SLA</h2>
-            <p>Servicezeiten, Prioritäten und Eskalation – keine Rechnungen (Lexware).</p>
+            <p>SLAs mit Servicezeiten und individuelle Verträge mit Preis und Laufzeit – keine Rechnungen (Lexware).</p>
           </div>
-          <button
-            type="button"
-            className="btn btn-primary btn-icon-lg"
-            onClick={openCreate}
-            aria-label="Neuen SLA-/Vertrag anlegen"
-            title="Neuen SLA anlegen"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-            </svg>
-          </button>
+          <div className="sla-create-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => openCreate("sla")}>
+              SLA
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => openCreate("custom")}>
+              Vertrag
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -296,25 +335,33 @@ export function CustomerSlaPanel({
           </div>
           <div>
             <strong>Noch keine Verträge</strong>
-            <p className="muted">SLA mit Servicezeiten, Prioritäten und Eskalation hinterlegen.</p>
+            <p className="muted">SLA mit Servicezeiten oder einen Vertrag mit Titel, Preis und Laufzeit anlegen.</p>
           </div>
-          <button type="button" className="btn btn-primary" onClick={openCreate}>
-            Ersten Vertrag
-          </button>
+          <div className="sla-create-actions">
+            <button type="button" className="btn btn-ghost" onClick={() => openCreate("sla")}>
+              SLA anlegen
+            </button>
+            <button type="button" className="btn btn-primary" onClick={() => openCreate("custom")}>
+              Vertrag anlegen
+            </button>
+          </div>
         </div>
       ) : (
         <ul className="sla-list">
           {sorted.map((c) => {
             const expanded = expandedId === c.id;
+            const sla = isSlaContract(c);
+            const kind = sla ? "sla" : "custom";
             const normal = c.responseNormalHours ?? c.slaResponseHours ?? null;
-            const priceValue = c.priceYearly ?? c.priceMonthly ?? null;
-            const priceLabel =
-              c.priceYearly != null ? "pro Jahr" : c.priceMonthly != null ? "pro Monat" : null;
+            const { value: priceValue, label: priceLabel } = contractPriceMeta(c);
             const hasContacts =
               Boolean(c.contactPerson || c.contactPhone || c.contactEmail) ||
               Boolean(c.escalationContact || c.escalationPhone || c.escalationEmail);
             const hasExtraDetails = Boolean(
-              richTextHasContent(c.description) || c.coverageNote || hasContacts || c.notes,
+              richTextHasContent(c.description) ||
+                (sla && c.coverageNote) ||
+                (sla && hasContacts) ||
+                c.notes,
             );
             const prioRows = [
               {
@@ -355,6 +402,7 @@ export function CustomerSlaPanel({
                 <div className="sla-card-head">
                   <div className="sla-card-title">
                     <strong>{c.title}</strong>
+                    <span className="sla-meta-chip">{contractKindLabel[kind]}</span>
                     <span className={`badge badge-contract-${c.status}`}>
                       {contractStatusLabel[c.status]}
                     </span>
@@ -399,7 +447,7 @@ export function CustomerSlaPanel({
                       type="button"
                       className="btn btn-danger btn-sm"
                       onClick={() => {
-                        if (confirm(`SLA „${c.title}“ wirklich löschen?`)) {
+                        if (confirm(`${sla ? "SLA" : "Vertrag"} „${c.title}“ wirklich löschen?`)) {
                           void api.deleteContract(c.id).then(() => onChanged());
                         }
                       }}
@@ -426,25 +474,30 @@ export function CustomerSlaPanel({
                         {formatDateOnly(c.startDate)} – {formatDateOnly(c.endDate)}
                       </strong>
                     </div>
-                    <div className="sla-fact">
-                      <span className="label">Servicezeiten</span>
-                      <strong>{c.coverageHours || "–"}</strong>
-                    </div>
-                    <div className="sla-fact">
-                      <span className="label">Inkl. Std./Monat</span>
-                      <strong>
-                        {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
-                      </strong>
-                    </div>
-                    {c.onsiteHours != null ? (
-                      <div className="sla-fact">
-                        <span className="label">Vor Ort</span>
-                        <strong>{formatSlaHours(c.onsiteHours)}</strong>
-                      </div>
+                    {sla ? (
+                      <>
+                        <div className="sla-fact">
+                          <span className="label">Servicezeiten</span>
+                          <strong>{c.coverageHours || "–"}</strong>
+                        </div>
+                        <div className="sla-fact">
+                          <span className="label">Inkl. Std./Monat</span>
+                          <strong>
+                            {c.includedHoursMonth != null ? `${c.includedHoursMonth} h` : "–"}
+                          </strong>
+                        </div>
+                        {c.onsiteHours != null ? (
+                          <div className="sla-fact">
+                            <span className="label">Vor Ort</span>
+                            <strong>{formatSlaHours(c.onsiteHours)}</strong>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </div>
                 </div>
 
+                {sla ? (
                 <div className="sla-matrix" aria-label="Service-Level-Ziele">
                   <div className="sla-matrix-head">
                     <span>Priorität</span>
@@ -463,6 +516,7 @@ export function CustomerSlaPanel({
                     </div>
                   ))}
                 </div>
+                ) : null}
 
                 {expanded && hasExtraDetails ? (
                   <div className="sla-details">
@@ -522,7 +576,15 @@ export function CustomerSlaPanel({
 
       <Modal
         open={open}
-        title={editingId ? "SLA bearbeiten" : "Neuen SLA anlegen"}
+        title={
+          form.kind === "custom"
+            ? editingId
+              ? "Vertrag bearbeiten"
+              : "Neuen Vertrag anlegen"
+            : editingId
+              ? "SLA bearbeiten"
+              : "Neuen SLA anlegen"
+        }
         onClose={closeModal}
         showCloseButton={false}
         className="modal-wide modal-sla"
@@ -534,7 +596,7 @@ export function CustomerSlaPanel({
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="z. B. Managed Service Gold"
+              placeholder={form.kind === "custom" ? "z. B. Microsoft 365 Business" : "z. B. Managed Service Gold"}
             />
           </label>
           <label className="field">
@@ -543,11 +605,19 @@ export function CustomerSlaPanel({
               value={editingId ? form.contractNumber : ""}
               readOnly={!editingId}
               onChange={(e) => setForm({ ...form, contractNumber: e.target.value })}
-              placeholder={editingId ? "SLA-2026-014" : "Wird automatisch vergeben"}
+              placeholder={
+                editingId
+                  ? form.kind === "custom"
+                    ? "VTR-2026-001"
+                    : "SLA-2026-014"
+                  : "Wird automatisch vergeben"
+              }
               title={
                 editingId
                   ? "Vertragsnummer"
-                  : "Beim Anlegen automatisch als SLA-JJJJ-NNN vergeben"
+                  : form.kind === "custom"
+                    ? "Beim Anlegen automatisch als VTR-JJJJ-NNN vergeben"
+                    : "Beim Anlegen automatisch als SLA-JJJJ-NNN vergeben"
               }
             />
           </label>
@@ -564,6 +634,7 @@ export function CustomerSlaPanel({
               ))}
             </select>
           </label>
+          {form.kind === "sla" ? (
           <label className="field">
             <span>Inkl. Stunden / Monat</span>
             <input
@@ -574,6 +645,7 @@ export function CustomerSlaPanel({
               onChange={(e) => setForm({ ...form, includedHoursMonth: e.target.value })}
             />
           </label>
+          ) : null}
           <label className="field">
             <span>Preis-Abrechnung</span>
             <select
@@ -581,12 +653,13 @@ export function CustomerSlaPanel({
               onChange={(e) =>
                 setForm({
                   ...form,
-                  priceBilling: e.target.value as "" | "monthly" | "yearly",
+                  priceBilling: e.target.value as "" | "once" | "monthly" | "yearly",
                   priceAmount: e.target.value ? form.priceAmount : "",
                 })
               }
             >
               <option value="">Kein Preis</option>
+              {form.kind === "custom" ? <option value="once">Einmalig</option> : null}
               <option value="monthly">Monatlich</option>
               <option value="yearly">Jährlich</option>
             </select>
@@ -597,7 +670,9 @@ export function CustomerSlaPanel({
                 ? "Preis / Jahr (€)"
                 : form.priceBilling === "monthly"
                   ? "Preis / Monat (€)"
-                  : "Preis (€)"}
+                  : form.priceBilling === "once"
+                    ? "Preis einmalig (€)"
+                    : "Preis (€)"}
             </span>
             <input
               type="number"
@@ -606,7 +681,13 @@ export function CustomerSlaPanel({
               disabled={!form.priceBilling}
               value={form.priceAmount}
               onChange={(e) => setForm({ ...form, priceAmount: e.target.value })}
-              placeholder={form.priceBilling === "yearly" ? "z. B. 3200" : "z. B. 299"}
+              placeholder={
+                form.priceBilling === "yearly"
+                  ? "z. B. 3200"
+                  : form.priceBilling === "once"
+                    ? "z. B. 1500"
+                    : "z. B. 299"
+              }
             />
           </label>
           <label className="field">
@@ -625,6 +706,8 @@ export function CustomerSlaPanel({
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
             />
           </label>
+          {form.kind === "sla" ? (
+          <>
           <label className="field">
             <span>Servicezeiten</span>
             <input
@@ -651,10 +734,12 @@ export function CustomerSlaPanel({
               placeholder="z. B. ohne gesetzliche Feiertage, Rufbereitschaft Sa 9–13"
             />
           </label>
+          </>
+          ) : null}
           <div className="field full sla-scope-field">
             <span>Leistungsumfang</span>
             <DocumentEditor
-              key={editingId ?? "new-sla"}
+              key={editingId ?? `new-${form.kind}`}
               content={form.description}
               onChange={(next) => setForm({ ...form, description: next })}
               customerId={customerId}
@@ -662,6 +747,8 @@ export function CustomerSlaPanel({
             />
           </div>
 
+          {form.kind === "sla" ? (
+          <>
           <div className="full sla-form-block">
             <h4>Reaktionszeiten (Stunden)</h4>
             <div className="sla-form-grid4">
@@ -761,6 +848,8 @@ export function CustomerSlaPanel({
               </label>
             </div>
           </div>
+          </>
+          ) : null}
 
           <label className="field full">
             <span>Interne Notizen</span>
@@ -774,7 +863,11 @@ export function CustomerSlaPanel({
           {error ? <p className="form-error full">{error}</p> : null}
           <div className="full form-actions modal-actions">
             <button className="btn btn-primary" type="submit">
-              {editingId ? "Aktualisieren" : "SLA anlegen"}
+              {editingId
+                ? "Aktualisieren"
+                : form.kind === "custom"
+                  ? "Vertrag anlegen"
+                  : "SLA anlegen"}
             </button>
             <button type="button" className="btn btn-ghost" onClick={closeModal}>
               Abbrechen

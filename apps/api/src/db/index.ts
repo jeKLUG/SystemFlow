@@ -269,6 +269,8 @@ export async function createDb(databasePath: string) {
       included_hours_month REAL,
       price_monthly REAL,
       price_yearly REAL,
+      price_once REAL,
+      kind TEXT NOT NULL DEFAULT 'sla',
       sla_response_hours INTEGER,
       response_critical_hours REAL,
       response_high_hours REAL,
@@ -713,6 +715,8 @@ export async function createDb(databasePath: string) {
   await ensureColumn(client, "contracts", "included_hours_month", "REAL");
   await ensureColumn(client, "contracts", "price_monthly", "REAL");
   await ensureColumn(client, "contracts", "price_yearly", "REAL");
+  await ensureColumn(client, "contracts", "price_once", "REAL");
+  await ensureColumn(client, "contracts", "kind", "TEXT NOT NULL DEFAULT 'sla'");
   await ensureColumn(client, "contracts", "response_critical_hours", "REAL");
   await ensureColumn(client, "contracts", "response_high_hours", "REAL");
   await ensureColumn(client, "contracts", "response_normal_hours", "REAL");

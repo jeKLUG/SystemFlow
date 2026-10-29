@@ -18,6 +18,7 @@
 - [ ] Optional: Marketing-Tags (Branche, Größe) zum Schneiden von Listen
 - [ ] Optional: zweite Nachfass-Mail nach ~21 Tagen (nur „Erinnert, keine Antwort“)
 - [ ] Optional: mehrere Portal-Benutzer pro Kunde
+- [x] Individuelle Verträge neben SLAs (Titel, Preis, Laufzeit)
 - [ ] Optional: SLA nach Servicezeiten (`coverageHours`) statt Kalenderstunden
 - [ ] Optional: Zeiterfassung mit Tages-/Monatsreports als eigenen Report-Endpunkt
 - [x] Wiki-PDF: Inline-Bilder aus Uploads einbetten

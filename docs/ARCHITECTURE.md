@@ -39,7 +39,7 @@ Browser (React SPA)
 - **monitoring_agents** / **monitoring_samples** / **monitoring_agent_packages** / **monitoring_script_templates** / **monitoring_script_jobs** – Live-Agenten (Windows/Linux/macOS) mit Heartbeat, Inventar-Zuordnung, 30-Tage-Verlauf; aktuelles Binary je Plattform (`windows-amd64`, `linux-amd64`, `linux-arm64`, `darwin-amd64`, `darwin-arm64`) in den Uploads; org-weite PowerShell-Vorlagen und Aufträge (Ausgabe, Exitcode; Windows)
 - **activities** – Einsatz-Historie (manuell + automatisch)
 - **tasks** – offene Punkte mit Fälligkeit
-- **contracts** – Verträge/SLA (keine Rechnungen; optional Preis monatlich/jährlich in EUR; Leistungsumfang als TipTap-JSON)
+- **contracts** – SLA (`kind=sla`, Ticket-Fristen, Zeiten P1–P4) und individuelle Verträge (`kind=custom`, Titel/Preis/Laufzeit); keine Rechnungen; Preis einmalig, monatlich oder jährlich; Leistungsumfang als TipTap-JSON
 - **attachments** – Dateien unter `UPLOAD_DIR` (Volume `/data/uploads`), optional `folder_id` / `document_id` / `asset_id` / `email_id` / `ticket_id`; `portal_visible` gibt einzelne Ablage-Dateien im Kundenportal frei
 - **documents** / **assets** – optional `portal_visible` (Default aus): Freigabe für das Kundenportal
 - **customer_emails** – archivierter Mailverkehr je Kunde (Betreff, Von/An, Datum, Text, Richtung); Import aus `.eml` via `mailparser`

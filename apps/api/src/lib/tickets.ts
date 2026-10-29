@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import {
   contracts,
+  isSlaContract,
   tickets,
   type Contract,
   type Ticket,
@@ -74,12 +75,12 @@ export function slaFromContract(
 }
 
 /**
- * Aktiver Vertrag des Kunden (neueste Änderung zuerst).
+ * Aktiver SLA-Vertrag des Kunden (neueste Änderung zuerst). Custom-Verträge ohne Ticket-Zeiten zählen nicht.
  */
 export async function findActiveContract(db: Db, customerId: string, contractId?: string | null) {
   if (contractId) {
     const row = await db.select().from(contracts).where(eq(contracts.id, contractId)).get();
-    if (row && row.customerId === customerId) return row;
+    if (row && row.customerId === customerId && isSlaContract(row)) return row;
   }
   const rows = await db
     .select()
@@ -87,7 +88,8 @@ export async function findActiveContract(db: Db, customerId: string, contractId?
     .where(eq(contracts.customerId, customerId))
     .orderBy(desc(contracts.updatedAt))
     .all();
-  return rows.find((c) => c.status === "active") ?? rows.find((c) => c.status === "paused") ?? null;
+  const slaRows = rows.filter((c) => isSlaContract(c));
+  return slaRows.find((c) => c.status === "active") ?? slaRows.find((c) => c.status === "paused") ?? null;
 }
 
 export function isOpenStatus(status: TicketStatus) {
