@@ -4,7 +4,7 @@ plugins {
 }
 
 val appUrl: String = (project.findProperty("app.url") as String?)
-    ?: "http://217.154.167.140:8081"
+    ?: "https://systemflow.systemhaus-ess.de"
 
 android {
     namespace = "de.systemhausess.app"
@@ -14,8 +14,8 @@ android {
         applicationId = "de.systemhausess.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 2
+        versionName = "1.0.1"
         buildConfigField("String", "DEFAULT_APP_URL", "\"${appUrl.replace("\"", "\\\"")}\"")
     }
 

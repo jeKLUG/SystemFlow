@@ -19,7 +19,7 @@ Browser (React SPA)
 | API | `apps/api` | Auth, Kunden, Dokumente, Monitoring-Ingest |
 | Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light` an App-Shell und `html`, damit Modals/Portale Tokens erben; Marke www.systemhaus-ess.de: Sora/Manrope, Akzent `#2F6FAE`; `--code-bg` hell für Editor-Codeblöcke); Kundenportal, Login, Vault-Share und Marketing-Abmeldung dunkel |
 | Agent | `apps/agent` | Windows-/Linux-/macOS-Dienst, Heartbeat |
-| Android | `apps/android-app` | WebView-Hülle (APK) |
+| Android | `apps/android-app` | WebView-Hülle (APK), Start-URL `https://systemflow.systemhaus-ess.de` |
 | Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd, HTTPS-Proxy |
 | Compose | `docker-compose.yml` | Container + Volume |
 

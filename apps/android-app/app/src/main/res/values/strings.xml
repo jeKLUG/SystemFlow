@@ -5,7 +5,7 @@
     <string name="action_server">Server-URL</string>
     <string name="action_home">Startseite</string>
     <string name="server_dialog_title">Server-Adresse</string>
-    <string name="server_dialog_hint">http://217.154.167.140:8081</string>
+    <string name="server_dialog_hint">https://systemflow.systemhaus-ess.de</string>
     <string name="server_dialog_save">Speichern</string>
     <string name="server_dialog_cancel">Abbrechen</string>
     <string name="offline_title">Keine Verbindung</string>

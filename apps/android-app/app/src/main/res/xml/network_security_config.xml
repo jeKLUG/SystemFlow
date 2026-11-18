@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Erlaubt HTTP im LAN (z. B. http://192.168.x.x:8081). -->
+    <!-- Erlaubt HTTP im LAN (z. B. http://192.168.x.x:8082). Produktion ist HTTPS. -->
     <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />

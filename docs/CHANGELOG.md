@@ -3,6 +3,7 @@
 ## 1.5.250 – 2026-11-18
 
 - Deploy: HTTPS unter `systemflow.systemhaus-ess.de` (Caddy oder bestehendes Nginx, Let's Encrypt). App nur noch auf `127.0.0.1:8082`; Port 8081 bleibt für andere Dienste (z. B. SArch). `COOKIE_SECURE` und `trustProxy` für den Proxy.
+- Android-App 1.0.1: Start-URL `https://systemflow.systemhaus-ess.de`; gespeicherte alte IP:8081 wird übernommen.
 
 ## 1.5.249 – 2026-10-29
 

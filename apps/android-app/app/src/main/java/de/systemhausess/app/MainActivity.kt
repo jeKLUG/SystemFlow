@@ -112,7 +112,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Einmalig pro Shell-Version: HTTP-Cache leeren, damit index.html/sw.js neu geladen werden.
-        val cacheEpoch = "2026-09-07-inventar-v2"
+        val cacheEpoch = "2026-11-18-https-domain"
         if (prefs.getString(KEY_CACHE_EPOCH, null) != cacheEpoch) {
             binding.webView.clearCache(true)
             pendingSwPurge = true
@@ -193,7 +193,22 @@ class MainActivity : AppCompatActivity() {
 
     private fun currentUrl(): String {
         val stored = prefs.getString(KEY_URL, null)?.trim().orEmpty()
-        return if (stored.isNotEmpty()) stored else BuildConfig.DEFAULT_APP_URL
+        val resolved = if (stored.isNotEmpty()) stored else BuildConfig.DEFAULT_APP_URL
+        val migrated = migrateLegacyUrl(resolved)
+        if (migrated != resolved) {
+            prefs.edit().putString(KEY_URL, migrated).apply()
+        }
+        return migrated
+    }
+
+    /** Alte öffentliche HTTP-Adresse (IP:8081) auf die HTTPS-Domain umbiegen. */
+    private fun migrateLegacyUrl(url: String): String {
+        val normalized = url.trim().trimEnd('/')
+        return if (normalized.equals(LEGACY_APP_URL, ignoreCase = true)) {
+            BuildConfig.DEFAULT_APP_URL.trimEnd('/')
+        } else {
+            normalized.ifEmpty { BuildConfig.DEFAULT_APP_URL }
+        }
     }
 
     private fun loadHome() {
@@ -261,13 +276,16 @@ class MainActivity : AppCompatActivity() {
     private fun normalizeUrl(raw: String): String {
         val trimmed = raw.trim().trimEnd('/')
         if (trimmed.isEmpty()) return BuildConfig.DEFAULT_APP_URL
-        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) trimmed
-        else "http://$trimmed"
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return trimmed
+        val host = trimmed.substringBefore('/')
+        val looksIp = host.matches(Regex("""^\d{1,3}(\.\d{1,3}){3}(:\d+)?$"""))
+        return if (looksIp) "http://$trimmed" else "https://$trimmed"
     }
 
     companion object {
         private const val PREFS = "systemhaus_shell"
         private const val KEY_URL = "app_url"
         private const val KEY_CACHE_EPOCH = "cache_epoch"
+        private const val LEGACY_APP_URL = "http://217.154.167.140:8081"
     }
 }

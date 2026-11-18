@@ -7,7 +7,7 @@ Die Android-App unter [`apps/android-app`](../apps/android-app) ist eine schlank
 | Teil | Beschreibung |
 |------|----------------|
 | Paket | `de.systemhausess.app` |
-| Start-URL | `BuildConfig.DEFAULT_APP_URL` aus `gradle.properties` (`app.url`) |
+| Start-URL | `BuildConfig.DEFAULT_APP_URL` aus `gradle.properties` (`app.url`), Default `https://systemflow.systemhaus-ess.de` |
 | Persistenz | SharedPreferences `systemhaus_shell` / `app_url` |
 | Cleartext | HTTP im LAN erlaubt (`network_security_config.xml`) |
 
