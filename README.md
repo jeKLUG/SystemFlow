@@ -24,14 +24,22 @@ Interne Organisations-App für **Systemhaus-Ess**: Kunden verwalten und Dokument
 
 ## Linux-Server: ein Befehl
 
+Standard ist HTTPS unter **https://systemflow.systemhaus-ess.de**. Die App bindet nur `127.0.0.1` (interner Port **8082**), der Reverse-Proxy (Caddy oder vorhandenes Nginx) holt das Let's-Encrypt-Zertifikat. Der frühere öffentliche Port **8081** bleibt frei (z. B. für SArch). DNS-A/AAAA für `systemflow.systemhaus-ess.de` muss auf den Server zeigen; Cloud-Firewall **80** und **443**.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo bash
 ```
 
-Anderer Port (z. B. wenn 8080 belegt):
+Anderer interner Port oder Domain:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo SYSTEMHAUS_PORT=8081 bash
+curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo SYSTEMHAUS_PORT=8082 SYSTEMFLOW_DOMAIN=systemflow.systemhaus-ess.de bash
+```
+
+Nur HTTP ohne Proxy (nicht empfohlen):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo SYSTEMFLOW_HTTP_ONLY=1 bash
 ```
 
 Update später:
@@ -70,7 +78,10 @@ Siehe [`.env.example`](.env.example):
 
 | Variable | Default | Bedeutung |
 |----------|---------|-----------|
-| `SYSTEMHAUS_PORT` | `8081` | Host-Port (Docker) |
+| `SYSTEMFLOW_DOMAIN` | `systemflow.systemhaus-ess.de` | Öffentliche HTTPS-Domain (Deploy) |
+| `SYSTEMHAUS_BIND` | `127.0.0.1` | Docker-Bind (localhost hinter Proxy) |
+| `SYSTEMHAUS_PORT` | `8082` | Interner Host-Port (Docker) |
+| `COOKIE_SECURE` | `true` (Deploy mit Domain) | Secure-Flag der Session-Cookies |
 | `ADMIN_USERNAME` | `admin` | Login |
 | `ADMIN_PASSWORD` | `changeme` | Login |
 | `SESSION_SECRET` | (generiert beim Deploy) | Cookie-Signatur |

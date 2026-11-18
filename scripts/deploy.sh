@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Systemhaus-Ess deploy – Update, Build und Dauerbetrieb auf Linux
 #
+# Standard: App nur auf 127.0.0.1 (interner Port, Default 8082), oeffentlich
+# HTTPS unter https://systemflow.systemhaus-ess.de (Caddy oder bestehendes Nginx).
+# Fremde Dienste auf 8081 (z. B. SArch) werden nicht beendet.
+#
 # Usage:
 #   sudo ./scripts/deploy.sh
-#   sudo SYSTEMHAUS_PORT=8081 ./scripts/deploy.sh
+#   sudo SYSTEMFLOW_DOMAIN=systemflow.systemhaus-ess.de ./scripts/deploy.sh
+#   sudo SYSTEMFLOW_HTTP_ONLY=1 SYSTEMHAUS_PORT=8082 ./scripts/deploy.sh
 #
 # Einzeiler:
 #   curl -fsSL https://raw.githubusercontent.com/jeKLUG/SystemFlow/main/scripts/deploy.sh | sudo bash
@@ -12,10 +17,33 @@ set -euo pipefail
 
 REPO_URL="${SYSTEMFLOW_REPO:-${SYSTEMHAUS_REPO:-https://github.com/jeKLUG/SystemFlow.git}}"
 INSTALL_DIR="${SYSTEMFLOW_DIR:-${SYSTEMHAUS_DIR:-/opt/systemflow}}"
-PORT="${SYSTEMHAUS_PORT:-${SYSTEMFLOW_PORT:-8081}}"
 BRANCH="${SYSTEMFLOW_BRANCH:-${SYSTEMHAUS_BRANCH:-main}}"
 SERVICE_NAME="systemhaus-ess"
 COMPOSE_FILE="docker-compose.yml"
+DEFAULT_DOMAIN="systemflow.systemhaus-ess.de"
+DEFAULT_INTERNAL_PORT="8082"
+CADDYFILE="/etc/caddy/Caddyfile"
+NGINX_SITE_NAME="systemflow"
+
+PORT_EXPLICIT=0
+if [[ -n "${SYSTEMHAUS_PORT:-${SYSTEMFLOW_PORT:-}}" ]]; then
+  PORT_EXPLICIT=1
+fi
+PORT="${SYSTEMHAUS_PORT:-${SYSTEMFLOW_PORT:-${DEFAULT_INTERNAL_PORT}}}"
+BIND="${SYSTEMHAUS_BIND:-}"
+DOMAIN="${SYSTEMFLOW_DOMAIN:-${DEFAULT_DOMAIN}}"
+DOMAIN_SET=0
+if [[ -n "${SYSTEMFLOW_DOMAIN+x}" ]]; then
+  DOMAIN_SET=1
+  DOMAIN="${SYSTEMFLOW_DOMAIN}"
+fi
+TLS_EMAIL="${SYSTEMFLOW_TLS_EMAIL:-}"
+HTTP_ONLY="${SYSTEMFLOW_HTTP_ONLY:-0}"
+COOKIE_SECURE_VALUE="${COOKIE_SECURE:-}"
+
+if [[ "${HTTP_ONLY}" == "1" ]]; then
+  DOMAIN=""
+fi
 
 log()  { printf '\n\033[1;34m==>\033[0m %s\n' "$*"; }
 ok()   { printf '\033[1;32m✓\033[0m %s\n' "$*"; }
@@ -101,47 +129,138 @@ reexec_installed_if_needed() {
   export SYSTEMFLOW_DEPLOY_REEXEC=1
   export SYSTEMFLOW_REPO SYSTEMHAUS_REPO SYSTEMFLOW_DIR SYSTEMHAUS_DIR
   export SYSTEMFLOW_PORT SYSTEMHAUS_PORT SYSTEMFLOW_BRANCH SYSTEMHAUS_BRANCH
-  export SESSION_SECRET ADMIN_USERNAME ADMIN_PASSWORD
+  export SYSTEMFLOW_DOMAIN SYSTEMFLOW_TLS_EMAIL SYSTEMFLOW_HTTP_ONLY SYSTEMHAUS_BIND
+  export COOKIE_SECURE SESSION_SECRET ADMIN_USERNAME ADMIN_PASSWORD
   exec bash "${installed}"
+}
+
+env_get() {
+  local file="$1" key="$2"
+  [[ -f "${file}" ]] || return 0
+  grep -E "^${key}=" "${file}" 2>/dev/null | tail -n 1 | cut -d= -f2- || true
+}
+
+env_set() {
+  local file="$1" key="$2" val="$3"
+  if grep -qE "^${key}=" "${file}" 2>/dev/null; then
+    sed -i "s|^${key}=.*|${key}=${val}|" "${file}"
+  else
+    printf '%s=%s\n' "${key}" "${val}" >> "${file}"
+  fi
+}
+
+tcp_port_in_use() {
+  local port="$1"
+  ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port}"
+}
+
+port_proc() {
+  local port="$1"
+  ss -lntp "sport = :${port}" 2>/dev/null | grep -oE '"[^"]+"' | head -n 1 | tr -d '"' || true
+}
+
+https_enabled() {
+  [[ -n "${DOMAIN}" ]]
+}
+
+resolve_bind_and_port() {
+  local env_file="${INSTALL_DIR}/.env"
+  local existing_port
+  existing_port="$(env_get "${env_file}" SYSTEMHAUS_PORT)"
+  if [[ -z "${existing_port}" ]]; then
+    existing_port="$(env_get "${env_file}" SYSTEMFLOW_PORT)"
+  fi
+
+  if [[ "${HTTP_ONLY}" == "1" ]]; then
+    DOMAIN=""
+  elif [[ "${DOMAIN_SET}" -eq 1 ]]; then
+    DOMAIN="${SYSTEMFLOW_DOMAIN}"
+  else
+    local existing_domain
+    existing_domain="$(env_get "${env_file}" SYSTEMFLOW_DOMAIN)"
+    DOMAIN="${existing_domain:-${DEFAULT_DOMAIN}}"
+  fi
+
+  if [[ "${PORT_EXPLICIT}" -ne 1 ]]; then
+    if https_enabled; then
+      # Alter oeffentlicher Default 8081 weicht SArch; intern 8082.
+      if [[ -z "${existing_port}" || "${existing_port}" == "8081" ]]; then
+        PORT="${DEFAULT_INTERNAL_PORT}"
+      else
+        PORT="${existing_port}"
+      fi
+    else
+      PORT="${existing_port:-${DEFAULT_INTERNAL_PORT}}"
+    fi
+  fi
+
+  if https_enabled; then
+    BIND="${BIND:-127.0.0.1}"
+    COOKIE_SECURE_VALUE="true"
+  else
+    BIND="${BIND:-0.0.0.0}"
+    if [[ -z "${COOKIE_SECURE_VALUE}" ]]; then
+      COOKIE_SECURE_VALUE="$(env_get "${env_file}" COOKIE_SECURE)"
+    fi
+    COOKIE_SECURE_VALUE="${COOKIE_SECURE_VALUE:-false}"
+  fi
 }
 
 write_env() {
   local env_file="${INSTALL_DIR}/.env"
-  if [[ -f "${env_file}" ]]; then
-    # Port aktualisieren, Secrets behalten
-    if grep -q '^SYSTEMHAUS_PORT=' "${env_file}"; then
-      sed -i "s/^SYSTEMHAUS_PORT=.*/SYSTEMHAUS_PORT=${PORT}/" "${env_file}"
-    elif grep -q '^SYSTEMFLOW_PORT=' "${env_file}"; then
-      sed -i "s/^SYSTEMFLOW_PORT=.*/SYSTEMHAUS_PORT=${PORT}/" "${env_file}"
-    else
-      echo "SYSTEMHAUS_PORT=${PORT}" >> "${env_file}"
-    fi
-  else
+  if [[ ! -f "${env_file}" ]]; then
     local secret
     secret="$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')"
     cat > "${env_file}" <<EOF
 SYSTEMHAUS_PORT=${PORT}
+SYSTEMHAUS_BIND=${BIND}
 SESSION_SECRET=${secret}
 ADMIN_USERNAME=admin
 ADMIN_PASSWORD=changeme
+COOKIE_SECURE=${COOKIE_SECURE_VALUE}
 EOF
     warn "Standard-Passwort ist 'changeme' – bitte in ${env_file} aendern!"
   fi
-  ok "Env in ${env_file} (Port ${PORT})"
+
+  env_set "${env_file}" SYSTEMHAUS_PORT "${PORT}"
+  env_set "${env_file}" SYSTEMHAUS_BIND "${BIND}"
+  env_set "${env_file}" COOKIE_SECURE "${COOKIE_SECURE_VALUE}"
+  if https_enabled; then
+    env_set "${env_file}" SYSTEMFLOW_DOMAIN "${DOMAIN}"
+  fi
+
+  local extra=""
+  if https_enabled; then
+    extra=", Domain ${DOMAIN}"
+  fi
+  ok "Env in ${env_file} (Bind ${BIND}:${PORT}${extra})"
 }
 
 open_firewall() {
-  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi 'Status: active'; then
-    log "Oeffne UFW-Port ${PORT}/tcp…"
-    ufw allow "${PORT}/tcp" comment 'Systemhaus-Ess' >/dev/null 2>&1 || ufw allow "${PORT}/tcp" >/dev/null || true
-    ok "UFW: Port ${PORT}/tcp erlaubt"
-  elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
-    log "Oeffne firewalld-Port ${PORT}/tcp…"
-    firewall-cmd --permanent --add-port="${PORT}/tcp" >/dev/null 2>&1 || true
-    firewall-cmd --reload >/dev/null 2>&1 || true
-    ok "firewalld: Port ${PORT}/tcp erlaubt"
+  local ports=()
+  if https_enabled; then
+    ports=(80 443)
   else
-    warn "Keine aktive Host-Firewall erkannt – ggf. Cloud-Firewall (Hetzner/Contabo) Port ${PORT} freigeben"
+    ports=("${PORT}")
+  fi
+
+  if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -qi 'Status: active'; then
+    local p
+    for p in "${ports[@]}"; do
+      log "Oeffne UFW-Port ${p}/tcp…"
+      ufw allow "${p}/tcp" comment 'Systemhaus-Ess' >/dev/null 2>&1 || ufw allow "${p}/tcp" >/dev/null || true
+    done
+    ok "UFW: TCP ${ports[*]} erlaubt"
+  elif command -v firewall-cmd >/dev/null 2>&1 && systemctl is-active --quiet firewalld 2>/dev/null; then
+    local p
+    for p in "${ports[@]}"; do
+      log "Oeffne firewalld-Port ${p}/tcp…"
+      firewall-cmd --permanent --add-port="${p}/tcp" >/dev/null 2>&1 || true
+    done
+    firewall-cmd --reload >/dev/null 2>&1 || true
+    ok "firewalld: TCP ${ports[*]} erlaubt"
+  else
+    warn "Keine aktive Host-Firewall erkannt – ggf. Cloud-Firewall (Hetzner/Contabo) TCP ${ports[*]} freigeben"
   fi
 }
 
@@ -181,37 +300,284 @@ EOF
   ok "systemd-Dienst aktiviert (Start bei Boot)"
 }
 
-# Beendet Prozesse, die auf dem Deploy-Port lauschen (z. B. alter node).
-free_port() {
-  local port="$1"
-  if ! ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port}"; then
+write_proxy_snippets() {
+  mkdir -p "${INSTALL_DIR}"
+  cat > "${INSTALL_DIR}/caddy.snippet" <<EOF
+# BEGIN SYSTEMFLOW
+${DOMAIN} {
+	encode gzip
+	reverse_proxy 127.0.0.1:${PORT}
+}
+# END SYSTEMFLOW
+EOF
+  cat > "${INSTALL_DIR}/nginx.snippet.conf" <<EOF
+server {
+	listen 80;
+	server_name ${DOMAIN};
+
+	client_max_body_size 512m;
+
+	location / {
+		proxy_pass http://127.0.0.1:${PORT};
+		proxy_http_version 1.1;
+		proxy_set_header Host \$host;
+		proxy_set_header X-Real-IP \$remote_addr;
+		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto \$scheme;
+		proxy_set_header Upgrade \$http_upgrade;
+		proxy_set_header Connection "upgrade";
+		proxy_read_timeout 3600;
+		proxy_send_timeout 3600;
+	}
+}
+EOF
+}
+
+caddy_block() {
+  cat <<EOF
+# BEGIN SYSTEMFLOW
+${DOMAIN} {
+	encode gzip
+	reverse_proxy 127.0.0.1:${PORT}
+}
+# END SYSTEMFLOW
+EOF
+}
+
+upsert_caddy_site() {
+  mkdir -p /etc/caddy
+  touch "${CADDYFILE}"
+  if grep -qF '# BEGIN SYSTEMFLOW' "${CADDYFILE}"; then
+    sed -i '/# BEGIN SYSTEMFLOW/,/# END SYSTEMFLOW/d' "${CADDYFILE}"
+  fi
+  printf '\n%s\n' "$(caddy_block)" >> "${CADDYFILE}"
+}
+
+ensure_caddy() {
+  if command -v caddy >/dev/null 2>&1; then
+    return 0
+  fi
+  if ! command -v apt-get >/dev/null 2>&1; then
+    return 1
+  fi
+  log "Installiere Caddy…"
+  apt-get update -qq
+  if apt-get install -y -qq caddy; then
+    return 0
+  fi
+  warn "Caddy nicht in den Distro-Paketen – versuche offizielles Repository…"
+  apt-get install -y -qq debian-keyring debian-archive-keyring apt-transport-https curl gnupg >/dev/null 2>&1 || true
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | tee /etc/apt/sources.list.d/caddy-stable.list >/dev/null
+  apt-get update -qq
+  apt-get install -y -qq caddy
+}
+
+reload_caddy() {
+  if ! caddy validate --config "${CADDYFILE}" --adapter caddyfile >/dev/null 2>&1; then
+    warn "Caddyfile ungueltig:"
+    caddy validate --config "${CADDYFILE}" --adapter caddyfile || true
+    return 1
+  fi
+  if systemctl is-active --quiet caddy 2>/dev/null; then
+    systemctl reload caddy
+  else
+    systemctl enable --now caddy >/dev/null 2>&1 || systemctl start caddy
+  fi
+}
+
+nginx_proxy_server() {
+  local listen_tls="$1"
+  if [[ "${listen_tls}" == "1" ]]; then
+    cat <<EOF
+server {
+	listen 80;
+	server_name ${DOMAIN};
+	location /.well-known/acme-challenge/ {
+		root /var/www/html;
+	}
+	location / {
+		return 301 https://\$host\$request_uri;
+	}
+}
+server {
+	listen 443 ssl;
+	server_name ${DOMAIN};
+
+	ssl_certificate /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
+	ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
+
+	client_max_body_size 512m;
+
+	location / {
+		proxy_pass http://127.0.0.1:${PORT};
+		proxy_http_version 1.1;
+		proxy_set_header Host \$host;
+		proxy_set_header X-Real-IP \$remote_addr;
+		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto https;
+		proxy_set_header Upgrade \$http_upgrade;
+		proxy_set_header Connection "upgrade";
+		proxy_read_timeout 3600;
+		proxy_send_timeout 3600;
+	}
+}
+EOF
+  else
+    cat <<EOF
+server {
+	listen 80;
+	server_name ${DOMAIN};
+
+	client_max_body_size 512m;
+
+	location / {
+		proxy_pass http://127.0.0.1:${PORT};
+		proxy_http_version 1.1;
+		proxy_set_header Host \$host;
+		proxy_set_header X-Real-IP \$remote_addr;
+		proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+		proxy_set_header X-Forwarded-Proto \$scheme;
+		proxy_set_header Upgrade \$http_upgrade;
+		proxy_set_header Connection "upgrade";
+		proxy_read_timeout 3600;
+		proxy_send_timeout 3600;
+	}
+}
+EOF
+  fi
+}
+
+nginx_site_path() {
+  if [[ -d /etc/nginx/sites-available ]]; then
+    echo "/etc/nginx/sites-available/${NGINX_SITE_NAME}"
+  elif [[ -d /etc/nginx/conf.d ]]; then
+    echo "/etc/nginx/conf.d/${NGINX_SITE_NAME}.conf"
+  else
+    echo ""
+  fi
+}
+
+write_nginx_site() {
+  local tls="$1"
+  local path
+  path="$(nginx_site_path)"
+  [[ -n "${path}" ]] || return 1
+  nginx_proxy_server "${tls}" > "${path}"
+  if [[ -d /etc/nginx/sites-enabled ]]; then
+    ln -sfn "${path}" "/etc/nginx/sites-enabled/${NGINX_SITE_NAME}"
+  fi
+  nginx -t
+  systemctl reload nginx
+}
+
+ensure_certbot() {
+  if command -v certbot >/dev/null 2>&1; then
+    return 0
+  fi
+  command -v apt-get >/dev/null 2>&1 || return 1
+  log "Installiere certbot…"
+  apt-get update -qq
+  apt-get install -y -qq certbot python3-certbot-nginx
+}
+
+issue_nginx_cert() {
+  local args=(--nginx -d "${DOMAIN}" --non-interactive --agree-tos --redirect)
+  if [[ -n "${TLS_EMAIL}" ]]; then
+    args+=(-m "${TLS_EMAIL}")
+  else
+    args+=(--register-unsafely-without-email)
+  fi
+  certbot "${args[@]}"
+}
+
+setup_https_proxy() {
+  https_enabled || return 0
+
+  write_proxy_snippets
+
+  local proc80 proc443
+  proc80="$(port_proc 80)"
+  proc443="$(port_proc 443)"
+
+  local nginx_active=0 caddy_active=0
+  if systemctl is-active --quiet nginx 2>/dev/null || [[ "${proc80}" == *nginx* ]]; then
+    nginx_active=1
+  fi
+  if systemctl is-active --quiet caddy 2>/dev/null || command -v caddy >/dev/null 2>&1 && [[ "${proc80}" == *caddy* ]]; then
+    caddy_active=1
+  fi
+  if command -v caddy >/dev/null 2>&1 && [[ "${caddy_active}" -eq 0 && "${nginx_active}" -eq 0 ]]; then
+    caddy_active=1
+  fi
+
+  if [[ "${nginx_active}" -eq 1 ]]; then
+    log "Nginx erkannt – richte vHost ${DOMAIN} ein…"
+    if [[ -d /etc/letsencrypt/live/${DOMAIN} ]]; then
+      write_nginx_site 1
+    else
+      write_nginx_site 0
+      if ensure_certbot; then
+        if issue_nginx_cert; then
+          write_nginx_site 1 || true
+        else
+          warn "Let's Encrypt via certbot fehlgeschlagen – HTTP-vHost bleibt, Zertifikat spaeter: certbot --nginx -d ${DOMAIN}"
+        fi
+      else
+        warn "certbot nicht installierbar – ${DOMAIN} laeuft vorerst per HTTP hinter Nginx"
+      fi
+    fi
+    ok "Nginx: ${DOMAIN} → 127.0.0.1:${PORT}"
     return 0
   fi
 
-  warn "Port ${port} belegt – beende lauschende Prozesse…"
-  ss -lntp "sport = :${port}" 2>/dev/null || true
-
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -k "${port}/tcp" >/dev/null 2>&1 || true
+  if [[ "${caddy_active}" -eq 1 ]] || { ! tcp_port_in_use 80 && ! tcp_port_in_use 443; }; then
+    if ! command -v caddy >/dev/null 2>&1; then
+      ensure_caddy || {
+        warn "Caddy konnte nicht installiert werden. Snippets liegen in ${INSTALL_DIR}/caddy.snippet"
+        return 0
+      }
+    fi
+    if tcp_port_in_use 80 && [[ "${proc80}" != *caddy* && -n "${proc80}" ]]; then
+      warn "Port 80 gehoert ${proc80} – Caddy nicht gestartet. Snippet: ${INSTALL_DIR}/caddy.snippet"
+      return 0
+    fi
+    log "Caddy: Site ${DOMAIN} → 127.0.0.1:${PORT}"
+    upsert_caddy_site
+    if reload_caddy; then
+      ok "Caddy aktiv (${DOMAIN}, Let's Encrypt automatisch)"
+    else
+      warn "Caddy-Reload fehlgeschlagen – manuell: ${INSTALL_DIR}/caddy.snippet in ${CADDYFILE} uebernehmen"
+    fi
+    return 0
   fi
 
-  local pids
-  pids="$(
-    ss -lntp "sport = :${port}" 2>/dev/null \
-      | grep -oE 'pid=[0-9]+' \
-      | cut -d= -f2 \
-      | sort -u \
-      || true
-  )"
-  if [[ -n "${pids}" ]]; then
-    # shellcheck disable=SC2086
-    kill ${pids} >/dev/null 2>&1 || true
-    sleep 1
-    # shellcheck disable=SC2086
-    kill -9 ${pids} >/dev/null 2>&1 || true
-  fi
+  warn "Port 80/443 belegt durch ${proc80:-unbekannt}/${proc443:-unbekannt} – kein Reverse-Proxy gesetzt."
+  warn "App lauscht intern auf ${BIND}:${PORT}. Bitte im bestehenden Proxy Host ${DOMAIN} → 127.0.0.1:${PORT} eintragen."
+  warn "Vorlagen: ${INSTALL_DIR}/caddy.snippet  ${INSTALL_DIR}/nginx.snippet.conf"
+}
 
-  sleep 1
+check_public_https() {
+  https_enabled || return 0
+  local url="https://${DOMAIN}/api/health"
+  local code
+  log "Pruefe oeffentliches HTTPS (${url})…"
+  code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 20 "${url}" 2>/dev/null || true)"
+  if [[ "${code}" == "200" ]]; then
+    ok "HTTPS erreichbar (${DOMAIN})"
+  else
+    warn "https://${DOMAIN} antwortet noch nicht (HTTP ${code:-n/a}). DNS, Cloud-Firewall 80/443 und Zertifikatausstellung pruefen."
+  fi
+}
+
+# Beendet keine fremden Dienste. Nach compose down sollte der interne Port frei sein.
+ensure_port_free() {
+  local port="$1"
+  if ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port}"; then
+    warn "Port ${port} ist noch belegt:"
+    ss -lntp "sport = :${port}" 2>/dev/null || true
+    die "Internen Port ${port} nicht belegen (SArch und andere Dienste bleiben unangetastet). SYSTEMHAUS_PORT=<frei> setzen."
+  fi
 }
 
 compose_up() {
@@ -227,8 +593,6 @@ compose_up() {
   fi
   docker rm -f systemhaus-ess >/dev/null 2>&1 || true
 
-  # Zuerst nur bauen – Port erst direkt vor dem Start freigeben
-  # (sonst kann waehrend langer Builds wieder ein alter node-Prozess den Port belegen)
   # SYSTEMFLOW_NO_CACHE=1 erzwingt Rebuild ohne Docker-Layer-Cache (bei „alte UI“ nutzen)
   log "Baue Image…"
   local build_flags=(--pull)
@@ -249,33 +613,13 @@ compose_up() {
     fi
   fi
 
-  free_port "${PORT}"
   ensure_port_free "${PORT}"
 
   log "Starte Container…"
   if [[ "${mode}" == "compose" ]]; then
-    if ! docker compose --env-file .env up -d --remove-orphans --force-recreate; then
-      warn "Start fehlgeschlagen – Port erneut freigeben und einmal retry…"
-      free_port "${PORT}"
-      ensure_port_free "${PORT}"
-      docker compose --env-file .env up -d --remove-orphans --force-recreate
-    fi
+    docker compose --env-file .env up -d --remove-orphans --force-recreate
   else
-    if ! docker-compose --env-file .env up -d --remove-orphans --force-recreate; then
-      warn "Start fehlgeschlagen – Port erneut freigeben und einmal retry…"
-      free_port "${PORT}"
-      ensure_port_free "${PORT}"
-      docker-compose --env-file .env up -d --remove-orphans --force-recreate
-    fi
-  fi
-}
-
-ensure_port_free() {
-  local port="$1"
-  if ss -lnt "sport = :${port}" 2>/dev/null | grep -q ":${port}"; then
-    warn "Port ${port} ist noch belegt:"
-    ss -lntp "sport = :${port}" 2>/dev/null || true
-    die "Port ${port} freigeben (z. B. kill des node-Prozesses) oder SYSTEMHAUS_PORT=<frei> nutzen"
+    docker-compose --env-file .env up -d --remove-orphans --force-recreate
   fi
 }
 
@@ -286,7 +630,7 @@ health_check() {
   for i in $(seq 1 30); do
     code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 3 "${url}" 2>/dev/null || true)"
     if [[ "${code}" == "200" ]]; then
-      ok "Health-Check OK (lokal Port ${PORT})"
+      ok "Health-Check OK (lokal ${BIND}:${PORT})"
       return 0
     fi
     # Container evtl. noch am Neustart
@@ -339,16 +683,22 @@ start_service() {
 }
 
 print_summary() {
-  local ip
+  local ip url
   ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   [[ -z "${ip}" ]] && ip="SERVER-IP"
+  if https_enabled; then
+    url="https://${DOMAIN}"
+  else
+    url="http://${ip}:${PORT}"
+  fi
 
   cat <<EOF
 
 ----------------------------------------
   Systemhaus-Ess ist aktiv
 ----------------------------------------
-  URL:     http://${ip}:${PORT}
+  URL:     ${url}
+  Intern:  http://127.0.0.1:${PORT}
   Login:   admin / (siehe ${INSTALL_DIR}/.env)
   Ordner:  ${INSTALL_DIR}
   Dienst:  systemctl status ${SERVICE_NAME}
@@ -357,10 +707,10 @@ print_summary() {
   Start:   sudo systemctl start ${SERVICE_NAME}
 
   Wenn von aussen nicht erreichbar:
-  - Cloud-Firewall / Security Group: TCP ${PORT} freigeben
+  - DNS A/AAAA: ${DOMAIN:-'(HTTP-only)'} → diese Server-IP
+  - Cloud-Firewall: TCP 80 und 443 freigeben (nicht den internen Port)
   - Lokal testen: curl -s http://127.0.0.1:${PORT}/api/health
-  - Port-Check:  ss -lntp | grep ${PORT}
-  - Logs:        docker logs systemhaus-ess --tail 80
+  - Logs:         docker logs systemhaus-ess --tail 80
 ----------------------------------------
 
 EOF
@@ -380,10 +730,13 @@ main() {
   fi
   chmod +x "${INSTALL_DIR}/scripts/deploy.sh" 2>/dev/null || true
 
+  resolve_bind_and_port
   write_env
   open_firewall
   install_systemd
   start_service
+  setup_https_proxy
+  check_public_https
   print_summary
 }
 

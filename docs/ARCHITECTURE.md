@@ -20,7 +20,7 @@ Browser (React SPA)
 | Web | `apps/web` | UI, TipTap-Editor (Lesen standardmäßig, Bearbeiten per Button; Panels, Codeblock mit Zeilen/Kopieren, Checklisten). Staff hell/kompakt (`.theme-light` an App-Shell und `html`, damit Modals/Portale Tokens erben; Marke www.systemhaus-ess.de: Sora/Manrope, Akzent `#2F6FAE`; `--code-bg` hell für Editor-Codeblöcke); Kundenportal, Login, Vault-Share und Marketing-Abmeldung dunkel |
 | Agent | `apps/agent` | Windows-/Linux-/macOS-Dienst, Heartbeat |
 | Android | `apps/android-app` | WebView-Hülle (APK) |
-| Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd |
+| Deploy | `scripts/deploy.sh` | Clone/Pull, Build, systemd, HTTPS-Proxy |
 | Compose | `docker-compose.yml` | Container + Volume |
 
 ## Datenmodell
@@ -97,10 +97,13 @@ SMTP liegt in `org_settings` (Passwort AES-256-GCM mit Schlüssel aus `SESSION_S
 deploy.sh
   → Docker sicherstellen
   → git clone/pull
-  → .env (Port, Secrets, Admin)
+  → .env (interner Port 8082, Bind 127.0.0.1, COOKIE_SECURE, Domain)
   → systemd systemhaus-ess.service
   → docker compose up -d --build
+  → Caddy-Site oder Nginx-vHost für systemflow.systemhaus-ess.de (Let's Encrypt)
 ```
+
+Die App lauscht nur auf localhost. Öffentlich ist **https://systemflow.systemhaus-ess.de**. Port 8081 wird nicht mehr belegt (SArch und andere Dienste bleiben). `SYSTEMFLOW_HTTP_ONLY=1` stellt das alte HTTP-Bind auf `0.0.0.0` wieder her. Hinter dem Proxy setzt Fastify `trustProxy`, damit Secure-Cookies und Client-IPs stimmen.
 
 Daten liegen im Volume `systemhaus-data` und überleben Updates. Systemsicherung (Download/Restore) siehe [BACKUP.md](BACKUP.md).
 

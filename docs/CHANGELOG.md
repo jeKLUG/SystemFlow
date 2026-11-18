@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.5.250 – 2026-11-18
+
+- Deploy: HTTPS unter `systemflow.systemhaus-ess.de` (Caddy oder bestehendes Nginx, Let's Encrypt). App nur noch auf `127.0.0.1:8082`; Port 8081 bleibt für andere Dienste (z. B. SArch). `COOKIE_SECURE` und `trustProxy` für den Proxy.
+
 ## 1.5.249 – 2026-10-29
 
 - Verträge: neben SLAs individuelle Verträge mit Titel, Preis (einmalig/Monat/Jahr) und Laufzeit; Nummer `VTR-YYYY-NNN`. SLAs bleiben für Ticket-Fristen zuständig.

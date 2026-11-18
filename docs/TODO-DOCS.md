@@ -1,10 +1,10 @@
 # TODO – Dokumentation
 
-- [ ] Domain / TLS (Let's Encrypt) für Produktions-Setup beschreiben
+- [x] Domain / TLS (Let's Encrypt) für Produktions-Setup – Deploy: `systemflow.systemhaus-ess.de`, intern `127.0.0.1:8082`
 - [ ] Screenshot der UI für README ergänzen
-- [x] Firewall-Hinweise (ufw/firewalld) für `SYSTEMHAUS_PORT` – Deploy öffnet UFW/firewalld; Cloud-Firewall ggf. manuell
+- [x] Firewall-Hinweise (ufw/firewalld) – Deploy öffnet 80/443 (HTTPS) bzw. den HTTP-Port; Cloud-Firewall ggf. manuell
 - [x] Backup-Hinweis für Volume `systemhaus-data` / SQLite-Datei → siehe [BACKUP.md](BACKUP.md)
-- [ ] PWA: Installieren erfordert HTTPS (oder localhost); Icon als PNG optional ergänzen
+- [ ] PWA: Icon als PNG optional ergänzen (HTTPS ist über das Deploy-Skript vorhanden)
 - [ ] Optional: Monitoring-Schwellwerte CPU/RAM je Gerät statt fester V1-Defaults
 - [x] Monitoring-Warnungen je Typ und Gerät inkl. Ticket-Priorität
 - [x] Monitoring-Datenträger: Liste aller Laufwerke, Schwellwert und Ticket je Festplatte

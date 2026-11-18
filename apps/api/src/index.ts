@@ -51,7 +51,12 @@ async function main() {
   const db = await createDb(config.databasePath);
   await ensureAdmin(db, config.adminUsername, config.adminPassword);
 
-  const app = Fastify({ logger: true, bodyLimit: 512 * 1024 * 1024 });
+  const app = Fastify({
+    logger: true,
+    bodyLimit: 512 * 1024 * 1024,
+    // Hinter Caddy/Nginx: X-Forwarded-Proto fuer Secure-Cookies und Client-IP
+    trustProxy: config.cookieSecure || config.isProd,
+  });
 
   await app.register(cors, {
     origin: config.isProd ? false : config.corsOrigin,

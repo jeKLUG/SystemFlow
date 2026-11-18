@@ -5,7 +5,7 @@ Einfache Android-Hülle um die Systemhaus-Ess Web-App – ohne Browser-Chrome.
 ## Voraussetzungen
 
 - [Android Studio](https://developer.android.com/studio) (enthält JDK + SDK)
-- Laufende Systemhaus-Ess-Instanz im gleichen Netz (z. B. `http://192.168.x.x:8081`)
+- Laufende Systemhaus-Ess-Instanz (Produktion: `https://systemflow.systemhaus-ess.de`, LAN z. B. `http://192.168.x.x:8082`)
 
 ## Server-URL setzen
 
@@ -15,7 +15,7 @@ Einfache Android-Hülle um die Systemhaus-Ess Web-App – ohne Browser-Chrome.
 Beispiel:
 
 ```properties
-app.url=http://217.154.167.140:8081
+app.url=https://systemflow.systemhaus-ess.de
 ```
 
 HTTP im LAN ist erlaubt (`usesCleartextTraffic`).

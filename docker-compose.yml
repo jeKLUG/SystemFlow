@@ -4,7 +4,7 @@ services:
     image: systemhaus-ess:latest
     container_name: systemhaus-ess
     ports:
-      - "0.0.0.0:${SYSTEMHAUS_PORT:-8081}:3000"
+      - "${SYSTEMHAUS_BIND:-127.0.0.1}:${SYSTEMHAUS_PORT:-8082}:3000"
     environment:
       NODE_ENV: production
       PORT: "3000"

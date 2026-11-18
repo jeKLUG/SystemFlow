@@ -3,6 +3,7 @@ import { dirname, resolve } from "node:path";
 
 /**
  * Lädt Laufzeitkonfiguration aus Umgebungsvariablen.
+ * `COOKIE_SECURE=true` in Produktion hinter HTTPS (Deploy-Proxy).
  */
 export function loadConfig() {
   const sessionSecret =

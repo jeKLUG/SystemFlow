@@ -1,6 +1,6 @@
 # API
 
-Alle **Staff**-Routen erfordern eine Admin-Session. Portal-Routen liegen unter `/api/portal/*`. Basis: `/api`.
+Alle **Staff**-Routen erfordern eine Admin-Session. Portal-Routen liegen unter `/api/portal/*`. Basis: `/api`. Produktion hinter Reverse-Proxy: Session-Cookie mit `Secure` (`COOKIE_SECURE=true`), Fastify `trustProxy` für `X-Forwarded-Proto` / Client-IP.
 
 ## Auth
 
